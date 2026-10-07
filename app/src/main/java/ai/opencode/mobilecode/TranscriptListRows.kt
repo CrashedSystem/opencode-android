@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -147,7 +146,7 @@ private fun SetupRow(
     modifier: Modifier = Modifier,
     action: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp)
+    val shape = iosContinuousCorner(TranscriptMetrics.cardCornerRadius.dp)
     Row(
         modifier
             .fillMaxWidth()

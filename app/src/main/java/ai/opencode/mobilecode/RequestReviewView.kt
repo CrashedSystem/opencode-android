@@ -21,6 +21,7 @@ import ai.opencode.mobilecode.tca.binding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +33,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -360,13 +360,13 @@ private class RequestReview(
         multiple: Boolean = false,
         action: () -> Unit,
     ) {
-        val shape = RoundedCornerShape(TranscriptMetrics.controlCornerRadius.dp)
+        val shape = iosContinuousCorner(TranscriptMetrics.controlCornerRadius.dp)
         Row(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
                 .clip(shape)
-                .background(SystemColors.secondarySystemBackground)
+                .background(elevatedSecondarySystemBackground())
                 .border(if (selected) 2.dp else 0.5.dp, if (selected) SystemColors.tint else SystemColors.separator, shape)
                 .clickable(enabled = !responding, role = Role.Button, onClick = action)
                 .padding(12.dp)
@@ -404,7 +404,7 @@ private class RequestReview(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
-                .background(SystemColors.secondarySystemBackground, RoundedCornerShape(TranscriptMetrics.controlCornerRadius.dp))
+                .background(elevatedSecondarySystemBackground(), iosContinuousCorner(TranscriptMetrics.controlCornerRadius.dp))
                 .padding(12.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
@@ -529,3 +529,8 @@ val OpenCodePermissionRequest.title: String
             else -> "Allow ${OpenCodeToolCall.displayName(action)}?"
         }
     }
+
+/// A presented sheet elevates `secondarySystemBackground`. Dark mode's elevated value is the base tertiary color.
+@Composable
+private fun elevatedSecondarySystemBackground() =
+    if (isSystemInDarkTheme()) SystemColors.tertiarySystemBackground else SystemColors.secondarySystemBackground

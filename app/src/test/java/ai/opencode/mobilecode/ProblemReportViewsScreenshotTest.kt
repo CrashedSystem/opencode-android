@@ -1,6 +1,7 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.GlassBackdrop
+import ai.opencode.mobilecode.system.GroupedList
 import ai.opencode.mobilecode.system.LocalGlassBlurEnabled
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemTheme
@@ -13,10 +14,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import com.github.takahirom.roborazzi.captureRoboImage
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
@@ -60,6 +64,13 @@ class ProblemReportViewsScreenshotTest {
         val store = offerStore()
         capture("offer-light") { offer(store) }
     }
+
+    @Test
+    fun settingsRowsLight() = rows("settings-rows-light", destination = null)
+
+    @Test
+    @Config(qualifiers = "+night")
+    fun settingsRowsDark() = rows("settings-rows-dark", destination = "opencode")
 
     @Test
     @Config(qualifiers = "+night")
@@ -153,6 +164,35 @@ class ProblemReportViewsScreenshotTest {
                 }
             },
         )
+    }
+
+    private fun rows(name: String, destination: String?) {
+        val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
+        val store = Store(initialState = { ProblemReportsFeature.State().apply { this.server = server } }) { ProblemReportsFeature() }
+        if (destination != null) {
+            store.state::destinations.withLock {
+                value = mapOf(
+                    server.persistenceID to PhoneReportsDestination(
+                        projectID = "p",
+                        projectName = destination,
+                        directory = "/Users/kit/opencode",
+                    ),
+                )
+            }
+        }
+        compose.setContent {
+            SystemTheme {
+                CompositionLocalProvider(LocalGlassBlurEnabled provides false) {
+                    GroupedList(Modifier.width(400.dp), scrollContentBackground = false) {
+                        Section {
+                            ForEach(listOf("reports"), { it }) { ProblemReportSettingsRows(store) }
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/snapshots/problem-reports/ProblemReportViews.$name.png")
     }
 
     private fun offerStore() = Store(
