@@ -50,8 +50,10 @@ class TranscriptFollowTests {
     private val composerInset = 120f * density
     private val list: LazyListState get() = bridge.scrollView!!
 
-    /// One frame of `arrivalSpeed` (1,080 pt/s) at the test clock's 16 ms frames, in pixels.
-    private val frameCap = 1_080f * 0.016f * density
+    /// One frame of `arrivalSpeed` (1,080 pt/s), in pixels. The follower's
+    /// first step takes one display frame (60 Hz here), a little longer than
+    /// the test clock's 16 ms frames.
+    private val frameCap = 1_080f / 60f * density
 
     @Test
     fun followingReaderRidesSixHundredTokensWithoutJumping() {
