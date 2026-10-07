@@ -406,6 +406,10 @@ class TranscriptListViewController(
 
     /// The parts of `update` that move the list, once the update composed.
     private fun didUpdate() {
+        pendingScrollRequest?.let {
+            pendingScrollRequest = null
+            it()
+        }
         val change = pending ?: return
         pending = null
         if (change.sessionChanged) {
@@ -1320,10 +1324,6 @@ class TranscriptListViewController(
         val previousMode = behavior.mode
         execute(behavior.handle(event))
         notifyBrowsingChange(previousMode)
-        pendingScrollRequest?.let {
-            pendingScrollRequest = null
-            it()
-        }
     }
 
     /// Frame-level lab instrumentation, gated because a frame loop and
