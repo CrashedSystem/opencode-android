@@ -7,5 +7,8 @@ class OpenCodeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         SharedMemory.installLive(this)
+        KeychainStorage.install(this)
+        DictationClient.install(this)
+        if (BuildConfig.DEBUG) verifyKeychainRoundTrip(this)
     }
 }

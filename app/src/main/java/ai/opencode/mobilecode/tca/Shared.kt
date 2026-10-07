@@ -14,9 +14,19 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import kotlin.coroutines.coroutineContext
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KProperty
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
@@ -69,9 +79,21 @@ private val withLockMonitor = Any()
 class SharedKey<T> @PublishedApi internal constructor(
     internal val strategy: SharedStrategy,
     internal val serializer: KSerializer<T>,
+    internal val loadOverride: (() -> T?)? = null,
+    internal val saveOverride: ((T) -> Unit)? = null,
     internal val defaultValue: () -> T,
 ) {
     companion object
+}
+
+/** `$savedServers.withLock` when the key is not held as a property. Same lock as a property `withLock`. */
+fun <T> SharedKey<T>.withLock(body: Inout<T>.() -> Unit) {
+    synchronized(withLockMonitor) {
+        val cell = DependencyValues.current[SharedMemory].cell(this)
+        val box = Inout(cell.read())
+        box.body()
+        cell.write(box.value)
+    }
 }
 
 /** `.appStorage("name")`, a preference. */
@@ -90,6 +112,26 @@ inline fun <reified T> SharedKey.Companion.inMemory(name: String, default: T): S
 inline fun <reified T> SharedKey.Companion.keychain(account: String, default: T): SharedKey<T> =
     SharedKey(SharedStrategy.keychain(account), serializer()) { default }
 
+/**
+ * The transcript snapshot cache. [save] is scheduled, not written immediately: the coalesced writer
+ * waits 500 ms on the wall clock, and a newer value replaces a queued one. [load] returning null
+ * uses [default].
+ */
+fun <T> SharedKey.Companion.protectedTranscriptCache(
+    identity: String,
+    default: T,
+    serializer: KSerializer<T>,
+    load: () -> T?,
+    save: (T) -> Unit,
+): SharedKey<T> =
+    SharedKey(
+        SharedStrategy.protectedTranscriptCache(identity),
+        serializer,
+        loadOverride = load,
+        saveOverride = save,
+        defaultValue = { default },
+    )
+
 sealed interface SharedStrategy {
     val id: String
 
@@ -107,6 +149,11 @@ sealed interface SharedStrategy {
 
     data class keychain(val account: String) : SharedStrategy {
         override val id get() = "keychain:$account"
+    }
+
+    /** Application Support `OpenCode/transcript-snapshots.json`, written by [CoalescedWriter]. */
+    data class protectedTranscriptCache(val identity: String) : SharedStrategy {
+        override val id get() = "protectedTranscriptCache:$identity"
     }
 }
 
@@ -133,6 +180,7 @@ class SharedMemory internal constructor(private val backend: SharedBackend) {
         synchronized(cells) { cells.getOrPut(key.strategy.id) { SharedCell(key, load(key), backend) } as Cell<T> }
 
     private fun <T> load(key: SharedKey<T>): T {
+        key.loadOverride?.let { return it() ?: key.defaultValue() }
         val stored = backend.load(key.strategy) ?: return key.defaultValue()
         return runCatching { json.decodeFromString(key.serializer, stored) }.getOrElse { key.defaultValue() }
     }
@@ -143,7 +191,9 @@ class SharedMemory internal constructor(private val backend: SharedBackend) {
 
         /** Installs the live storage. `OpenCodeApp.onCreate` calls it before the store exists. */
         fun installLive(context: Context) {
-            installed = SharedMemory(AndroidSharedBackend(context.applicationContext))
+            val app = context.applicationContext
+            TranscriptCacheDirectory.install(app)
+            installed = SharedMemory(AndroidSharedBackend(app))
         }
 
         override val liveValue: SharedMemory
@@ -166,6 +216,11 @@ private class SharedCell<T>(private val key: SharedKey<T>, initial: T, private v
     override val isShared get() = true
 
     override fun didWrite(value: T) {
+        val override = key.saveOverride
+        if (override != null) {
+            override(value)
+            return
+        }
         backend.save(key.strategy, json.encodeToString(key.serializer, value))
     }
 }
@@ -183,6 +238,87 @@ internal class InMemorySharedBackend : SharedBackend {
 
     override fun save(strategy: SharedStrategy, encoded: String) {
         if (strategy !is SharedStrategy.inMemory) values[strategy.id] = encoded
+    }
+}
+
+/** `filesDir/Application Support/OpenCode/transcript-snapshots.json`, or a temp dir before install. */
+object TranscriptCacheDirectory {
+    @Volatile
+    var root: File? = null
+
+    fun install(context: Context) {
+        root = File(context.applicationContext.filesDir, "Application Support")
+    }
+
+    fun file(): File {
+        val base = root ?: File(System.getProperty("java.io.tmpdir"), "opencode")
+        return File(base, "OpenCode/transcript-snapshots.json")
+    }
+}
+
+/**
+ * Replaces a queued write instead of writing each one. The wait is [delay] on the wall clock, so a
+ * `TestClock` does not move it. [flush] writes whatever is queued and cancels the wait.
+ */
+class CoalescedWriter(
+    private val write: (String?) -> Unit,
+    private val coalesce: Duration = 500.milliseconds,
+) {
+    private class State {
+        var pending: String? = null
+        var hasPending = false
+        var generation = 0
+        var job: Job? = null
+    }
+
+    private val state = State()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun schedule(encoded: String?) {
+        val generation = synchronized(state) {
+            state.pending = encoded
+            state.hasPending = true
+            state.generation += 1
+            state.job?.cancel()
+            state.generation
+        }
+        val task = scope.launch {
+            delay(coalesce)
+            if (!coroutineContext.isActive) return@launch
+            writePending(generation)
+        }
+        synchronized(state) {
+            if (state.generation != generation) task.cancel() else state.job = task
+        }
+    }
+
+    suspend fun flush() {
+        val pending = synchronized(state) {
+            state.job?.cancel()
+            state.job = null
+            if (!state.hasPending) return
+            state.hasPending = false
+            state.pending
+        }
+        write(pending)
+    }
+
+    private fun writePending(generation: Int) {
+        val pending = synchronized(state) {
+            if (state.generation != generation || !state.hasPending) return
+            state.job = null
+            state.hasPending = false
+            state.pending
+        }
+        write(pending)
+    }
+
+    companion object {
+        private val installed = ConcurrentHashMap<String, CoalescedWriter>()
+
+        /** One writer per identity. The first [write] wins; later callers share it. */
+        fun shared(identity: String, write: (String?) -> Unit): CoalescedWriter =
+            installed.computeIfAbsent(identity) { CoalescedWriter(write) }
     }
 }
 
@@ -206,6 +342,8 @@ internal class AndroidSharedBackend(context: Context) : SharedBackend {
             is SharedStrategy.fileStorage -> files.read(strategy.file)
             is SharedStrategy.keychain -> keychain.read(strategy.account)
             is SharedStrategy.inMemory -> null
+            is SharedStrategy.protectedTranscriptCache ->
+                TranscriptCacheDirectory.file().takeIf(File::exists)?.readText()
         }
 
     override fun save(strategy: SharedStrategy, encoded: String) {
@@ -214,7 +352,21 @@ internal class AndroidSharedBackend(context: Context) : SharedBackend {
             is SharedStrategy.fileStorage -> files.write(strategy.file, encoded)
             is SharedStrategy.keychain -> keychain.write(strategy.account, encoded.takeIf { it != "null" })
             is SharedStrategy.inMemory -> Unit
+            is SharedStrategy.protectedTranscriptCache ->
+                CoalescedWriter.shared(strategy.identity, ::writeTranscriptCache).schedule(encoded)
         }
+    }
+
+    private fun writeTranscriptCache(encoded: String?) {
+        val file = TranscriptCacheDirectory.file()
+        if (encoded == null) {
+            file.delete()
+            return
+        }
+        file.parentFile?.mkdirs()
+        val temporary = File(file.parentFile, "${file.name}.tmp")
+        temporary.writeText(encoded)
+        check(temporary.renameTo(file)) { "Couldn't replace $file" }
     }
 }
 
@@ -277,7 +429,7 @@ class Keychain internal constructor(private val preferences: SharedPreferences, 
         preferences.edit().putString(account, Base64.getEncoder().encodeToString(sealed)).commit()
     }
 
-    internal companion object {
+    companion object {
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val TAG_BITS = 128
         private const val IV_BYTES = 12
