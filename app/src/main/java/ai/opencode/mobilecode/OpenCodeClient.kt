@@ -64,7 +64,33 @@ internal val protocolJson = Json {
     isLenient = true
 }
 
-data class AttributedString(val characters: String)
+data class AttributedString(
+    val characters: String,
+    val runs: List<Run> = emptyList(),
+) {
+    data class Run(
+        val start: Int,
+        val end: Int,
+        val foregroundColor: Foreground? = null,
+        val link: String? = null,
+        val inlinePresentationIntent: Set<Intent> = emptySet(),
+        val codeBackground: Boolean = false,
+    )
+
+    enum class Intent { code, stronglyEmphasized, emphasized }
+
+    sealed class Foreground {
+        data object primary : Foreground()
+        data object secondary : Foreground()
+        data object link : Foreground()
+        data object clear : Foreground()
+        data class syntax(val role: SyntaxRole) : Foreground()
+    }
+
+    enum class SyntaxRole { keyword, string, comment, type, number }
+
+    fun slice(start: Int, end: Int): String = characters.substring(start, end.coerceAtMost(characters.length))
+}
 
 data class URLQueryItem(val name: String, val value: String?)
 

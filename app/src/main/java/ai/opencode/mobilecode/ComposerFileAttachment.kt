@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ComposerFileAttachment.swift", "553a407", partial = "file reference, prompt presentation, transcript file, upload event")
+@file:PortedFrom("OpenCode/ComposerFileAttachment.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -54,4 +54,28 @@ data class OpenCodeTranscriptFile(
 sealed class OpenCodeUploadEvent {
     data class progress(val sent: Long) : OpenCodeUploadEvent()
     data class finished(val path: String) : OpenCodeUploadEvent()
+}
+
+data class ComposerFileAttachment(
+    var id: String,
+    var name: String,
+    var mime: String,
+    var size: Long,
+    var localURL: String,
+    var status: Status,
+) {
+    sealed class Status {
+        data class uploading(val sent: Long) : Status()
+        data class uploaded(val path: String) : Status()
+        data class failed(val message: String) : Status()
+    }
+
+    val isFailed: Boolean get() = status is Status.failed
+
+    val progress: Double
+        get() = when (val current = status) {
+            is Status.uploading -> if (size > 0) minOf(1.0, current.sent.toDouble() / size.toDouble()) else 0.0
+            is Status.uploaded -> 1.0
+            is Status.failed -> 0.0
+        }
 }
