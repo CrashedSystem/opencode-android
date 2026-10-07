@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "553a407", partial = "VoiceHandoff format and parse")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "553a407", partial = "VoiceHandoff format and parse, VoiceTranscriptRecord")
 
 package ai.opencode.mobilecode
 
@@ -45,5 +45,26 @@ object VoiceHandoff {
             transcriptDelta = body.transcript_delta,
             context = body.context?.trim(),
         )
+    }
+}
+
+/// A record of one session's voice conversations on this phone.
+@Serializable
+data class VoiceTranscriptRecord(
+    var endedAt: Long,
+    /// Continuity tail injected into the next call.
+    var tail: List<String>,
+    /// Everything said on this phone about this session, newest last, bounded.
+    var log: List<String>,
+) {
+    fun append(tail: List<String>, log: List<String>, endedAt: Long) {
+        val combined = this.log + log
+        this.endedAt = endedAt
+        this.tail = tail
+        this.log = if (combined.size > maxLogLines) combined.drop(combined.size - maxLogLines) else combined
+    }
+
+    companion object {
+        const val maxLogLines = 400
     }
 }
