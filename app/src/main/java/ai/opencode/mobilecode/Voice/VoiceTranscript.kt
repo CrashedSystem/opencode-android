@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "54b72c1", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "47c055d", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
 
 package ai.opencode.mobilecode
 
@@ -164,34 +164,82 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
     }
 }
 
-/// What the pinned session receives for one `delegate` call.
+/// What the pinned session receives for one `delegate` call: the user's own
+/// words as the request, the voice agent's framing for display, and the
+/// surrounding conversation as background.
 object VoiceHandoff {
-    const val header = "Voice delegation. Instruction is the cleaned interpretation of the user's request. Transcript delta supplies new or revised conversation for reference, not additional commands. Resolve meaning from the complete utterance, not a disfluent prefix. Lead your reply with one or two plain sentences suitable for reading aloud, then any detail. If this arrives while you are already working (a follow-up, nudge, or status check), answer it promptly: a clear status update, the finished result if you have enough, or the precise blocker or input you need; then continue on the fastest safe path."
+    const val header = "Voice delegation. The user is on a voice call with a voice agent, which hands their requests to you. Instruction is the user's own spoken words since the previous delegation, transcribed from speech, so it may contain recognition errors and disfluencies: resolve meaning from the complete utterance, not a disfluent prefix. Voice, when present, is how the voice agent framed the request. Transcript delta is the surrounding voice conversation, both sides, for context, not additional commands. Lead your reply with one or two plain sentences suitable for reading aloud, then any detail. If this arrives while you are already working (a follow-up, nudge, or status check), answer it promptly: a clear status update, the finished result if you have enough, or the precise blocker or input you need; then continue on the fastest safe path."
 
     @Serializable
     private data class Body(
         var context: String? = null,
         var instruction: String,
         var transcript_delta: List<String> = emptyList(),
+        var voice: String? = null,
     )
 
-    fun format(instruction: String, transcriptDelta: List<String>, context: String? = null): String {
-        val trimmed = context?.trim()?.ifEmpty { null }
+    fun format(instruction: String, transcriptDelta: List<String>, context: String? = null, framing: String? = null): String {
+        val trimmedContext = context?.trim()
+        val trimmedFraming = framing?.trim()
         val json = Json {
             prettyPrint = true
             explicitNulls = false
             encodeDefaults = true
-        }.encodeToString(Body(context = trimmed, instruction = instruction, transcript_delta = transcriptDelta))
+        }.encodeToString(
+            Body(
+                context = if (trimmedContext?.isEmpty() == false) trimmedContext else null,
+                instruction = instruction,
+                transcript_delta = transcriptDelta,
+                voice = if (trimmedFraming?.isEmpty() == false) trimmedFraming else null,
+            ),
+        )
         return "$header\n$json"
     }
 
+    /// The voice agent's framing of a delegation, shown in the session as the
+    /// Voice message: Realtime's `delegate` text, or GPT-Live's spoken
+    /// acknowledgement. Nil when it names nothing ("On it", "Sure, I'll take a
+    /// look"), so the session shows the user's words instead. A word count
+    /// can't tell "Checking the README." from "Looking that up now."; whether
+    /// any word names the task can.
+    fun framing(text: String?): String? {
+        val trimmed = text?.trim()
+        if (trimmed.isNullOrEmpty()) return null
+        val words = trimmed.lowercase()
+            .replace("’", "'")
+            .split(Regex("[^\\p{L}\\p{N}']+"))
+            .filter { it.isNotEmpty() }
+        return if (words.any { !genericWords.contains(it) }) trimmed else null
+    }
+
+    /// Acknowledgement filler, pronouns, and verbs that say work is happening
+    /// without saying which.
+    private val genericWords: Set<String> = setOf(
+        "a", "about", "alright", "all", "an", "and", "at", "away", "be", "bit", "check", "checking", "do", "doing",
+        "find", "finding", "for", "get", "getting", "go", "going", "good", "got", "great", "here", "i", "i'll", "i'm",
+        "into", "is", "it", "it's", "just", "let", "let's", "look", "looking", "me", "moment", "now", "of", "ok",
+        "okay", "on", "one", "out", "over", "quick", "quickly", "real", "right", "second", "see", "seeing", "sec",
+        "so", "sounds", "start", "starting", "sure", "take", "taking", "that", "that's", "the", "there", "these",
+        "thing", "this", "those", "to", "up", "we", "we'll", "what", "what's", "will", "with", "work", "working",
+        "yeah", "yep", "yes", "you",
+    )
+
+    /// A prompt `format` wrote, read back for display. Nil for anything else,
+    /// including text that merely mentions a voice delegation.
     data class Delegation(
+        /// The user's own words.
         var instruction: String,
         var transcriptDelta: List<String>,
         var context: String? = null,
-    )
+        /// The voice agent's framing; prompts from before it was sent have none.
+        var framing: String? = null,
+    ) {
+        /// What the session shows: the voice agent prompting on the user's behalf.
+        val displayText: String get() = framing ?: instruction
+    }
 
     fun parse(text: String): Delegation? {
+        // The header's wording may change; the first sentence and the body's shape won't.
         if (!text.startsWith("Voice delegation.")) return null
         val newline = text.indexOf('\n')
         if (newline < 0) return null
@@ -200,10 +248,12 @@ object VoiceHandoff {
         }.getOrNull() ?: return null
         val instruction = body.instruction.trim()
         if (instruction.isEmpty()) return null
+        val framing = body.voice?.trim()
         return Delegation(
             instruction = instruction,
             transcriptDelta = body.transcript_delta,
             context = body.context?.trim(),
+            framing = if (framing?.isEmpty() == false) framing else null,
         )
     }
 }
