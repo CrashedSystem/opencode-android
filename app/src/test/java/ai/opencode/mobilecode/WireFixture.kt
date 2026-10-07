@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/WireFixture.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/WireFixture.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -13,7 +13,6 @@ import java.io.Closeable
 class WireFixture(private val reply: (Request) -> Reply) : Closeable {
     sealed class Reply {
         data class json(val status: Int, val body: String) : Reply()
-        data object redirect : Reply()
 
         companion object {
             fun status(status: Int) = json(status, "")
@@ -29,15 +28,16 @@ class WireFixture(private val reply: (Request) -> Reply) : Closeable {
     ) {
         val route: String get() = "${method ?: "GET"} $path"
 
-        fun queryValue(name: String): String? = queryItems().firstOrNull { it.name == name }?.value
-
-        fun queryItems(): List<URLQueryItem> {
-            val raw = query ?: return emptyList()
-            return raw.split("&").filter { it.isNotEmpty() }.map { part ->
-                val pieces = part.split("=", limit = 2)
-                URLQueryItem(percentDecode(pieces[0]), pieces.getOrNull(1)?.let { percentDecode(it) })
+        val queryItems: List<URLQueryItem>
+            get() {
+                val raw = query ?: return emptyList()
+                return raw.split("&").filter { it.isNotEmpty() }.map { part ->
+                    val pieces = part.split("=", limit = 2)
+                    URLQueryItem(percentDecode(pieces[0]), pieces.getOrNull(1)?.let { percentDecode(it) })
+                }
             }
-        }
+
+        fun queryValue(name: String): String? = queryItems.firstOrNull { it.name == name }?.value
 
         fun json(): JsonObject = protocolJson.parseToJsonElement(body.decodeToString()).jsonObject
     }
@@ -63,10 +63,6 @@ class WireFixture(private val reply: (Request) -> Reply) : Closeable {
                         .setHeader("Content-Type", "application/json")
                         .body(response.body)
                         .build()
-                    Reply.redirect -> {
-                        val target = request.url.newBuilder().removePathSegment(request.url.pathSize - 1).addPathSegment("redirected").build()
-                        MockResponse.Builder().code(307).setHeader("Location", target.toString()).body("").build()
-                    }
                 }
             }
         }

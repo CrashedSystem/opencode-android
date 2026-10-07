@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ProblemReports/ProblemReport.swift", "553a407")
+@file:PortedFrom("OpenCode/ProblemReports/ProblemReport.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -72,13 +72,7 @@ data class ProblemReportDevice(
                 val fingerprint = runCatching { Build.FINGERPRINT }.getOrNull().orEmpty()
                 val hardware = runCatching { Build.HARDWARE }.getOrNull().orEmpty()
                 val simulated = fingerprint.startsWith("generic") || hardware == "ranchu" || hardware == "goldfish"
-                val distribution = if (BuildConfig.DEBUG) {
-                    "Debug"
-                } else if (InternalBuild.isTestFlight) {
-                    "TestFlight"
-                } else {
-                    "Play"
-                }
+                val distribution = if (InternalBuild.isDebug) "Debug" else (if (InternalBuild.isTestFlight) "TestFlight" else "Play")
                 return ProblemReportDevice(
                     appVersion = BuildConfig.VERSION_NAME,
                     build = BuildConfig.VERSION_CODE.toString(),
@@ -103,7 +97,6 @@ data class ProblemReport(
     /// The last few telling timeline lines, for the readable summary.
     var highlights: List<String> = emptyList(),
     var attempts: Int = 0,
-    var lastError: String? = null,
 ) {
     @Serializable
     enum class Status {

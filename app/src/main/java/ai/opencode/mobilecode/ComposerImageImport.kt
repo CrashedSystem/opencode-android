@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ComposerImageImport.swift", "553a407")
+@file:PortedFrom("OpenCode/ComposerImageImport.swift", "ae6c3d3")
 
 package ai.opencode.mobilecode
 
@@ -60,17 +60,12 @@ object ComposerItemProviderLoader {
 sealed class ComposerImageSource {
     data class itemProvider(val provider: NSItemProvider) : ComposerImageSource()
     data class photosPickerItem(val item: PhotosPickerItem, val id: UUID? = null) : ComposerImageSource()
-    data class data(val data: ByteArray, val id: UUID? = null) : ComposerImageSource()
+    data class data(val data: ByteArray) : ComposerImageSource()
     data class transferable(val image: ComposerImageTransfer) : ComposerImageSource()
-    data class loader(val id: UUID? = null, val load: suspend () -> ByteArray?) : ComposerImageSource()
+    data class loader(val load: suspend () -> ByteArray?) : ComposerImageSource()
 
     val attachmentID: UUID?
-        get() = when (this) {
-            is photosPickerItem -> id
-            is data -> id
-            is loader -> id
-            is itemProvider, is transferable -> null
-        }
+        get() = (this as? photosPickerItem)?.id
 
     suspend fun load(): ByteArray? = when (this) {
         is itemProvider -> ComposerItemProviderLoader.load(provider)

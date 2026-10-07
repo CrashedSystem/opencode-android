@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "a20a28d")
 
 package ai.opencode.mobilecode
 
@@ -22,12 +22,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /// Records every haptic by name.
-private fun recording(log: MutableList<String>) = HapticsClient(
+internal fun HapticsClient.Companion.recording(log: MutableList<String>) = HapticsClient(
     selection = { log += "selection" },
     impact = { log += "impact" },
     success = { log += "success" },
     error = { log += "error" },
     attention = { log += "attention" },
+    warning = { log += "warning" },
     voice = { haptic -> log += "voice.${haptic.name}" },
     drawer = { log += "drawer" },
 )
@@ -51,7 +52,7 @@ class HapticsAuditTests {
             initialState = { state ?: SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ -> }
                 it.openCodeClient.waitForIdle = { _, _ -> }
                 it.openCodeClient.transcript = { _, _, _ -> emptyList() }
@@ -157,13 +158,35 @@ class HapticsAuditTests {
     }
 
     @Test
+    fun armingAHeldMicTapsAndDisarmingTicks() {
+        val log = mutableListOf<String>()
+        val feed = Channel<String>(Channel.UNLIMITED)
+        val store = sessionStore(null, log) {
+            it.dictation.start = { feed.consumeAsFlow() }
+            it.dictation.stop = { feed.close() }
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(SessionFeature.Action.micPressBegan)
+        store.receive<SessionFeature.Action.dictationReady>()
+        log.clear()
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.lock))
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.lock))
+        store.send(SessionFeature.Action.micPressArmed(null))
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.cancel))
+        // Arming taps and disarming ticks, the same for lock and cancel.
+        expect(log == listOf("impact", "selection", "impact"))
+        feed.close()
+        store.skipInFlightEffects()
+    }
+
+    @Test
     fun homeHaptics() {
         val log = mutableListOf<String>()
         val state = HomeFeature.State(server = server, snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = listOf(session), activeSessionIDs = emptySet()))
         val store = TestStore(
             initialState = { state },
             withDependencies = {
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.deleteSession = { _, _ -> }
             },
         ) { HomeFeature() }
@@ -184,7 +207,7 @@ class HapticsAuditTests {
         val store = TestStore(
             initialState = { SessionSheetFeature.State(server = server, sessionID = session.id) },
             withDependencies = {
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.compactSession = { _, _ -> }
             },
         ) { SessionSheetFeature() }

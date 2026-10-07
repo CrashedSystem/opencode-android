@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentCameraView.swift", "553a407")
+@file:PortedFrom("OpenCode/AttachmentCameraView.swift", "ae6c3d3")
 
 package ai.opencode.mobilecode
 
@@ -550,7 +550,7 @@ private class AttachmentCameraState(
                 zoomState.reset(event.readiness.zoom)
                 publishZoom()
                 hasFlash = event.readiness.hasFlash
-                isFocusLocked = event.readiness.focusLocked
+                isFocusLocked = false
             }
             is AttachmentCaptureSession.Event.zoom -> {
                 zoomState.rampProgressed(event.ramp, event.factor)
@@ -948,7 +948,6 @@ private class AttachmentCaptureSession(
         val device: CameraDeviceDescription,
         val zoom: Double,
         val hasFlash: Boolean,
-        val focusLocked: Boolean,
     )
 
     sealed class Event {
@@ -977,7 +976,6 @@ private class AttachmentCaptureSession(
     private var preferApplied = false
     private var rampJob: Job? = null
     private var rampId: UUID? = null
-    private var focusLocked = false
     private var tapFocused = false
     private var focusBaseline: Double? = null
     private var focusAtNanos = 0L
@@ -1132,7 +1130,6 @@ private class AttachmentCaptureSession(
         if (lock) builder.disableAutoCancel() else builder.setAutoCancelDuration(5, TimeUnit.SECONDS)
         camera.cameraControl.startFocusAndMetering(builder.build())
         setAeLock(camera, lock)
-        focusLocked = lock
         tapFocused = !lock
         focusAtNanos = System.nanoTime()
         focusBaseline = null
@@ -1194,7 +1191,6 @@ private class AttachmentCaptureSession(
         preferApplied = true
         camera.cameraControl.setZoomRatio(ratio)
         resumeContinuousFocus(camera)
-        focusLocked = false
         tapFocused = false
         rampJob?.cancel()
         rampId = null
@@ -1261,14 +1257,12 @@ private class AttachmentCaptureSession(
                     device = device,
                     zoom = zoom,
                     hasFlash = info.lensFacing == CameraSelector.LENS_FACING_BACK && info.hasFlashUnit(),
-                    focusLocked = focusLocked,
                 ),
             ),
         )
     }
 
     private fun resumeContinuousFocus(camera: Camera) {
-        focusLocked = false
         tapFocused = false
         setAeLock(camera, false)
         camera.cameraControl.cancelFocusAndMetering()
@@ -1294,7 +1288,7 @@ private class AttachmentCaptureSession(
             request: CaptureRequest,
             result: TotalCaptureResult,
         ) {
-            if (!tapFocused || focusLocked) return
+            if (!tapFocused) return
             val exposure = result.get(CaptureResult.SENSOR_EXPOSURE_TIME) ?: return
             val iso = result.get(CaptureResult.SENSOR_SENSITIVITY) ?: return
             val brightness = exposure.toDouble() * iso

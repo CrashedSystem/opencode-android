@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ProblemReports/ProblemReportsFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/ProblemReports/ProblemReportsFeature.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -404,7 +404,7 @@ class ProblemReportsFeature : Reducer<ProblemReportsFeature.State, ProblemReport
                         val saved = store.load(action.id)
                         if (saved != null) {
                             runCatching {
-                                store.update(saved.copy(attempts = saved.attempts + 1, lastError = failure?.error?.message))
+                                store.update(saved.copy(attempts = saved.attempts + 1))
                             }
                         }
                         state.automaticAttempts += (action.id to ((state.automaticAttempts[action.id] ?: 0) + 1))

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/LiveActivity/VoiceLiveActivityClient.swift", "553a407", partial = "VoiceLiveActivity, the client with a no-op live value, LiveActivityStatus; LiveVoiceActivity waits for the voice call slice")
+@file:PortedFrom("OpenCode/LiveActivity/VoiceLiveActivityClient.swift", "dd71df9", partial = "VoiceLiveActivity, the client with a no-op live value, LiveActivityStatus; LiveVoiceActivity waits for the voice call slice")
 
 package ai.opencode.mobilecode
 

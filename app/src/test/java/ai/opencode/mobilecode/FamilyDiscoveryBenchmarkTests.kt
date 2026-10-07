@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/FamilyDiscoveryBenchmarkTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/FamilyDiscoveryBenchmarkTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -32,16 +32,7 @@ class FamilyDiscoveryBenchmarkTests {
         assertTrue("Use 0...98 children to avoid the existing traversal cap", expectedChildren in 0..98)
         if (expectedChildren !in 0..98) return
         val server = OpenCodeServer(url = address, username = "", password = "")
-
-        val rootData = http(address, "api/session/root")
-        val root = json.decodeFromString<RootResponse>(rootData.decodeToString()).data
-        val rootSession = OpenCodeSession(
-            id = root.id,
-            title = root.title,
-            projectID = root.projectID,
-            directory = root.location.directory,
-            updatedAt = root.time.updated.toLong(),
-        )
+        val rootSession = kotlinx.coroutines.runBlocking { OpenCodeClient.liveValue.getSession(server, "root") }
         val expectedIDs = listOf("root") + (0 until expectedChildren).map { "child-%02d".format(it + 1) }
         val durations = mutableListOf<Double>()
         for (trial in 1..5) {
@@ -98,24 +89,6 @@ class FamilyDiscoveryBenchmarkTests {
 
     private fun emit(value: Map<String, Any?>) {
         println("FAMILY_BENCHMARK ${sortedJson(value)}")
-    }
-
-    @Serializable
-    private data class RootResponse(val data: Root) {
-        @Serializable
-        data class Root(
-            val id: String,
-            val title: String,
-            val projectID: String,
-            val location: Location,
-            val time: Time,
-        ) {
-            @Serializable
-            data class Location(val directory: String)
-
-            @Serializable
-            data class Time(val updated: Double)
-        }
     }
 
     @Serializable

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "553a407")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "c3a6c9a", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -1058,7 +1058,7 @@ class TranscriptListViewController(
         // Arrivals only ever move content forward: if the end now lies behind
         // the reader (it shrank, or the follower carried them past it), the
         // shrunk end is settled like any other.
-        if (springKind == SpringKind.arrival && x0 >= -0.5 * density) {
+        if (springKind == SpringKind.arrival && x0 >= 0) {
             stopBottomSpring()
             pinnedGeometry = currentPinGeometry
             if (x0 > 0.5 * density) settleShrunkEnd()
@@ -1082,8 +1082,23 @@ class TranscriptListViewController(
             x = 0.0
             v = 0.0
         }
+        // The offset lands on whole pixels, so a smaller step is rounded away and
+        // the tail would stall short of the end until the timeout: move at least
+        // a pixel, and land once within one.
+        val pixel = 1.0
+        if (abs(x - x0) < pixel && dt > 0) {
+            if (abs(x0) <= pixel) {
+                x = 0.0
+                v = 0.0
+            } else {
+                x = x0 + (if (x0 < 0) pixel else -pixel)
+                v = (x - x0) / dt
+            }
+        }
         bottomSpringVelocity = v
-        if (abs(x) < 0.5 * density && abs(v) < 20 * density || now() > bottomSpringDeadline) {
+        // Within a pixel, the last step lands exactly on the end: stopping short
+        // would leave a stray pixel for the next pin to snap.
+        if (abs(x) <= pixel && abs(v) < 20 * density || now() > bottomSpringDeadline) {
             stopBottomSpring()
             landAtEnd()
             pinnedGeometry = currentPinGeometry
@@ -1370,10 +1385,11 @@ private object DisclosureMotion {
 }
 
 private object BottomSpring {
-    /// Jump to latest, the keyboard, and pills above the composer: about 0.5 s.
-    const val jumpOmega = 14.0
-    /// Rows arriving at the bottom: about 0.35 s.
-    const val arrivalOmega = 20.0
+    /// Jump to latest, the keyboard, and pills above the composer: about 0.4 s.
+    const val jumpOmega = 18.0
+    /// Rows arriving at the bottom: about 0.2 s. A stream is ridden about a
+    /// line behind its end; softer, it trails by several and feels slow.
+    const val arrivalOmega = 40.0
     /// Arrivals move at most 18 pt per 60 Hz frame.
     const val arrivalSpeed = 1_080.0
     /// Arrivals within this many screens glide; farther, they land at once.

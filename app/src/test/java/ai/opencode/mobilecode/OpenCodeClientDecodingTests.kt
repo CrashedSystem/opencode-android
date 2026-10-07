@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -416,25 +416,24 @@ class OpenCodeClientDecodingTests {
               {"question":"Anything else?","custom":true}
             ]}
         """.trimIndent())
-        val questions = OpenCodeToolCall(
-            callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running,
-            input = input, output = emptyList(), metadata = emptyMap(),
-        ).questions!!
-        assertEquals(3, questions.size)
-        assertEquals(listOf("App only", "Everything"), questions[0].options.map { it.label })
-        assertEquals(true, questions[1].multiple)
-        assertEquals(true, questions[1].custom)
-        assertEquals("", questions[2].header)
-        assertTrue(questions[2].options.isEmpty())
+        val call = OpenCodeToolCall.test(callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running, input = input)
+
+        val questions = call.questions!!
+        assertEquals(
+            listOf(
+                OpenCodeQuestion(question = "What should ship?", header = "Scope"),
+                OpenCodeQuestion(question = "Which checks should run?", header = "Checks"),
+                OpenCodeQuestion(question = "Anything else?", header = ""),
+            ),
+            questions,
+        )
     }
 
     @Test
     fun malformedQuestionToolInputFallsBackToGenericToolUI() {
         val input = protocolJson.decodeFromString<OpenCodeJSONValue>("""{"questions":[{"header":"Missing question"},{"question":"  "}]}""")
-        val call = OpenCodeToolCall(
-            callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running,
-            input = input, output = emptyList(), metadata = emptyMap(),
-        )
+        val call = OpenCodeToolCall.test(callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running, input = input)
+
         assertNull(call.questions)
     }
 

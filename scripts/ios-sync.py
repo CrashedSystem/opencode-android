@@ -6,6 +6,12 @@ docs/port/sync.json records the upstream commit the port is synced to and
 classifies every upstream file as port, review, or ignore. A Kotlin file
 claims the iOS file it mirrors with @file:PortedFrom("<ios path>", "<commit>"),
 where the commit is the upstream revision that file was last synced against.
+
+A port file is ported (a full claim), deferred (`deferred`: not tracked; a
+partial claim on it is a placeholder for callers and stays pinned at the commit
+it was carved from), or partly ported (`partial`: a partial claim that is kept
+in sync, with the reason its remainder waits). Upstream commits listed in
+`skipped` were deliberately not ported: a claim is not stale for their changes.
 """
 
 import argparse
@@ -33,11 +39,14 @@ def main():
     plan.add_argument("rev", nargs="?", help="upstream revision to plan up to (default: origin/<branch>)")
     advance = commands.add_parser("advance", help="record REV as synced once every changed file is ported or deferred")
     advance.add_argument("rev")
+    mark = commands.add_parser("mark", help="set the @file:PortedFrom commit of ported files to REV")
+    mark.add_argument("rev")
+    mark.add_argument("paths", nargs="*", help="iOS or Kotlin paths (default: every port file REV changed)")
     args = parser.parse_args()
 
     config = json.loads(CONFIG.read_text())
     ensure_upstream(config, fetch=args.command in ("status", "plan"))
-    {"status": status, "check": check, "progress": progress, "plan": plan_worklist, "advance": advance_sync}[args.command](config, args)
+    {"status": status, "check": check, "progress": progress, "plan": plan_worklist, "advance": advance_sync, "mark": mark_ported}[args.command](config, args)
 
 
 def status(config, _args):
@@ -50,8 +59,9 @@ def status(config, _args):
         print("\nThe port is synced with upstream.")
         return
     print(f"\n{len(commits)} upstream commit(s) not yet ported:")
+    skipped = skipped_commits(config)
     for commit in commits:
-        print(f"  {describe(commit)}")
+        print(f"  {describe(commit)}" + (f"  [skipped: {skipped[commit]}]" if commit in skipped else ""))
     report_changes(config, changed_files(synced, head))
     print("\nRun scripts/ios-sync.py plan to write the porting worklist.")
 
@@ -95,6 +105,7 @@ def gate(config, synced):
         "Upstream files with no category in sync.json": [],
         "Port files neither ported nor deferred": [],
         "Port files both ported and deferred": [],
+        "Partial reasons in sync.json without a partial port": [],
         "Ports that claim a file missing upstream": [],
         "Ports older than the synced commit (the iOS file changed since)": [],
         "Claimed Android files that do not exist": [],
@@ -108,16 +119,23 @@ def gate(config, synced):
             ported = is_ported(path, claims)
             if ported and deferred:
                 problems["Port files both ported and deferred"].append(path)
-            elif not ported and not deferred:
+            elif not ported and not deferred and not (path in claims and remainder(path, config)):
                 notes = "; ".join(partial for _, _, partial in claims.get(path, []) if partial)
                 problems["Port files neither ported nor deferred"].append(f"{path} (partial: {notes})" if notes else path)
+    for path in config.get("partial", {}):
+        if path not in claims or is_ported(path, claims):
+            problems["Partial reasons in sync.json without a partial port"].append(path)
     present = set(files)
     for path, ports in claims.items():
         if path not in present:
-            problems["Ports that claim a file missing upstream"].extend(f"{android} claims {path}" for android, _, _ in ports)
+            # A file added after the synced commit, claimed during a sync in progress.
+            missing = [android for android, commit, _ in ports if not (is_ancestor(synced, commit) and exists_at(commit, path))]
+            problems["Ports that claim a file missing upstream"].extend(f"{android} claims {path}" for android in missing)
             continue
-        for android, commit, _ in ports:
-            if path in changed_paths(commit, synced):
+        for android, commit, partial in ports:
+            placeholder = partial and deferral(path, config)
+            # A claim ahead of the synced commit is a sync in progress, not stale.
+            if not placeholder and is_ancestor(commit, synced) and path in changed_paths(commit, synced, config):
                 problems["Ports older than the synced commit (the iOS file changed since)"].append(f"{android} synced {path} at {commit[:7]}")
             if not (ROOT / android).exists():
                 problems["Claimed Android files that do not exist"].append(android)
@@ -148,7 +166,14 @@ def progress(config, _args):
     if missing:
         print("\nNot yet ported, largest first:")
         for lines, path, state in sorted(missing, reverse=True):
-            print(f"  {lines:6} {path}{' (partial)' if state == 'partial' else ''}")
+            waits = remainder(path, config)
+            note = f" (partial; the rest waits: {waits})" if waits else " (partial)" if state == "partial" else ""
+            print(f"  {lines:6} {path}{note}")
+    placeholders = sorted((path, android, commit) for path, ports in claims.items() for android, commit, partial in ports if partial and deferral(path, config))
+    if placeholders:
+        print("\nPlaceholders for deferred files, pinned where they were carved:")
+        for path, android, commit in placeholders:
+            print(f"  {android} at {commit[:7]} ({path})")
 
 
 def plan_worklist(config, args):
@@ -159,6 +184,7 @@ def plan_worklist(config, args):
         print("Nothing to plan, the port is synced.")
         return
     claims = marker_claims(config)
+    skipped = skipped_commits(config)
     out = [
         f"# Port upstream {synced[:7]}..{head[:7]}",
         "",
@@ -172,6 +198,8 @@ def plan_worklist(config, args):
         subject = git("log", "-1", "--format=%s", commit).strip()
         out.append(f"## {commit[:7]} {subject}")
         out.append("")
+        if commit in skipped:
+            out.extend([f"Skipped in sync.json: {skipped[commit]}", ""])
         body = git("log", "-1", "--format=%b", commit).strip()
         if body:
             out.extend(["```", body, "```", ""])
@@ -204,6 +232,7 @@ def advance_sync(config, args):
         path for path, kind in changed_files(synced, target)
         if kind != "deleted" and classify(path, config) == "port"
         and not is_ported(path, claims) and not deferral(path, config)
+        and not (path in claims and remainder(path, config))
     ]
     if stale or unported:
         for item in stale:
@@ -214,6 +243,36 @@ def advance_sync(config, args):
     config["upstream"]["commit"] = target
     CONFIG.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Synced commit is now {describe(target)}.")
+
+
+def mark_ported(config, args):
+    target = resolve(args.rev)
+    claims = marker_claims(config)
+    if args.paths:
+        ios_paths = set()
+        for path in args.paths:
+            if path.endswith(".kt"):
+                android = str((Path.cwd() / path).resolve().relative_to(ROOT))
+                ios_paths.update(ios for ios, ports in claims.items() if any(file == android for file, _, _ in ports))
+            else:
+                ios_paths.add(path)
+    else:
+        ios_paths = {path for path, kind in changed_files(f"{target}~1", target) if kind != "deleted" and classify(path, config) == "port"}
+    for path in sorted(ios_paths):
+        ports = [file for file, _, _ in claims.get(path, []) if file.endswith(".kt")]
+        if not ports:
+            print(f"  skipped {path}: {deferral(path, config) and 'deferred' or 'no Kotlin file claims it'}")
+            continue
+        for file in ports:
+            source = ROOT / file
+            text = source.read_text()
+            updated = MARKER.sub(
+                lambda match: match.group(0).replace(f'"{match.group(2)}"', f'"{target[:7]}"', 1) if match.group(1) == path else match.group(0),
+                text,
+            )
+            if updated != text:
+                source.write_text(updated)
+                print(f"  {file} -> {target[:7]} ({path})")
 
 
 def ensure_upstream(config, fetch):
@@ -232,7 +291,15 @@ def classify(path, config):
 
 
 def deferral(path, config):
+    """Why a file is not tracked. A `partial` entry tracks a file a deferred folder would otherwise cover."""
+    if remainder(path, config):
+        return None
     return next((reason for pattern, reason in config["deferred"].items() if PurePosixPath(path).full_match(pattern)), None)
+
+
+def remainder(path, config):
+    """Why the unported rest of a partly ported file waits, from sync.json `partial`."""
+    return config.get("partial", {}).get(path)
 
 
 def marker_claims(config):
@@ -255,13 +322,16 @@ def targets(path, claims, config, kind="modified"):
         if path in claims:
             return "deleted upstream, remove or re-home " + ", ".join(f"`{android}`" for android, _, _ in claims[path])
         return "deleted upstream, nothing to port"
+    reason = deferral(path, config)
+    if reason:
+        pinned = ", ".join(f"`{android}` at {commit[:7]}" for android, commit, _ in claims.get(path, []))
+        return f"deferred: {reason}" + (f" (placeholder {pinned} stays pinned; add only what callers need)" if pinned else "")
     if path in claims:
         return ", ".join(
             f"`{android}` (synced {commit[:7]}{', partial: ' + partial if partial else ''})"
             for android, commit, partial in claims[path]
         )
-    reason = deferral(path, config)
-    return f"deferred: {reason}" if reason else "NEW, no Kotlin counterpart yet"
+    return "NEW, no Kotlin counterpart yet"
 
 
 def upstream_files(rev):
@@ -269,12 +339,51 @@ def upstream_files(rev):
 
 
 _changed = {}
+_ancestors = {}
 
 
-def changed_paths(old, new):
+def is_ancestor(old, new):
+    if (old, new) not in _ancestors:
+        _ancestors[(old, new)] = git("merge-base", "--is-ancestor", old, new, check=False) is not None
+    return _ancestors[(old, new)]
+
+
+def changed_paths(old, new, config=None):
+    """Files changed from `old` to `new`, leaving out commits sync.json skips."""
+    skipped = skipped_commits(config) if config else {}
     if (old, new) not in _changed:
-        _changed[(old, new)] = set() if old == new else set(git("diff", "--name-only", old, new).splitlines())
+        if old == new:
+            _changed[(old, new)] = set()
+        elif not skipped:
+            _changed[(old, new)] = set(git("diff", "--name-only", old, new).splitlines())
+        else:
+            commits = [commit for commit in git("rev-list", f"{old}..{new}").split() if commit not in skipped]
+            _changed[(old, new)] = set().union(*(commit_paths(commit) for commit in commits))
     return _changed[(old, new)]
+
+
+def exists_at(rev, path):
+    return git("cat-file", "-e", f"{rev}:{path}", check=False) is not None
+
+
+_commit_paths = {}
+
+
+def commit_paths(commit):
+    if commit not in _commit_paths:
+        _commit_paths[commit] = set(git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines())
+    return _commit_paths[commit]
+
+
+_skipped = None
+
+
+def skipped_commits(config):
+    """Upstream commits deliberately not ported, by full SHA, with the reason."""
+    global _skipped
+    if _skipped is None:
+        _skipped = {resolve(rev): reason for rev, reason in config.get("skipped", {}).items()}
+    return _skipped
 
 
 def changed_files(old, new):

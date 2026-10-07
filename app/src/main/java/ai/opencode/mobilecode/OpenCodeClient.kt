@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "553a407")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "ba012e9")
 
 package ai.opencode.mobilecode
 
@@ -23,6 +23,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ai.opencode.mobilecode.system.AttributedString
 import ai.opencode.mobilecode.system.URL
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -1008,11 +1010,10 @@ val OpenCodeMarkdownBlock.fileReferences: List<AgentFileReference>
 data class OpenCodeImageAttachment(
     var id: String,
     @Serializable(with = ByteArrayBase64Serializer::class) var data: ByteArray,
-    var mime: String,
 ) {
     override fun equals(other: Any?): Boolean {
         val image = other as? OpenCodeImageAttachment ?: return false
-        return id == image.id && data.contentEquals(image.data) && mime == image.mime
+        return id == image.id && data.contentEquals(image.data)
     }
     override fun hashCode(): Int = id.hashCode() * 31 + data.contentHashCode()
 }
@@ -1047,27 +1048,14 @@ enum class OpenCodePermissionReply { once, always, reject }
 data class OpenCodeQuestion(
     var question: String,
     var header: String,
-    var options: List<Option>,
-    var multiple: Boolean? = null,
-    var custom: Boolean? = null,
 ) {
-    data class Option(var label: String, var description: String)
-
     companion object {
         fun fromToolInput(toolInput: OpenCodeJSONValue): OpenCodeQuestion? {
             val value = toolInput.`object` ?: return null
             val question = value["question"]?.string?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-            val options = (value["options"] as? OpenCodeJSONValue.array)?.values?.mapNotNull { option ->
-                val objectValue = option.`object` ?: return@mapNotNull null
-                val label = objectValue["label"]?.string?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-                Option(label, objectValue["description"]?.string?.trim() ?: "")
-            } ?: emptyList()
             return OpenCodeQuestion(
                 question = question,
                 header = value["header"]?.string?.trim() ?: "",
-                options = options,
-                multiple = (value["multiple"] as? OpenCodeJSONValue.bool)?.value,
-                custom = (value["custom"] as? OpenCodeJSONValue.bool)?.value,
             )
         }
     }
@@ -1207,16 +1195,7 @@ sealed class OpenCodeLiveContentEvent {
             else -> null
         }
 
-    val projectsRows: Boolean
-        get() = when (this) {
-            is textStarted, is textDelta, is textEnded,
-            is toolInputStarted, is toolInputDelta, is toolInputEnded,
-            is toolCalled, is toolProgress, is toolSucceeded, is toolFailed,
-            -> true
-            is stepStarted, is stepStreamed, is stepEnded,
-            is reasoningStarted, is reasoningDelta, is reasoningEnded,
-            -> false
-        }
+    val projectsRows: Boolean get() = transcriptItemID != null
 
     fun appendingDelta(next: OpenCodeLiveContentEvent): OpenCodeLiveContentEvent? = when {
         this is textDelta && next is textDelta && messageID == next.messageID && ordinal == next.ordinal ->
@@ -1471,7 +1450,7 @@ class OpenCodeClient(
         }
 
         @Serializable
-        data class PromptBody(
+        private data class PromptBody(
             var id: String,
             var text: String,
             var files: List<File>? = null,
@@ -1480,28 +1459,13 @@ class OpenCodeClient(
         ) {
             @Serializable
             data class File(var uri: String, var name: String? = null)
+            @OptIn(ExperimentalSerializationApi::class)
             @Serializable
             data class Metadata(
-                var displayText: String? = null,
-                var comments: List<String>? = null,
-                var attachments: List<OpenCodeFileReference>? = null,
-            )
-        }
-
-        fun promptBody(
-            messageID: String,
-            text: String,
-            attachments: List<OpenCodeOutgoingAttachment>,
-            files: List<OpenCodeFileReference>,
-            delivery: OpenCodeDelivery?,
-        ): PromptBody {
-            val metadata = if (files.isEmpty()) null else PromptBody.Metadata(displayText = text, comments = emptyList(), attachments = files)
-            return PromptBody(
-                id = messageID,
-                text = OpenCodePromptPresentation.modelText(text, files),
-                files = attachments.takeIf { it.isNotEmpty() }?.map { PromptBody.File(it.dataURL, it.name) },
-                delivery = delivery?.name,
-                metadata = metadata,
+                var displayText: String,
+                /// Desktop only reads `displayText` when `comments` is an array.
+                @EncodeDefault var comments: List<String> = emptyList(),
+                var attachments: List<OpenCodeFileReference>,
             )
         }
 
@@ -1667,7 +1631,17 @@ class OpenCodeClient(
             files: List<OpenCodeFileReference> = emptyList(),
             delivery: OpenCodeDelivery?,
         ) {
-            val body = encodedBody(PromptBody.serializer(), promptBody(messageID, text, attachments, files, delivery), "message")
+            val body = encodedBody(
+                PromptBody.serializer(),
+                PromptBody(
+                    id = messageID,
+                    text = OpenCodePromptPresentation.modelText(text, files),
+                    files = if (attachments.isEmpty()) null else attachments.map { PromptBody.File(uri = it.dataURL, name = it.name) },
+                    delivery = delivery?.name,
+                    metadata = if (files.isEmpty()) null else PromptBody.Metadata(displayText = text, attachments = files),
+                ),
+                "message",
+            )
             perform(path = "/api/session/$sessionID/prompt", method = "POST", body = body, timeout = 30, server = server)
         }
 
@@ -2070,7 +2044,7 @@ class OpenCodeClient(
                 if (!mime.startsWith("image/")) return@mapIndexedNotNull null
                 val encoded = file.data ?: return@mapIndexedNotNull null
                 val data = runCatching { Base64.getDecoder().decode(encoded) }.getOrNull() ?: return@mapIndexedNotNull null
-                OpenCodeImageAttachment("${message.id}-img-$index", data, mime)
+                OpenCodeImageAttachment("${message.id}-img-$index", data)
             }
             if (images.isNotEmpty()) items += OpenCodeTranscriptItem.userImages("${message.id}-images", images)
             val references = OpenCodePromptPresentation.files(message.metadata)
@@ -2139,7 +2113,7 @@ class OpenCodeClient(
                 val data = runCatching { Base64.getDecoder().decode(encoded) }.getOrNull() ?: continue
                 if (data.size > 20_000_000 || total + data.size > 32_000_000) continue
                 total += data.size
-                images += OpenCodeImageAttachment("$idPrefix-image-$index", data, mime)
+                images += OpenCodeImageAttachment("$idPrefix-image-$index", data)
             }
             return images
         }

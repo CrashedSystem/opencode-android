@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "553a407")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "9ed3520")
 
 package ai.opencode.mobilecode
 
@@ -27,6 +27,8 @@ data class WhatsNewEntry(
         talkOver,
         callButton,
         catchUp,
+        voiceMessage,
+        dictationBar,
     }
 
     constructor(id: String, day: String, title: String, summary: String, example: String, illustration: Illustration) : this(
@@ -42,6 +44,30 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "dictation-send",
+                    day = "2026-10-07",
+                    title = "Send from Dictation",
+                    summary = "Tap the mic and the recording bar can send what you said straight away, or Stop puts it in your message to review. Holding the mic, slide up to lock or left to cancel, then let go.",
+                    example = "Tap the mic, say a sentence, and tap Send",
+                    illustration = Illustration.dictationBar,
+                ),
+                WhatsNewEntry(
+                    id = "voice-manages-sessions",
+                    day = "2026-10-07",
+                    title = "Voice Gets Around",
+                    summary = "On a call, ask for any session: Voice opens it, starts or steers work there, and tells you when it’s done. Switching sessions no longer cuts Voice off mid-sentence.",
+                    example = "On a call, say “open my upload fixes session and check the tests”",
+                    illustration = Illustration.voiceMessage,
+                ),
+                WhatsNewEntry(
+                    id = "voice-messages",
+                    day = "2026-10-06",
+                    title = "Voice Messages",
+                    summary = "What the voice agent asks the session on your behalf shows in its own words, marked Voice above the message. Your exact words still go to the session.",
+                    example = "Ask for something on a call, then look at the session",
+                    illustration = Illustration.voiceMessage,
+                ),
                 WhatsNewEntry(
                     id = "catch-up-shortcuts",
                     day = "2026-10-06",

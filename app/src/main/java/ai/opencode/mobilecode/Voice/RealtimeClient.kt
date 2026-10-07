@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/RealtimeClient.swift", "553a407", partial = "RealtimePreflightClient and RealtimePreflightError, which Settings → Advanced verifies keys with; the lab's stand-in preflight and the Realtime connection wait for voice calls")
+@file:PortedFrom("OpenCode/Voice/RealtimeClient.swift", "4084466", partial = "RealtimePreflightClient and RealtimePreflightError, which Settings → Advanced verifies keys with; the lab's stand-in preflight and the Realtime connection wait for voice calls")
 
 package ai.opencode.mobilecode
 

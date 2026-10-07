@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptEntryTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/TranscriptEntryTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -251,17 +251,7 @@ class ReplyEndTests {
         val items = listOf(
             OpenCodeTranscriptItem.userText(id = "u1", text = "Why?"),
             reply("a1", "First part."),
-            OpenCodeTranscriptItem.tool(
-                id = "t1",
-                call = OpenCodeToolCall(
-                    callID = "c1",
-                    name = "bash",
-                    status = OpenCodeToolCall.Status.completed,
-                    input = OpenCodeJSONValue.`null`,
-                    output = emptyList(),
-                    metadata = emptyMap(),
-                ),
-            ),
+            OpenCodeTranscriptItem.tool(id = "t1", call = OpenCodeToolCall.test(callID = "c1", name = "bash")),
             reply("a2", "Second part."),
             OpenCodeTranscriptItem.userText(id = "u2", text = "And now?"),
             reply("a3", "Done."),
@@ -365,25 +355,9 @@ class TaskListAndExecuteTests {
             devtools.open()
         """.trimIndent()
         assertEquals(listOf("slack.channels", "slack.search", "browser-control.status"), OpenCodeToolCall.calledTools(code))
-        val call = OpenCodeToolCall(
-            callID = "c",
-            name = "execute",
-            status = OpenCodeToolCall.Status.running,
-            input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string(code))),
-            output = emptyList(),
-            error = null,
-            metadata = emptyMap(),
-        )
+        val call = OpenCodeToolCall.test(callID = "c", name = "execute", status = OpenCodeToolCall.Status.running, input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string(code))))
         assertEquals("slack.channels, slack.search, browser-control.status", call.subtitle)
-        val plain = OpenCodeToolCall(
-            callID = "c",
-            name = "execute",
-            status = OpenCodeToolCall.Status.running,
-            input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string("return 1 + 1"))),
-            output = emptyList(),
-            error = null,
-            metadata = emptyMap(),
-        )
+        val plain = OpenCodeToolCall.test(callID = "c", name = "execute", status = OpenCodeToolCall.Status.running, input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string("return 1 + 1"))))
         assertEquals("return 1 + 1", plain.subtitle)
     }
 }

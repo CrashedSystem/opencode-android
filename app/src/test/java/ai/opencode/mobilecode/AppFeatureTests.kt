@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AppFeatureTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/AppFeatureTests.swift", "ef77344")
 
 package ai.opencode.mobilecode
 
@@ -14,6 +14,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -630,6 +631,49 @@ class AppFeatureTests {
             it.serverURL = "http://my-mac.local:4096"
             it.password = "secret"
         }
+    }
+
+    @Test
+    fun manualEntryWithoutASchemeConnectsOverHTTP() {
+        val attempted = mutableListOf<String>()
+        val store = TestStore(
+            initialState = { AppFeature.State() },
+            withDependencies = {
+                it.openCodeClient.health = { server ->
+                    attempted += server.url
+                    throw OpenCodeClientError(message = "Could not reach the OpenCode server.")
+                }
+            },
+        ) { AppFeature() }
+        store.exhaustivity = Exhaustivity.off
+
+        // A bare Tailscale host:port, as `opencode serve` prints it, means plain HTTP.
+        store.send(AppFeature.Action.addServerTapped)
+        store.send(AppFeature.Action.binding(BindingAction.set(AppFeature.State::serverURL, " 100.84.220.87:4102 ")))
+        store.send(AppFeature.Action.connectButtonTapped) {
+            it.serverURL = "http://100.84.220.87:4102"
+        }
+        store.receive<AppFeature.Action.healthResponse>()
+
+        // An explicit scheme is kept as typed.
+        store.send(AppFeature.Action.addServerTapped)
+        store.send(AppFeature.Action.binding(BindingAction.set(AppFeature.State::serverURL, "https://my-mac.example:4096")))
+        store.send(AppFeature.Action.connectButtonTapped) {
+            it.serverURL = "https://my-mac.example:4096"
+        }
+        store.receive<AppFeature.Action.healthResponse>()
+
+        expect(attempted == listOf("http://100.84.220.87:4102", "https://my-mac.example:4096"))
+    }
+
+    /// ATS silently ignores a malformed `NSExceptionDomains` key, so this asks
+    /// URLSession, under the app's real Info.plist, about each excepted range
+    /// and name (and their edges): an excepted target fails with anything but
+    /// ATS's own error (none are reachable here), any other with exactly it.
+    /// Opt-in because it touches the network: `TEST_RUNNER_OPENCODE_ATS_PROBE=1`.
+    @Ignore("Android has no App Transport Security: the manifest allows cleartext to every host")
+    @Test
+    fun transportSecurityAllowsPrivateOverlays() {
     }
 
     @Test

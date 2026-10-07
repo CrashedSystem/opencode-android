@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID")
+@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark, compactions, and compactionObserved from 0bda024; Delegate.openSession from 7a54834)")
 
 package ai.opencode.mobilecode
 
@@ -68,6 +68,12 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
             val superseded: Boolean = false,
         )
 
+        /// The newest finished compaction the session screen has seen.
+        data class CompactionMark(
+            val sessionID: String,
+            val compactionID: String,
+        )
+
         var target by StoreVar(target)
         var sessionTitle by StoreVar(sessionTitle)
         var directoryName by StoreVar(directoryName)
@@ -111,6 +117,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         /// Session created by this draft call's first request; adopting it is the
         /// same conversation, not a user retarget.
         var adoptedDraftSessionID by StoreVar<String?>(null)
+
+        /// The newest finished compaction the session screen has seen, by session ID.
+        var compactions by StoreVar<Map<String, String>>(emptyMap())
 
         /// Where the call is and what it let go of. Home tells the voice model
         /// when either changes; New Session from a draft in the same folder
@@ -310,6 +319,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
 
         data class workAdmitted(val callID: String, val promptID: String) : Action
 
+        /// The session screen saw a finished compaction in the call's session.
+        data class compactionObserved(val mark: State.CompactionMark) : Action
+
         data class lateUtteranceFinished(val callID: String, val capture: VoiceTranscriptTail.Capture, val promptID: String?) : Action
 
         data class sessionStarted(val callID: String, val session: OpenCodeSession) : Action
@@ -339,6 +351,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         data object checkAPIKey : Delegate
 
         data class sessionCreated(val session: OpenCodeSession) : Delegate
+
+        /// The delegator put a session on the user's screen.
+        data class openSession(val session: OpenCodeSession) : Delegate
 
         data object ended : Delegate
     }

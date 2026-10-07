@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HapticsClient.swift", "553a407", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
+@file:PortedFrom("OpenCode/HapticsClient.swift", "baa088a", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
 
 package ai.opencode.mobilecode
 
@@ -12,29 +12,22 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 
 class HapticsClient(
-    var selection: () -> Unit,
-    var impact: () -> Unit,
-    var success: () -> Unit,
-    var error: () -> Unit,
+    var selection: () -> Unit = {},
+    var impact: () -> Unit = {},
+    var success: () -> Unit = {},
+    var error: () -> Unit = {},
     /// A pending request arrived and opened for review.
     var attention: () -> Unit = {},
     var warning: () -> Unit = {},
     var voice: (VoiceCallHaptic) -> Unit = {},
+    /// The call the button's tap asked for failed to start: its scanner timeline ends.
+    var cancelPendingVoiceStart: () -> Unit = {},
     var drawer: () -> Unit = {},
 ) {
     companion object : DependencyKey<HapticsClient> {
         override val liveValue get() = live(OpenCodeApp.instance)
 
-        override val testValue get() = HapticsClient(
-            selection = {},
-            impact = {},
-            success = {},
-            error = {},
-            attention = {},
-            warning = {},
-            voice = {},
-            drawer = {},
-        )
+        override val testValue get() = HapticsClient()
     }
 }
 
@@ -58,6 +51,8 @@ private fun live(context: Context?): HapticsClient {
         attention = { fire { it.impact() } },
         warning = { fire { it.error() } },
         voice = { haptic -> fire { it.voice(haptic.toSystem()) } },
+        // VoiceCallSounds, whose scanner timeline this ends, waits for voice calls.
+        cancelPendingVoiceStart = {},
         drawer = { fire { it.impact() } },
     )
 }

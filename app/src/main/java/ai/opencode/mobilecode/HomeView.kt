@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeView.swift", "553a407")
+@file:PortedFrom("OpenCode/HomeView.swift", "9f4d56c")
 
 package ai.opencode.mobilecode
 
@@ -1220,7 +1220,7 @@ fun AgentActivityGlyph(modifier: Modifier = Modifier, size: Dp = 15.dp) {
 /// ChatGPT/Gemini-style activity ring: an open arc in constant rotation.
 /// The rotation is read in the draw phase, so it never relayouts the row.
 @Composable
-fun ActivityRing(modifier: Modifier = Modifier, size: Dp = 14.dp, lineWidth: Dp = 1.8.dp) {
+private fun ActivityRing(modifier: Modifier = Modifier, size: Dp = 14.dp, lineWidth: Dp = 1.8.dp) {
     val reducedMotion = LocalReduceMotion.current
     val secondary = SystemColors.secondaryLabel
     val tail = secondary.copy(alpha = if (LocalIncreasedContrast.current) secondary.alpha else 0f)

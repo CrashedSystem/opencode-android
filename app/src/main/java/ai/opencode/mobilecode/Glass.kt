@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Glass.swift", "553a407")
+@file:PortedFrom("OpenCode/Glass.swift", "4ab457c")
 
 package ai.opencode.mobilecode
 
@@ -20,17 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-/// Groups nearby glass controls so they render, blend, and morph together.
-@Composable
-fun OpenCodeGlassContainer(
-    spacing: Dp? = null,
-    content: @Composable () -> Unit,
-) {
-    content()
-}
 
 /// Liquid Glass, optionally tinted or interactive.
 @Composable

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "9219884")
 
 package ai.opencode.mobilecode
 
@@ -211,6 +211,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
             if (activeVoice != null) {
                 activeVoice.retarget(to = session)
                 detail.voice = activeVoice
+                detail.seedVoiceCompaction()
             }
             // The screen swaps details in place without appearing again, so the
             // new one inherits whether it is on screen.
@@ -230,13 +231,10 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
                 inheritedModel = lastUsedModel,
                 navigationID = if (activeVoice != null) (sessionDetail?.navigationID ?: nextDetailID()) else nextDetailID(),
             )
-            val directory = draft.draftProject?.directory ?: sessionDetail?.session?.directory ?: activeVoice?.target?.directory
-            if (activeVoice != null && directory != null) {
+            if (activeVoice != null) {
+                val directory = draft.draftProject?.directory ?: sessionDetail?.session?.directory ?: activeVoice.target.directory
                 activeVoice.retargetToDraft(directory = directory, model = draft.currentModel)
                 draft.voice = activeVoice
-            } else if (activeVoice != null) {
-                // No folder to move the call to: a new identity ends it cleanly.
-                draft.navigationID = nextDetailID()
             }
             draft.isVisible = sessionDetail?.isVisible ?: false
             return draft

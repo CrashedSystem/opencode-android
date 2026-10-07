@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "553a407")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "ebb011d")
 
 package ai.opencode.mobilecode
 
@@ -22,6 +22,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +30,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -48,11 +48,12 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -67,7 +68,8 @@ data class TranscriptUserMessage(
     var files: List<OpenCodeTranscriptFile>,
     /// Set while the message waits in the inbox.
     var pending: OpenCodeDelivery?,
-    /// The voice agent sent it for the user: show the request, keep the prompt one long press away.
+    /// The voice agent sent it on the user's behalf: a Voice message, with the
+    /// prompt one long press away.
     var voiceDelegation: VoiceHandoff.Delegation? = VoiceHandoff.parse(text),
 ) {
     companion object {
@@ -112,6 +114,20 @@ fun TranscriptUserMessageView(
     onPreviewImage: (TranscriptImagePreview) -> Unit = {},
     onOpenFile: ((AgentFileReference) -> Unit)? = null,
 ) {
+    val delegation = message.voiceDelegation
+    if (delegation != null) {
+        TranscriptVoiceMessageView(delegation = delegation, prompt = message.text, pending = message.pending)
+    } else {
+        UserMessage(message, onPreviewImage, onOpenFile)
+    }
+}
+
+@Composable
+private fun UserMessage(
+    message: TranscriptUserMessage,
+    onPreviewImage: (TranscriptImagePreview) -> Unit,
+    onOpenFile: ((AgentFileReference) -> Unit)?,
+) {
     val reducedMotion = LocalReduceMotion.current
     val isPending = message.pending != null
     // Opacity rather than a secondary style, so promotion can animate it.
@@ -151,10 +167,9 @@ fun TranscriptUserMessageView(
         }
         if (message.text.isNotEmpty()) {
             TranscriptUserBubble(
-                text = message.voiceDelegation?.instruction ?: message.text,
+                text = message.text,
                 dimming = dimming,
                 itemID = if (isPending) null else message.id,
-                rawPrompt = if (message.voiceDelegation == null) null else message.text,
             )
         }
     }
@@ -183,7 +198,7 @@ private fun UserImages(
                 attachment.data,
                 Modifier
                     .size(side)
-                    .clip(RoundedCornerShape(TranscriptMetrics.imageCornerRadius.dp))
+                    .clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))
                     .clickable(enabled = !isPending, role = Role.Button) {
                         val preview = TranscriptImagePreview(attachments = images, selectedID = attachment.id, label = "Attached image")
                         if (preview != null) onPreviewImage(preview)
@@ -246,7 +261,7 @@ private fun TopAnchoredRow(content: @Composable () -> Unit) {
 
 /// "↗ Steering" or "Queued" above a pending message.
 @Composable
-fun TranscriptPendingLabel(delivery: OpenCodeDelivery, modifier: Modifier = Modifier) {
+private fun TranscriptPendingLabel(delivery: OpenCodeDelivery, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         SystemImage(delivery.symbolName, null, Modifier.symbolSize(TextStyles.caption), tint = SystemColors.secondaryLabel)
         Text(delivery.pendingLabel, style = TextStyles.caption, color = SystemColors.secondaryLabel, maxLines = 1)
@@ -271,46 +286,9 @@ private fun TranscriptUserBubble(
     /// Dimmed while the message waits in the inbox: 1 pending, 0 delivered.
     dimming: Float = 0f,
     itemID: String? = null,
-    /// The full prompt behind a voice delegation; the bubble shows only its request.
-    rawPrompt: String? = null,
 ) {
-    val context = LocalContext.current
     TrailingFractionLayout(TranscriptMetrics.maximumUserBubbleFraction) {
-        if (rawPrompt != null) {
-            // Long press opens the menu, not text selection.
-            SystemContextMenu(
-                sections = listOf(
-                    SystemMenuSection(
-                        listOf(
-                            SystemMenuItem("Copy", systemImage = "square.on.square") { copy(context, text) },
-                            SystemMenuItem("Copy Full Message", systemImage = "doc.plaintext") { copy(context, rawPrompt) },
-                        ),
-                    ),
-                ),
-                modifier = Modifier.semantics(mergeDescendants = true) {
-                    contentDescription = text
-                    stateDescription = "Sent by voice"
-                    customActions = listOf(CustomAccessibilityAction("Copy Full Message") { copy(context, rawPrompt); true })
-                },
-            ) {
-                Box {
-                    Bubble(text, dimming, itemID)
-                    // Sent by the voice agent on the user's behalf.
-                    SystemImage(
-                        "waveform",
-                        null,
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .offset(x = (-18).dp, y = (-TranscriptMetrics.bubbleVertical).dp)
-                            .symbolSize(TextStyles.caption2.semibold)
-                            .semantics { hideFromAccessibility() },
-                        tint = SystemColors.tertiaryLabel,
-                    )
-                }
-            }
-        } else {
-            SelectionContainer { Bubble(text, dimming, itemID) }
-        }
+        SelectionContainer { Bubble(text, dimming, itemID) }
     }
 }
 
@@ -329,6 +307,119 @@ private fun Bubble(text: String, dimming: Float, itemID: String?) {
             style = TextStyles.body.copy(lineHeight = 24.sp),
             color = SystemColors.label,
         )
+    }
+}
+
+/// A Voice message's bubble. The Voice indicator above it is what sets it
+/// apart; backgrounds that also differ were compared
+/// (`prototypes/voice-delegation-display/#voice-message-variants`) and set
+/// aside, so the treatment stays in this one place.
+enum class VoiceMessageStyle {
+    /// The user's own bubble: same fill, no outline.
+    standard,
+
+    /// No fill, a hairline outline.
+    outlined,
+    ;
+
+    companion object {
+        val current = standard
+    }
+}
+
+@Composable
+private fun Modifier.voiceMessageBackground(style: VoiceMessageStyle, dimming: Float): Modifier {
+    val shape = RoundedCornerShape(TranscriptMetrics.bubbleCornerRadius.dp)
+    return when (style) {
+        // Matches `TranscriptUserBubble`, pending dimming included.
+        VoiceMessageStyle.standard -> background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)
+        VoiceMessageStyle.outlined -> border(1.dp, SystemColors.separator.copy(alpha = 1f - 0.45f * dimming), shape)
+    }
+}
+
+/// The voice agent prompting the session on the user's behalf, in its own
+/// framing: the user's bubble (`VoiceMessageStyle`) under a small Voice
+/// indicator, which is all that marks it. The prompt itself (the user's words
+/// and the call's transcript) is a long press away.
+@Composable
+fun TranscriptVoiceMessageView(
+    delegation: VoiceHandoff.Delegation,
+    /// The full prompt as the session received it.
+    prompt: String,
+    pending: OpenCodeDelivery? = null,
+    style: VoiceMessageStyle = VoiceMessageStyle.current,
+) {
+    val reducedMotion = LocalReduceMotion.current
+    val context = LocalContext.current
+    val dimming by animateFloatAsState(
+        if (pending != null) 1f else 0f,
+        animationSpec = if (reducedMotion) snap() else tween(350, easing = EaseOut),
+        label = "pending",
+    )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics {
+                contentDescription = "Voice message"
+                stateDescription = listOfNotNull(delegation.displayText, pending?.pendingLabel).joinToString(", ")
+                testTag = "voice-message"
+                customActions = listOf(
+                    CustomAccessibilityAction("Copy") { copy(context, delegation.displayText); true },
+                    CustomAccessibilityAction("Copy Full Message") { copy(context, prompt); true },
+                )
+            },
+        verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.compact.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Row(
+            Modifier.padding(end = TranscriptMetrics.contentGutter.dp),
+            horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            VoiceIndicatorLabel()
+            AnimatedVisibility(
+                visible = pending != null,
+                enter = if (reducedMotion) fadeIn(snap()) else fadeIn(tween(350, easing = EaseOut)),
+                exit = if (reducedMotion) fadeOut(snap()) else fadeOut(tween(350, easing = EaseOut)),
+            ) {
+                if (pending != null) TranscriptPendingLabel(pending)
+            }
+        }
+        TrailingFractionLayout(TranscriptMetrics.maximumUserBubbleFraction) {
+            // Long press opens the menu, not text selection.
+            SystemContextMenu(
+                sections = listOf(
+                    SystemMenuSection(
+                        listOf(
+                            SystemMenuItem("Copy", systemImage = "square.on.square") { copy(context, delegation.displayText) },
+                            SystemMenuItem("Copy Full Message", systemImage = "doc.plaintext") { copy(context, prompt) },
+                        ),
+                    ),
+                ),
+            ) {
+                Box(
+                    Modifier
+                        .voiceMessageBackground(style, dimming)
+                        .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
+                ) {
+                    Text(
+                        delegation.displayText,
+                        Modifier.alpha(1f - 0.4f * dimming),
+                        style = TextStyles.body.copy(lineHeight = 24.sp),
+                        color = SystemColors.label,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// The glyph a touch smaller than its word, as in the pending label.
+@Composable
+private fun VoiceIndicatorLabel() {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        SystemImage("waveform", null, Modifier.symbolSize(TextStyles.caption2.semibold), tint = SystemColors.secondaryLabel)
+        Text("Voice", style = TextStyles.caption, color = SystemColors.secondaryLabel, maxLines = 1)
     }
 }
 

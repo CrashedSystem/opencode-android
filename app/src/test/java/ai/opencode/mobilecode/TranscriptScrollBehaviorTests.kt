@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
@@ -37,10 +38,11 @@ import org.robolectric.annotation.GraphicsMode
 
 /// The list from `SessionTranscriptView`, with a reducer that ignores every
 /// action, as the iOS tests host `TranscriptListViewController` in a window.
-private class ListHarness(private val compose: ComposeContentTestRule, count: Int) {
+internal class ListHarness(private val compose: ComposeContentTestRule, count: Int = 60) {
     val bridge = SessionScrollEdgeBridge()
     val shown = mutableStateListOf<Boolean>()
     var jumpRequest by mutableIntStateOf(0)
+    var composerInset by mutableFloatStateOf(240f)
     val items = (0 until count).map { OpenCodeTranscriptItem.userText(id = "m$it", text = "Message $it") }
     val store = Store(initialState = { SessionViewFixture.state(items).apply { visibleLimit = count } }) {
         Reduce<SessionFeature.State, SessionFeature.Action> { _ -> Effect.none }
@@ -61,7 +63,7 @@ private class ListHarness(private val compose: ComposeContentTestRule, count: In
                             onOpenFile = {},
                             showsJumpButton = Binding({ shown.lastOrNull() ?: false }, { shown += it }),
                             jumpRequest = jumpRequest,
-                            composerInset = { 240f },
+                            composerInset = { composerInset },
                             keyboardIsMoving = { false },
                         )
                     }

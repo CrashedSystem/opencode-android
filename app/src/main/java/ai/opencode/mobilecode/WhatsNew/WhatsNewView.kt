@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "553a407")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "9ed3520")
 
 package ai.opencode.mobilecode
 
@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -192,7 +193,7 @@ fun WhatsNewButton(
 
 /// Tiny drawings of each feature, from symbols and shapes.
 @Composable
-fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
+private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
     val dark = isSystemInDarkTheme()
     val warm = if (dark) Color(red = 0.98f, green = 0.90f, blue = 0.78f) else Color(red = 0.62f, green = 0.45f, blue = 0.24f)
     val cool = if (dark) Color(red = 0.78f, green = 0.86f, blue = 1.0f) else Color(red = 0.26f, green = 0.38f, blue = 0.58f)
@@ -264,6 +265,31 @@ fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 SystemImage("rectangle.stack", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.camera ->
                 SystemImage("camera.aperture", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
+            WhatsNewEntry.Illustration.voiceMessage ->
+                Column(Modifier.width(36.dp), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.End) {
+                    SystemImage("waveform", contentDescription = null, modifier = Modifier.symbolSize(7), tint = SystemColors.secondaryLabel)
+                    Box(Modifier.size(width = 30.dp, height = 14.dp).background(SystemColors.label.copy(alpha = 0.12f), RoundedCornerShape(6.dp)))
+                }
+            WhatsNewEntry.Illustration.dictationBar ->
+                Row(
+                    Modifier
+                        .height(13.dp)
+                        .background(SystemColors.label.copy(alpha = 0.08f), CircleShape)
+                        .padding(horizontal = 3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(8.dp).background(SystemColors.label.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("xmark", contentDescription = null, modifier = Modifier.symbolSize(4), tint = SystemColors.label)
+                    }
+                    DotBraid(warm = warm, cool = warm, columns = 7, rows = 3, modifier = Modifier.size(width = 12.dp, height = 5.dp))
+                    Box(Modifier.size(8.dp).background(SystemColors.label.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("stop.fill", contentDescription = null, modifier = Modifier.symbolSize(3), tint = SystemColors.label)
+                    }
+                    Box(Modifier.size(8.dp).background(SystemColors.label, CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("arrow.up", contentDescription = null, modifier = Modifier.symbolSize(4), tint = SystemColors.systemBackground)
+                    }
+                }
             WhatsNewEntry.Illustration.talkOver ->
                 Box(contentAlignment = Alignment.BottomEnd) {
                     SystemImage(

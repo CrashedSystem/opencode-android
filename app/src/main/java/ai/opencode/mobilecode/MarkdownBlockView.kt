@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/MarkdownBlockView.swift", "553a407")
+@file:PortedFrom("OpenCode/Transcript/MarkdownBlockView.swift", "face06c")
 
 package ai.opencode.mobilecode
 
@@ -396,9 +396,13 @@ class TranscriptTextReveal {
     }
 }
 
+/// Fades a layer or whole block in from where its arrival's clock stands.
+/// Only opacity changes per frame; what it draws is laid out and rendered
+/// once. Whole blocks are always wrapped, arriving or not, so a fade never
+/// changes their identity or resets their state (a loaded image, a table's rules).
 @Composable
 private fun ArrivalFade(
-    arriving: Boolean,
+    arriving: Boolean = true,
     at: Double,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,

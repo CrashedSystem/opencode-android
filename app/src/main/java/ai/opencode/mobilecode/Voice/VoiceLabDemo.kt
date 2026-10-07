@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceLabDemo.swift", "553a407", partial = "isEnabled, realtimeURL, liveURL, hasStandInServer, overrideEngine")
+@file:PortedFrom("OpenCode/Voice/VoiceLabDemo.swift", "5d0b405", partial = "isEnabled, realtimeURL, liveURL, hasStandInServer, overrideEngine")
 
 package ai.opencode.mobilecode
 
