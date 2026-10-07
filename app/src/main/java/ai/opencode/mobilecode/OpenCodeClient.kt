@@ -235,11 +235,14 @@ data class OpenCodePairingLink(
 
         private fun decodeLink(text: String): OpenCodePairingLink? {
             val link = runCatching { URI(text) }.getOrNull() ?: return null
-            val parts = link.path.split("/", limit = 0)
+            if (!link.rawQuery.isNullOrEmpty() || link.rawFragment != null || !link.userInfo.isNullOrEmpty()) return null
+            val parts = link.path?.split("/", limit = 0) ?: return null
             if (parts.size != 4 || parts[0].isNotEmpty() || parts[1] != "auth" || parts[2] != "connect" || !isCode(parts[3])) {
                 return null
             }
-            val address = normalizedOrigin(URI(link.scheme, null, link.host, link.port, "", null, null).toString()) ?: return null
+            val address = runCatching {
+                normalizedOrigin(URI(link.scheme, null, link.host, link.port, "", null, null).toString())
+            }.getOrNull() ?: return null
             return OpenCodePairingLink(origin = address, code = parts[3])
         }
 
@@ -1281,9 +1284,9 @@ private class EventBatcher(private val emit: suspend (OpenCodeServerEvent) -> Un
 data class OpenCodeTranscriptPage(var items: List<OpenCodeTranscriptItem>, var next: String?)
 
 class OpenCodeClient(
-    val health: suspend (OpenCodeServer) -> Unit,
-    val redeemPairing: suspend (OpenCodePairingLink) -> OpenCodeServer,
-    val homeSnapshot: suspend (OpenCodeServer) -> OpenCodeHomeSnapshot,
+    var health: suspend (OpenCodeServer) -> Unit,
+    var redeemPairing: suspend (OpenCodePairingLink) -> OpenCodeServer,
+    var homeSnapshot: suspend (OpenCodeServer) -> OpenCodeHomeSnapshot,
     val homeAttention: suspend (OpenCodeServer, List<OpenCodeSession>, List<String>) -> Set<String>,
     val transcript: suspend (OpenCodeServer, String, Int) -> List<OpenCodeTranscriptItem>,
     val message: suspend (OpenCodeServer, String, String) -> List<OpenCodeTranscriptItem>,
