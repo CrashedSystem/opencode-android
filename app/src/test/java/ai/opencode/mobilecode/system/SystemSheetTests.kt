@@ -1,8 +1,11 @@
 package ai.opencode.mobilecode.system
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -57,6 +60,22 @@ class SystemSheetTests {
 
         val content = compose.onNodeWithTag("sheet-content", useUnmergedTree = true).getUnclippedBoundsInRoot()
         assertEquals("the sheet ends where the keyboard starts", 956f - keyboard, content.bottom.value, 1f)
+    }
+
+    /// The shell output keeps its status bar and Stop Shell in view at the medium detent.
+    @Test
+    fun contentCanKeepItsBottomBarInTheVisiblePart() {
+        compose.setContent {
+            SystemSheet(onDismissRequest = {}, initialDetent = SheetDetent.Medium) {
+                Box(Modifier.fillMaxSize().padding(bottom = LocalSheetHiddenHeight.current)) {
+                    Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(44.dp).testTag("bottom-bar"))
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        val bar = compose.onNodeWithTag("bottom-bar", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals("the bar sits at the bottom of the screen", 956f, bar.bottom.value, 1f)
     }
 
     private fun presentSheet(detent: SheetDetent): DpRect {

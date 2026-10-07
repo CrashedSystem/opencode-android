@@ -32,6 +32,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -67,6 +71,10 @@ fun interface DismissAction {
 }
 
 val LocalDismiss = staticCompositionLocalOf { DismissAction {} }
+
+/// The part of a sheet below the screen at its current detent. An iOS sheet lays its
+/// content out in the visible part, so a bottom bar or a followed tail stays in view.
+val LocalSheetHiddenHeight = compositionLocalOf { 0.dp }
 
 /** SwiftUI's `ButtonRole`. */
 enum class ButtonRole {
@@ -127,8 +135,20 @@ fun SystemSheet(
         LaunchedEffect(keyboardShown) {
             if (keyboardShown && sheetState.currentValue == SheetValue.PartiallyExpanded) sheetState.expand()
         }
-        CompositionLocalProvider(LocalDismiss provides dismiss) {
-            Column(Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }, content = content)
+        val density = LocalDensity.current
+        var hidden by remember { mutableStateOf(0.dp) }
+        CompositionLocalProvider(LocalDismiss provides dismiss, LocalSheetHiddenHeight provides hidden) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        val root = coordinates.findRootCoordinates()
+                        val bottom = root.localBoundingBoxOf(coordinates, clipBounds = false).bottom
+                        hidden = with(density) { (bottom - root.size.height).coerceAtLeast(0f).toDp() }
+                    }
+                    .semantics { testTagsAsResourceId = true },
+                content = content,
+            )
         }
     }
 }

@@ -4,6 +4,7 @@ package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.GlassSurface
 import ai.opencode.mobilecode.system.LocalDismiss
+import ai.opencode.mobilecode.system.LocalSheetHiddenHeight
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
 import ai.opencode.mobilecode.system.SystemColors
@@ -105,7 +106,7 @@ fun ShellOutputView(
         didCopy = false
     }
 
-    NavigationStack(modifier.fillMaxSize().testTag("shell-output")) {
+    NavigationStack(modifier.fillMaxSize().padding(bottom = LocalSheetHiddenHeight.current).testTag("shell-output")) {
         Column(Modifier.fillMaxSize()) {
             EarlierOutputBar(store)
             Box(Modifier.weight(1f).fillMaxWidth()) {
