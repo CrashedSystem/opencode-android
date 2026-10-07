@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "a20a28d")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "8acaf3f")
 
 package ai.opencode.mobilecode
 
@@ -742,6 +742,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
         /// A quick tap (or VoiceOver): keep recording hands-free.
         data object micPressLocked : Action
+
+        /// The system took a held mic's touch (Control Center, a call banner,
+        /// another finger, the app leaving): keep the words, never send.
+        data object micPressInterrupted : Action
 
         /// Tapped Cancel: drop the words, send nothing.
         data object micPressCancelled : Action
@@ -1892,6 +1896,19 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         finishDictation(state, send = OpenCodeDelivery.steer)
                     }
 
+                    Action.micPressInterrupted -> {
+                        val hold = state.dictationHold
+                        if (hold == null || hold.isLocked) return@Reduce Effect.none
+                        if (state.isPreparingDictation) {
+                            // Most likely the permission prompt: carry on locked, as when the
+                            // finger lifts then.
+                            state.dictationHold = state.dictationHold?.copy(isLocked = true, armed = null)
+                            return@Reduce Effect.none
+                        }
+                        if (state.dictationPhase != State.DictationPhase.recording) return@Reduce Effect.none
+                        finishDictation(state, send = null)
+                    }
+
                     Action.micPressLocked -> {
                         val hold = state.dictationHold
                         if (hold == null || hold.isLocked || !state.isDictating) return@Reduce Effect.none
@@ -1920,6 +1937,13 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         // Stop: the words stay in the draft to review, never sent. Only on
                         // background: the permission prompt and Control Center just make
                         // the scene inactive.
+                        if ((state.dictationPhase as? State.DictationPhase.finishing)?.send != null) {
+                            // UIKit cancels a held mic's touch while the scene is inactive,
+                            // before this arrives; whatever that ended as, never send from
+                            // the background.
+                            state.dictationPhase = State.DictationPhase.finishing(send = null)
+                            return@Reduce Effect.none
+                        }
                         if (!state.isDictating) return@Reduce Effect.none
                         finishDictation(state, send = null)
                     }

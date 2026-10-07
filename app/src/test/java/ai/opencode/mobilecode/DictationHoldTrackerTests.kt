@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/DictationHoldTrackerTests.swift", "a20a28d")
+@file:PortedFrom("OpenCodeTests/DictationHoldTrackerTests.swift", "8acaf3f")
 
 package ai.opencode.mobilecode
 
@@ -62,5 +62,17 @@ class DictationHoldTrackerTests {
         expect(!track(listOf(2f to 3f)).isTap(after = 0.31))
         expect(!track(listOf(12f to 0f, 2f to 0f)).isTap(after = 0.2))
         expect(!track(listOf(0f to -20f, 0f to -60f)).isTap(after = 0.2))
+    }
+
+    /// The system taking the touch (Control Center, a call banner, another
+    /// finger, a scroll view, the app leaving) is not a lift, whenever it comes.
+    @Test
+    fun aCancelledTouchIsNeverATapOrARelease() {
+        val still = track(listOf(2f to 3f))
+        expect(still.ending(after = 0.1, cancelled = true) == DictationHoldTracker.Ending.interrupted)
+        expect(still.ending(after = 1.2, cancelled = true) == DictationHoldTracker.Ending.interrupted)
+        expect(track(listOf(0f to -20f, 0f to -60f)).ending(after = 1.2, cancelled = true) == DictationHoldTracker.Ending.interrupted)
+        expect(still.ending(after = 0.1, cancelled = false) == DictationHoldTracker.Ending.tap)
+        expect(still.ending(after = 1.2, cancelled = false) == DictationHoldTracker.Ending.release)
     }
 }

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "a20a28d")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "8acaf3f")
 
 package ai.opencode.mobilecode
 
@@ -3508,6 +3508,112 @@ class SessionFeatureTests {
                 }
             }
         }
+    }
+
+    /// A held mic whose touch the system takes (Control Center, a call
+    /// banner, another finger, the app leaving) keeps the words in the draft
+    /// and never sends, whether nothing, lock, or cancel was armed.
+    @Test
+    fun aStolenTouchInsertsTheWordsInsteadOfSending() {
+        for (arm in listOf(null, SessionFeature.State.DictationHold.Arm.lock, SessionFeature.State.DictationHold.Arm.cancel)) {
+            val feed = Channel<String>(Channel.UNLIMITED)
+            val store = TestStore(
+                initialState = { makeState(draft = "Check") },
+                withDependencies = {
+                    it.dictation.start = { feed.consumeAsFlow() }
+                    it.dictation.stop = {
+                        feed.trySend("the failing test suite")
+                        feed.close()
+                    }
+                    it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
+                        expect(false, "A stolen touch must not send")
+                    }
+                },
+            ) { SessionFeature() }
+            store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+            store.send(Action.micPressBegan)
+            store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
+            feed.trySend("the failing")
+            store.receive<Action.dictationUpdated>()
+            if (arm != null) store.send(Action.micPressArmed(arm))
+            store.send(Action.micPressInterrupted) {
+                it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
+            }
+            store.receive<Action.dictationStopped>()
+            store.finish()
+            expect(store.state.dictationHold == null)
+            expect(store.state.draft == "Check the failing test suite", "armed: $arm")
+            expect(store.state.items.isEmpty())
+        }
+    }
+
+    /// The permission prompt takes the touch while setup waits on Allow:
+    /// recording carries on locked, as when the finger lifts then.
+    @Test
+    fun aStolenTouchWhilePreparingLocks() {
+        val allow = CompletableDeferred<Unit>()
+        val feed = Channel<String>(Channel.UNLIMITED)
+        var stops = 0
+        val store = TestStore(
+            initialState = { makeState() },
+            withDependencies = {
+                it.dictation.start = {
+                    allow.await()
+                    feed.consumeAsFlow()
+                }
+                it.dictation.stop = { stops += 1 }
+                it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
+                    expect(false, "A stolen touch must not send")
+                }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(Action.micPressBegan)
+        store.send(Action.micPressInterrupted) { state ->
+            state.dictationHold?.let { hold -> state.dictationHold = hold.copy(isLocked = true) }
+        }
+        expect(store.state.dictationPhase == SessionFeature.State.DictationPhase.preparing)
+        expect(stops == 0)
+        allow.complete(Unit)
+        store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
+        feed.close()
+        store.finish()
+        expect(store.state.items.isEmpty())
+    }
+
+    /// UIKit cancels the touch while the scene is merely inactive, before it
+    /// reaches the background. If that ever ends as a release, the send still
+    /// waits on the engine, and leaving downgrades it to Stop.
+    @Test
+    fun backgroundingMidHoldNeverSends() {
+        val feed = Channel<String>(Channel.UNLIMITED)
+        val store = TestStore(
+            initialState = { makeState(draft = "Check") },
+            withDependencies = {
+                it.dictation.start = { feed.consumeAsFlow() }
+                it.dictation.stop = {}
+                it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
+                    expect(false, "Leaving the app must not send a dictation")
+                }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(Action.micPressBegan)
+        store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
+        feed.trySend("the failing")
+        store.receive<Action.dictationUpdated>()
+        store.send(Action.micPressReleased) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
+        }
+        store.send(Action.sceneEnteredBackground) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
+        }
+        feed.trySend("the failing test suite")
+        feed.close()
+        store.receive<Action.dictationStopped>()
+        store.finish()
+        expect(store.state.draft == "Check the failing test suite")
+        expect(store.state.items.isEmpty())
     }
 
     @Test

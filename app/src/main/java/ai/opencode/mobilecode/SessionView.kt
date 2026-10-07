@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "a20a28d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "8acaf3f", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -342,6 +342,22 @@ class DictationHoldTracker {
 
     fun isTap(after: Double): Boolean = armed == null && after < tapDuration && maxDistance < tapSlop
 
+    enum class Ending {
+        /// Short and still: locks hands-free.
+        tap,
+
+        /// Let go: sends, or commits what's armed.
+        release,
+
+        /// The system took the touch: never a send.
+        interrupted,
+    }
+
+    fun ending(after: Double, cancelled: Boolean): Ending {
+        if (cancelled) return Ending.interrupted
+        return if (isTap(after)) Ending.tap else Ending.release
+    }
+
     companion object {
         const val slop = 14f
         const val ratio = 1.4f
@@ -373,26 +389,49 @@ private object HoldToDictateButton {
         onArmed: (SessionFeature.State.DictationHold.Arm?) -> Unit,
         onReleased: () -> Unit,
         onLocked: () -> Unit,
+        /// The system cancelled the touch: another finger, a parent that took
+        /// the gesture, or the view leaving while the finger was down.
+        onInterrupted: () -> Unit,
     ): Modifier = pointerInput(Unit) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val start = System.nanoTime()
             val tracker = DictationHoldTracker()
             onBegan()
-            while (true) {
-                val event = awaitPointerEvent()
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                change.consume()
-                val translation = (change.position - down.position) / density
-                val wasArmed = tracker.armed
-                tracker.update(translation)
-                onDrag(DictationDrag(translation = translation, axis = tracker.axis))
-                if (tracker.armed != wasArmed) onArmed(tracker.armed)
+            // A lift ends the loop with the pointer up; anything else (the
+            // pointer vanishing, another finger, cancellation) is not a lift.
+            var lifted = false
+            var finished = false
+            fun finish(cancelled: Boolean) {
+                if (finished) return
+                finished = true
+                val ending = tracker.ending(after = (System.nanoTime() - start) / 1e9, cancelled = cancelled)
+                onDrag(DictationDrag())
+                when (ending) {
+                    DictationHoldTracker.Ending.tap -> onLocked()
+                    DictationHoldTracker.Ending.release -> onReleased()
+                    DictationHoldTracker.Ending.interrupted -> onInterrupted()
+                }
             }
-            val isTap = tracker.isTap(after = (System.nanoTime() - start) / 1e9)
-            onDrag(DictationDrag())
-            if (isTap) onLocked() else onReleased()
+            try {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    if (event.changes.size > 1) break
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) {
+                        lifted = true
+                        break
+                    }
+                    change.consume()
+                    val translation = (change.position - down.position) / density
+                    val wasArmed = tracker.armed
+                    tracker.update(translation)
+                    onDrag(DictationDrag(translation = translation, axis = tracker.axis))
+                    if (tracker.armed != wasArmed) onArmed(tracker.armed)
+                }
+            } finally {
+                finish(cancelled = !lifted)
+            }
         }
     }
 }
@@ -1945,6 +1984,7 @@ private class SessionViewState {
                         onArmed = { store.send(SessionFeature.Action.micPressArmed(it)) },
                         onReleased = { store.send(SessionFeature.Action.micPressReleased) },
                         onLocked = { store.send(SessionFeature.Action.micPressLocked) },
+                        onInterrupted = { store.send(SessionFeature.Action.micPressInterrupted) },
                     ),
             ) { label() }
         }
