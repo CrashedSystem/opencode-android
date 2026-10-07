@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "ba012e9")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "a20a28d")
 
 package ai.opencode.mobilecode
 
@@ -2982,7 +2982,7 @@ class SessionFeatureTests {
         // An intentional stop keeps the stream alive: the finalized transcript
         // (often the only accurate one) still lands in the draft.
         store.send(Action.micTapped) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = false)
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
         }
         store.receive(Action.dictationUpdated("Fix the spinner ring!")) {
             it.draft = "Fix the spinner ring!"
@@ -3017,7 +3017,7 @@ class SessionFeatureTests {
             it.dictationPhase = SessionFeature.State.DictationPhase.recording
         }
         store.send(Action.micTapped) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = false)
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
         }
         // A double-tap on stop must not restart dictation mid-teardown.
         store.send(Action.micTapped)
@@ -3096,7 +3096,7 @@ class SessionFeatureTests {
 
         store.send(Action.micTapped) { it.dictationPhase = SessionFeature.State.DictationPhase.preparing }
         store.send(Action.dictationSendTapped) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = true)
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
         }
         store.receive(Action.dictationUpdated("Send all final words")) {
             it.draft = "Send all final words"
@@ -3144,7 +3144,7 @@ class SessionFeatureTests {
         }
         expect(store.state.draft == "")
         store.send(Action.micPressReleased) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = true)
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
         }
         store.receive(Action.dictationUpdated("Rename the tab bar")) { state ->
             state.dictationHold?.let { hold -> state.dictationHold = hold.copy(text = "Rename the tab bar") }
@@ -3235,7 +3235,7 @@ class SessionFeatureTests {
             feed.trySend("the failing")
             store.receive(Action.dictationUpdated("Check the failing"))
             store.send(Action.sceneEnteredBackground) {
-                it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = false)
+                it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
             }
             // A finger still down when the app left lifts later; it must not send.
             store.send(Action.micPressReleased)
@@ -3314,8 +3314,8 @@ class SessionFeatureTests {
             state.dictationHold?.let { hold -> state.dictationHold = hold.copy(text = "Check the failing test") }
         }
         expect(store.state.draft == "Check")
-        store.send(Action.dictationStopTapped) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = false)
+        store.send(Action.dictationInsertTapped) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
         }
         store.receive(Action.dictationUpdated("Check the failing test suite")) { state ->
             state.dictationHold?.let { hold -> state.dictationHold = hold.copy(text = "Check the failing test suite") }
@@ -3327,6 +3327,187 @@ class SessionFeatureTests {
         }
         expect(store.state.items.isEmpty())
         store.finish()
+    }
+
+    private data class SentPrompt(
+        val text: String,
+        val attachments: Int,
+        val delivery: OpenCodeDelivery,
+    )
+
+    private class LockedRecording(
+        val store: TestStore<SessionFeature.State, Action>,
+        val sent: MutableList<SentPrompt>,
+        val feed: Channel<String>,
+    )
+
+    /// A locked recording (tapped, or slid up and released) whose engine says
+    /// `words` so far and `final` when stopped. Every send is recorded.
+    private fun lockedRecording(
+        state: SessionFeature.State,
+        words: String?,
+        final: String?,
+        finishesOnStop: Boolean = true,
+    ): LockedRecording {
+        val feed = Channel<String>(Channel.UNLIMITED)
+        val sent = mutableListOf<SentPrompt>()
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.uuid = UUIDGenerator.incrementing()
+                it.dictation.start = { feed.consumeAsFlow() }
+                it.dictation.stop = {
+                    if (finishesOnStop) {
+                        if (final != null) feed.trySend(final)
+                        feed.close()
+                    }
+                }
+                it.openCodeClient.sendPrompt = { _, _, text, attachments, _, _, delivery ->
+                    sent += SentPrompt(text = text, attachments = attachments.size, delivery = delivery)
+                }
+                it.openCodeClient.waitForIdle = { _, _ -> }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(Action.micPressBegan)
+        store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
+        store.send(Action.micPressLocked) { state -> state.dictationHold?.let { hold -> state.dictationHold = hold.copy(isLocked = true) } }
+        if (words != null) {
+            feed.trySend(words)
+            store.receive<Action.dictationUpdated>()
+        }
+        return LockedRecording(store, sent, feed)
+    }
+
+    @Test
+    fun lockedBarSendSendsTheWordsWithTheDraftAndAttachments() {
+        val state = makeState(draft = "Check")
+        state.pendingAttachments = listOf(OpenCodeOutgoingAttachment(data = byteArrayOf(1, 2, 3), mime = "image/png"))
+        val recording = lockedRecording(state, words = "the failing", final = "the failing test suite")
+        val store = recording.store
+        expect(store.state.draft == "Check", "Recording keeps its words off the draft")
+        store.send(Action.dictationSendTapped) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
+        }
+        store.receive<Action.dictationStopped>()
+        store.receive(Action.sendTapped)
+        store.finish()
+        expect(recording.sent == listOf(SentPrompt(text = "Check the failing test suite", attachments = 1, delivery = OpenCodeDelivery.steer)))
+        expect(store.state.draft == "")
+        expect(store.state.pendingAttachments.isEmpty())
+        expect(store.state.dictationHold == null)
+    }
+
+    @Test
+    fun lockedBarSendDuringARunSteersAndItsMenuQueues() {
+        for ((action, delivery) in listOf(Action.dictationSendTapped to OpenCodeDelivery.steer, Action.dictationQueueTapped to OpenCodeDelivery.queue)) {
+            val recording = lockedRecording(makeState(isRunning = true), words = "Also check", final = "Also check the docs")
+            val store = recording.store
+            store.send(action) {
+                it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = delivery)
+            }
+            store.receive<Action.dictationStopped>()
+            store.finish()
+            expect(recording.sent == listOf(SentPrompt(text = "Also check the docs", attachments = 0, delivery = delivery)))
+        }
+    }
+
+    @Test
+    fun lockedBarSendBeforeAnyWordsSendsOnlyAnExistingDraft() {
+        val empty = lockedRecording(makeState(), words = null, final = null)
+        empty.store.send(Action.dictationSendTapped)
+        empty.store.receive<Action.dictationStopped>()
+        empty.store.finish()
+        expect(empty.sent.isEmpty(), "Nothing to send: Send does nothing")
+        expect(empty.store.state.dictationPhase == SessionFeature.State.DictationPhase.idle)
+        expect(empty.store.state.items.isEmpty())
+
+        val typed = lockedRecording(makeState(draft = "Typed first"), words = null, final = null)
+        typed.store.send(Action.dictationSendTapped)
+        typed.store.receive<Action.dictationStopped>()
+        typed.store.finish()
+        expect(typed.sent == listOf(SentPrompt(text = "Typed first", attachments = 0, delivery = OpenCodeDelivery.steer)))
+    }
+
+    /// Stop, then Send before the engine has finished: the words go with the message.
+    @Test
+    fun sendWhileFinishingAfterStopSendsTheWords() {
+        val recording = lockedRecording(makeState(), words = "Rename", final = null, finishesOnStop = false)
+        val store = recording.store
+        store.send(Action.dictationInsertTapped) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = null)
+        }
+        store.send(Action.dictationSendTapped) {
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
+        }
+        recording.feed.trySend("Rename the tab")
+        recording.feed.close()
+        store.receive<Action.dictationStopped>()
+        store.finish()
+        expect(recording.sent == listOf(SentPrompt(text = "Rename the tab", attachments = 0, delivery = OpenCodeDelivery.steer)))
+    }
+
+    /// Sliding only arms; letting go commits what is armed.
+    @Test
+    fun slidingArmsAndReleasingCommits() {
+        for (arm in listOf(SessionFeature.State.DictationHold.Arm.lock, SessionFeature.State.DictationHold.Arm.cancel, null)) {
+            val feed = Channel<String>(Channel.UNLIMITED)
+            val sent = mutableListOf<String>()
+            val store = TestStore(
+                initialState = { makeState(draft = "Typed") },
+                withDependencies = {
+                    it.uuid = UUIDGenerator.incrementing()
+                    it.dictation.start = { feed.consumeAsFlow() }
+                    it.dictation.stop = { feed.close() }
+                    it.openCodeClient.sendPrompt = { _, _, text, _, _, _, _ -> sent += text }
+                    it.openCodeClient.waitForIdle = { _, _ -> }
+                    it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+                },
+            ) { SessionFeature() }
+            store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+            store.send(Action.micPressBegan)
+            store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
+            feed.trySend("and more")
+            store.receive<Action.dictationUpdated>()
+            // Slide past both thresholds and back: arming alone commits nothing.
+            store.send(Action.micPressArmed(SessionFeature.State.DictationHold.Arm.lock)) { state ->
+                state.dictationHold?.let { state.dictationHold = it.copy(armed = SessionFeature.State.DictationHold.Arm.lock) }
+            }
+            store.send(Action.micPressArmed(SessionFeature.State.DictationHold.Arm.cancel)) { state ->
+                state.dictationHold?.let { state.dictationHold = it.copy(armed = SessionFeature.State.DictationHold.Arm.cancel) }
+            }
+            store.send(Action.micPressArmed(null)) { state ->
+                state.dictationHold?.let { state.dictationHold = it.copy(armed = null) }
+            }
+            expect(store.state.isDictating)
+            expect(store.state.dictationHold?.isLocked == false)
+            if (arm != null) {
+                store.send(Action.micPressArmed(arm)) { state -> state.dictationHold?.let { state.dictationHold = it.copy(armed = arm) } }
+            }
+
+            store.send(Action.micPressReleased)
+            when (arm) {
+                SessionFeature.State.DictationHold.Arm.lock -> {
+                    expect(store.state.dictationHold == SessionFeature.State.DictationHold(text = "Typed and more", isLocked = true, armed = SessionFeature.State.DictationHold.Arm.lock))
+                    expect(store.state.isDictating)
+                    feed.close()
+                    store.finish()
+                    expect(sent.isEmpty())
+                }
+                SessionFeature.State.DictationHold.Arm.cancel -> {
+                    store.receive(Action.micPressCancelled)
+                    store.finish()
+                    expect(store.state.dictationHold == null)
+                    expect(store.state.draft == "Typed")
+                    expect(sent.isEmpty())
+                }
+                null -> {
+                    store.finish()
+                    expect(sent == listOf("Typed and more"))
+                }
+            }
+        }
     }
 
     @Test
@@ -3406,7 +3587,7 @@ class SessionFeatureTests {
         store.send(Action.micTapped) { it.dictationPhase = SessionFeature.State.DictationPhase.preparing }
         store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
         store.send(Action.dictationSendTapped) {
-            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(sendWhenComplete = true)
+            it.dictationPhase = SessionFeature.State.DictationPhase.finishing(send = OpenCodeDelivery.steer)
         }
         store.receive(Action.dictationStopped(errorMessage = DictationError.microphoneDenied.message)) {
             it.dictationPhase = SessionFeature.State.DictationPhase.idle

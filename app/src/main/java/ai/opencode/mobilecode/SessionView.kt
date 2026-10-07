@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "ebb011d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "a20a28d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -37,9 +37,12 @@ import android.text.format.Formatter
 import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
@@ -109,13 +112,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -156,6 +162,7 @@ import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -289,151 +296,546 @@ private fun ComposerControlLabel(
     }
 }
 
-/// The mic, Telegram style: touch and hold to record and let go to send,
-/// slide up to lock (keep recording hands-free), slide left to cancel. A
-/// quick tap also locks. The finger's travel goes to `onDrag` so the
-/// recording bar can follow it; this view only owns the touch.
-private object HoldToDictateButton {
-    const val lockDistance = 70f
-    const val cancelDistance = 110f
-    /// Shorter presses are taps.
-    const val tapDuration = 0.35
+/// Where a held mic's finger has gone. Sliding up arms lock and sliding left
+/// arms cancel, each measured along one axis. The axis is chosen once the
+/// finger is `slop` away and one component leads the other by `ratio`
+/// (within about 35° of the axis); a diagonal arms nothing. Back inside
+/// `slop`, the axis is free again. Each disarms `hysteresis` short of its
+/// line, so the finger can rest on it without flickering.
+class DictationHoldTracker {
+    enum class Axis { up, left }
 
+    var axis: Axis? = null
+        private set
+    var armed: SessionFeature.State.DictationHold.Arm? = null
+        private set
+    var maxDistance: Float = 0f
+        private set
+
+    fun update(translation: Offset) {
+        val up = -translation.y
+        val left = -translation.x
+        val distance = hypot(translation.x, translation.y)
+        maxDistance = max(maxDistance, distance)
+        if (distance < slop) {
+            axis = null
+        } else if (axis == null) {
+            if (up > 0 && up >= left * ratio) {
+                axis = Axis.up
+            } else if (left > 0 && left >= up * ratio) {
+                axis = Axis.left
+            }
+        }
+        val lock = if (axis == Axis.up) up else 0f
+        val cancel = if (axis == Axis.left) left else 0f
+        when (armed) {
+            null ->
+                if (lock >= lockDistance) {
+                    armed = SessionFeature.State.DictationHold.Arm.lock
+                } else if (cancel >= cancelDistance) {
+                    armed = SessionFeature.State.DictationHold.Arm.cancel
+                }
+            SessionFeature.State.DictationHold.Arm.lock -> if (lock < lockDistance - hysteresis) armed = null
+            SessionFeature.State.DictationHold.Arm.cancel -> if (cancel < cancelDistance - hysteresis) armed = null
+        }
+    }
+
+    fun isTap(after: Double): Boolean = armed == null && after < tapDuration && maxDistance < tapSlop
+
+    companion object {
+        const val slop = 14f
+        const val ratio = 1.4f
+        const val lockDistance = 56f
+        const val cancelDistance = 96f
+        const val hysteresis = 14f
+
+        /// Shorter, stiller presses are taps.
+        const val tapDuration = 0.3
+        const val tapSlop = 10f
+    }
+}
+
+/// The finger's travel while holding the mic, for the bar to follow.
+data class DictationDrag(
+    val translation: Offset = Offset.Zero,
+    val axis: DictationHoldTracker.Axis? = null,
+)
+
+/// The mic, Telegram style: touch and hold to record and let go to send.
+/// Sliding up arms lock (keep recording hands-free) and sliding left arms
+/// cancel; letting go commits whichever is armed. A quick tap locks. The
+/// finger's travel goes to `onDrag` so the recording bar can follow it; this
+/// view only owns the touch.
+private object HoldToDictateButton {
     fun Modifier.holdToDictate(
         onBegan: () -> Unit,
-        onDrag: (Offset) -> Unit,
+        onDrag: (DictationDrag) -> Unit,
+        onArmed: (SessionFeature.State.DictationHold.Arm?) -> Unit,
         onReleased: () -> Unit,
         onLocked: () -> Unit,
-        onCancelled: () -> Unit,
     ): Modifier = pointerInput(Unit) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val start = System.nanoTime()
-            // Locked or cancelled mid-press: the rest of this touch does nothing.
-            var resolved = false
+            val tracker = DictationHoldTracker()
             onBegan()
             while (true) {
                 val event = awaitPointerEvent()
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) break
                 change.consume()
-                if (resolved) continue
                 val translation = (change.position - down.position) / density
-                onDrag(translation)
-                if (translation.y < -lockDistance) {
-                    resolved = true
-                    onDrag(Offset.Zero)
-                    onLocked()
-                } else if (translation.x < -cancelDistance) {
-                    resolved = true
-                    onDrag(Offset.Zero)
-                    onCancelled()
-                }
+                val wasArmed = tracker.armed
+                tracker.update(translation)
+                onDrag(DictationDrag(translation = translation, axis = tracker.axis))
+                if (tracker.armed != wasArmed) onArmed(tracker.armed)
             }
-            onDrag(Offset.Zero)
-            if (!resolved) {
-                if ((System.nanoTime() - start) / 1e9 < tapDuration) onLocked() else onReleased()
+            val isTap = tracker.isTap(after = (System.nanoTime() - start) / 1e9)
+            onDrag(DictationDrag())
+            if (isTap) onLocked() else onReleased()
+        }
+    }
+}
+
+/// Where the recording is, as both halves of the bar draw it: the bar's
+/// buttons and scope inside the composer, and the hold layer's circle and
+/// lock target above the composer's glass.
+private data class DictationBarPose(
+    val hold: SessionFeature.State.DictationHold,
+    val phase: SessionFeature.State.DictationPhase,
+    val drag: DictationDrag,
+    val reducedMotion: Boolean,
+    /// A sustained hold, not a tap: the circle has grown and the targets show.
+    val showsHoldGuides: Boolean,
+    /// The lock target has landed in Stop's slot after a slide.
+    val lockDropDone: Boolean,
+    val isLeaving: Boolean = false,
+) {
+    val isLocked: Boolean get() = hold.isLocked
+
+    /// Slid up and let go, rather than tapped.
+    val lockedBySliding: Boolean get() = isLocked && hold.armed == SessionFeature.State.DictationHold.Arm.lock
+    val isFinishing: Boolean get() = phase is SessionFeature.State.DictationPhase.finishing
+    val isSending: Boolean get() = (phase as? SessionFeature.State.DictationPhase.finishing)?.send != null
+    val isHolding: Boolean get() = !isLocked && !isFinishing && !isLeaving
+
+    /// Let go with nothing armed: the circle flies off with the message.
+    val isSentFromHold: Boolean get() = !isLocked && isSending
+    val cancelArmed: Boolean get() = isHolding && hold.armed == SessionFeature.State.DictationHold.Arm.cancel
+    val lockArmed: Boolean get() = isHolding && hold.armed == SessionFeature.State.DictationHold.Arm.lock
+    val guidesShown: Boolean get() = isHolding && (showsHoldGuides || hold.armed != null)
+
+    /// The lock target is on its way into Stop.
+    val isDroppingLock: Boolean get() = lockedBySliding && !lockDropDone && !reducedMotion
+
+    val lockProgress: Float
+        get() {
+            if (!isHolding || drag.axis != DictationHoldTracker.Axis.up) return 0f
+            return min(1f, max(0f, -drag.translation.y / DictationHoldTracker.lockDistance))
+        }
+    val cancelProgress: Float
+        get() {
+            if (!isHolding || drag.axis != DictationHoldTracker.Axis.left) return 0f
+            return min(1f, max(0f, -drag.translation.x / DictationHoldTracker.cancelDistance))
+        }
+
+    /// How far the circle leans after the finger: along the chosen axis, or a
+    /// few points either way before one is chosen. Still under Reduce Motion.
+    val follow: Offset
+        get() {
+            if (!isHolding || reducedMotion) return Offset.Zero
+            val t = drag.translation
+            return when (drag.axis) {
+                DictationHoldTracker.Axis.up ->
+                    Offset(0f, min(0f, max(t.y * 0.3f, -(DictationHoldTracker.lockDistance * 0.3f + 4))))
+                DictationHoldTracker.Axis.left ->
+                    Offset(min(0f, max(t.x * 0.3f, -(DictationHoldTracker.cancelDistance * 0.42f + 6))), 0f)
+                null -> Offset(min(4f, max(t.x * 0.25f, -4f)), min(4f, max(t.y * 0.25f, -4f)))
+            }
+        }
+
+    companion object {
+        const val holdDiameter = 68f
+        const val targetDiameter = 38f
+        const val spacing = 4f
+        const val slot = 44f
+        const val lockDropDelay = 0.13
+        const val lockDropDuration = 0.36
+    }
+}
+
+/// The composer's trailing control: it grows with the text like the composer's.
+@Composable
+private fun dictationButtonDiameter(): Float = min(34f * min(LocalDensity.current.fontScale, 1.35f), 44f)
+
+/// Recording takes the composer's control row: Cancel (`xmark`) · the
+/// warm-pearl scope (`DotScopeView`) · Stop (`stop.fill`, into the draft) ·
+/// Send (`arrow.up`). While the mic is held only ✕ (where sliding left
+/// cancels) and the scope show, and `DictationHoldLayer` draws the circle
+/// under the finger; locked, the circle settles into Send and the lock
+/// target drops into Stop.
+@Composable
+private fun DictationScopeBar(
+    pose: DictationBarPose,
+    /// Mid-run, Send steers and touch and hold offers Steer and Queue.
+    isRunning: Boolean,
+    canSend: Boolean,
+    onShowsHoldGuides: (Boolean) -> Unit,
+    onLockDropDone: (Boolean) -> Unit,
+    onCancel: () -> Unit,
+    onStop: () -> Unit,
+    onSend: (OpenCodeDelivery) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val p = pose
+    var lockedAt by remember { mutableStateOf<Long?>(null) }
+    val diameter = dictationButtonDiameter()
+    val slot = DictationBarPose.slot
+
+    /// After a tap opens the bar, a quick second tap on the mic would land on
+    /// a bar button; they ignore taps this long.
+    val tapGuard = 0.4
+
+    fun guarded(action: () -> Unit) {
+        val locked = lockedAt
+        if (!p.lockedBySliding && locked != null && (System.nanoTime() - locked) / 1e9 < tapGuard) return
+        action()
+    }
+    LaunchedEffect(p.isLocked) {
+        if (p.isLocked) lockedAt = System.nanoTime()
+    }
+    LaunchedEffect(p.isDroppingLock) {
+        if (!p.isDroppingLock) return@LaunchedEffect
+        delay(((DictationBarPose.lockDropDelay + DictationBarPose.lockDropDuration) * 1_000).toLong())
+        // Now identical to Stop beneath it: swap without a flicker.
+        onLockDropDone(true)
+    }
+    // Only a sustained hold grows the circle and offers the targets; a quick
+    // tap locks immediately and never flashes them.
+    LaunchedEffect(p.isHolding) {
+        if (!p.isHolding) return@LaunchedEffect
+        onShowsHoldGuides(false)
+        onLockDropDone(false)
+        delay(200)
+        onShowsHoldGuides(true)
+    }
+    val armedSpring = if (p.reducedMotion) tween<Float>(150) else spring(dampingRatio = 0.75f, stiffness = 800f)
+    val cancelScale by animateFloatAsState(if (p.cancelArmed && !p.reducedMotion) 1.1f else 1f, armedSpring, label = "cancel")
+    val stopAlpha by animateFloatAsState(
+        if (p.isLocked && !p.isDroppingLock) 1f else 0f,
+        // Tapped open, Stop follows Send in; slid, the lock target becomes it.
+        if (p.reducedMotion) tween(200) else tween(200, delayMillis = (DictationBarPose.lockDropDelay * 1_000).toInt(), easing = EaseOut),
+        label = "stop",
+    )
+    Box(modifier.heightIn(min = 44.dp)) {
+        Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .scale(cancelScale)
+                    .clickable(enabled = p.isLocked && !p.isFinishing, interactionSource = null, indication = null, role = Role.Button) { guarded(onCancel) }
+                    .then(
+                        if (p.isLocked) {
+                            Modifier.semantics {
+                                contentDescription = "Cancel"
+                                testTag = "Cancel dictation"
+                            }
+                        } else {
+                            Modifier.clearAndSetSemantics {}
+                        },
+                    ),
+            ) {
+                DictationRoundLabel(
+                    "xmark",
+                    font = TextStyles.body.medium,
+                    foreground = if (p.cancelArmed) Color.White else SystemColors.label,
+                    background = if (p.cancelArmed) SystemColors.systemRed else SystemColors.tertiarySystemFill,
+                    diameter = diameter,
+                )
+            }
+            Spacer(Modifier.weight(1f).heightIn(min = 44.dp))
+            Box(
+                Modifier
+                    .alpha(stopAlpha)
+                    .clickable(enabled = p.isLocked && !p.isFinishing, interactionSource = null, indication = null, role = Role.Button) { guarded(onStop) }
+                    .then(
+                        if (p.isLocked) {
+                            Modifier.semantics {
+                                // Not “Stop”: during a run that's the composer's Stop for the run.
+                                contentDescription = if (p.isFinishing && !p.isSending) "Finishing dictation" else "Stop recording"
+                                testTag = if (p.isFinishing && !p.isSending) "Finishing dictation" else "Stop dictation"
+                                stateDescription = "Puts the words in your message"
+                            }
+                        } else {
+                            Modifier.clearAndSetSemantics {}
+                        },
+                    ),
+            ) {
+                DictationRoundLabel(
+                    "stop.fill",
+                    font = TextStyles.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    foreground = SystemColors.label,
+                    background = SystemColors.tertiarySystemFill,
+                    diameter = diameter,
+                    showsProgress = p.isFinishing && !p.isSending,
+                )
+            }
+            DictationSendSlot(
+                p,
+                isRunning = isRunning,
+                canSend = canSend,
+                onSend = { delivery -> guarded { onSend(delivery) } },
+                modifier = Modifier.padding(start = DictationBarPose.spacing.dp),
+            )
+        }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = p.guidesShown,
+            modifier = Modifier.align(Alignment.CenterStart).offset(x = 50.dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            SystemImage(
+                "chevron.left",
+                null,
+                Modifier
+                    .symbolSize(TextStyles.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+                    .alpha(1f - p.cancelProgress * 0.6f)
+                    .clearAndSetSemantics {},
+                tint = SystemColors.secondaryLabel,
+            )
+        }
+    }
+}
+
+/// Send's touch target. Its visible circle is the one the hold grew, drawn
+/// by the hold layer, so the circle that was under the finger is the one
+/// you tap.
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DictationSendSlot(
+    p: DictationBarPose,
+    isRunning: Boolean,
+    canSend: Boolean,
+    onSend: (OpenCodeDelivery) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showsDelivery by remember { mutableStateOf(false) }
+    val enabled = p.isLocked && !p.isSending && canSend
+    Box(
+        modifier
+            .size(DictationBarPose.slot.dp)
+            .clip(CircleShape)
+            .combinedClickable(
+                enabled = enabled,
+                interactionSource = null,
+                indication = null,
+                role = Role.Button,
+                // Like the composer's Send mid-run: tap steers; touch and hold offers
+                // the delivery.
+                onLongClick = if (isRunning) ({ showsDelivery = true }) else null,
+                onClick = { onSend(OpenCodeDelivery.steer) },
+            )
+            .then(
+                if (p.isLocked) {
+                    Modifier.semantics {
+                        contentDescription = if (p.isSending) "Sending message" else "Send"
+                        testTag = "Send dictation"
+                        if (isRunning) stateDescription = "Steers at the next step. Touch and hold to queue after this response."
+                    }
+                } else {
+                    Modifier.clearAndSetSemantics {}
+                },
+            ),
+    ) {
+        SystemMenu(
+            expanded = showsDelivery,
+            onDismissRequest = { showsDelivery = false },
+            sections = listOf(
+                SystemMenuSection(
+                    listOf(
+                        SystemMenuItem("Steer", systemImage = OpenCodeDelivery.steer.symbolName) {
+                            showsDelivery = false
+                            onSend(OpenCodeDelivery.steer)
+                        },
+                        SystemMenuItem("Queue", systemImage = OpenCodeDelivery.queue.symbolName) {
+                            showsDelivery = false
+                            onSend(OpenCodeDelivery.queue)
+                        },
+                    ),
+                ),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun DictationRoundLabel(
+    systemImage: String,
+    font: androidx.compose.ui.text.TextStyle,
+    foreground: Color,
+    background: Color,
+    diameter: Float,
+    showsProgress: Boolean = false,
+) {
+    Box(Modifier.size(DictationBarPose.slot.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(diameter.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
+            if (showsProgress) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = foreground)
+            } else {
+                SystemImage(systemImage, null, Modifier.symbolSize(font), tint = foreground)
             }
         }
     }
 }
 
-/// Replaces the composer control row while dictating: Cancel (`xmark`) and
-/// Stop (`stop.fill`). During an active finger hold (`!hold.isLocked`), a
-/// subtle “Slide to cancel” hint and a rising lock pill guide the gesture;
-/// once tapped or locked, only Cancel, the scope, and Stop remain.
+/// The parts of the recording bar that leave its row, drawn above the
+/// composer's glass so its rim never crosses them: the circle that grows
+/// out of the mic under the finger and becomes Send, and the lock target
+/// above it that drops into Stop. Purely visual; the bar owns the buttons.
 @Composable
-private fun DictationScopeBar(
-    hold: SessionFeature.State.DictationHold,
-    isFinishing: Boolean,
-    drag: Offset,
-    reducedMotion: Boolean,
-    onCancel: () -> Unit,
-    onStop: () -> Unit,
+private fun DictationHoldLayer(
+    pose: DictationBarPose,
+    canSend: Boolean,
+    /// In root coordinates, like `barFrame`.
+    micFrame: Rect,
+    barFrame: Rect,
     modifier: Modifier = Modifier,
 ) {
-    var showsHoldGuides by remember { mutableStateOf(false) }
-    val isHolding = !hold.isLocked && !isFinishing
-    val dragX = if (isHolding) min(0f, drag.x) else 0f
-    val dragY = if (isHolding) min(0f, drag.y) else 0f
-    val cancelProgress = min(1f, -dragX / HoldToDictateButton.cancelDistance)
-    val lockProgress = min(1f, -dragY / HoldToDictateButton.lockDistance)
-    // Only a sustained hold offers the slide-to-cancel / lock guides; a quick
-    // tap locks immediately and never flashes them.
-    LaunchedEffect(isHolding) {
-        if (!isHolding) {
-            showsHoldGuides = false
-            return@LaunchedEffect
-        }
-        delay((HoldToDictateButton.tapDuration * 1_000).toLong())
-        showsHoldGuides = true
-    }
-    Row(
-        modifier.heightIn(min = 44.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val p = pose
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
+    val diameter = dictationButtonDiameter()
+    val slot = DictationBarPose.slot
+    fun local(point: Offset) = with(density) { Offset((point.x - origin.x).toDp().value, (point.y - origin.y).toDp().value) }
+    val barMaxX = local(Offset(barFrame.right, 0f)).x
+    val barMidY = local(Offset(0f, barFrame.center.y)).y
+    val sendCenter = Offset(barMaxX - slot / 2, barMidY)
+    val stopCenter = Offset(barMaxX - slot * 1.5f - DictationBarPose.spacing, barMidY)
+    val micCenter = if (micFrame == Rect.Zero) sendCenter else local(micFrame.center)
+    /// Directly above the mic, where the finger goes to lock.
+    val lockCenter = Offset(micCenter.x, micCenter.y - DictationBarPose.holdDiameter / 2 - 30 - DictationBarPose.targetDiameter / 2)
+
+    val lockedSpring = if (p.reducedMotion) tween<Float>(200) else spring(dampingRatio = 0.9f, stiffness = 340f)
+    val circleX by animateFloatAsState((if (p.isLocked) sendCenter.x else micCenter.x) + p.follow.x, lockedSpring, label = "circleX")
+    val circleY by animateFloatAsState((if (p.isLocked) sendCenter.y else micCenter.y) + p.follow.y, lockedSpring, label = "circleY")
+    val grown = !p.isLocked && p.showsHoldGuides && !p.isLeaving
+    val circleDiameter by animateFloatAsState(
+        if (grown) DictationBarPose.holdDiameter else diameter,
+        if (p.reducedMotion) tween(200) else spring(dampingRatio = 0.85f, stiffness = 400f),
+        label = "circleDiameter",
+    )
+    val sentProgress by animateFloatAsState(if (p.isSentFromHold) 1f else 0f, if (p.reducedMotion) tween(200) else spring(stiffness = 600f), label = "sent")
+    val dropped = p.isDroppingLock
+    val lockX by animateFloatAsState(if (dropped) stopCenter.x else lockCenter.x, if (p.reducedMotion) tween(0) else tween((DictationBarPose.lockDropDuration * 1_000).toInt(), delayMillis = (DictationBarPose.lockDropDelay * 1_000).toInt()), label = "lockX")
+    val lockY by animateFloatAsState(if (dropped) stopCenter.y else lockCenter.y, if (p.reducedMotion) tween(0) else tween((DictationBarPose.lockDropDuration * 1_000).toInt(), delayMillis = (DictationBarPose.lockDropDelay * 1_000).toInt()), label = "lockY")
+    val lockScale by animateFloatAsState(if (p.lockArmed && !p.reducedMotion) 1.1f else 1f, if (p.reducedMotion) tween(150) else spring(dampingRatio = 0.75f, stiffness = 800f), label = "lockScale")
+    val swells = !p.isLocked && p.isHolding && p.showsHoldGuides && !p.reducedMotion
+    val swell = rememberDictationSwell(swells)
+
+    Box(
+        modifier
+            .onGloballyPositioned { origin = it.boundsInRoot().topLeft }
+            .clearAndSetSemantics {},
     ) {
-        Box(
-            Modifier
-                .size(44.dp)
-                .background(SystemColors.tertiarySystemFill, CircleShape)
-                .clickable(enabled = !isFinishing && hold.isLocked, role = Role.Button, onClick = onCancel)
-                .semantics { contentDescription = "Cancel dictation" },
-            contentAlignment = Alignment.Center,
-        ) {
-            SystemImage("xmark", null, Modifier.symbolSize(TextStyles.body.medium), tint = if (cancelProgress > 0.5f) SystemColors.systemRed else SystemColors.label)
+        androidx.compose.animation.AnimatedVisibility(p.guidesShown, enter = fadeIn(), exit = fadeOut()) {
+            SystemImage(
+                "chevron.up",
+                null,
+                Modifier
+                    .dictationPosition(Offset(micCenter.x, micCenter.y - DictationBarPose.holdDiameter / 2 - 15 + p.follow.y * 0.5f), 14f)
+                    .alpha(1f - p.lockProgress * 0.6f)
+                    .symbolSize(TextStyles.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)),
+                tint = SystemColors.secondaryLabel,
+            )
         }
-        Box(Modifier.weight(1f).heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
-            androidx.compose.animation.AnimatedVisibility(isHolding && showsHoldGuides, enter = fadeIn(), exit = fadeOut()) {
-                Row(
-                    Modifier
-                        .offset(x = (dragX * 0.6f).dp)
-                        .alpha(1f - cancelProgress * 0.9f)
-                        .background(SystemColors.tertiarySystemFill, CircleShape)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SystemImage("chevron.left", null, Modifier.symbolSize(TextStyles.footnote), tint = SystemColors.secondaryLabel)
-                    Text("Slide to cancel", style = TextStyles.footnote.medium, color = SystemColors.secondaryLabel)
-                }
-            }
-        }
-        Box(contentAlignment = Alignment.Center) {
+        androidx.compose.animation.AnimatedVisibility(p.guidesShown || dropped, enter = fadeIn(), exit = fadeOut()) {
+            // Glass above the mic while holding; filled when armed. Locked by
+            // sliding, it drops into Stop's slot a beat after the circle leaves for
+            // Send, and becomes Stop.
+            val size = if (dropped) diameter else DictationBarPose.targetDiameter
             Box(
                 Modifier
-                    .size(44.dp)
-                    .clickable(enabled = !isFinishing && hold.isLocked, role = Role.Button, onClick = onStop)
-                    .semantics {
-                        contentDescription = if (isFinishing) "Finishing dictation" else "Stop dictation"
-                        testTag = if (isFinishing) "Finishing dictation" else "Stop dictation"
-                    },
+                    .dictationPosition(Offset(lockX, lockY), size)
+                    .scale(lockScale)
+                    .then(if (dropped) Modifier else Modifier.openCodeGlass(CircleShape))
+                    .background(
+                        when {
+                            p.lockArmed -> SystemColors.label
+                            dropped -> SystemColors.tertiarySystemFill
+                            else -> Color.Transparent
+                        },
+                        CircleShape,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.size(40.dp).background(SystemColors.label, CircleShape), contentAlignment = Alignment.Center) {
-                    if (isFinishing) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = SystemColors.systemBackground)
-                    } else {
-                        SystemImage("stop.fill", null, Modifier.symbolSize(TextStyles.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)), tint = SystemColors.systemBackground)
-                    }
-                }
+                SystemImage(
+                    if (dropped) "stop.fill" else if (p.lockArmed) "lock.fill" else "lock.open.fill",
+                    null,
+                    Modifier.symbolSize(
+                        if (dropped) TextStyles.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) else TextStyles.subheadline.semibold,
+                    ),
+                    tint = if (dropped) SystemColors.label else if (p.lockArmed) SystemColors.systemBackground else SystemColors.secondaryLabel,
+                )
             }
-            if (isHolding && showsHoldGuides) {
-                Column(
-                    Modifier
-                        .offset(y = (-58 - lockProgress * 18 + dragY * 0.35f).dp)
-                        .width(36.dp)
-                        .openCodeGlass(CircleShape)
-                        .padding(vertical = 9.dp)
-                        .semantics { hideFromAccessibility() },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    SystemImage(if (lockProgress > 0.6f) "lock.fill" else "lock.open.fill", null, Modifier.symbolSize(TextStyles.callout.semibold), tint = SystemColors.secondaryLabel)
-                    SystemImage("chevron.up", null, Modifier.symbolSize(TextStyles.caption2).alpha(1f - lockProgress), tint = SystemColors.secondaryLabel)
-                }
+        }
+        // One circle from press to Send: the mic's size at first, swelling under a
+        // sustained hold, then shrinking into Send when locked. In Label (black in
+        // light, white in dark), so it becomes Send without changing colour.
+        Box(
+            Modifier
+                .dictationPosition(Offset(circleX, circleY - 36 * sentProgress), circleDiameter)
+                // Let go with nothing armed: it flies off with the message.
+                .scale((1 + swell * 0.1f) * (1 - 0.5f * sentProgress))
+                .alpha((1 - sentProgress) * (if (p.isLocked && !canSend && !p.isSending) 0.4f else 1f))
+                .background(SystemColors.label, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (p.isLocked && p.isSending) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = SystemColors.systemBackground)
+            } else {
+                SystemImage(
+                    if (p.isLocked) "arrow.up" else "mic.fill",
+                    null,
+                    Modifier.symbolSize(if (grown) TextStyles.title2.semibold else TextStyles.body.medium),
+                    tint = SystemColors.systemBackground,
+                )
             }
         }
     }
+}
+
+/// Places a square of `size` points centred on `center`, in the layer's points.
+private fun Modifier.dictationPosition(center: Offset, size: Float): Modifier =
+    offset(x = (center.x - size / 2).dp, y = (center.y - size / 2).dp).size(size.dp)
+
+/// The live input level, eased for the hold circle's swell: quick to rise,
+/// slower to fall, never the raw per-buffer value.
+private class DictationLevelFollower {
+    private var value = 0f
+    private var last: Long? = null
+
+    fun step(target: Float, at: Long): Float {
+        val elapsed = min(0.1f, (at - (last ?: at)) / 1e9f)
+        last = at
+        val rate = if (target > value) 18f else 6f
+        value += (target - value) * min(1f, elapsed * rate)
+        return value
+    }
+}
+
+@Composable
+private fun rememberDictationSwell(swells: Boolean): Float {
+    var swell by remember { mutableFloatStateOf(0f) }
+    val follower = remember { DictationLevelFollower() }
+    LaunchedEffect(swells) {
+        if (!swells) {
+            swell = 0f
+            return@LaunchedEffect
+        }
+        while (true) {
+            withFrameNanos { now -> swell = follower.step(DictationLevels.shared.level, now) }
+        }
+    }
+    return swell
 }
 
 /// A glass pill above the composer: background work or pending messages.
@@ -672,7 +1074,11 @@ private class SessionViewState {
     var largeUpload by mutableStateOf<LargeUpload?>(null)
     var messageFieldFocused by mutableStateOf(false)
     /// The held mic's finger travel, for the recording bar to follow.
-    var dictationDrag by mutableStateOf(Offset.Zero)
+    var dictationDrag by mutableStateOf(DictationDrag())
+    var dictationMicFrame by mutableStateOf(Rect.Zero)
+    var dictationBarFrame by mutableStateOf(Rect.Zero)
+    var dictationShowsHoldGuides by mutableStateOf(false)
+    var dictationLockDropDone by mutableStateOf(false)
     var attachmentMenu by mutableStateOf(AttachmentMenuPhase.closed)
     var photoSelection = InlinePhotoSelection()
     var pickerReservation by mutableFloatStateOf(0f)
@@ -773,6 +1179,16 @@ private class SessionViewState {
         }
     }
 
+    private fun dictationPose(hold: SessionFeature.State.DictationHold, isLeaving: Boolean) = DictationBarPose(
+        hold = hold,
+        phase = store.state.dictationPhase,
+        drag = dictationDrag,
+        reducedMotion = reducedMotion,
+        showsHoldGuides = dictationShowsHoldGuides,
+        lockDropDone = dictationLockDropDone,
+        isLeaving = isLeaving,
+    )
+
     lateinit var composerInset: () -> Float
     lateinit var keyboardIsMoving: () -> Boolean
 
@@ -817,6 +1233,24 @@ private class SessionViewState {
                             .onGloballyPositioned { composerTop = it.boundsInRoot().top },
                     ) {
                         ComposerArea(Modifier.padding(bottom = if (onCatchUpDone == null) 0.dp else 12.dp))
+                    }
+                    // Above the glass, so its rim never crosses the hold circle.
+                    val hold = store.state.dictationHold
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = hold != null && store.state.voice == null,
+                        modifier = Modifier.matchParentSize(),
+                        enter = fadeIn(tween(if (reducedMotion) 200 else 280)),
+                        exit = fadeOut(tween(if (reducedMotion) 200 else 280)),
+                    ) {
+                        if (hold != null) {
+                            DictationHoldLayer(
+                                pose = dictationPose(hold, isLeaving = transition.targetState == EnterExitState.PostExit),
+                                canSend = !store.state.isSubmittingPrompt,
+                                micFrame = dictationMicFrame,
+                                barFrame = dictationBarFrame,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                     BackgroundWork(store, Binding({ showsBackgroundWork }, { showsBackgroundWork = it }))
                     AttachmentMenuOverlayHost()
@@ -1386,7 +1820,7 @@ private class SessionViewState {
                         }
                     },
                     leading = {
-                        Box(Modifier.alpha(if (recording) 0f else 1f)) {
+                        Box(Modifier.alpha(if (recording) 0f else 1f).then(if (recording) Modifier.clearAndSetSemantics {} else Modifier)) {
                             ComposerLeadingControls(composerExpanded, composerControls.secondaryMic)
                         }
                     },
@@ -1394,7 +1828,12 @@ private class SessionViewState {
                         // `ComposerLayout` places exactly three subviews, so everything at the
                         // trailing edge travels as one group: Send/Stop rightmost, dictation
                         // to its left.
-                        Row(Modifier.alpha(if (recording) 0f else 1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // The bar replaces these, the run's Stop included, so its own ■
+                        // (Stop recording) is the only Stop while dictating.
+                        Row(
+                            Modifier.alpha(if (recording) 0f else 1f).then(if (recording) Modifier.clearAndSetSemantics {} else Modifier),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             val dictation = composerControls.dictation
                             if (dictation != null) {
                                 DictationTrailingControls(dictation)
@@ -1417,15 +1856,16 @@ private class SessionViewState {
                 ) {
                     if (hold != null) {
                         DictationScopeBar(
-                            hold = hold,
-                            isFinishing = store.state.isFinishingDictation,
-                            drag = dictationDrag,
-                            reducedMotion = reducedMotion,
+                            pose = dictationPose(hold, isLeaving = transition.targetState == EnterExitState.PostExit),
+                            isRunning = store.state.isRunning,
+                            canSend = !store.state.isSubmittingPrompt,
+                            onShowsHoldGuides = { dictationShowsHoldGuides = it },
+                            onLockDropDone = { dictationLockDropDone = it },
                             onCancel = { store.send(SessionFeature.Action.micPressCancelled) },
-                            onStop = {
-                                messageFieldFocused = true
-                                store.send(SessionFeature.Action.dictationStopTapped)
-                            },
+                            // The words land in the draft; the keyboard stays as it was.
+                            onStop = { store.send(SessionFeature.Action.dictationInsertTapped) },
+                            onSend = { store.send(if (it == OpenCodeDelivery.queue) SessionFeature.Action.dictationQueueTapped else SessionFeature.Action.dictationSendTapped) },
+                            modifier = Modifier.onGloballyPositioned { dictationBarFrame = it.boundsInRoot() },
                         )
                     }
                 }
@@ -1497,13 +1937,15 @@ private class SessionViewState {
     fun HoldToDictateHost(modifier: Modifier = Modifier, label: @Composable () -> Unit) {
         with(HoldToDictateButton) {
             Box(
-                modifier.holdToDictate(
-                    onBegan = { store.send(SessionFeature.Action.micPressBegan) },
-                    onDrag = { dictationDrag = it },
-                    onReleased = { store.send(SessionFeature.Action.micPressReleased) },
-                    onLocked = { store.send(SessionFeature.Action.micPressLocked) },
-                    onCancelled = { store.send(SessionFeature.Action.micPressCancelled) },
-                ),
+                modifier
+                    .onGloballyPositioned { dictationMicFrame = it.boundsInRoot() }
+                    .holdToDictate(
+                        onBegan = { store.send(SessionFeature.Action.micPressBegan) },
+                        onDrag = { dictationDrag = it },
+                        onArmed = { store.send(SessionFeature.Action.micPressArmed(it)) },
+                        onReleased = { store.send(SessionFeature.Action.micPressReleased) },
+                        onLocked = { store.send(SessionFeature.Action.micPressLocked) },
+                    ),
             ) { label() }
         }
     }

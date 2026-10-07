@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "7a54834")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "a20a28d")
 
 package ai.opencode.mobilecode
 
@@ -176,8 +176,9 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             data object recording : DictationPhase
 
             /// The mic was stopped intentionally and the engine is finalizing; its
-            /// last (often only) transcript is still welcome in the draft.
-            data class finishing(val sendWhenComplete: Boolean) : DictationPhase
+            /// last (often only) transcript is still welcome in the draft. With a
+            /// delivery, the draft is sent that way once it lands.
+            data class finishing(val send: OpenCodeDelivery?) : DictationPhase
         }
 
         var dictationPhase by StoreVar<DictationPhase>(DictationPhase.idle)
@@ -194,7 +195,13 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             val text: String,
             /// Slid up or tapped: recording continues hands-free until Send or Cancel.
             val isLocked: Boolean = false,
-        )
+            /// What letting go will do instead of sending, while the finger is
+            /// still down: sliding only arms; releasing commits. A recording locked
+            /// by sliding keeps `.lock`; a tap leaves it nil.
+            val armed: Arm? = null,
+        ) {
+            enum class Arm { lock, cancel }
+        }
 
         /// The server is running this session (any client or agent) — driven by
         /// live execution events. Shows the working indicator for external runs.
@@ -727,19 +734,27 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         /// Touch down on the mic: dictate while held.
         data object micPressBegan : Action
 
-        /// Let go of a held mic: finish and send.
+        /// Slid past (or back from) the lock or cancel threshold while holding.
+        data class micPressArmed(val arm: State.DictationHold.Arm?) : Action
+
+        /// Let go of a held mic: lock or cancel if armed, otherwise finish and send.
         data object micPressReleased : Action
 
-        /// Slid up while holding (or a quick tap): keep recording hands-free.
+        /// A quick tap (or VoiceOver): keep recording hands-free.
         data object micPressLocked : Action
 
-        /// Slid left while holding, or tapped Cancel: drop the words, send nothing.
+        /// Tapped Cancel: drop the words, send nothing.
         data object micPressCancelled : Action
 
-        /// Tapped Stop in the dictation bar: finish and place the transcription in the draft.
-        data object dictationStopTapped : Action
+        /// Tapped Stop in the dictation bar: finish and place the words in the draft.
+        data object dictationInsertTapped : Action
 
+        /// Tapped Send in the dictation bar: finish, then send the draft with the
+        /// transcription, steering mid-run like the composer's Send.
         data object dictationSendTapped : Action
+
+        /// Chose Queue from Send's menu in the dictation bar mid-run.
+        data object dictationQueueTapped : Action
 
         /// The scene went to the background (not merely inactive).
         data object sceneEnteredBackground : Action
@@ -1826,7 +1841,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                     Action.micTapped -> {
                         haptics.impact()
                         if (state.isDictating) {
-                            return@Reduce finishDictation(state, sendWhenComplete = false)
+                            return@Reduce finishDictation(state, send = null)
                         }
                         // A tap while the engine is still finalizing is almost always a
                         // double-tap on stop; restarting would race the pending teardown.
@@ -1842,9 +1857,29 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         start
                     }
 
+                    is Action.micPressArmed -> {
+                        val arm = action.arm
+                        val hold = state.dictationHold
+                        if (hold == null || hold.isLocked || hold.armed == arm || !state.isDictating) return@Reduce Effect.none
+                        state.dictationHold = state.dictationHold?.copy(armed = arm)
+                        // The same for lock and cancel: a tap arming, a tick disarming.
+                        if (arm == null) haptics.selection() else haptics.impact()
+                        Effect.none
+                    }
+
                     Action.micPressReleased -> {
                         val hold = state.dictationHold
                         if (hold == null || hold.isLocked) return@Reduce Effect.none
+                        when (hold.armed) {
+                            State.DictationHold.Arm.lock -> {
+                                // Stays armed: the bar knows it was slid open, not tapped.
+                                state.dictationHold = state.dictationHold?.copy(isLocked = true)
+                                haptics.selection()
+                                return@Reduce Effect.none
+                            }
+                            State.DictationHold.Arm.cancel -> return@Reduce Effect.send(Action.micPressCancelled)
+                            null -> Unit
+                        }
                         if (state.isPreparingDictation) {
                             // Let go before the mic was ready: the permission prompt took the
                             // touch, or setup was slow. Stopping now would abort setup, so
@@ -1854,13 +1889,13 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         }
                         if (state.dictationPhase != State.DictationPhase.recording) return@Reduce Effect.none
                         haptics.impact()
-                        finishDictation(state, sendWhenComplete = true)
+                        finishDictation(state, send = OpenCodeDelivery.steer)
                     }
 
                     Action.micPressLocked -> {
                         val hold = state.dictationHold
                         if (hold == null || hold.isLocked || !state.isDictating) return@Reduce Effect.none
-                        state.dictationHold = state.dictationHold?.copy(isLocked = true)
+                        state.dictationHold = state.dictationHold?.copy(isLocked = true, armed = null)
                         haptics.selection()
                         Effect.none
                     }
@@ -1873,10 +1908,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         stopDictation(state)
                     }
 
-                    Action.dictationStopTapped -> {
+                    Action.dictationInsertTapped -> {
                         if (!state.isDictating) return@Reduce Effect.none
                         haptics.impact()
-                        finishDictation(state, sendWhenComplete = false)
+                        finishDictation(state, send = null)
                     }
 
                     Action.sceneEnteredBackground -> {
@@ -1886,12 +1921,21 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         // background: the permission prompt and Control Center just make
                         // the scene inactive.
                         if (!state.isDictating) return@Reduce Effect.none
-                        finishDictation(state, sendWhenComplete = false)
+                        finishDictation(state, send = null)
                     }
 
-                    Action.dictationSendTapped -> {
+                    Action.dictationSendTapped, Action.dictationQueueTapped -> {
+                        val delivery = if (action == Action.dictationQueueTapped) OpenCodeDelivery.queue else OpenCodeDelivery.steer
+                        if (state.dictationPhase == State.DictationPhase.finishing(send = null)) {
+                            // Send after Stop, while the last words are still landing: they
+                            // go out with the draft instead.
+                            haptics.impact()
+                            state.dictationPhase = State.DictationPhase.finishing(send = delivery)
+                            return@Reduce Effect.none
+                        }
                         if (!state.isDictating) return@Reduce Effect.none
-                        finishDictation(state, sendWhenComplete = true)
+                        haptics.impact()
+                        finishDictation(state, send = delivery)
                     }
 
                     Action.dictationReady -> {
@@ -1913,7 +1957,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                     is Action.dictationStopped -> {
                         val errorMessage = action.errorMessage
                         if (!(state.isDictating || state.isFinishingDictation)) return@Reduce Effect.none
-                        val shouldSend = (state.dictationPhase as? State.DictationPhase.finishing)?.sendWhenComplete ?: false
+                        val delivery = (state.dictationPhase as? State.DictationPhase.finishing)?.send
                         state.dictationError = errorMessage
                         if (errorMessage != null) haptics.error()
                         // A held mic's words reach the draft only now: sent on success, kept
@@ -1925,7 +1969,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         }
                         val stop = stopDictation(state)
                         val hasPrompt = state.hasPromptContent
-                        if (shouldSend && errorMessage == null && hasPrompt) Effect.merge(stop, Effect.send(Action.sendTapped)) else stop
+                        if (delivery == null || errorMessage != null || !hasPrompt) return@Reduce stop
+                        Effect.merge(stop, Effect.send(if (delivery == OpenCodeDelivery.queue) Action.queueTapped else Action.sendTapped))
                     }
 
                     Action.interruptTapped -> {
@@ -3031,10 +3076,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
     /// accurate result — still lands in the draft before the stream ends.
     private fun finishDictation(
         state: State,
-        sendWhenComplete: Boolean,
+        send: OpenCodeDelivery?,
     ): Effect<Action> {
         if (!state.isDictating) return Effect.none
-        state.dictationPhase = State.DictationPhase.finishing(sendWhenComplete = sendWhenComplete)
+        state.dictationPhase = State.DictationPhase.finishing(send = send)
         return Effect.run { _ -> dictation.stop() }
     }
 

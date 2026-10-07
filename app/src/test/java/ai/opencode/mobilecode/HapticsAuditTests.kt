@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "626fbb8")
+@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "a20a28d")
 
 package ai.opencode.mobilecode
 
@@ -153,6 +153,28 @@ class HapticsAuditTests {
         store.receive<SessionFeature.Action.dictationReady>()
         store.send(SessionFeature.Action.micPressLocked)
         expect(log == listOf("impact", "selection"))
+        feed.close()
+        store.skipInFlightEffects()
+    }
+
+    @Test
+    fun armingAHeldMicTapsAndDisarmingTicks() {
+        val log = mutableListOf<String>()
+        val feed = Channel<String>(Channel.UNLIMITED)
+        val store = sessionStore(null, log) {
+            it.dictation.start = { feed.consumeAsFlow() }
+            it.dictation.stop = { feed.close() }
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(SessionFeature.Action.micPressBegan)
+        store.receive<SessionFeature.Action.dictationReady>()
+        log.clear()
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.lock))
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.lock))
+        store.send(SessionFeature.Action.micPressArmed(null))
+        store.send(SessionFeature.Action.micPressArmed(SessionFeature.State.DictationHold.Arm.cancel))
+        // Arming taps and disarming ticks, the same for lock and cancel.
+        expect(log == listOf("impact", "selection", "impact"))
         feed.close()
         store.skipInFlightEffects()
     }
