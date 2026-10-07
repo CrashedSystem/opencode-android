@@ -101,6 +101,9 @@ def check(config, _args):
 def gate(config, synced):
     files = upstream_files(synced)
     claims = marker_claims(config)
+    # A file deleted or renamed away by a commit some marker is already synced
+    # to is a sync in progress, not an unported file.
+    retired = retired_paths(synced, claims)
     problems = {
         "Upstream files with no category in sync.json": [],
         "Port files neither ported nor deferred": [],
@@ -119,7 +122,7 @@ def gate(config, synced):
             ported = is_ported(path, claims)
             if ported and deferred:
                 problems["Port files both ported and deferred"].append(path)
-            elif not ported and not deferred and not (path in claims and remainder(path, config)):
+            elif not ported and not deferred and not (path in claims and remainder(path, config)) and path not in retired:
                 notes = "; ".join(partial for _, _, partial in claims.get(path, []) if partial)
                 problems["Port files neither ported nor deferred"].append(f"{path} (partial: {notes})" if notes else path)
     for path in config.get("partial", {}):
@@ -336,6 +339,16 @@ def targets(path, claims, config, kind="modified"):
 
 def upstream_files(rev):
     return git("ls-tree", "-r", "--name-only", rev).splitlines()
+
+
+def retired_paths(synced, claims):
+    """Files gone from upstream by the newest commit a marker claims ahead of `synced`."""
+    ahead = {commit for ports in claims.values() for _, commit, _ in ports if commit != synced and is_ancestor(synced, commit)}
+    if not ahead:
+        return set()
+    newest = max(ahead, key=lambda commit: int(git("rev-list", "--count", f"{synced}..{commit}")))
+    rows = git("diff", "--name-status", "--no-renames", "--diff-filter=D", synced, newest).splitlines()
+    return {row.split("\t")[-1] for row in rows}
 
 
 _changed = {}
