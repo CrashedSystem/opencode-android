@@ -7,9 +7,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -28,6 +32,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,7 +93,7 @@ fun SystemButton(
  * The platform sheet with the medium and large detents. Its surface stands in for iOS 26 glass,
  * the grouped background in light and the elevated background in dark, under an iOS-sized grabber.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun SystemSheet(
     onDismissRequest: () -> Unit,
@@ -116,6 +121,12 @@ fun SystemSheet(
             )
         },
     ) {
+        // iOS lifts a sheet above the keyboard. At the medium detent Material keeps
+        // the sheet's offset, so its bottom, and any actions there, sit under the keyboard.
+        val keyboardShown = WindowInsets.isImeVisible
+        LaunchedEffect(keyboardShown) {
+            if (keyboardShown && sheetState.currentValue == SheetValue.PartiallyExpanded) sheetState.expand()
+        }
         CompositionLocalProvider(LocalDismiss provides dismiss) {
             Column(Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }, content = content)
         }
