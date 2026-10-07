@@ -69,24 +69,29 @@ class Store<S, A> internal constructor(
     }
 }
 
-/** `Store(initialState: AppFeature.State()) { AppFeature() }` */
+/**
+ * `Store(initialState: AppFeature.State()) { AppFeature() } withDependencies: { … }`. The initial state
+ * and the reducer are built inside the store's dependencies, as Swift's autoclosure is.
+ */
 @Suppress("FunctionName")
 fun <S, A> Store(
-    initialState: S,
+    initialState: () -> S,
     withDependencies: (DependencyValues) -> Unit = {},
     reducer: () -> Reducer<S, A>,
 ): Store<S, A> {
+    val dependencies = DependencyValues.current.child().also(withDependencies)
+    val state = StoreContext.run(null, dependencies, initialState)
     val mainLooper = Looper.getMainLooper()
     val runtime =
         StoreRuntime.create(
-            initialState = initialState,
-            reducer = reducer(),
-            dependencies = DependencyValues.current.child().also(withDependencies),
+            initialState = state,
+            reducer = StoreContext.run(null, dependencies, reducer),
+            dependencies = dependencies,
             dispatcher = Dispatchers.Main,
             isStoreThread = { mainLooper.isCurrentThread },
             onEffectError = { Log.e("Store", "An effect failed", it) },
         )
-    return Store(runtime, { initialState }, { it }, emptyList())
+    return Store(runtime, { state }, { it }, emptyList())
 }
 
 /**

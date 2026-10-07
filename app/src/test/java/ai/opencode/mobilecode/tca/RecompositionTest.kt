@@ -26,7 +26,7 @@ class RecompositionTest {
 
     @Test
     fun tokenDeltasRecomposeOnlyTheirRow() {
-        val store = Store(initialState = Stream()) { StreamFeature() }
+        val store = Store(initialState = { Stream() }) { StreamFeature() }
         val compositions = HashMap<String, Int>()
         compose.setContent { StreamScreen(store, compositions) }
         compose.waitForIdle()

@@ -41,7 +41,7 @@ class WhatsNewViewScreenshotTest {
 
     @OptIn(ExperimentalRoborazziApi::class)
     private fun capture(appearance: String) {
-        val store = Store(initialState = WhatsNewFeature.State().apply { isPresented = true }) { WhatsNewFeature() }
+        val store = Store(initialState = { WhatsNewFeature.State().apply { isPresented = true } }) { WhatsNewFeature() }
         compose.setContent {
             SystemTheme {
                 CompositionLocalProvider(LocalGlassBlurEnabled provides false) {

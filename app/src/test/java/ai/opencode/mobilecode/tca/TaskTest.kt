@@ -23,7 +23,7 @@ class TaskTest {
 
     @Test
     fun aTaskRunsOnAppearAndOnANewIDButNotAfterAConfigurationChange() {
-        val store = Store(initialState = Visit()) { VisitFeature() }
+        val store = Store(initialState = { Visit() }) { VisitFeature() }
         TaskActivity.content = { VisitView(store) }
         val activity = Robolectric.buildActivity(TaskActivity::class.java).setup()
         compose.waitForIdle()

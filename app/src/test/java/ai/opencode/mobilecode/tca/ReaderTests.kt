@@ -27,7 +27,7 @@ class ReaderTests {
 
     @Test
     fun presentedShowsTheChildStoreAndItsDismissSendsDismiss() {
-        val store = Store(initialState = Modal()) { ModalFeature() }
+        val store = Store(initialState = { Modal() }) { ModalFeature() }
         compose.setContent {
             store.presented(Modal::child, ModalAction.child) { child ->
                 val dismiss = LocalDismiss.current
@@ -46,8 +46,32 @@ class ReaderTests {
     }
 
     @Test
+    fun aPresentedChildWithANewIdentityGetsAFreshSheet() {
+        val store = Store(initialState = { Picker() }) { PickerFeature() }
+        val appeared = mutableListOf<String>()
+        compose.setContent {
+            store.presented(Picker::shell, PickerAction.shell) { child ->
+                child.onAppear { appeared += child.state.id }
+                Text("shell ${child.state.id}")
+            }
+        }
+        compose.onNodeWithText("shell a").assertExists()
+        compose.runOnIdle { store.send(PickerAction.open("b")) }
+        compose.onNodeWithText("shell b").assertExists()
+        assertEquals(listOf("a", "b"), appeared)
+    }
+
+    @Test
+    fun aLiveStoreBuildsItsStateInsideItsDependencies() {
+        val memory = SharedMemory(InMemorySharedBackend())
+        val store = Store(initialState = { Toggle() }, withDependencies = { it[SharedMemory] = memory }) { ToggleFeature() }
+        store.send(ToggleAction.flip)
+        assertEquals(true, memory.cell(SharedKey.toggle).live)
+    }
+
+    @Test
     fun alertRunsTheTappedButtonAfterClearingItsBinding() {
-        val store = Store(initialState = Form()) { FormFeature() }
+        val store = Store(initialState = { Form() }) { FormFeature() }
         val tapped = mutableListOf<String>()
         compose.setContent {
             alert(
@@ -73,7 +97,7 @@ class ReaderTests {
 
     @Test
     fun observeRecomposesOnlyWhenTheDerivedValueChanges() {
-        val store = Store(initialState = Form()) { FormFeature() }
+        val store = Store(initialState = { Form() }) { FormFeature() }
         var compositions = 0
         compose.setContent {
             val hasDraft = store.observe { draft.isNotEmpty() }
@@ -87,4 +111,25 @@ class ReaderTests {
         compose.onNodeWithText("has draft").assertExists()
         assertEquals(2, compositions)
     }
+}
+
+class Picker : ObservableState() {
+    var shell by Presents(Child("a"))
+}
+
+sealed interface PickerAction {
+    data class shell(val action: PresentationAction<ChildAction>) : PickerAction {
+        companion object : Case<PickerAction, PresentationAction<ChildAction>>({ shell(it) }, { (it as? shell)?.action })
+    }
+
+    data class open(val id: String) : PickerAction
+}
+
+class PickerFeature : Reducer<Picker, PickerAction> {
+    override val body: Reducer<Picker, PickerAction> =
+        Reduce<Picker, PickerAction> { action ->
+            if (action is PickerAction.open) state.shell = Child(action.id)
+            Effect.none
+        }
+            .ifLet(Picker::shell, PickerAction.shell) { ChildFeature() }
 }
