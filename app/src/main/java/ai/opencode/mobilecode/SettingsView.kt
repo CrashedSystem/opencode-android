@@ -268,7 +268,7 @@ fun SettingsServerHeader(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
-            .settingsAura(time = time, tint = tint, phase = phase, dark = dark)
+            .settingsAura(time = { time.value }, tint = tint, phase = phase, dark = dark)
             .padding(horizontal = 18.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {

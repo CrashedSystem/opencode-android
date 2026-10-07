@@ -4,10 +4,9 @@ package ai.opencode.mobilecode
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -23,15 +22,16 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /// Seconds since the header appeared, advancing every frame unless paused,
-/// like `TimelineView(.animation(paused:))`.
+/// like `TimelineView(.animation(paused:))`. Read it while drawing, so a
+/// frame redraws the field without recomposing the card.
 @Composable
-fun settingsAuraTime(paused: Boolean): Float {
-    var time by remember { mutableFloatStateOf(0f) }
+fun settingsAuraTime(paused: Boolean): State<Float> {
+    val time = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(paused) {
         if (paused) return@LaunchedEffect
         // The frame clock, so a test's clock drives it like the animations.
-        val start = withFrameNanos { it } - (time * 1e9f).toLong()
-        while (true) withFrameNanos { time = (it - start) / 1e9f }
+        val start = withFrameNanos { it } - (time.floatValue * 1e9f).toLong()
+        while (true) withFrameNanos { time.floatValue = (it - start) / 1e9f }
     }
     return time
 }
@@ -41,7 +41,7 @@ fun settingsAuraTime(paused: Boolean): Float {
 /// the call's scope. `phase` 0 is still. Metal shades every pixel; this draws
 /// what the shader computes for each 7 pt cell: its round dot over a soft
 /// glow, the glow from one pixel per cell scaled up smoothly.
-fun Modifier.settingsAura(time: Float, tint: Color, phase: Float, dark: Boolean): Modifier = drawWithCache {
+fun Modifier.settingsAura(time: () -> Float, tint: Color, phase: Float, dark: Boolean): Modifier = drawWithCache {
     val scale = density
     val width = size.width / scale
     val height = size.height / scale
@@ -54,7 +54,7 @@ fun Modifier.settingsAura(time: Float, tint: Color, phase: Float, dark: Boolean)
     val base = if (dark) Color(0.06f, 0.06f, 0.07f) else Color(0.97f, 0.97f, 0.98f)
     val amount = if (dark) 0.9f else 0.75f
     onDrawBehind {
-        val t = time * 0.18f * phase
+        val t = time() * 0.18f * phase
         for (row in 0 until rows) {
             for (column in 0 until columns) {
                 val u = (column + 0.5f) * cellSize / width

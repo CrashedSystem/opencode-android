@@ -785,7 +785,7 @@
   },
   {
     "sf": "waveform.path.ecg",
-    "material": "ecg",
+    "material": "vital_signs",
     "filled": false,
     "mirror": false,
     "match": "good"
