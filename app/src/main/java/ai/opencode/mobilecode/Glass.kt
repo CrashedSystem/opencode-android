@@ -34,9 +34,9 @@ fun Modifier.openCodeGlass(
 /// from drifting away from the platform's interaction and accessibility states.
 @Composable
 fun Modifier.openCodePrimaryButton(): Modifier =
-    heightIn(min = 50.dp).glassEffect(GlassSurface.rounded(14.dp), interactive = true, tint = SystemColors.tint)
+    heightIn(min = 50.dp).glassEffect(GlassSurface.Capsule, interactive = true, tint = SystemColors.tint)
 
 /// Neutral companion to the primary action.
 @Composable
 fun Modifier.openCodeSecondaryButton(): Modifier =
-    heightIn(min = 50.dp).glassEffect(GlassSurface.rounded(14.dp), interactive = true)
+    heightIn(min = 50.dp).glassEffect(GlassSurface.Capsule, interactive = true)
