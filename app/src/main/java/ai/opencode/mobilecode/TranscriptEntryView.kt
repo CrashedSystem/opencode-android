@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "face06c")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "ebb011d")
 
 package ai.opencode.mobilecode
 
@@ -117,7 +117,6 @@ object TranscriptMetrics {
     const val cardCornerRadius = 14
     /// Controls inside sheets and cards: choices and fields.
     const val controlCornerRadius = 10
-    const val imageCornerRadius = cardCornerRadius
     /// Markdown code blocks and request commands: one mono family, sized to
     /// sit beside 17 pt body text.
     val codeFont: TextStyle get() = TextStyles.code

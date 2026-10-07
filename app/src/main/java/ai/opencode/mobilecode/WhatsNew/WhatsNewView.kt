@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "6d491ac")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "ebb011d")
 
 package ai.opencode.mobilecode
 
@@ -193,7 +193,7 @@ fun WhatsNewButton(
 
 /// Tiny drawings of each feature, from symbols and shapes.
 @Composable
-fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
+private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
     val dark = isSystemInDarkTheme()
     val warm = if (dark) Color(red = 0.98f, green = 0.90f, blue = 0.78f) else Color(red = 0.62f, green = 0.45f, blue = 0.24f)
     val cool = if (dark) Color(red = 0.78f, green = 0.86f, blue = 1.0f) else Color(red = 0.26f, green = 0.38f, blue = 0.58f)

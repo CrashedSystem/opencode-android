@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "6d491ac")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "ebb011d")
 
 package ai.opencode.mobilecode
 
@@ -198,7 +198,7 @@ private fun UserImages(
                 attachment.data,
                 Modifier
                     .size(side)
-                    .clip(RoundedCornerShape(TranscriptMetrics.imageCornerRadius.dp))
+                    .clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))
                     .clickable(enabled = !isPending, role = Role.Button) {
                         val preview = TranscriptImagePreview(attachments = images, selectedID = attachment.id, label = "Attached image")
                         if (preview != null) onPreviewImage(preview)
@@ -261,7 +261,7 @@ private fun TopAnchoredRow(content: @Composable () -> Unit) {
 
 /// "↗ Steering" or "Queued" above a pending message.
 @Composable
-fun TranscriptPendingLabel(delivery: OpenCodeDelivery, modifier: Modifier = Modifier) {
+private fun TranscriptPendingLabel(delivery: OpenCodeDelivery, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         SystemImage(delivery.symbolName, null, Modifier.symbolSize(TextStyles.caption), tint = SystemColors.secondaryLabel)
         Text(delivery.pendingLabel, style = TextStyles.caption, color = SystemColors.secondaryLabel, maxLines = 1)

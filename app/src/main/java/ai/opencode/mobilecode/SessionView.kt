@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "ba5769c", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "ebb011d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -2308,7 +2308,7 @@ fun WorkingIndicator(needsInput: Boolean = false) {
         Modifier
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .then(shimmer)
-            .semantics { contentDescription = if (needsInput) "Needs your input" else "Working" },
+            .semantics { contentDescription = title },
         style = TextStyles.body.medium,
         color = SystemColors.secondaryLabel,
     )
