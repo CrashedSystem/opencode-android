@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "8fd69ec")
 
 package ai.opencode.mobilecode
 
@@ -420,12 +420,14 @@ class OpenCodeClientDecodingTests {
             callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running,
             input = input, output = emptyList(), metadata = emptyMap(),
         ).questions!!
-        assertEquals(3, questions.size)
-        assertEquals(listOf("App only", "Everything"), questions[0].options.map { it.label })
-        assertEquals(true, questions[1].multiple)
-        assertEquals(true, questions[1].custom)
-        assertEquals("", questions[2].header)
-        assertTrue(questions[2].options.isEmpty())
+        assertEquals(
+            listOf(
+                OpenCodeQuestion(question = "What should ship?", header = "Scope"),
+                OpenCodeQuestion(question = "Which checks should run?", header = "Checks"),
+                OpenCodeQuestion(question = "Anything else?", header = ""),
+            ),
+            questions,
+        )
     }
 
     @Test
