@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SharedKeys.swift", "494e433")
+@file:PortedFrom("OpenCode/SharedKeys.swift", "2e313a1")
 
 package ai.opencode.mobilecode
 
@@ -265,6 +265,11 @@ val SharedKey.Companion.voiceModeEnabled: SharedKey<Boolean>
 /// default. Keeps the key the voice-only switch used.
 val SharedKey.Companion.developerMode: SharedKey<Boolean>
     get() = SharedKey.appStorage("voice-call-uploads", default = false)
+
+/// Raise to Talk: raising the phone to your ear on a session starts a call
+/// that plays from the earpiece. Off by default.
+val SharedKey.Companion.raiseToTalk: SharedKey<Boolean>
+    get() = SharedKey.appStorage("raise-to-talk", default = false)
 
 /// Voice engine for new calls. Defaults to GPT-Live, including for users
 /// upgrading from builds that only had Realtime.
