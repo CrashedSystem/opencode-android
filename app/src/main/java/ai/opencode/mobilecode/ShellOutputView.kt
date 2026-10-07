@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ShellOutputView.swift", "553a407")
+@file:PortedFrom("OpenCode/ShellOutputView.swift", "face06c")
 
 package ai.opencode.mobilecode
 

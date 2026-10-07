@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "9f4d56c")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "face06c")
 
 package ai.opencode.mobilecode
 
@@ -811,9 +811,6 @@ object TranscriptEntryView {
         val command = if (call.isShell) call.input.`object`?.get("command")?.string?.ifEmpty { null } else null
         val arguments = call.arguments
         val output = call.output.joinToString("\n").trim('\n', '\r')
-        val outputKey = "$id-output"
-        val showsAllOutput = disclosure.tools.contains(outputKey)
-        val outputLines = output.split("\n").size
         val shape = RoundedCornerShape(TranscriptMetrics.controlCornerRadius.dp)
         Column(
             Modifier
@@ -854,6 +851,9 @@ object TranscriptEntryView {
                     verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp),
                 ) {
                     if (output.isNotEmpty()) {
+                        val outputKey = "$id-output"
+                        val showsAllOutput = disclosure.tools.contains(outputKey)
+                        val outputLines = output.split("\n").size
                         WrappedCode(output, SystemColors.secondaryLabel, maxLines = if (showsAllOutput) Int.MAX_VALUE else foldedOutputLines)
                         if (outputLines > foldedOutputLines) {
                             Text(
@@ -1146,7 +1146,6 @@ private fun ZoomableGalleryPage(page: TranscriptImagePreview.Page, isSelected: B
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black)
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     scale = (scale * zoom).coerceIn(1f, 5f)
