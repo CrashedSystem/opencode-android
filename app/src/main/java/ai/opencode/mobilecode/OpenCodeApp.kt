@@ -10,8 +10,11 @@ import android.app.UiModeManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.os.PersistableBundle
 import androidx.core.content.FileProvider
 import java.io.File
@@ -54,9 +57,18 @@ class OpenCodeApp : Application() {
             ) {
                 return
             }
-            val image = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
-            image.eraseColor(Color.rgb(88, 86, 214))
-            for (x in 4 until 12) for (y in 4 until 12) image.setPixel(x, y, Color.WHITE)
+            // UIGraphicsImageRenderer draws 16 pt at the screen scale. The iOS 27
+            // reference resolves systemIndigo to these sRGB values.
+            val scale = context.resources.displayMetrics.density
+            val size = (16f * scale).toInt().coerceAtLeast(1)
+            val image = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(image)
+            val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+            canvas.drawColor(if (night) Color.rgb(109, 123, 255) else Color.rgb(97, 85, 245))
+            val inset = 4f * scale
+            val square = 8f * scale
+            canvas.drawRect(inset, inset, inset + square, inset + square, Paint().apply { color = Color.WHITE })
             val file = File(context.cacheDir, "lab-pasteboard-image.png")
             file.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)

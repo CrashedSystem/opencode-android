@@ -59,7 +59,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -72,6 +71,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -91,8 +92,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.max
+import kotlin.math.min
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
@@ -283,11 +287,11 @@ private fun SetupSteps() {
                 color = SystemColors.secondaryLabel,
             )
         }
-        HorizontalDivider(Modifier.padding(start = stepBadgeSize + 14.dp), color = SystemColors.separator)
+        HairlineRule(Modifier.padding(start = stepBadgeSize + 14.dp))
         SetupStep(2, "Run this in a terminal", stepBadgeSize) {
             PairCommand()
         }
-        HorizontalDivider(Modifier.padding(start = stepBadgeSize + 14.dp), color = SystemColors.separator)
+        HairlineRule(Modifier.padding(start = stepBadgeSize + 14.dp))
         SetupStep(3, "Scan the QR code it prints", stepBadgeSize) {
             Text(
                 "Your phone needs to reach your computer — use the same Wi-Fi, or Tailscale when you’re away.",
@@ -348,30 +352,49 @@ private fun SetupStep(
     badge: androidx.compose.ui.unit.Dp,
     detail: @Composable () -> Unit,
 ) {
-    Row(
-        Modifier
-            .padding(vertical = 16.dp)
-            .semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Box(
-            Modifier
-                .size(badge)
-                .clip(RoundedCornerShape(6.dp))
-                .background(SystemColors.label)
-                .semantics { hideFromAccessibility() },
-            contentAlignment = Alignment.Center,
-        ) {
+    val numberStyle = TextStyles.callout.copy(fontFamily = FontFamilies.BerkeleyMono, fontSize = 15.sp).semibold
+    Layout(
+        content = {
+            Box(
+                Modifier
+                    .size(badge)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(SystemColors.label)
+                    .semantics { hideFromAccessibility() },
+            )
             Text(
                 "$number",
-                style = TextStyles.callout.copy(fontFamily = FontFamilies.BerkeleyMono, fontSize = 15.sp).semibold,
+                Modifier.semantics { hideFromAccessibility() },
+                style = numberStyle,
                 color = SystemColors.systemBackground,
             )
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = TextStyles.headline, color = SystemColors.label)
-            detail()
+            Column { detail() }
+        },
+        modifier = Modifier
+            .padding(vertical = 16.dp)
+            .semantics(mergeDescendants = true) {},
+    ) { measurables, constraints ->
+        val spacing = 14.dp.roundToPx()
+        val detailSpacing = 8.dp.roundToPx()
+        val badgeSize = badge.roundToPx()
+        val badgeBox = measurables[0].measure(Constraints.fixed(badgeSize, badgeSize))
+        val number = measurables[1].measure(Constraints())
+        val textMax = (constraints.maxWidth - badgeSize - spacing).coerceAtLeast(0)
+        val titlePlaceable = measurables[2].measure(Constraints(maxWidth = textMax))
+        val detailPlaceable = measurables[3].measure(Constraints(maxWidth = textMax))
+        val badgeBaseline = (badgeSize - number.height) / 2 + number[FirstBaseline]
+        val titleY = badgeBaseline - titlePlaceable[FirstBaseline]
+        val top = min(0, titleY)
+        val badgeY = -top
+        val alignedTitleY = titleY - top
+        val detailY = alignedTitleY + titlePlaceable.height + detailSpacing
+        val height = max(badgeY + badgeSize, detailY + detailPlaceable.height)
+        layout(constraints.maxWidth, height) {
+            badgeBox.place(0, badgeY)
+            number.place((badgeSize - number.width) / 2, badgeY + (badgeSize - number.height) / 2)
+            titlePlaceable.place(badgeSize + spacing, alignedTitleY)
+            detailPlaceable.place(badgeSize + spacing, detailY)
         }
     }
 }
@@ -629,7 +652,7 @@ private fun CredentialForm(store: Store<AppFeature.State, AppFeature.Action>) {
             )
         }
         Field("Password") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 ServerField(
                     value = store.state.password,
                     onValueChange = { store.binding(AppFeature.State::password, AppFeature.Action::binding).wrappedValue = it },
@@ -661,7 +684,7 @@ private fun CredentialForm(store: Store<AppFeature.State, AppFeature.Action>) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .then(if (disabled) Modifier.heightIn(min = 50.dp).clip(GlassSurface.rounded(14.dp)).background(SystemColors.systemGray3) else Modifier.openCodePrimaryButton())
+                .then(if (disabled) Modifier.heightIn(min = 50.dp).clip(GlassSurface.Capsule).background(SystemColors.systemGray3) else Modifier.openCodePrimaryButton())
                 .clickable(enabled = !disabled) { store.send(AppFeature.Action.connectButtonTapped) }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,

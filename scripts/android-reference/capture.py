@@ -30,6 +30,12 @@ GAUNTLET = 4120
 APPROVAL = 4105
 LAB_SESSION = "ses_approval_root"
 HEADING = "The Effect upgrade, change by change"
+# Rendered ink tops in the iOS reference PNGs (1320×2868). The old helpers
+# accepted any edge between 100 and 220 units, so the two captures stopped
+# in different places inside that band.
+# iOS heading ink starts at y=336. The text node sits about 16 px above that ink.
+IOS_HEADING_TOP = 310
+IOS_TASK_TOP = 794
 
 
 class CaptureError(Exception):
@@ -338,10 +344,9 @@ def testDraftComposerAndMenus(app):
     select("intro")
     app.launch(server=SESSION_LAB, extra=lab_session_environment())
     app.wait("Open sessions", timeout=20)
-    open_drawer(app)
-    app.tap("New Session")
+    # The receipt may already have settled. iOS still shows the unread dot on this shot.
+    ensure_draft_shows_unread(app)
     app.wait("Project")
-    app.settle()
     app.shot("06-draft")
 
     open_drawer(app)
@@ -386,8 +391,9 @@ def testTranscript(app):
     app.settle()
     app.shot("09-transcript-table")
     reveal(app, "the core tool runtime")
+    park_edge(app, "the core tool runtime", IOS_TASK_TOP)
     app.shot("08-transcript-tasks")
-    park_heading(app, HEADING)
+    park_edge(app, "Effect upgrade", IOS_HEADING_TOP, missing=200)
     app.shot("07-transcript-markdown")
     app.terminate()
 
@@ -579,13 +585,35 @@ def open_fixture_session(app, server, id):
 SESSION_READY = ["session-menu", "request-review-close", "Allow Once", "Use native controls"]
 
 
-def open_drawer(app):
+def ensure_draft_shows_unread(app):
+    """iOS shoots the draft while the lab session is still unread. If the receipt
+    has settled, mark it unread again, then leave for the draft."""
+    open_drawer(app, pause=0)
+    row = app.wait(f"drawer-session-row-{LAB_SESSION}")
+    app.press(row, 0.8)
+    app.wait_until(lambda: app.find("Mark as Unread") or app.find("Mark as Read"), timeout=4, what="the read menu")
+    if app.find("Mark as Unread"):
+        app.tap("Mark as Unread")
+        app.wait_until(lambda: not app.find("Mark as Unread"), timeout=4, what="the menu to close")
+    else:
+        adb("shell", "input", "keyevent", "111")
+        app.wait_until(lambda: not app.find("Mark as Read"), timeout=4, what="the menu to close")
+    # A dropdown can wedge the layout helper so New Session is on screen but not reported.
+    if not app.find("New Session"):
+        adb("shell", "am", "force-stop", "com.android.cli.interact.instrumentation")
+        adb("shell", "input", "keyevent", "111")
+        time.sleep(0.4)
+    app.tap("New Session")
+
+
+def open_drawer(app, pause=0.4):
     app.wait_until(lambda: app.find_prefix("drawer-session-row-") or app.find("Open sessions"), timeout=20,
                    what="the drawer or its button")
     if not app.find_prefix("drawer-session-row-"):
         app.tap("Open sessions")
     app.wait_until(lambda: app.find_prefix("drawer-session-row-"), timeout=12, what="the drawer rows")
-    time.sleep(0.4)
+    if pause:
+        time.sleep(pause)
 
 
 def open_review(app):
@@ -639,16 +667,38 @@ def reveal(app, fragment):
         raise CaptureError(f"could not reveal {fragment!r}")
 
 
-def park_heading(app, fragment):
-    for _ in range(16):
-        heading = app.find_containing(fragment)
-        if heading and 100 * 3 < heading.y1 < 220 * 3:
+def text_top(app, fragment):
+    """The text node, not a parent row that also contains the fragment."""
+    matches = [n for n in app.nodes() if fragment in n.text or fragment in n.desc]
+    if not matches:
+        return None
+    sized = [n for n in matches if n.height > 1]
+    return min(sized or matches, key=lambda n: (n.height if n.height > 1 else 10**9, n.x2 - n.x1))
+
+
+def park_edge(app, fragment, target, missing=120):
+    """Drag until the text top matches the iOS capture's rendered edge.
+    `missing` is the pixel nudge while the text is off screen. Positive moves
+    content down, which reveals text that was above."""
+    for _ in range(24):
+        node = text_top(app, fragment)
+        if node and abs(node.y1 - target) <= 12:
             return
-        dy = -0.14 if heading and heading.y1 > 220 * 3 else 0.14
-        nudge(app, dy)
+        if node:
+            delta = node.y1 - target
+            if abs(delta) < 220:
+                # Touch slop eats the first ~24 px, so a correction of the raw delta never moves.
+                travel = abs(delta) + 28
+                nudge_pixels(app, -travel if delta > 0 else travel)
+            else:
+                nudge(app, -0.12 if delta > 0 else 0.12)
+        else:
+            nudge_pixels(app, missing)
         time.sleep(0.28)
-    if not app.find_containing(fragment):
-        raise CaptureError(f"could not park {fragment!r}")
+    node = text_top(app, fragment)
+    got = None if node is None else node.y1
+    if node is None or abs(got - target) > 12:
+        raise CaptureError(f"could not park {fragment!r} at {target} (at {got})")
 
 
 def drag_for(app, target, heading):
@@ -662,6 +712,12 @@ def drag_for(app, target, heading):
 def nudge(app, dy):
     start = 0.40 if dy > 0 else 0.64
     app.drag(app.width // 2, int(app.height * start), int(app.height * (start + dy)))
+
+
+def nudge_pixels(app, pixels):
+    """Positive pixels moves content down, the same direction as a positive `nudge` fraction."""
+    start = int(app.height * 0.55)
+    app.drag(app.width // 2, start, start + int(pixels))
 
 
 def in_band(app, node):
