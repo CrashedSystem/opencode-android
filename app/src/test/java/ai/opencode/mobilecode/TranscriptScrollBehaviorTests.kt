@@ -1,11 +1,155 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "553a407", partial = "pure follow and browse policy; UIKit list and SessionFeature window tests stay with those files")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "553a407", partial = "pure follow and browse policy, and the list's jump and assistive-scroll tests; SessionFeature window tests wait for its reducer")
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.SystemColors
+import ai.opencode.mobilecode.system.SystemTheme
+import ai.opencode.mobilecode.tca.Binding
+import ai.opencode.mobilecode.tca.Effect
+import ai.opencode.mobilecode.tca.Reduce
+import ai.opencode.mobilecode.tca.Store
+import ai.opencode.mobilecode.tca.TestDependencies
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToIndex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
+import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/// The list from `SessionTranscriptView`, with a reducer that ignores every
+/// action, as the iOS tests host `TranscriptListViewController` in a window.
+private class ListHarness(private val compose: ComposeContentTestRule, count: Int) {
+    val bridge = SessionScrollEdgeBridge()
+    val shown = mutableStateListOf<Boolean>()
+    var jumpRequest by mutableIntStateOf(0)
+    val items = (0 until count).map { OpenCodeTranscriptItem.userText(id = "m$it", text = "Message $it") }
+    val store = Store(initialState = { SessionViewFixture.state(items).apply { visibleLimit = count } }) {
+        Reduce<SessionFeature.State, SessionFeature.Action> { _ -> Effect.none }
+    }
+    val list: LazyListState get() = bridge.scrollView!!
+
+    fun show() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            SystemTheme {
+                CompositionLocalProvider(LocalTranscriptClock provides { compose.mainClock.currentTime * 1_000_000 }) {
+                    Box(Modifier.fillMaxSize().background(SystemColors.systemBackground)) {
+                        SessionTranscriptView(
+                            store = store,
+                            scrollEdgeBridge = bridge,
+                            dismissKeyboard = {},
+                            onPreviewImage = {},
+                            onOpenFile = {},
+                            showsJumpButton = Binding({ shown.lastOrNull() ?: false }, { shown += it }),
+                            jumpRequest = jumpRequest,
+                            composerInset = { 240f },
+                            keyboardIsMoving = { false },
+                        )
+                    }
+                }
+            }
+        }
+        compose.mainClock.advanceTimeBy(1_500)
+    }
+
+    fun remaining(): Float {
+        val info = list.layoutInfo
+        val last = info.visibleItemsInfo.last()
+        if (last.index != info.totalItemsCount - 1) return Float.MAX_VALUE
+        return maxOf(0, last.offset + last.size + info.afterContentPadding - info.viewportEndOffset).toFloat()
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [33], qualifiers = "w440dp-h956dp-xxhdpi")
+class TranscriptJumpTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun jumpImmediatelyReachesTheMeasuredTailAndSurvivesScrollCancellation() {
+        val harness = ListHarness(compose, 100)
+        harness.show()
+        compose.onNodeWithTag("transcript-list").performScrollToIndex(0)
+        compose.mainClock.advanceTimeBy(500)
+        assertTrue(harness.remaining() > 1_000)
+        compose.runOnUiThread {
+            harness.jumpRequest = 1
+            Snapshot.sendApplyNotifications()
+        }
+        compose.mainClock.advanceTimeBy(100)
+        assertTrue(harness.list.layoutInfo.visibleItemsInfo.any { it.index == harness.list.layoutInfo.totalItemsCount - 1 })
+        // A scroll that interrupts the landing does not leave it short.
+        compose.runOnUiThread { harness.list.dispatchRawDelta(0f) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(0f, harness.remaining(), 1f)
+        assertTrue(harness.list.layoutInfo.visibleItemsInfo.any { it.index == harness.list.layoutInfo.totalItemsCount - 1 })
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [33], qualifiers = "w440dp-h956dp-xxhdpi")
+class TranscriptAssistiveScrollTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    /// TalkBack's scroll moves the list without a drag; the reader is
+    /// browsing from then on, so arrivals no longer pull them back.
+    @Test
+    fun assistiveScrollUpLeavesTheBottom() {
+        val harness = ListHarness(compose, 60)
+        harness.show()
+        compose.onNodeWithTag("transcript-list").performScrollToIndex(40)
+        compose.mainClock.advanceTimeBy(500)
+        assertEquals(true, harness.shown.lastOrNull())
+        val first = harness.list.firstVisibleItemIndex
+        // Not pulled back by a later layout pass.
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals("Pulled back from item $first", first, harness.list.firstVisibleItemIndex)
+    }
+
+    @Test
+    fun listOwnMotionIsNotAnAssistiveScroll() {
+        val harness = ListHarness(compose, 60)
+        harness.show()
+        compose.runOnUiThread { harness.list.dispatchRawDelta(-400f) }
+        compose.mainClock.advanceTimeBy(500)
+        assertFalse(harness.shown.contains(true))
+    }
+
+    @Ignore("Android has no status-bar scroll to top")
+    @Test
+    fun statusBarScrollToTopLeavesTheBottom() {
+    }
+}
+
 
 class TranscriptScrollBehaviorTests {
     @Test

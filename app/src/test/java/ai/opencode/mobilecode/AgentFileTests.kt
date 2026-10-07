@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AgentFileTests.swift", "553a407", partial = "reference, markdown cards, probe, and cache; tool summary lives in TranscriptEntryView")
+@file:PortedFrom("OpenCodeTests/AgentFileTests.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -222,5 +222,27 @@ class AgentFileLoadingTests {
         assertEquals("x.mp4", first.name)
         assertNotEquals(first, AgentFileLoader.cacheURL(b, "/tmp/x.mp4", "x.mp4"))
         assertNotEquals(first, AgentFileLoader.cacheURL(a, "/var/x.mp4", "x.mp4"))
+    }
+}
+
+class ToolSummaryTests {
+    private fun tool(name: String): OpenCodeTranscriptItem =
+        OpenCodeTranscriptItem.tool(
+            id = java.util.UUID.randomUUID().toString(),
+            call = OpenCodeToolCall(
+                callID = "c",
+                name = name,
+                status = OpenCodeToolCall.Status.completed,
+                input = OpenCodeJSONValue.`object`(emptyMap()),
+                output = emptyList(),
+                metadata = emptyMap(),
+            ),
+        )
+
+    @Test
+    fun eachToolKeepsItsOwnCountInFirstUseOrder() {
+        val tools = listOf(tool("bash"), tool("edit"), tool("bash"), tool("webfetch"), tool("bash"), tool("read"))
+        assertEquals("3 Shell, 1 Edit, 1 Webfetch, …", TranscriptEntryView.toolGroupSummary(tools))
+        assertEquals("2 Edit", TranscriptEntryView.toolGroupSummary(listOf(tool("edit"), tool("edit"))))
     }
 }
