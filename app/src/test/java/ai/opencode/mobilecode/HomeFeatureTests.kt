@@ -1288,16 +1288,12 @@ class HomeFeatureTests {
         state.connectionStatus = HomeFeature.State.ConnectionStatus.disconnected
         state.persistSnapshot()
         state.transcriptCache += (latest.id to listOf(OpenCodeTranscriptItem.userText(id = "m1", text = "cached")))
-        // The kit runs an effect as soon as it is sent; the gate holds the
-        // snapshot so the cached rows can be checked before it lands.
-        val gate = CompletableDeferred<Unit>()
         val store = TestStore(
             initialState = { state },
             withDependencies = {
                 it.continuousClock = ImmediateClock()
                 it.openCodeClient.homeSnapshot = { requestedServer ->
                     expect(requestedServer == server)
-                    gate.await()
                     refreshed
                 }
                 it.openCodeClient.homeAttention = { _, _, _ -> emptySet() }
@@ -1310,7 +1306,6 @@ class HomeFeatureTests {
             it.connectionStatus = HomeFeature.State.ConnectionStatus.reconnecting
         }
         expect(store.state.sessions == listOf(oldSession))
-        gate.complete(Unit)
         store.receive(Action.snapshotRefreshed(refreshed)) {
             val key = it.sessionKey(latest.id)
             it.projects = refreshed.projects

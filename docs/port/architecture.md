@@ -181,7 +181,7 @@ Composition keeps TCA's order, and the order in `body` is behavior:
 The runtime rules:
 
 - An effect body runs on the main thread. A client that blocks or does I/O switches with `withContext(Dispatchers.IO)` inside the client, never in the reducer.
-- `.send` is delivered right after the current action, before any `.run` effect starts, as in TCA.
+- `store.send` reduces the action and every `.send` its effects deliver, then returns. A `.run` body starts on a later main-thread turn, as TCA starts it on a later main-actor turn. So `.send` is delivered before any `.run` starts, and an action a `.run` sends at once is reduced after `send` returns.
 - Merged effects run concurrently.
 - `cancellable(id)` indexes the effect under its ID at the feature that returned it and at every ancestor. `Effect.cancel(id)` from a feature cancels that ID there and in every descendant, so a parent can cancel a child's ID.
 - `cancelInFlight = true` cancels the running effect with that ID before the new one starts. Without it, a second effect with the same ID runs beside the first. Freshness reads rely on that.
@@ -365,7 +365,9 @@ How the `TestStore` checks:
 - A shared write made between actions, by an effect or by the test body, must be asserted in the next `send` or `receive`, or with `store.assert { … }`. The end of the test fails otherwise.
 - With `Exhaustivity.off`, the closure starts from the state after the action and only what it sets is checked, as in TCA.
 - Effect actions arrive in order and must each be received. Sending while one waits fails.
-- The test thread runs effects. `receive` and `finish` wait up to `timeout`, one second, for real asynchronous work.
+- The test thread runs effects. `send` runs the effects it starts until each one waits on a clock, a held stub, or work on another thread, so a stubbed client has already been called when `send` returns. `receive` and `finish` wait up to `timeout`, one second, for real asynchronous work.
+- `store.state` is the state the test last asserted, after the last action it sent or received, as in TCA. The actions effects send are reduced as they arrive, but `store.state` shows them only once `receive` or `skipReceivedActions` takes them. A state read between a `send` and the `receive` of its effect's response ports from the iOS test as is, with no gate on the stub.
+- `store.state` is a detached copy. Held across actions it keeps its values, writing it throws, and a shared value reads its key.
 - When the test ends, `TestDependencies` fails a store that still has unreceived actions or running effects, as a Swift `TestStore` does when it deinitializes.
 - `TestDependencies` gives each test its own dependencies and empty shared storage. A state built in the test body and a `TestStore` share that storage, as on iOS.
 

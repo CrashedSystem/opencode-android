@@ -87,9 +87,7 @@ class EffectTests {
         store.send(ChildAction.start(1))
         clock.advance(by = 500.milliseconds)
         store.send(ChildAction.start(2))
-        clock.advance(by = 500.milliseconds)
-        expect(store.state.completions.isEmpty(), "the first timer was cancelled at 500 ms")
-        clock.advance(by = 500.milliseconds)
+        clock.advance(by = 1.seconds)
         store.receive(ChildAction.finished(2)) { it.completions = listOf(2) }
     }
 
