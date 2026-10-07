@@ -3,6 +3,7 @@
 package ai.opencode.mobilecode.tca
 
 import ai.opencode.mobilecode.system.ButtonRole
+import ai.opencode.mobilecode.system.SheetDetent
 import ai.opencode.mobilecode.system.SystemAlert
 import ai.opencode.mobilecode.system.SystemSheet
 import androidx.activity.compose.LocalActivity
@@ -82,9 +83,13 @@ private class StoreBinding<S, A, V>(
 
 /** `.sheet(isPresented: $store.isPresented) { … }`. Medium and large detents, like the app's sheets. */
 @Composable
-fun sheet(isPresented: Binding<Boolean>, content: @Composable () -> Unit) {
+fun sheet(
+    isPresented: Binding<Boolean>,
+    detent: SheetDetent = SheetDetent.Medium,
+    content: @Composable () -> Unit,
+) {
     if (!isPresented.wrappedValue) return
-    SystemSheet(onDismissRequest = { isPresented.wrappedValue = false }) { content() }
+    SystemSheet(onDismissRequest = { isPresented.wrappedValue = false }, initialDetent = detent) { content() }
 }
 
 /**
