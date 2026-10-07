@@ -73,7 +73,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,7 +85,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -361,7 +359,8 @@ private fun SessionDrawer(
 ) {
     val insets = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
     val reducedMotion = LocalReduceMotion.current
-    val pinBounds = remember { mutableStateMapOf<String, Rect>() }
+    // Where each pin's slot is, read only while a pin is dragged.
+    val pinSlots = remember { HashMap<String, LayoutCoordinates>() }
     val state = store.state
     val pinnedSessions = state.pinnedSessions
     val recentSessions = state.recentSessions
@@ -460,7 +459,7 @@ private fun SessionDrawer(
                                 session = session,
                                 isLifted = liftedPinID == session.id,
                                 onLifted = onLifted,
-                                pinBounds = pinBounds,
+                                pinSlots = pinSlots,
                                 reducedMotion = reducedMotion,
                             )
                         }
@@ -864,7 +863,7 @@ private fun LazyItemScope.PinnedRow(
     session: OpenCodeSession,
     isLifted: Boolean,
     onLifted: (String?) -> Unit,
-    pinBounds: MutableMap<String, Rect>,
+    pinSlots: MutableMap<String, LayoutCoordinates>,
     reducedMotion: Boolean,
 ) {
     val unread = store.state.isUnread(session)
@@ -880,7 +879,7 @@ private fun LazyItemScope.PinnedRow(
             .zIndex(if (isLifted) 1f else 0f)
             .onGloballyPositioned {
                 slot[0] = it
-                pinBounds[session.id] = it.boundsInRoot()
+                pinSlots[session.id] = it
             }
             .semantics {
                 customActions = listOf(
@@ -909,7 +908,12 @@ private fun LazyItemScope.PinnedRow(
                 select = { home.selectSession(session.id) },
                 showMenu = { menu = it },
                 move = { target -> home.movePin(session.id, to = target) },
-                pinAt = { y -> pinBounds.entries.firstOrNull { (_, bounds) -> y >= bounds.top && y < bounds.bottom }?.key },
+                pinAt = { y ->
+                    pinSlots.entries.firstOrNull { (_, coordinates) ->
+                        val bounds = coordinates.takeIf { it.isAttached }?.boundsInRoot()
+                        bounds != null && y >= bounds.top && y < bounds.bottom
+                    }?.key
+                },
                 lifted = { offset ->
                     lift = offset ?: 0f
                     currentOnLifted(if (offset == null) null else session.id)
@@ -939,7 +943,7 @@ private fun LazyItemScope.PinnedRow(
             ),
         )
     }
-    DisposableEffect(session.id) { onDispose { pinBounds.remove(session.id) } }
+    DisposableEffect(session.id) { onDispose { pinSlots.remove(session.id) } }
 }
 
 /// UIKit coordinates a context menu and a drag when both interactions belong
