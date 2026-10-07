@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -54,8 +55,11 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /// One user message, whether still pending (steering or queued, from the
 /// inbox) or delivered (a transcript user group). Both render through
@@ -301,13 +305,30 @@ private fun Bubble(text: String, dimming: Float, itemID: String?) {
             .background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)
             .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
     ) {
-        Text(
-            text,
-            Modifier.alpha(1f - 0.4f * dimming),
-            style = TextStyles.body.copy(lineHeight = 24.sp),
-            color = SystemColors.label,
-        )
+        BubbleText(text, Modifier.alpha(1f - 0.4f * dimming))
     }
+}
+
+/// `Text(text).font(.body).lineSpacing(2)`. Like SwiftUI's wrapped text, it
+/// is as wide as its widest line rather than as wide as it may be, so the
+/// bubble around it fits the words.
+@Composable
+private fun BubbleText(text: String, modifier: Modifier = Modifier) {
+    // Written while the text measures and read right after, in the same pass.
+    val laid = remember { arrayOfNulls<TextLayoutResult>(1) }
+    Text(
+        text,
+        modifier.layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            val lines = laid[0]?.takeIf { it.lineCount > 0 } ?: return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            val left = floor((0 until lines.lineCount).minOf { lines.getLineLeft(it) }).toInt()
+            val right = ceil((0 until lines.lineCount).maxOf { lines.getLineRight(it) }).toInt()
+            layout((right - left).coerceIn(constraints.minWidth, placeable.width), placeable.height) { placeable.place(-left, 0) }
+        },
+        style = TextStyles.body.copy(lineHeight = (TranscriptMetrics.bodyLine + 2).sp),
+        color = SystemColors.label,
+        onTextLayout = { laid[0] = it },
+    )
 }
 
 /// A Voice message's bubble. The Voice indicator above it is what sets it
@@ -402,12 +423,7 @@ fun TranscriptVoiceMessageView(
                         .voiceMessageBackground(style, dimming)
                         .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
                 ) {
-                    Text(
-                        delegation.displayText,
-                        Modifier.alpha(1f - 0.4f * dimming),
-                        style = TextStyles.body.copy(lineHeight = 24.sp),
-                        color = SystemColors.label,
-                    )
+                    BubbleText(delegation.displayText, Modifier.alpha(1f - 0.4f * dimming))
                 }
             }
         }
