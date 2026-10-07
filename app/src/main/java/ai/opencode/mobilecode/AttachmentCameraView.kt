@@ -1138,6 +1138,15 @@ private class AttachmentCaptureSession(
         focusBaseline = null
     }
 
+    private fun imageCapture(): ImageCapture {
+        val builder = ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+        return try {
+            builder.setMirrorMode(MirrorMode.MIRROR_MODE_OFF).build()
+        } catch (_: UnsupportedOperationException) {
+            ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build()
+        }
+    }
+
     private fun bind(generation: UUID): Boolean {
         val opened = provider ?: return false
         if (this.generation != generation) return false
@@ -1156,10 +1165,7 @@ private class AttachmentCaptureSession(
         val previewBuilder = Preview.Builder()
         Camera2Interop.Extender(previewBuilder).setSessionCaptureCallback(sceneCallback)
         val preview = previewBuilder.build()
-        val capture = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-            .setMirrorMode(MirrorMode.MIRROR_MODE_OFF)
-            .build()
+        val capture = imageCapture()
         preview.surfaceProvider = previewView.surfaceProvider
         return try {
             opened.unbindAll()
