@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import android.os.Looper
 
 class TranscriptLayoutProbe {
@@ -28,7 +29,7 @@ class TranscriptLayoutProbe {
         if (depth == 4 || depth == 8 || passes == 128 || passes == 512) {
             LabMarks.mark("transcript_layout_pressure($phase,$rowKind,depth=$depth,passes=$passes)", sessionID)
         }
-        if (BuildConfig.DEBUG && System.getProperty("lab-layout-trap") == "YES") {
+        if (BuildConfig.DEBUG && ProcessInfo.processInfo.arguments.contains("-lab-layout-trap")) {
             check(depth < 16 && passes < 1024) { "Transcript layout did not settle: $phase, $rowKind" }
         }
     }

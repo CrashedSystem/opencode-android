@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.BindableAction
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.BindingReducer
@@ -87,7 +88,7 @@ class WhatsNewFeature : Reducer<WhatsNewFeature.State, WhatsNewFeature.Action> {
         /// UI tests launch with every entry seen so other suites' drawers stay as
         /// they were; `OPENCODE_LAB_WHATS_NEW=unseen` launches with all of them new.
         private val labLaunchState: Unit by lazy {
-            val environment = System.getenv()
+            val environment = ProcessInfo.processInfo.environment
             if (environment["OPENCODE_LAB_SERVER_URL"] == null) return@lazy
             var seenIDs by Shared(SharedKey.whatsNewSeenIDs)
             var isButtonEnabled by Shared(SharedKey.whatsNewButtonEnabled)

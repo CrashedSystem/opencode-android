@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.CoalescedWriter
 import ai.opencode.mobilecode.tca.DependencyKey
 import ai.opencode.mobilecode.tca.DependencyValues
@@ -144,7 +145,7 @@ class TranscriptCachePersistence(
             get() = make(ProtectedFileStorage.live(TranscriptCacheDirectory.file()))
 
         override val testValue: TranscriptCachePersistence
-            get() = if (System.getenv("OPENCODE_LAB_MARKS_URL") == null) {
+            get() = if (ProcessInfo.processInfo.environment["OPENCODE_LAB_MARKS_URL"] == null) {
                 make(ProtectedFileStorage.inMemory())
             } else {
                 liveValue
@@ -157,7 +158,7 @@ class TranscriptCachePersistence(
             return TranscriptCachePersistence(
                 identity = storage.identity,
                 load = {
-                    if (System.getenv("OPENCODE_LAB_RESET_TRANSCRIPT_CACHE") == "1") storage.remove()
+                    if (ProcessInfo.processInfo.environment["OPENCODE_LAB_RESET_TRANSCRIPT_CACHE"] == "1") storage.remove()
                     storage.data()?.let { bytes ->
                         runCatching {
                             transcriptCacheJson.decodeFromString(CachedTranscriptSnapshots.serializer(), bytes.toString(Charsets.UTF_8))

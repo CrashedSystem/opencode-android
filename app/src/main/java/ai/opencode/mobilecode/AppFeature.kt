@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.BindableAction
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.BindingReducer
@@ -178,7 +179,7 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
             // XCUITest makes swift-sharing storage process-local. The gauntlet passes
             // an encoded production snapshot so cold-process measurements still use
             // the same synchronous restore path as a saved phone launch.
-            val environment = System.getenv()
+            val environment = ProcessInfo.processInfo.environment
             val address = environment["OPENCODE_LAB_SERVER_URL"] ?: return
             val server = OpenCodeServer(url = address, username = "opencode", password = developmentServicePassword())
             ::savedServer.withLock { value = server }
@@ -664,5 +665,5 @@ private const val loopbackPairingMessage = "That server only listens on localhos
 
 private fun developmentServicePassword(): String {
     if (!BuildConfig.DEBUG) return ""
-    return System.getenv("OPENCODE_PASSWORD") ?: ""
+    return ProcessInfo.processInfo.environment["OPENCODE_PASSWORD"] ?: ""
 }

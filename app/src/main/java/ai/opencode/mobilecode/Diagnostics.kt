@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.isTesting
 import android.content.SharedPreferences
 import java.net.ConnectException
@@ -68,6 +69,15 @@ class NSError(
 interface UserDefaults {
     fun `object`(forKey: String): Any?
     fun set(value: Boolean, forKey: String)
+
+    /// A `-key value` launch argument wins, as in Foundation's argument domain.
+    fun string(forKey: String): String? = ProcessInfo.processInfo.argumentValue(forKey) ?: `object`(forKey) as? String
+
+    fun bool(forKey: String): Boolean = when (val value = ProcessInfo.processInfo.argumentValue(forKey) ?: `object`(forKey)) {
+        is Boolean -> value
+        is String -> value.firstOrNull()?.let { it in "YyTt" || it in '1'..'9' } == true
+        else -> false
+    }
 
     companion object {
         var standard: UserDefaults = MemoryUserDefaults()
@@ -218,8 +228,8 @@ class DiagnosticsRecorder(
     val didChange: SharedFlow<Unit> = changes.asSharedFlow()
 
     init {
-        val environmentEnabled = System.getenv("OPENCODE_DIAGNOSTICS_ENABLED") == "1" ||
-            (System.getProperty("opencode.arguments") ?: "").split(" ").contains("-diagnostics-enabled")
+        val environmentEnabled = ProcessInfo.processInfo.environment["OPENCODE_DIAGNOSTICS_ENABLED"] == "1" ||
+            ProcessInfo.processInfo.arguments.contains("-diagnostics-enabled")
         val stored = defaults?.`object`(defaultsKey) as? Boolean
         val initial = enabled ?: (environmentEnabled || (stored ?: defaultEnabled))
         val transcripts = (defaults?.`object`(transcriptsDefaultsKey) as? Boolean) ?: defaultEnabled

@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.BindableAction
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.BindingReducer
@@ -568,7 +569,7 @@ class ProblemReportsFeature : Reducer<ProblemReportsFeature.State, ProblemReport
         /// builds offer crash reports only when a lab asks for them.
         val offersCrashReports: Boolean
             get() = if (BuildConfig.DEBUG) {
-                (System.getProperty("opencode.arguments") ?: "").split(" ").contains("-lab-crash-report")
+                ProcessInfo.processInfo.arguments.contains("-lab-crash-report")
             } else {
                 true
             }
