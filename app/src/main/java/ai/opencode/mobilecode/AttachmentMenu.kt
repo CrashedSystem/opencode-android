@@ -86,14 +86,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

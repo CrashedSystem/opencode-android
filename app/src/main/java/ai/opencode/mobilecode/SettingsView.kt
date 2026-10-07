@@ -22,7 +22,6 @@ import ai.opencode.mobilecode.system.ToolbarItem
 import ai.opencode.mobilecode.system.ToolbarItemPlacement
 import ai.opencode.mobilecode.system.glassEffect
 import ai.opencode.mobilecode.system.listRowSeparatorLeading
-import ai.opencode.mobilecode.system.medium
 import ai.opencode.mobilecode.system.semibold
 import ai.opencode.mobilecode.system.symbolSize
 import ai.opencode.mobilecode.tca.Dependency
@@ -76,7 +75,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
