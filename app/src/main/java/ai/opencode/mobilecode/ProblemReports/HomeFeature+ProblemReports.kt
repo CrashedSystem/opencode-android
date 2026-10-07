@@ -84,7 +84,7 @@ class ProblemReportTriggers : Reducer<HomeFeature.State, HomeFeature.Action> {
             action is HomeFeature.Action.serverConnected ->
                 Effect.send(HomeFeature.Action.problemReports(ProblemReportsFeature.Action.serverReachable))
             reports is ProblemReportsFeature.Action.delegate && reports.action is ProblemReportsFeature.Delegate.openSession -> {
-                val sessionID = (reports.action as ProblemReportsFeature.Delegate.openSession).sessionID
+                val sessionID = reports.action.sessionID
                 if (state.sessions.any { it.id == sessionID }) return Effect.send(HomeFeature.Action.sessionTapped(sessionID))
                 // The drawer lists only recent sessions.
                 val server = state.server
@@ -99,7 +99,7 @@ class ProblemReportTriggers : Reducer<HomeFeature.State, HomeFeature.Action> {
                 }
             }
             reports is ProblemReportsFeature.Action.delegate && reports.action is ProblemReportsFeature.Delegate.openFetchedSession -> {
-                val session = (reports.action as ProblemReportsFeature.Delegate.openFetchedSession).session
+                val session = reports.action.session
                 if (!state.sessions.any { it.id == session.id }) state.sessions = listOf(session) + state.sessions
                 Effect.send(HomeFeature.Action.sessionTapped(session.id))
             }
