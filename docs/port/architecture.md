@@ -29,6 +29,7 @@ Every product file declares `package ai.opencode.mobilecode`, whatever folder it
 - An associated-value label is the constructor property name: `contentBatch(sessionID:events:)` is `data class contentBatch(val sessionID: String, val events: List<…>)`.
 - An unlabeled payload takes the name the feature's reducer binds it to: `case let .buttonEnabledChanged(enabled)` makes `data class buttonEnabledChanged(val enabled: Boolean)`. A child feature's actions are `action`, and a binding is `binding`.
 - A named tuple is a small `data class` with the tuple's labels.
+- A case and a nested type in the same scope cannot differ only in case (`case delegate(Delegate)` inside `enum Action`): their class files collide on the macOS case-insensitive disk and one silently replaces the other. Declare the nested type one level up (`SessionSheetFeature.Delegate`) and keep the case name. `DeclarationNameCollisionTest` fails the build otherwise.
 
 ### Comments, conditions, and extensions
 
