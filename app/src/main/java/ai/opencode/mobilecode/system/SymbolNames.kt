@@ -121,6 +121,12 @@ internal object SymbolNames {
 
     fun drawable(name: String): Int? = drawables[name]
 
+    /**
+     * Grows a symbol whose ink is a smaller fraction of the 960 viewport than the
+     * SF Symbol's ink is of a `symbolSize` box (`points * 1.2`). 1 means leave it.
+     */
+    fun inkScale(name: String): Float = inkScales[name] ?: 1f
+
     private val drawables: Map<String, Int> = mapOf(
         "arrow.clockwise" to R.drawable.sf_arrow_clockwise,
         "arrow.down" to R.drawable.sf_arrow_down,
@@ -235,5 +241,32 @@ internal object SymbolNames {
         "wifi.slash" to R.drawable.sf_wifi_slash,
         "xmark" to R.drawable.sf_xmark,
         "xmark.circle.fill" to R.drawable.sf_xmark_circle_fill,
+    )
+
+    private val inkScales: Map<String, Float> = mapOf(
+        "arrow.down" to 1.19f,
+        "arrow.up" to 1.19f,
+        "camera" to 1.20f,
+        "camera.fill" to 1.20f,
+        "checkmark" to 1.09f,
+        "chevron.backward" to 1.53f,
+        "chevron.down" to 1.53f,
+        "chevron.left" to 1.53f,
+        "chevron.left.forwardslash.chevron.right" to 1.20f,
+        "chevron.right" to 1.53f,
+        "chevron.up" to 1.53f,
+        "chevron.up.chevron.down" to 1.11f,
+        "cpu" to 1.09f,
+        "doc.on.clipboard" to 1.23f,
+        "folder" to 1.11f,
+        "mic" to 1.10f,
+        "mic.fill" to 1.10f,
+        "photo.on.rectangle" to 1.22f,
+        "play.fill" to 1.33f,
+        "plus" to 1.16f,
+        "star" to 1.27f,
+        "star.fill" to 1.27f,
+        "stop.fill" to 1.33f,
+        "xmark" to 1.19f,
     )
 }
