@@ -1,8 +1,4 @@
-@file:PortedFrom(
-    "OpenCode/SessionView.swift",
-    "553a407",
-    partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported",
-)
+@file:PortedFrom("OpenCode/SessionView.swift", "553a407", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
