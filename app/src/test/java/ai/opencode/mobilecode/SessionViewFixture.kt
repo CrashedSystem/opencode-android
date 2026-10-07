@@ -2,6 +2,7 @@ package ai.opencode.mobilecode
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import java.io.ByteArrayOutputStream
 
@@ -108,28 +109,45 @@ struct SessionSummary: Equatable {
             output = listOf("Image read successfully"),
             metadata = emptyMap(),
             images = (0 until count).map { index ->
-                val colors = checkerColors[index % checkerColors.size]
-                OpenCodeImageAttachment(id = "lab-image-$index", data = checkerboard(colors.first, colors.second), mime = "image/png")
+                OpenCodeImageAttachment(id = "lab-image-$index", data = previewPNG(labImageColors[index % labImageColors.size]), mime = "image/png")
             },
         ),
     )
 
-    private val checkerColors = listOf(
-        0xFF5080DC.toInt() to 0xFF3562C0.toInt(),
-        0xFFECA050.toInt() to 0xFFD48434.toInt(),
-        0xFF285E4C.toInt() to 0xFF1C4C3C.toInt(),
-        0xFF8E5CC8.toInt() to 0xFF7244AE.toInt(),
+    /// The image the iOS app seeds the pasteboard with for `-lab-pasteboard-image`:
+    /// 16 × 16 system indigo with a white 8 × 8 square in the middle.
+    val pastedImage: ByteArray by lazy {
+        val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.rgb(88, 86, 214))
+        canvas.drawRect(4f, 4f, 12f, 12f, Paint().apply { color = Color.WHITE })
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        out.toByteArray()
+    }
+
+    /// The session lab's `LAB_IMAGE_URIS` (`scripts/session-lab.py`).
+    private val labImageColors = listOf(
+        Triple(55, 98, 190),
+        Triple(211, 132, 50),
+        Triple(56, 157, 123),
+        Triple(154, 94, 174),
     )
 
-    private fun checkerboard(light: Int, dark: Int): ByteArray {
-        val bitmap = Bitmap.createBitmap(240, 240, Bitmap.Config.ARGB_8888)
+    /// The lab's `preview_png`: 120 × 90, with every other 20 px cell lighter.
+    private fun previewPNG(color: Triple<Int, Int, Int>): ByteArray {
+        val bitmap = Bitmap.createBitmap(120, 90, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint()
-        val cell = 40
-        for (row in 0 until 6) {
+        for (row in 0 until 5) {
             for (column in 0 until 6) {
-                paint.color = if ((row + column) % 2 == 0) light else dark
-                canvas.drawRect((column * cell).toFloat(), (row * cell).toFloat(), ((column + 1) * cell).toFloat(), ((row + 1) * cell).toFloat(), paint)
+                val shade = if ((row + column) % 2 == 1) 26 else 0
+                paint.color = Color.rgb(
+                    minOf(color.first + shade, 255),
+                    minOf(color.second + shade, 255),
+                    minOf(color.third + shade, 255),
+                )
+                canvas.drawRect(column * 20f, row * 20f, (column + 1) * 20f, (row + 1) * 20f, paint)
             }
         }
         val out = ByteArrayOutputStream()

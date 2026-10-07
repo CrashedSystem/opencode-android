@@ -18,7 +18,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
@@ -180,7 +182,10 @@ class SessionViewScreenshotTest {
     }
 
     private fun running(appearance: String) = capture("15-running", appearance) {
-        SessionViewFixture.state(SessionViewFixture.markdownItems + SessionViewFixture.shell(OpenCodeToolCall.Status.running), isRunning = true)
+        SessionViewFixture.state(SessionViewFixture.markdownItems + SessionViewFixture.shell(OpenCodeToolCall.Status.running), isRunning = true).apply {
+            familySessions = listOf(SessionViewFixture.session, SessionViewFixture.child)
+            activeFamilySessionIDs = setOf(SessionViewFixture.session.id, SessionViewFixture.child.id)
+        }
     }
 
     private fun streaming(appearance: String) = capture("16-streaming", appearance) {
@@ -188,15 +193,20 @@ class SessionViewScreenshotTest {
     }
 
     private fun composerText(appearance: String) = capture("17-composer-text", appearance, interact = {
+        // iOS types the note, which leaves the cursor at its end. The tap
+        // places the cursor once the double-tap timeout passes.
         compose.onNodeWithContentDescription("Message").performClick()
+        compose.mainClock.advanceTimeBy(600)
+        compose.onNodeWithContentDescription("Message").performTextInputSelection(TextRange(composerNote.length))
     }) {
-        SessionViewFixture.state(SessionViewFixture.intro).apply { draft = "Check the composer with a short note" }
+        SessionViewFixture.state(SessionViewFixture.intro).apply { draft = composerNote }
     }
+
+    private val composerNote = "Check the composer with a short note"
 
     private fun composerAttachments(appearance: String) = capture("18-composer-attachments", appearance) {
         SessionViewFixture.state(SessionViewFixture.intro).apply {
-            val image = SessionViewFixture.readImages(1).call.imageAttachments.first()
-            pendingAttachments = listOf(OpenCodeOutgoingAttachment(id = "00000000-0000-0000-0000-000000000001", data = image.data, mime = "image/png"))
+            pendingAttachments = listOf(OpenCodeOutgoingAttachment(id = "00000000-0000-0000-0000-000000000001", data = SessionViewFixture.pastedImage, mime = "image/png"))
         }
     }
 
