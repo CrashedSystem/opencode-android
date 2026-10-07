@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DictationClient.swift", "6da352d")
+@file:PortedFrom("OpenCode/DictationClient.swift", "e686e59")
 
 package ai.opencode.mobilecode
 
