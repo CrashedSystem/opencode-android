@@ -10,11 +10,13 @@ Labels, backgrounds, fills, separators, and system tints are Apple's light and d
 
 Glass is backdrop blur plus a tint and a rim, tuned toward iOS 26 controls rather than a Material surface. The screen root calls `GlassBackdrop`. The `content` lambda is the backdrop. Glass controls go in `overlay`, and they only add `Modifier.glassEffect()`. Haze blurs a sibling of the source, not a child of it. Capsule, circle, and rounded panel are the shapes the app already uses.
 
+Lists and navigation keep SwiftUI's shape. `GroupedList`, `Section`, and `ForEach` are the inset grouped `List`, and `Modifier.listRowSeparatorLeading()` marks where a row's separator starts. `NavigationStack` draws the bar that `NavigationTitle` and `ToolbarItem` declare anywhere in its root, with toolbar items in glass capsules. `SystemButton` is a text `Button`. `Modifier.symbolSize` sizes a `SystemImage` like an SF Symbol at a point size or in a text style.
+
 ## What stays Android
 
 Dialogs, menus, sheets, and swipe-to-delete are Material 3 widgets. The wrapper keeps the iOS content and order. It does not draw an iOS menu or an iOS sheet.
 
-`SystemSheet` offers the medium and large detents. Drag between them is the platform sheet. `SystemMenu` and `SystemContextMenu` take sections. A destructive item uses `systemRed`. `SystemAlert` and `SystemConfirmation` are the platform dialog. The confirm action sits in Android's confirm slot, not in an iOS action-sheet stack. `SwipeToDeleteRow` is the platform trailing swipe. It dismisses the row. iOS session rows only reveal Delete. That reveal policy belongs to the session row, not to this wrapper.
+`SystemSheet` offers the medium and large detents. Drag between them is the platform sheet. Its surface stands in for iOS 26 glass, the grouped background in light and the elevated background in dark, under an iOS-sized grabber. It provides `LocalDismiss`, SwiftUI's `@Environment(\.dismiss)`, which animates the sheet away. `SystemMenu` and `SystemContextMenu` take sections. A destructive item uses `systemRed`. `SystemAlert` and `SystemConfirmation` are the platform dialog. The confirm action sits in Android's confirm slot, not in an iOS action-sheet stack. `SwipeToDeleteRow` is the platform trailing swipe. It dismisses the row. iOS session rows only reveal Delete. That reveal policy belongs to the session row, not to this wrapper.
 
 Haptics follow `HapticsClient`: selection, light impact, success, error, and the six voice kinds. They play through `VibrationEffect` while the lifecycle is resumed.
 

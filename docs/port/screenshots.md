@@ -43,6 +43,8 @@ That writes `app/src/test/snapshots/<directory>/<test class>.<method>.png`. Comm
 
 `h2400dp` is a ceiling. If the root has no fixed height, Roborazzi records the content height. Give a swipe row or a sheet a fixed height. `fillMaxSize()` inside a column consumes the remaining test height and clips whatever follows it.
 
+A sheet or a dialog draws in its own window, which `ForcedAppearance` does not reach. Capture its dark mode with `@Config(qualifiers = "+night")` on the test, and `captureScreenRoboImage` to include every window, as `WhatsNewViewScreenshotTest` does.
+
 Robolectric's shader compiler rejects Haze's blur shader (`'color' is not a valid layout qualifier`). Set `LocalGlassBlurEnabled` to false in a screenshot test. The PNG still shows the glass shape, tint, and rim.
 
 ## Check
