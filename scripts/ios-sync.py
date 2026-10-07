@@ -366,8 +366,13 @@ def exists_at(rev, path):
     return git("cat-file", "-e", f"{rev}:{path}", check=False) is not None
 
 
+_commit_paths = {}
+
+
 def commit_paths(commit):
-    return set(git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines())
+    if commit not in _commit_paths:
+        _commit_paths[commit] = set(git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines())
+    return _commit_paths[commit]
 
 
 _skipped = None
