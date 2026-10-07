@@ -3,6 +3,7 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.Haptics
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.system.VoiceHaptic
 import ai.opencode.mobilecode.tca.DependencyKey
 import ai.opencode.mobilecode.tca.DependencyValues
@@ -68,7 +69,7 @@ private fun processResumed(): Boolean = runCatching {
 /// Lab runs have no hardware haptics unless `OPENCODE_LAB_VOICE_HAPTICS` is set.
 private fun labSuppressesHardware(): Boolean {
     if (!BuildConfig.DEBUG) return false
-    val env = System.getenv()
+    val env = ProcessInfo.processInfo.environment
     if (env.containsKey("OPENCODE_LAB_VOICE_HAPTICS")) return false
     return env["OPENCODE_LAB_VOICE_DEMO"] != null ||
         env["OPENCODE_LAB_REALTIME_URL"] != null ||

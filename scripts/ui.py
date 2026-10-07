@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the app on the emulator by visible text or content description.
+"""Drive the app on the emulator by visible text, content description, or test tag.
 
   scripts/ui.py find [TEXT]          list on-screen elements, optionally filtered
   scripts/ui.py tap TEXT [--nth N]   tap the element whose text or description contains TEXT
@@ -8,6 +8,8 @@
   scripts/ui.py swipe X1 Y1 X2 Y2 [MS]
   scripts/ui.py shot PATH            save a screenshot
   scripts/ui.py wait TEXT [SECONDS]  wait until TEXT is on screen
+
+Set ANDROID_SERIAL to pick a device when more than one is running.
 """
 
 import json
@@ -17,11 +19,13 @@ import sys
 import time
 
 ADB = os.path.expanduser("~/Library/Android/sdk/platform-tools/adb")
+# adb reads ANDROID_SERIAL itself; the android CLI takes it as --device.
+DEVICE = [f"--device={os.environ['ANDROID_SERIAL']}"] if os.environ.get("ANDROID_SERIAL") else []
 KEYS = {"back": "4", "enter": "66", "tab": "61", "del": "67"}
 
 
 def elements():
-    raw = subprocess.run(["android", "layout", "--no-metrics"], capture_output=True, text=True, check=True).stdout
+    raw = subprocess.run(["android", "layout", "--no-metrics", *DEVICE], capture_output=True, text=True, check=True).stdout
     found = []
 
     def walk(node):
@@ -29,7 +33,7 @@ def elements():
             for child in node:
                 walk(child)
             return
-        label = node.get("text") or node.get("content-desc") or ""
+        label = node.get("text") or node.get("content-desc") or node.get("resource-id") or ""
         if label and "center" in node:
             x, y = node["center"].strip("[]").split(",")
             found.append((label, int(x), int(y)))
@@ -64,7 +68,7 @@ def main():
     elif command == "swipe":
         subprocess.run([ADB, "shell", "input", "swipe", *args], check=True)
     elif command == "shot":
-        subprocess.run(["android", "screen", "capture", "--no-metrics", f"--output={args[0]}"], check=True, capture_output=True)
+        subprocess.run(["android", "screen", "capture", "--no-metrics", *DEVICE, f"--output={args[0]}"], check=True, capture_output=True)
         print(args[0])
     elif command == "wait":
         deadline = time.time() + (float(args[1]) if len(args) > 1 else 20)

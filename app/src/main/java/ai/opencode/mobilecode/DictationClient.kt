@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.DependencyKey
 import ai.opencode.mobilecode.tca.DependencyValues
 import android.Manifest
@@ -60,7 +61,7 @@ class DictationClient(
     companion object : DependencyKey<DictationClient> {
         override val liveValue: DictationClient
             get() {
-                if (BuildConfig.DEBUG && System.getenv("OPENCODE_LAB_DICTATION") == "1") return lab()
+                if (BuildConfig.DEBUG && ProcessInfo.processInfo.environment["OPENCODE_LAB_DICTATION"] == "1") return lab()
                 val live = LiveDictation()
                 activeStop = { live.stop() }
                 return DictationClient(
@@ -131,7 +132,7 @@ class DictationClient(
                         token
                     }
                     run.job = scope.launch {
-                        val count = System.getenv("OPENCODE_LAB_DICTATION_SENTENCES")?.toIntOrNull() ?: 14
+                        val count = ProcessInfo.processInfo.environment["OPENCODE_LAB_DICTATION_SENTENCES"]?.toIntOrNull() ?: 14
                         for (index in 1..maxOf(1, count)) {
                             delay(250)
                             if (!isActive) return@launch

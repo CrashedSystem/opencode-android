@@ -7,9 +7,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -28,6 +32,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,9 +42,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -60,6 +71,10 @@ fun interface DismissAction {
 }
 
 val LocalDismiss = staticCompositionLocalOf { DismissAction {} }
+
+/// The part of a sheet below the screen at its current detent. An iOS sheet lays its
+/// content out in the visible part, so a bottom bar or a followed tail stays in view.
+val LocalSheetHiddenHeight = compositionLocalOf { 0.dp }
 
 /** SwiftUI's `ButtonRole`. */
 enum class ButtonRole {
@@ -86,24 +101,19 @@ fun SystemButton(
  * The platform sheet with the medium and large detents. Its surface stands in for iOS 26 glass,
  * the grouped background in light and the elevated background in dark, under an iOS-sized grabber.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun SystemSheet(
     onDismissRequest: () -> Unit,
     initialDetent: SheetDetent = SheetDetent.Medium,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    // The sheet's own show() stops at the medium detent whenever one exists.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = initialDetent == SheetDetent.Large)
     val scope = rememberCoroutineScope()
     val currentOnDismissRequest by rememberUpdatedState(onDismissRequest)
     val dismiss = remember(sheetState) {
         DismissAction { scope.launch { sheetState.hide() }.invokeOnCompletion { currentOnDismissRequest() } }
-    }
-    LaunchedEffect(initialDetent) {
-        when (initialDetent) {
-            SheetDetent.Medium -> sheetState.partialExpand()
-            SheetDetent.Large -> sheetState.expand()
-        }
     }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -119,8 +129,26 @@ fun SystemSheet(
             )
         },
     ) {
-        CompositionLocalProvider(LocalDismiss provides dismiss) {
-            Column(Modifier.fillMaxWidth(), content = content)
+        // iOS lifts a sheet above the keyboard. At the medium detent Material keeps
+        // the sheet's offset, so its bottom, and any actions there, sit under the keyboard.
+        val keyboardShown = WindowInsets.isImeVisible
+        LaunchedEffect(keyboardShown) {
+            if (keyboardShown && sheetState.currentValue == SheetValue.PartiallyExpanded) sheetState.expand()
+        }
+        val density = LocalDensity.current
+        var hidden by remember { mutableStateOf(0.dp) }
+        CompositionLocalProvider(LocalDismiss provides dismiss, LocalSheetHiddenHeight provides hidden) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        val root = coordinates.findRootCoordinates()
+                        val bottom = root.localBoundingBoxOf(coordinates, clipBounds = false).bottom
+                        hidden = with(density) { (bottom - root.size.height).coerceAtLeast(0f).toDp() }
+                    }
+                    .semantics { testTagsAsResourceId = true },
+                content = content,
+            )
         }
     }
 }

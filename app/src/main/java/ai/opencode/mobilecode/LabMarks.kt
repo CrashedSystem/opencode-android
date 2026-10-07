@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import android.util.Log
 import java.net.HttpURLConnection
 import java.net.URL
@@ -17,7 +18,7 @@ import org.json.JSONObject
 /// simulator and stamps its own actions with `Date()` too.
 object LabMarks {
     private val onceKeys = ConcurrentHashMap.newKeySet<String>()
-    val endpoint: String? = if (BuildConfig.DEBUG) System.getenv("OPENCODE_LAB_MARKS_URL") else null
+    val endpoint: String? = if (BuildConfig.DEBUG) ProcessInfo.processInfo.environment["OPENCODE_LAB_MARKS_URL"] else null
 
     val isEnabled: Boolean get() = endpoint != null
     val needsNetworkMetrics: Boolean

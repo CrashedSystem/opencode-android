@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.tca.BindableAction
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.BindingReducer
@@ -263,7 +264,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         }
 
         fun restoreTranscriptCache() {
-            if (System.getenv("OPENCODE_LAB_DISABLE_TRANSCRIPT_DISK_CACHE") == "1") return
+            if (ProcessInfo.processInfo.environment["OPENCODE_LAB_DISABLE_TRANSCRIPT_DISK_CACHE"] == "1") return
             val restored = cachedTranscriptSnapshots.validItems(serverID = server.persistenceID, sessions = sessions)
             transcriptCache = transcriptCache + restored.filterKeys { !transcriptCache.containsKey(it) }
             trimTranscriptCache()
@@ -285,7 +286,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         }
 
         fun persistTranscriptCache() {
-            if (System.getenv("OPENCODE_LAB_DISABLE_TRANSCRIPT_DISK_CACHE") == "1") return
+            if (ProcessInfo.processInfo.environment["OPENCODE_LAB_DISABLE_TRANSCRIPT_DISK_CACHE"] == "1") return
             val hot = sessionsByPriority().take(HomeFeature.prefetchCount).map { it.id }
             val desired = (hot + listOfNotNull(sessionDetail?.session?.id)).toSet()
             val entries = sessions.mapNotNull { session ->

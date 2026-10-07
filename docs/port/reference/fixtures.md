@@ -30,9 +30,23 @@ Identify a running server before you send it a control post.
 
 ## Reach them from the Android emulator
 
-The emulator's [network address space](https://developer.android.com/studio/run/emulator-networking-address) maps `10.0.2.2` to the host loopback (`127.0.0.1`). A fixture on `127.0.0.1:4110` is `http://10.0.2.2:4110` inside the emulator. This session did not start an Android emulator.
+The emulator's [network address space](https://developer.android.com/studio/run/emulator-networking-address) maps `10.0.2.2` to the host loopback (`127.0.0.1`). A fixture on `127.0.0.1:4110` is `http://10.0.2.2:4110` inside the emulator.
 
 A physical phone cannot use that address. These servers do not listen on the LAN.
+
+## Launch the Android app the same way
+
+A debug build reads the iOS lab's launch environment and arguments from `MainActivity` extras with the same names. An `OPENCODE_…` variable is a string extra. A `-lab-…` flag is a boolean extra, and a `-key value` argument is a string extra named `-key`.
+
+```sh
+adb shell am start -n ai.opencode.mobilecode/.MainActivity \
+  --es OPENCODE_LAB_SERVER_URL http://10.0.2.2:4120 \
+  --es OPENCODE_LAB_LAST_SESSION_ID - \
+  --es -lab-interface-style dark \
+  --ez -lab-pasteboard-image true
+```
+
+Release builds ignore the extras. `scripts/capture-android-reference.sh` launches the app this way for every state in `android/MANIFEST.md`.
 
 ## Drive the same states
 

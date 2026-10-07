@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.system.URL
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
@@ -12,18 +13,18 @@ import kotlinx.serialization.json.JsonPrimitive
 /// `OPENCODE_LAB_VOICE_SCRIPT=<path>` plays a recorded conversation instead
 /// (see `Script`), once, for demo recordings.
 object VoiceLabDemo {
-    val isEnabled: Boolean get() = System.getenv("OPENCODE_LAB_VOICE_DEMO") != null
+    val isEnabled: Boolean get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_VOICE_DEMO"] != null
 
     /// `OPENCODE_LAB_REALTIME_URL=ws://…`: the real call path against the lab's
     /// stand-in Realtime server (`scripts/realtime-lab.ts`), which can expire
     /// sessions in seconds and drop sockets on demand.
     val realtimeURL: URL?
-        get() = System.getenv("OPENCODE_LAB_REALTIME_URL")?.let(URL::parse)
+        get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_REALTIME_URL"]?.let(URL::parse)
 
     /// `OPENCODE_LAB_LIVE_URL=ws://…`: the real call path against the lab's
     /// stand-in GPT-Live server (`scripts/live-lab.ts` or `scripts/realtime-lab.ts`).
     val liveURL: URL?
-        get() = System.getenv("OPENCODE_LAB_LIVE_URL")?.let(URL::parse)
+        get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_LIVE_URL"]?.let(URL::parse)
 
     val hasStandInServer: Boolean get() = realtimeURL != null || liveURL != null
 
@@ -31,7 +32,7 @@ object VoiceLabDemo {
     /// or inferred when only one engine's stand-in URL is set.
     val overrideEngine: VoiceEngine?
         get() {
-            val raw = System.getenv("OPENCODE_LAB_VOICE_ENGINE")
+            val raw = ProcessInfo.processInfo.environment["OPENCODE_LAB_VOICE_ENGINE"]
             val engine = raw?.let { runCatching { Json.decodeFromJsonElement(VoiceEngine.serializer(), JsonPrimitive(it)) }.getOrNull() }
             if (engine != null) {
                 return engine
