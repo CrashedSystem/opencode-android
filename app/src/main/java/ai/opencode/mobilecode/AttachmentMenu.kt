@@ -23,7 +23,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateRectAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -58,6 +57,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -195,6 +195,9 @@ fun AttachmentMenuPanel(
     items: List<AttachmentMenuItem>,
     anchors: AttachmentMenuAnchors,
     press: AttachmentMenuPress,
+    /// The photo-picker card holds the glass. The panel hands it over and
+    /// takes it back without animation, as iOS's transaction does.
+    handedOff: Boolean = false,
     lift: Float = 0f,
     onChoose: (AttachmentMenuItem) -> Unit,
     onPaste: (List<NSItemProvider>) -> Unit,
@@ -333,17 +336,23 @@ fun AttachmentMenuPanel(
                 surface(rect = panel, radius = AttachmentMenuMetrics.cornerRadius, isPanel = true, glassAlpha = { 1f })
             }
         } else {
-            val spec = if (isOpen) AttachmentMenuMotion.open<Rect>(reduceMotion = false) else AttachmentMenuMotion.close(reduceMotion = false)
-            val rect by animateRectAsState(if (isOpen) panel else seed, spec, label = "menu")
-            val radius by animateFloatAsState(
+            var handedOffBefore by remember { mutableStateOf(handedOff) }
+            val animates = !handedOff && handedOff == handedOffBefore
+            SideEffect { handedOffBefore = handedOff }
+            val rect = animatedRect(
+                if (isOpen) panel else seed,
+                if (isOpen) AttachmentMenuMotion.open(reduceMotion = false) else AttachmentMenuMotion.close(reduceMotion = false),
+                animates = animates,
+            )
+            val radius = animatedFloat(
                 if (isOpen) AttachmentMenuMetrics.cornerRadius else seedSize / 2,
                 if (isOpen) AttachmentMenuMotion.open(reduceMotion = false) else AttachmentMenuMotion.close(reduceMotion = false),
-                label = "radius",
+                animates = animates,
             )
-            val glassAlpha by animateFloatAsState(
+            val glassAlpha = animatedFloat(
                 if (isOpen) 1f else 0f,
                 if (isOpen) tween(90) else tween(110, delayMillis = 170),
-                label = "glass",
+                animates = animates,
             )
             surface(rect = rect.translate(0f, if (isOpen) dragOffset.value else 0f), radius = radius, isPanel = isOpen, glassAlpha = { glassAlpha })
         }

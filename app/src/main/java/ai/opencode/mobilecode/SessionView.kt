@@ -1854,6 +1854,7 @@ private class SessionViewState {
                     items = attachmentMenuItems(LocalContext.current),
                     anchors = attachmentMenuAnchors,
                     press = attachmentMenuPress,
+                    handedOff = attachmentCardOwnsGlass,
                     lift = composerLift,
                     onChoose = ::chooseAttachment,
                     onPaste = ::pasteAttachments,

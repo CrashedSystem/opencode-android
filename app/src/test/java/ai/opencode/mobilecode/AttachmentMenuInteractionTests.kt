@@ -95,7 +95,8 @@ class AttachmentMenuInteractionTests {
         val origin = button.fetchSemanticsNode().boundsInRoot.topLeft
         button.performTouchInput { down(center) }
         compose.waitForIdle()
-        compose.mainClock.advanceTimeBy(400)
+        // Held past the menu's spring, so the rows are where they rest.
+        compose.mainClock.advanceTimeBy(1_000)
         compose.waitForIdle()
         expect(isMenuOpen())
         val files = compose.onNodeWithContentDescription("Files", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center
