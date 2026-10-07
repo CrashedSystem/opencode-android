@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID, nested types, child wiring, mergeTranscript, PendingRequest, filtered(by:)")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -1541,8 +1541,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                             } else {
                                 // A prompt still listed in the inbox may follow any prompt that
                                 // has reached the transcript since we first saw it.
-                                val ids = precedingIDs
-                                state.pendingPromptPositions = state.pendingPromptPositions.updating(input.id) { it.copy(precedingPromptIDs = it.precedingPromptIDs + ids) }
+                                state.pendingPromptPositions = state.pendingPromptPositions.updating(input.id) { it.copy(precedingPromptIDs = it.precedingPromptIDs + precedingIDs) }
                                 state.pendingPromptPositions = state.pendingPromptPositions.updating(input.id) { it.copy(precedingMessageIDs = it.precedingMessageIDs + precedingMessages) }
                                 state.pendingPromptPositions = state.pendingPromptPositions.updating(input.id) { it.copy(isBeforeWindow = false) }
                             }
@@ -3776,7 +3775,6 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
     }
 }
 
-/// `voice(.presented(.delegate(…)))`, the delegate a call reports to its session.
 private val SessionFeature.Action.voice.voiceDelegate: VoiceFeature.Delegate?
     get() = ((action as? PresentationAction.presented)?.action as? VoiceFeature.Action.delegate)?.action
 
