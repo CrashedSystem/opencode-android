@@ -51,7 +51,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -1211,37 +1210,6 @@ private fun ReplyActions(blocks: List<OpenCodeMarkdownBlock>) {
             null,
             Modifier.symbolSize(TextStyles.subheadline),
             tint = SystemColors.secondaryLabel,
-        )
-    }
-}
-
-/// `Button(title).openCodePrimaryButton()` or `.openCodeSecondaryButton()`.
-@Composable
-internal fun OpenCodeButton(
-    title: String,
-    prominent: Boolean,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    style: TextStyle = TextStyles.body.medium,
-    action: () -> Unit,
-) {
-    Box(
-        modifier
-            .then(if (prominent) Modifier.openCodePrimaryButton() else Modifier.openCodeSecondaryButton())
-            .clickable(enabled = enabled, role = Role.Button, onClick = action)
-            .padding(horizontal = 20.dp)
-            .widthIn(min = 44.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            title,
-            style = style,
-            color = when {
-                !enabled -> SystemColors.tertiaryLabel
-                prominent -> Color.White
-                else -> SystemColors.label
-            },
-            maxLines = 1,
         )
     }
 }
