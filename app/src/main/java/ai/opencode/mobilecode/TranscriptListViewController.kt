@@ -1495,12 +1495,19 @@ internal class TranscriptScrollTrace(private val controller: TranscriptListViewC
             lastAnchor = null
         }
         val value = "Trailing space: ${probe.trailingSpace.toInt()} pt; $summary"
-        if (value != published.value) published.value = value
+        if (value != published.value) {
+            published.value = value
+            latest = value
+        }
     }
 
     companion object {
         /// The lab's `-lab-scroll-trace`, set by the debug launcher.
         @Volatile
         var isEnabled = false
+
+        /// The last published worst cases, for the lab's log.
+        @Volatile
+        var latest = ""
     }
 }
