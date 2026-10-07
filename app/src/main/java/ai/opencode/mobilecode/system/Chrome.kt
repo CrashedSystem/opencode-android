@@ -1,7 +1,9 @@
 package ai.opencode.mobilecode.system
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -9,12 +11,14 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -23,15 +27,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 enum class SheetDetent { Medium, Large }
 
@@ -44,6 +54,38 @@ data class SystemMenuItem(
 
 data class SystemMenuSection(val items: List<SystemMenuItem>)
 
+/** `@Environment(\.dismiss) private var dismiss`, called as `dismiss()`. A sheet provides one that animates it away. */
+fun interface DismissAction {
+    operator fun invoke()
+}
+
+val LocalDismiss = staticCompositionLocalOf { DismissAction {} }
+
+/** SwiftUI's `ButtonRole`. */
+enum class ButtonRole {
+    cancel,
+    destructive,
+}
+
+/** `Button("Title") { action() }` with a text label, in the current content color and text style. */
+@Composable
+fun SystemButton(
+    title: String,
+    modifier: Modifier = Modifier,
+    role: ButtonRole? = null,
+    action: () -> Unit,
+) {
+    Text(
+        title,
+        modifier.clickable(role = Role.Button, onClick = action),
+        color = if (role == ButtonRole.destructive) SystemColors.systemRed else LocalContentColor.current,
+    )
+}
+
+/**
+ * The platform sheet with the medium and large detents. Its surface stands in for iOS 26 glass,
+ * the grouped background in light and the elevated background in dark, under an iOS-sized grabber.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SystemSheet(
@@ -52,6 +94,11 @@ fun SystemSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val currentOnDismissRequest by rememberUpdatedState(onDismissRequest)
+    val dismiss = remember(sheetState) {
+        DismissAction { scope.launch { sheetState.hide() }.invokeOnCompletion { currentOnDismissRequest() } }
+    }
     LaunchedEffect(initialDetent) {
         when (initialDetent) {
             SheetDetent.Medium -> sheetState.partialExpand()
@@ -61,11 +108,20 @@ fun SystemSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = SystemColors.systemBackground,
+        containerColor = if (isSystemInDarkTheme()) SystemColors.secondarySystemBackground else SystemColors.systemGroupedBackground,
         contentColor = SystemColors.label,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(vertical = 5.dp)
+                    .size(width = 36.dp, height = 5.dp)
+                    .background(SystemColors.tertiaryLabel, CircleShape),
+            )
+        },
     ) {
-        Column(Modifier.fillMaxWidth(), content = content)
+        CompositionLocalProvider(LocalDismiss provides dismiss) {
+            Column(Modifier.fillMaxWidth(), content = content)
+        }
     }
 }
 
