@@ -50,6 +50,7 @@ class TestStore<S, A>(
     private val received = ArrayDeque<Reduction<A>>()
     private val errors = mutableListOf<Throwable>()
     private var sent: Reduction<A>? = null
+    private var asserted: Map<Cell<*>, Any?> = emptyMap()
 
     private class Reduction<A>(val action: A, val before: Map<Cell<*>, Any?>, val after: Map<Cell<*>, Any?>)
 
@@ -78,6 +79,7 @@ class TestStore<S, A>(
                     if (fromEffect) received.addLast(reduction) else sent = reduction
                 }
             }
+        asserted = capture()
         context.register(this)
     }
 
@@ -131,6 +133,7 @@ class TestStore<S, A>(
     fun skipReceivedActions() {
         runEffects()
         received.clear()
+        asserted = capture()
     }
 
     /** `await store.skipInFlightEffects()`: cancels every running effect. */
@@ -164,6 +167,10 @@ class TestStore<S, A>(
         if (runtime.inFlightCount > 0) {
             fail("${runtime.inFlightCount} effect(s) still running at the end of the test. Finish or cancel them before it ends.")
         }
+        val changed = asserted.filter { (cell, value) -> cell.isShared && cell.live != value }.keys
+        if (changed.isNotEmpty()) {
+            fail("Shared state changed after the last assertion without being asserted: ${changed.joinToString { it.label }}")
+        }
     }
 
     internal fun close() {
@@ -194,8 +201,22 @@ class TestStore<S, A>(
         return cells
     }
 
+    /**
+     * An exhaustive assertion starts from the state before the action, with shared values as the last
+     * assertion left them, so a shared write made between actions has to be asserted too. A
+     * non-exhaustive one starts from the state after the action, as TCA's does.
+     */
     private fun assertReduction(reduction: Reduction<*>, assert: ((S) -> Unit)?, label: String = "${reduction.action}") {
-        val overlay = Overlay(reduction.before)
+        val exhaustive = exhaustivity == Exhaustivity.on
+        val seed =
+            if (exhaustive) {
+                IdentityHashMap(reduction.before).also { base ->
+                    for ((cell, value) in asserted) if (cell.isShared && base.containsKey(cell)) base[cell] = value
+                }
+            } else {
+                reduction.after
+            }
+        val overlay = Overlay(seed)
         if (assert != null) {
             val previous = Overlay.current.get()
             Overlay.current.set(overlay)
@@ -207,18 +228,19 @@ class TestStore<S, A>(
         }
         val expectedRead: (Cell<*>) -> Any? = overlay::read
         val actualRead: (Cell<*>) -> Any? = { cell -> if (reduction.after.containsKey(cell)) reduction.after[cell] else cell.live }
-        if (exhaustivity == Exhaustivity.on) {
+        if (exhaustive) {
             val expected = StateGraph.normalize(state, expectedRead)
             val actual = StateGraph.normalize(state, actualRead)
             if (expected != actual) fail("A state change does not match expectation after $label:\n${diff(expected, actual)}")
-            return
+        } else {
+            for (cell in overlay.written) {
+                if (!reduction.after.containsKey(cell)) continue
+                val expected = StateGraph.normalize(overlay.read(cell), expectedRead)
+                val actual = StateGraph.normalize(reduction.after[cell], actualRead)
+                if (expected != actual) fail("An asserted value does not match after $label:\n${diff(expected, actual)}")
+            }
         }
-        for (cell in overlay.written) {
-            if (!reduction.after.containsKey(cell)) continue
-            val expected = StateGraph.normalize(overlay.read(cell), expectedRead)
-            val actual = StateGraph.normalize(reduction.after[cell], actualRead)
-            if (expected != actual) fail("An asserted value does not match after $label:\n${diff(expected, actual)}")
-        }
+        asserted = reduction.after
     }
 
     private fun describe(reductions: Collection<Reduction<A>>) = reductions.joinToString("\n") { "  ${it.action}" }

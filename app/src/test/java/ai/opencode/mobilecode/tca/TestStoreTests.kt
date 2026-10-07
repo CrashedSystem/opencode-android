@@ -57,6 +57,7 @@ class TestStoreTests {
         expect(isOn)
         isOn = false
         expect(!store.state.isOn)
+        store.assert { it::isOn.withLock { value = false } }
     }
 
     @Test
@@ -86,6 +87,35 @@ class TestStoreTests {
         clock.advance(by = 1.seconds)
         store.send(ParentAction.child(ChildAction.increment))
         assertEquals(listOf(7), store.state.child!!.completions)
+    }
+
+    @Test
+    fun nonExhaustiveAssertionsStartFromTheStateAfterTheAction() {
+        val store = TestStore(initialState = { Parent() }) { ParentFeature() }
+        store.exhaustivity = Exhaustivity.off
+        val failure = assertThrows(AssertionError::class.java) { store.send(ParentAction.replace("b")) { it.child?.count = 5 } }
+        assertTrue(failure.message!!.startsWith("An asserted value does not match after replace(id=b)"))
+        store.send(ParentAction.replace("c")) { it.child?.count = 0 }
+    }
+
+    @Test
+    fun aSharedWriteAnEffectMakesBetweenActionsMustBeAsserted() {
+        val store = TestStore(initialState = { Toggle() }) { QuietToggleFeature() }
+        store.send(QuietToggleAction.flipLater)
+        store.finish()
+        assertThrows(AssertionError::class.java) { store.send(QuietToggleAction.nothing) }
+        store.send(QuietToggleAction.nothing) { it::isOn.withLock { value = true } }
+    }
+
+    @Test
+    fun anUnassertedSharedWriteFromAnEffectFailsWhenTheTestEnds() {
+        val failure =
+            runRule {
+                val store = TestStore(initialState = { Toggle() }) { QuietToggleFeature() }
+                store.send(QuietToggleAction.flipLater)
+                store.finish()
+            }
+        assertEquals("Shared state changed after the last assertion without being asserted: appStorage:toggle", failure?.message)
     }
 
     @Test
@@ -143,6 +173,27 @@ class ToggleFeature : Reducer<Toggle, ToggleAction> {
                     state::isOn.withLock { value = !value }
                     Effect.none
                 }
+            }
+        }
+}
+
+sealed interface QuietToggleAction {
+    data object flipLater : QuietToggleAction
+
+    data object nothing : QuietToggleAction
+}
+
+/** Flips the shared toggle from an effect without sending an action. */
+class QuietToggleFeature : Reducer<Toggle, QuietToggleAction> {
+    override val body: Reducer<Toggle, QuietToggleAction> =
+        Reduce { action ->
+            when (action) {
+                QuietToggleAction.flipLater ->
+                    Effect.run { _ ->
+                        var isOn by Shared(SharedKey.toggle)
+                        isOn = !isOn
+                    }
+                QuietToggleAction.nothing -> Effect.none
             }
         }
 }

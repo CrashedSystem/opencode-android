@@ -161,6 +161,10 @@ class SharedMemory internal constructor(private val backend: SharedBackend) {
 private val json = Json { ignoreUnknownKeys = true }
 
 private class SharedCell<T>(private val key: SharedKey<T>, initial: T, private val backend: SharedBackend) : Cell<T>(initial) {
+    override val label get() = key.strategy.id
+
+    override val isShared get() = true
+
     override fun didWrite(value: T) {
         backend.save(key.strategy, json.encodeToString(key.serializer, value))
     }

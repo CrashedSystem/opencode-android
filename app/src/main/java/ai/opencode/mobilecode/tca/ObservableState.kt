@@ -132,6 +132,11 @@ internal open class Cell<T>(initial: T) {
 
     val live: T get() = state.value
 
+    /** Names the cell in a test failure. A shared cell names its key. */
+    open val label: String get() = "a state value"
+
+    open val isShared: Boolean get() = false
+
     @Suppress("UNCHECKED_CAST")
     fun read(): T {
         val overlay = Overlay.current.get() ?: return state.value
