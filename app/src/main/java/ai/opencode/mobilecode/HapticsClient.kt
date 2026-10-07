@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HapticsClient.swift", "ae6c3d3", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
+@file:PortedFrom("OpenCode/HapticsClient.swift", "baa088a", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
 
 package ai.opencode.mobilecode
 
@@ -20,6 +20,8 @@ class HapticsClient(
     var attention: () -> Unit = {},
     var warning: () -> Unit = {},
     var voice: (VoiceCallHaptic) -> Unit = {},
+    /// The call the button's tap asked for failed to start: its scanner timeline ends.
+    var cancelPendingVoiceStart: () -> Unit = {},
     var drawer: () -> Unit = {},
 ) {
     companion object : DependencyKey<HapticsClient> {
@@ -49,6 +51,8 @@ private fun live(context: Context?): HapticsClient {
         attention = { fire { it.impact() } },
         warning = { fire { it.error() } },
         voice = { haptic -> fire { it.voice(haptic.toSystem()) } },
+        // VoiceCallSounds, whose scanner timeline this ends, waits for voice calls.
+        cancelPendingVoiceStart = {},
         drawer = { fire { it.impact() } },
     )
 }
