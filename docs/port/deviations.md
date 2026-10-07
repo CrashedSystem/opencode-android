@@ -20,6 +20,5 @@ The rendering differs from the library in these ways:
 
 ## Features not on Android yet
 
-- **Voice calls.** Deferred by the user on 2026-10-07 until the core app is done. `docs/port/sync.json` lists the deferred files. The session and home features keep the voice state and actions so a later port drops into place; the call button stays hidden because voice cannot be turned on.
 - **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at 41099dd shows that row; the parity review should expect its absence.
 - **iOS-only lab and UI-test bridges.** The lab pasteboard bridge and lab color scheme in `OpenCodeApp.swift` have Android equivalents as debug intent extras instead.
