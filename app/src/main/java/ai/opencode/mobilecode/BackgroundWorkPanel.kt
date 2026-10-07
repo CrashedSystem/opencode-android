@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "a8e4a66", partial = "all but the -lab-glass-trace overlay and stage log")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "0890b59", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -230,6 +230,15 @@ fun BackgroundWork(
         shownSessionID = sessionID
         reset()
     }
+    // A call takes the composer's place; its transcript covers the pills.
+    val inCall = store.observe { voice != null }
+    LaunchedEffect(inCall) {
+        if (inCall) isPresented.wrappedValue = false
+    }
+    val showsCallTranscript = store.observe { voice?.showsCaptions == true }
+    LaunchedEffect(showsCallTranscript) {
+        if (showsCallTranscript) isPresented.wrappedValue = false
+    }
     val presented = isPresented.wrappedValue
     LaunchedEffect(presented) {
         if (presented) open() else close()
@@ -275,6 +284,7 @@ fun BackgroundWork(
                 onContentHeight = { contentHeight = it },
                 isPresented = isPresented,
                 retained = retained,
+                showsCallTranscript = showsCallTranscript,
             )
         }
     }
@@ -296,6 +306,7 @@ private fun BackgroundWorkSurface(
     onContentHeight: (Float) -> Unit,
     isPresented: Binding<Boolean>,
     retained: Retained,
+    showsCallTranscript: Boolean,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val dark = isSystemInDarkTheme()
@@ -356,6 +367,10 @@ private fun BackgroundWorkSurface(
                     .size(rect.width.coerceAtLeast(0f).dp, rect.height.coerceAtLeast(0f).dp)
                     .openCodeGlass(shape)
                     .clip(shape)
+                    // Like the pills it grows from, it hides under the call's
+                    // transcript. Only the glass: on the full-screen surface this
+                    // would cover the session for accessibility hit-testing.
+                    .hiddenUnderVoiceTranscript(showsCallTranscript)
                     .then(
                         if (!isPanel || scrolls) {
                             Modifier
