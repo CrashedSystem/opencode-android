@@ -1031,12 +1031,12 @@ data class OpenCodeOutgoingAttachment(
 
 @Serializable
 data class OpenCodePermissionRequest(
-    var id: String,
-    var sessionID: String,
+    override var id: String,
+    override var sessionID: String,
     var action: String,
     var resources: List<String>,
     var save: List<String>? = null,
-)
+) : PendingRequest
 
 @Serializable
 enum class OpenCodePermissionReply { once, always, reject }

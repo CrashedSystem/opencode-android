@@ -169,12 +169,12 @@ data class OpenCodeFormField(
 
 @Serializable
 data class OpenCodeFormRequest(
-    var id: String,
-    var sessionID: String,
+    override var id: String,
+    override var sessionID: String,
     var title: String,
     var fields: List<OpenCodeFormField>,
     var metadata: Map<String, OpenCodeJSONValue>? = null,
-) {
+) : PendingRequest {
     val isQuestion: Boolean get() = metadata?.get("kind")?.string == "question"
     val toolCallID: String? get() = metadata?.get("tool")?.`object`?.get("id")?.string
     val toolMessageID: String? get() = metadata?.get("tool")?.`object`?.get("messageID")?.string
