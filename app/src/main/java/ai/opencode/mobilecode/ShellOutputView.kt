@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,6 +62,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -133,7 +135,12 @@ fun ShellOutputView(
             }
             StatusBar(store)
         }
-        NavigationTitle(store.state.shell.title, displayMode = TitleDisplayMode.inline)
+        NavigationTitle(
+            store.state.shell.title,
+            displayMode = TitleDisplayMode.inline,
+            style = TextStyles.subheadline.semibold.copy(fontFamily = FontFamily.Monospace),
+            overflow = TextOverflow.MiddleEllipsis,
+        )
         Toolbar {
             ToolbarItem(placement = ToolbarItemPlacement.cancellationAction) {
                 Box(
@@ -259,24 +266,19 @@ private fun StatusBar(store: Store<ShellOutputFeature.State, ShellOutputFeature.
         if (store.state.isRunning || store.state.isStopping) {
             Box(
                 Modifier
+                    .height(44.dp)
+                    .background(SystemColors.systemRed.copy(alpha = 0.15f), GlassSurface.Capsule)
                     .testTag("shell-output-stop")
                     .clickable(enabled = !store.state.isStopping, role = Role.Button) {
                         store.send(ShellOutputFeature.Action.stopTapped)
                     }
-                    .padding(vertical = 6.dp),
+                    .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (store.state.isStopping) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = SystemColors.systemRed)
                 } else {
-                    Text(
-                        "Stop Shell",
-                        Modifier
-                            .background(SystemColors.systemRed.copy(alpha = 0.15f), GlassSurface.Capsule)
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        color = SystemColors.systemRed,
-                        style = TextStyles.body,
-                    )
+                    Text("Stop Shell", color = SystemColors.systemRed, style = TextStyles.body)
                 }
             }
         }
@@ -373,6 +375,8 @@ fun ShellOutputTextView(
                 setTextIsSelectable(true)
                 typeface = Typeface.MONOSPACE
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                includeFontPadding = false
+                lineHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, LogLinePitchDp, resources.displayMetrics).toInt()
                 setTextColor(color.hashCode())
                 setPadding(dp(context, 16), dp(context, 12), dp(context, 16), dp(context, 24))
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
@@ -393,6 +397,8 @@ fun ShellOutputTextView(
         },
     )
 }
+
+private const val LogLinePitchDp = 14.8f
 
 private fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 

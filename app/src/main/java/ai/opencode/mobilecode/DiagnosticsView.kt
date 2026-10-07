@@ -26,12 +26,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -192,39 +188,27 @@ private fun DiagnosticsToggle(
     hint: String,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val dark = isSystemInDarkTheme()
     Row(
         Modifier
             .fillMaxWidth()
-            .semantics {
-                contentDescription = title
-                this.contentDescription = "$title. $hint"
-            }
+            .semantics { contentDescription = "$title. $hint" }
             .clickable(role = Role.Switch) { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, Modifier.weight(1f), style = TextStyles.body, color = SystemColors.label)
         Spacer(Modifier.width(12.dp))
-        IosSwitch(checked)
-    }
-}
-
-@Composable
-private fun IosSwitch(checked: Boolean) {
-    val track = if (checked) {
-        SystemColors.systemGreen
-    } else if (isSystemInDarkTheme()) {
-        SystemColors.systemGray4
-    } else {
-        SystemColors.systemGray5
-    }
-    Box(Modifier.size(width = 51.dp, height = 31.dp).clip(CircleShape).background(track)) {
-        Box(
-            Modifier
-                .padding(2.dp)
-                .size(27.dp)
-                .offset(x = if (checked) 20.dp else 0.dp)
-                .clip(CircleShape)
-                .background(Color.White),
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = SystemColors.systemGreen,
+                checkedBorderColor = Color.Transparent,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = if (dark) SystemColors.systemGray4 else SystemColors.systemGray5,
+                uncheckedBorderColor = Color.Transparent,
+            ),
         )
     }
 }

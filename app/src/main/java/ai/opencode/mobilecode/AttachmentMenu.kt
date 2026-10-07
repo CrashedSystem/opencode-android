@@ -8,7 +8,9 @@ import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
 import ai.opencode.mobilecode.system.glassEffect
+import ai.opencode.mobilecode.system.medium
 import ai.opencode.mobilecode.system.semibold
+import ai.opencode.mobilecode.system.symbolSize
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -370,7 +372,7 @@ private fun AttachmentMenuRow(title: String, symbol: String, action: () -> Unit)
                 .background(SystemColors.label.copy(alpha = 0.08f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            SystemImage(symbol, contentDescription = null, tint = SystemColors.label, modifier = Modifier.size(18.dp))
+            SystemImage(symbol, contentDescription = null, tint = SystemColors.label, modifier = Modifier.symbolSize(TextStyles.body.medium))
         }
         Spacer(Modifier.width(12.dp))
         Text(title, style = TextStyles.body, color = SystemColors.label, maxLines = 1)

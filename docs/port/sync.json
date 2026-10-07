@@ -56,7 +56,7 @@
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",
-    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and the DEBUG VoiceLabTriggers wait for voice calls; ProblemReportOfferPill is not wired into the pill row yet",
+    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and the DEBUG VoiceLabTriggers wait for voice calls",
     "OpenCode/Voice/VoiceTranscript.swift": "VoiceHandoff renders voice delegations in the transcript, so this file is tracked though voice calls are deferred; its call-only parts (the VoiceInstructions builders) wait for voice calls",
     "OpenCodeTests/VoiceHandoffParseTests.swift": "the read-back cases are tracked with VoiceTranscript.swift; the cases that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) stay ignored until voice calls",
     "OpenCode/Transcript/TranscriptListViewController.swift": "the lab scroll trace's follow measurements (c00f453, c3a6c9a) track absolute content ends, which the Compose list does not expose; the Android lab reads frame stats through scripts/session-lab-gfxinfo.py instead",
