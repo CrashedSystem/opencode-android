@@ -482,7 +482,9 @@ private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted
         Modifier
             .background(SystemColors.tertiarySystemFill.let { it.copy(alpha = it.alpha * fill) }, shape)
             .clip(shape)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = action)
+            // Folding away or copied onto the card's glass, the rows take no
+            // touch at all, as `allowsHitTesting(false)` does.
+            .then(if (enabled) Modifier.clickable(interactionSource = interaction, indication = null, onClick = action) else Modifier)
             .semantics { contentDescription = label.item.title },
     )
 }
@@ -503,10 +505,16 @@ private fun AttachmentPasteRow(label: AttachmentMenuRowLabel, onPaste: (List<NSI
             .heightIn(min = label.height.dp)
             .background(fill, shape)
             .clip(shape)
-            .clickable(enabled = enabled) {
-                val providers = clipboardImages(context)
-                if (providers.isNotEmpty()) onPaste(providers)
-            }
+            .then(
+                if (!enabled) {
+                    Modifier
+                } else {
+                    Modifier.clickable {
+                        val providers = clipboardImages(context)
+                        if (providers.isNotEmpty()) onPaste(providers)
+                    }
+                },
+            )
             .semantics(mergeDescendants = true) { contentDescription = label.item.title },
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
