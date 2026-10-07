@@ -52,7 +52,8 @@
     "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView wait for voice calls; ProblemReportOfferPill is not wired into the pill row yet",
     "OpenCode/Voice/VoiceTranscript.swift": "VoiceHandoff renders voice delegations in the transcript, so this file is tracked though voice calls are deferred; its call-only parts (the VoiceInstructions builders) wait for voice calls",
     "OpenCodeTests/VoiceHandoffParseTests.swift": "the read-back cases are tracked with VoiceTranscript.swift; the cases that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) stay ignored until voice calls",
-    "OpenCode/Transcript/TranscriptListViewController.swift": "the lab scroll trace's follow measurements (c00f453, c3a6c9a) track absolute content ends, which the Compose list does not expose; the Android lab reads frame stats through scripts/session-lab-gfxinfo.py instead"
+    "OpenCode/Transcript/TranscriptListViewController.swift": "the lab scroll trace's follow measurements (c00f453, c3a6c9a) track absolute content ends, which the Compose list does not expose; the Android lab reads frame stats through scripts/session-lab-gfxinfo.py instead",
+    "OpenCode/BackgroundWorkPanel.swift": "the -lab-glass-trace overlay and stage log wait with the deferred GlassMorphTrace"
   },
   "skipped": {
     "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",

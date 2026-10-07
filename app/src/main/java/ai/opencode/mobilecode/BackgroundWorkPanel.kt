@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "a2460c7")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "657c3d8", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -133,7 +133,10 @@ object BackgroundWorkMotion {
 
     // SwiftUI's spring(duration: 0.36, bounce: 0.08).
     fun close(reduceMotion: Boolean): AnimationSpec<Float> =
-        if (reduceMotion) tween(200) else spring(dampingRatio = 0.92f, stiffness = 305f)
+        if (reduceMotion) fade else spring(dampingRatio = 0.92f, stiffness = 305f)
+
+    /// Under Reduce Motion, or with no capsule left to land in.
+    val fade: AnimationSpec<Float> = tween(200)
 
     const val capsuleInset = 5f
     const val panelRadius = 28f
@@ -163,6 +166,7 @@ fun BackgroundWork(
     val scope = rememberCoroutineScope()
     var stage by remember { mutableStateOf(BackgroundWorkStage.closed) }
     var contentHeight by remember { mutableStateOf<Float?>(null) }
+    val retained = remember { Retained() }
     /// 0 the capsule's frame, 1 the panel's.
     val morph = remember { Animatable(0f) }
     var origin by remember { mutableStateOf(Rect.Zero) }
@@ -189,11 +193,13 @@ fun BackgroundWork(
     /// The panel shrinks back into the capsule's shape, then hands the glass
     /// back to the capsule. Without a capsule to land in, it fades.
     fun close() {
-        if (reducedMotion || !hasWork || stage == BackgroundWorkStage.closed) {
+        if (stage == BackgroundWorkStage.closed) return
+        if (reducedMotion || !hasWork) {
             stage = BackgroundWorkStage.closed
             scope.launch { morph.snapTo(0f) }
             return
         }
+        if (BuildConfig.DEBUG) LabMarks.mark("background_work_close")
         stage = BackgroundWorkStage.capsule
         scope.launch {
             morph.animateTo(0f, BackgroundWorkMotion.close(reduceMotion = false))
@@ -210,11 +216,20 @@ fun BackgroundWork(
         anchor?.capsuleHidden = stage != BackgroundWorkStage.closed
     }
     LaunchedEffect(hasWork) {
-        if (!hasWork) isPresented.wrappedValue = false
+        if (hasWork) return@LaunchedEffect
+        // Open, the binding's change closes it; mid-close, close fades it.
+        if (isPresented.wrappedValue) {
+            isPresented.wrappedValue = false
+        } else {
+            close()
+        }
     }
     LaunchedEffect(store.state.session?.id) { isPresented.wrappedValue = false }
 
-    val capsule = anchor?.bounds
+    /// The capsule's frame, or while the glass is up, where it last was.
+    val live = anchor?.bounds?.takeIf { hasWork }
+    if (live != null) retained.capsule = live
+    val capsule = live ?: (if (stage == BackgroundWorkStage.closed) null else retained.capsule)
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -238,6 +253,7 @@ fun BackgroundWork(
                 contentHeight = contentHeight,
                 onContentHeight = { contentHeight = it },
                 isPresented = isPresented,
+                retained = retained,
             )
         }
     }
@@ -258,13 +274,22 @@ private fun BackgroundWorkSurface(
     contentHeight: Float?,
     onContentHeight: (Float) -> Unit,
     isPresented: Binding<Boolean>,
+    retained: Retained,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val dark = isSystemInDarkTheme()
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val agents = store.observe { activeSubagents }
-    val shells = store.observe { backgroundShells }
+    /// The rows the work has, or once it has ended, the rows it last had.
+    val liveAgents = store.observe { activeSubagents }
+    val liveShells = store.observe { backgroundShells }
+    val hasWork = liveAgents.isNotEmpty() || liveShells.isNotEmpty()
+    if (hasWork) {
+        retained.agents = liveAgents
+        retained.shells = liveShells
+    }
+    val agents = if (hasWork || stage == BackgroundWorkStage.closed) liveAgents else retained.agents
+    val shells = if (hasWork || stage == BackgroundWorkStage.closed) liveShells else retained.shells
     val pill = Rect(capsule.left, capsule.top + BackgroundWorkMotion.capsuleInset, capsule.right, capsule.bottom - BackgroundWorkMotion.capsuleInset)
     val maxHeight = max(160f, capsule.top - safeTop - 72)
     val height = min(contentHeight ?: BackgroundWorkPanel.estimatedHeight(agents, shells), maxHeight)
@@ -300,8 +325,9 @@ private fun BackgroundWorkSurface(
         AnimatedVisibility(
             stage != BackgroundWorkStage.closed,
             enter = if (reducedMotion) fadeIn(tween(200)) else EnterTransition.None,
-            // Landed in the capsule, the glass is the capsule's.
-            exit = if (reducedMotion) fadeOut(tween(200)) else ExitTransition.None,
+            // Landed in the capsule, the glass is the capsule's; with nothing
+            // to land in, it fades where it is.
+            exit = if (reducedMotion || !hasWork) fadeOut(tween(200)) else ExitTransition.None,
         ) {
             Box(
                 Modifier
@@ -388,6 +414,14 @@ private fun BackgroundWorkSurface(
             }
         }
     }
+}
+
+/// What the glass last showed. When the work ends, the capsule and its
+/// rows leave the session at once; the glass finishes closing over them.
+class Retained {
+    var capsule: Rect? = null
+    var agents: List<OpenCodeSession> = emptyList()
+    var shells: List<OpenCodeShell> = emptyList()
 }
 
 private fun lerp(from: Rect, to: Rect, fraction: Float) = Rect(
