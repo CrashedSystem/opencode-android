@@ -1,0 +1,43 @@
+{
+  "upstream": {
+    "url": "https://github.com/anomalyco/opencode-ios",
+    "branch": "main",
+    "commit": "4fb5e0e0a1fbccc5953ec9d3f059d25b1e8e6ef0"
+  },
+  "port": [
+    "OpenCode/**",
+    "OpenCodeShare/**",
+    "OpenCodeWidgets/**",
+    "OpenCodeTests/**",
+    "AppIcon.icon/**"
+  ],
+  "review": [
+    "AGENTS.md",
+    "README.md",
+    "docs/**",
+    "perf/**",
+    "project.yml",
+    "OpenCodeUITests/**",
+    "scripts/*-fixture.py",
+    "scripts/session-lab.py",
+    "OpenCode/Info.plist",
+    "OpenCode/OpenCode.entitlements",
+    "OpenCodeShare/Info.plist",
+    "OpenCodeShare/OpenCodeShare.entitlements",
+    "OpenCodeWidgets/Info.plist"
+  ],
+  "ignore": [
+    ".gitignore",
+    "appstoreconnect.json",
+    "ci_scripts/**",
+    "OpenCode.xcodeproj/**",
+    "project.hotreload.yml",
+    "packages/**",
+    "scripts/**",
+    "tools/**",
+    "**/Contents.json",
+    "AppIcon.icon/icon.json"
+  ],
+  "deferred": {},
+  "assets": {}
+}
