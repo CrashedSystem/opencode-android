@@ -488,25 +488,32 @@ private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted
 }
 
 /// Paste reads the clipboard when tapped; Android shows no paste alert. iOS's
-/// paste control insists on drawing itself opaque, so the row keeps its fill.
+/// paste control insists on drawing itself, opaque, with its icon and title
+/// centered, so the row draws the same.
 @Composable
 private fun AttachmentPasteRow(label: AttachmentMenuRowLabel, onPaste: (List<NSItemProvider>) -> Unit, enabled: Boolean) {
     val context = LocalContext.current
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     /// Opaque, as the control requires: about the rows' highlight over glass.
-    val fill = Color(if (dark) 0.2f else 0.92f, if (dark) 0.2f else 0.92f, if (dark) 0.2f else 0.92f)
+    val fill = if (dark) Color(0.2f, 0.2f, 0.2f) else Color(0.92f, 0.92f, 0.92f)
     val shape = RoundedCornerShape(AttachmentMenuRowLabel.highlightRadius.dp)
-    AttachmentMenuRowContent(
-        label,
+    Row(
         Modifier
+            .fillMaxWidth()
+            .heightIn(min = label.height.dp)
             .background(fill, shape)
             .clip(shape)
             .clickable(enabled = enabled) {
                 val providers = clipboardImages(context)
                 if (providers.isNotEmpty()) onPaste(providers)
             }
-            .semantics { contentDescription = label.item.title },
-    )
+            .semantics(mergeDescendants = true) { contentDescription = label.item.title },
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SystemImage(label.item.systemImage, contentDescription = null, tint = SystemColors.label, modifier = Modifier.symbolSize(TextStyles.body))
+        Text(label.item.title, style = TextStyles.body, color = SystemColors.label, maxLines = 1)
+    }
 }
 
 private fun clipboardImages(context: Context): List<NSItemProvider> {
@@ -568,7 +575,7 @@ fun AttachmentMenuOverlay(
     val reduceMotion = LocalReduceMotion.current
     val context = LocalContext.current
     val density = LocalDensity.current
-    val assistive = remember(context) { assistiveTechnologyEnabled(context) }
+    val assistive = assistiveTechnologyEnabled(context)
     var filter by remember { mutableStateOf(InlinePhotoFilter.all) }
     /// Keeps the picker drawn while the card morphs away from it.
     var keepsPickerDrawn by remember { mutableStateOf(false) }
