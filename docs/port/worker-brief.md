@@ -14,6 +14,8 @@ The Android app keeps the iOS UI, UX, copy, and behavior, adapted to Android, an
 - `.upstream/opencode-ios` is read-only. The upstream commit is in `docs/port/sync.json`.
 - Use the system layer in `app/src/main/java/ai/opencode/mobilecode/system/` (`SystemColors`, `TextStyles`, `SystemImage` for SF Symbols, `glassEffect`, sheets, menus, haptics) so the Compose reads like the SwiftUI. Do not use raw Material colors or typography on app surfaces.
 - Existing ported code lives in the same package. Read it before you add a type: `OpenCodeClient.kt` already holds the wire models, `OpenCodeMarkdownBlock`, and the client. Extend files your scope owns; do not edit files outside it except to fix a compile error you report.
+- Stand-ins for Apple framework types (Foundation, SwiftUI, UIKit) live only in the system layer. Search it before writing one. If one you need is missing, list it in your report instead of defining a private copy: two workers once defined conflicting `AttributedString`s in parallel.
+- Never put test-only logic in a fixture that the product path lacks. A fixture that parses markdown itself hides a missing product parser.
 - Port the iOS tests that cover your files. A ported test reads like the Swift test and asserts the same literals.
 - Performance is part of the spec. Stable keys, no work in composition that iOS caches, no per-frame allocation in hot paths.
 
