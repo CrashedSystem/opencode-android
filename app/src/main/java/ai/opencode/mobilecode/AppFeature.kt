@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AppFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/AppFeature.swift", "8bec12f")
 
 package ai.opencode.mobilecode
 
@@ -343,7 +343,7 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
                     }
                     Action.connectButtonTapped -> {
                         state.isEditingServer = false
-                        state.serverURL = state.serverURL.trim()
+                        state.serverURL = withDefaultScheme(state.serverURL.trim())
                         val original = state.editingSavedServer
                         if (original != null && state.serverURL != original.url) {
                             // A changed address replaces the old one; stale pairing alternates
@@ -572,6 +572,16 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
         state.connection = connection
         state.connectionAttempt = null
         return Effect.merge(Effect.cancel(CancelID.health), Effect.cancel(CancelID.home))
+    }
+
+    companion object {
+        /// A typed address without a scheme (“100.84.220.87:4102”, “my-mac.local:4096”)
+        /// means plain HTTP, which is what `opencode serve` speaks on a LAN or tailnet.
+        /// An explicit scheme, including one that isn't HTTP, is left to validation.
+        fun withDefaultScheme(address: String): String {
+            if (address.isEmpty() || address.contains("://")) return address
+            return "http://$address"
+        }
     }
 
     private fun selectServer(server: OpenCodeServer, state: State): Effect<Action> {
