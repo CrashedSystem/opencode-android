@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark and compactionObserved from 0bda024)")
+@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark, compactions, and compactionObserved from 0bda024)")
 
 package ai.opencode.mobilecode
 
@@ -117,6 +117,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         /// Session created by this draft call's first request; adopting it is the
         /// same conversation, not a user retarget.
         var adoptedDraftSessionID by StoreVar<String?>(null)
+
+        /// The newest finished compaction the session screen has seen, by session ID.
+        var compactions by StoreVar<Map<String, String>>(emptyMap())
 
         /// Where the call is and what it let go of. Home tells the voice model
         /// when either changes; New Session from a draft in the same folder

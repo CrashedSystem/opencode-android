@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "0bda024")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "9219884")
 
 package ai.opencode.mobilecode
 
@@ -611,6 +611,13 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                 return null
             }
 
+        /// A call arriving here learns of a compaction that happened while it
+        /// was elsewhere; later ones reach it through `voiceCompaction`'s onChange.
+        fun seedVoiceCompaction() {
+            val mark = voiceCompaction ?: return
+            voice?.let { it.compactions += (mark.sessionID to mark.compactionID) }
+        }
+
         /// Some request dock is (or should be) replacing the composer.
         val hasPendingRequests: Boolean
             get() = permissionRequests.isNotEmpty() || formRequests.isNotEmpty()
@@ -1069,6 +1076,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         if (session != null) {
                             val stop = stopDictation(state)
                             state.voice = VoiceFeature.State(server = state.server, session = session)
+                            state.seedVoiceCompaction()
                             return@Reduce stop
                         }
                         // On a draft the call starts without a session; its first request

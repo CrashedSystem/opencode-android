@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "9f4d56c")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "9219884")
 
 package ai.opencode.mobilecode
 
@@ -211,6 +211,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
             if (activeVoice != null) {
                 activeVoice.retarget(to = session)
                 detail.voice = activeVoice
+                detail.seedVoiceCompaction()
             }
             // The screen swaps details in place without appearing again, so the
             // new one inherits whether it is on screen.
