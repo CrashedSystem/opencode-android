@@ -275,7 +275,7 @@ private fun ModelRow(currentModelName: String, onModelButtonTapped: () -> Unit) 
     ) {
         Text("Model", style = TextStyles.body, color = SystemColors.label)
         Spacer(Modifier.weight(1f))
-        Text(currentModelName, style = TextStyles.body, color = SystemColors.secondaryLabel)
+        Text(currentModelName, style = TextStyles.body, color = SystemColors.label)
         SystemImage(
             "chevron.right",
             contentDescription = null,

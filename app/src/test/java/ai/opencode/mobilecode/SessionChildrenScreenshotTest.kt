@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -65,6 +66,9 @@ class SessionChildrenScreenshotTest {
     @Test
     @Config(qualifiers = "+night")
     fun shellOutputDark() = captureShell("dark")
+
+    @Test
+    fun shellOutputLongTitle() = captureShell("long-title", command = "bun dev --port 3000 --hostname 0.0.0.0 ./packages/opencode/src/session/SessionView.swift")
 
     @OptIn(ExperimentalRoborazziApi::class)
     private fun captureSheet(appearance: String) {
@@ -122,9 +126,9 @@ class SessionChildrenScreenshotTest {
     }
 
     @OptIn(ExperimentalRoborazziApi::class)
-    private fun captureShell(appearance: String) {
+    private fun captureShell(appearance: String, command: String = "bun dev --port 3000") {
         val startedAt = System.currentTimeMillis() - 19_000
-        val shell = OpenCodeShell(id = "sh_gauntlet_1", command = "bun dev --port 3000", status = OpenCodeShell.Status.running, startedAt = startedAt)
+        val shell = OpenCodeShell(id = "sh_gauntlet_1", command = command, status = OpenCodeShell.Status.running, startedAt = startedAt)
         val store = Store(
             initialState = {
                 ShellOutputFeature.State(server, "/fixture", shell).apply {
@@ -152,6 +156,7 @@ class SessionChildrenScreenshotTest {
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(400)
         compose.waitForIdle()
+        compose.onNodeWithTag("shell-output-stop").assertHeightIsEqualTo(44.dp)
         captureScreenRoboImage("src/test/snapshots/session/ShellOutputView.$appearance.png")
     }
 

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "cba9609", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "cba9609", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -84,6 +84,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.onConsumedWindowInsetsChanged
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
@@ -129,6 +131,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -152,7 +157,9 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -167,7 +174,9 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 
 /// Three stable children: input, leading controls, trailing control. Only their
@@ -1609,9 +1618,9 @@ private class SessionViewState {
         return hasActivity || canMove || queuedMessages().isNotEmpty() || showsReportOffer
     }
 
-    /// Send Report? waits while you type, dictate, or talk. Problem reports
-    /// are not ported yet, so nothing is offered.
-    val showsReportOffer: Boolean get() = false
+    /// Send Report? waits while you type, dictate, or talk.
+    val showsReportOffer: Boolean
+        get() = ProblemReportOfferPill.isOffered && !messageFieldFocused && onCatchUpDone == null && !store.state.defersReportOffer
 
     /// Move to Background, when offered, gets its own row on top. Below it,
     /// one row: background work on the left; queued messages and the jump
@@ -1631,6 +1640,7 @@ private class SessionViewState {
                     {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (hasActivity) BackgroundActivity()
+                            if (hasOffer) ProblemReportOfferPill()
                             Spacer(Modifier.weight(1f))
                             if (hasQueued) QueuedActivity()
                             if (showsJumpButton) JumpToLatestButton()
@@ -1639,6 +1649,7 @@ private class SessionViewState {
                     {
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End) {
                             if (hasActivity) Box(Modifier.fillMaxWidth()) { BackgroundActivity() }
+                            if (hasOffer) Box(Modifier.fillMaxWidth()) { ProblemReportOfferPill() }
                             if (hasQueued || showsJumpButton) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (hasQueued) QueuedActivity()
@@ -2151,7 +2162,7 @@ private class SessionViewState {
 
     @Composable
     fun PendingAttachmentsRow() {
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             store.state.pendingAttachments.forEachIndexed { index, attachment ->
                 androidx.compose.runtime.key(attachment.id) {
                     if (attachment.isImage) AttachmentThumbnail(attachment, index) else InlineFileChip(attachment, index)
@@ -2179,8 +2190,9 @@ private class SessionViewState {
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.size(22.dp).background(Color.Black.copy(alpha = 0.65f), CircleShape), contentAlignment = Alignment.Center) {
-                    SystemImage("xmark", null, Modifier.size(11.dp), tint = Color.White)
+                val badge = with(LocalDensity.current) { TextStyles.body.fontSize.toDp() }
+                Box(Modifier.size(badge).background(Color.Black.copy(alpha = 0.65f), CircleShape), contentAlignment = Alignment.Center) {
+                    SystemImage("xmark", null, Modifier.symbolSize(TextStyles.caption.semibold), tint = Color.White)
                 }
             }
         }
@@ -2214,7 +2226,7 @@ private class SessionViewState {
                 width = ComposerFileChip.width,
                 height = ComposerFileChip.height,
                 modifier = Modifier
-                    .background(SystemColors.secondarySystemFill, RoundedCornerShape(22.dp))
+                    .background(SystemColors.secondarySystemFill, ContinuousRoundedCornerShape(22.dp))
                     .semantics(mergeDescendants = true) {
                         contentDescription = "File attachment $name"
                         testTag = "pending-file-$name"
@@ -2237,7 +2249,7 @@ private class SessionViewState {
                 attachment.data,
                 Modifier
                     .size(76.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ContinuousRoundedCornerShape(22.dp))
                     .semantics {
                         contentDescription = "Image attachment ${index + 1}"
                         testTag = "pending-attachment-$index"
@@ -2683,7 +2695,9 @@ fun SessionTranscriptView(
     val visibleItems = state.visibleItems
     val entries = remember(visibleItems, isRunning) { TranscriptEntry.build(from = visibleItems, isRunning = isRunning) }
     val density = LocalDensity.current
-    val topInset = WindowInsets.statusBars.getTop(density) + with(density) { TranscriptMetrics.headerBand.dp.toPx() }
+    var consumed by remember { mutableStateOf(WindowInsets(0, 0, 0, 0)) }
+    val statusTop = WindowInsets.statusBars.exclude(consumed).getTop(density)
+    val topInset = statusTop + with(density) { TranscriptMetrics.headerBand.dp.toPx() }
     TranscriptListView(
         store = store,
         configuration = TranscriptListViewController.Configuration(
@@ -2713,7 +2727,7 @@ fun SessionTranscriptView(
         dismissKeyboard = dismissKeyboard,
         onPreviewImage = onPreviewImage,
         onOpenFile = onOpenFile,
-        modifier = modifier,
+        modifier = modifier.onConsumedWindowInsetsChanged { consumed = it },
     )
 }
 
@@ -2852,4 +2866,48 @@ private fun DrawerGlyph() {
         drawRoundRect(color, topLeft = Offset(0f, top), size = Size(long, stroke), cornerRadius = CornerRadius(stroke / 2))
         drawRoundRect(color, topLeft = Offset(0f, top + stroke + gap), size = Size(short, stroke), cornerRadius = CornerRadius(stroke / 2))
     }
+}
+
+private class ContinuousRoundedCornerShape(private val radius: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val limit = min(size.width, size.height) / 2f
+        val r = with(density) { radius.toPx() }.coerceAtMost(limit)
+        return Outline.Generic(continuousRoundRect(size.width, size.height, r))
+    }
+}
+
+private fun continuousRoundRect(width: Float, height: Float, radius: Float): Path {
+    val path = Path()
+    if (radius <= 0f) {
+        path.addRect(Rect(0f, 0f, width, height))
+        return path
+    }
+    path.moveTo(radius, 0f)
+    path.lineTo(width - radius, 0f)
+    appendCorner(path, width - radius, radius, -90.0, 90.0, radius)
+    path.lineTo(width, height - radius)
+    appendCorner(path, width - radius, height - radius, 0.0, 90.0, radius)
+    path.lineTo(radius, height)
+    appendCorner(path, radius, height - radius, 90.0, 90.0, radius)
+    path.lineTo(0f, radius)
+    appendCorner(path, radius, radius, 180.0, 90.0, radius)
+    path.close()
+    return path
+}
+
+private fun appendCorner(path: Path, cx: Float, cy: Float, startDeg: Double, sweepDeg: Double, radius: Float) {
+    val steps = 16
+    val exponent = ContinuousCornerExponent
+    for (step in 1..steps) {
+        val theta = Math.toRadians(startDeg + sweepDeg * step / steps)
+        path.lineTo(cx + radius * signedPow(cos(theta), exponent), cy + radius * signedPow(sin(theta), exponent))
+    }
+}
+
+private const val ContinuousCornerExponent = 0.82
+
+private fun signedPow(value: Double, exponent: Double): Float {
+    if (value == 0.0) return 0f
+    val sign = if (value < 0.0) -1f else 1f
+    return sign * abs(value).pow(exponent).toFloat()
 }

@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -86,11 +87,15 @@ fun NavigationBarHidden(hidden: Boolean = true) {
 fun NavigationTitle(
     title: String,
     displayMode: TitleDisplayMode = TitleDisplayMode.automatic,
+    style: TextStyle = TextStyles.headline,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
 ) {
     val bar = LocalNavigationBar.current ?: return
-    DisposableEffect(bar, title, displayMode) {
+    DisposableEffect(bar, title, displayMode, style, overflow) {
         bar.title = title
         bar.displayMode = displayMode
+        bar.titleStyle = style
+        bar.titleOverflow = overflow
         onDispose { if (bar.title == title) bar.title = null }
     }
 }
@@ -118,6 +123,8 @@ fun ToolbarItem(
 private class NavigationBarState {
     var title by mutableStateOf<String?>(null)
     var displayMode by mutableStateOf(TitleDisplayMode.automatic)
+    var titleStyle by mutableStateOf(TextStyles.headline)
+    var titleOverflow by mutableStateOf(TextOverflow.Ellipsis)
     var hidden by mutableStateOf(false)
     val items = mutableStateListOf<ToolbarEntry>()
 }
@@ -139,10 +146,10 @@ private fun NavigationBar(bar: NavigationBarState) {
             Text(
                 title,
                 Modifier.align(Alignment.Center).padding(horizontal = 88.dp),
-                style = TextStyles.headline,
+                style = bar.titleStyle,
                 color = SystemColors.label,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = bar.titleOverflow,
             )
         }
         Row(Modifier.align(Alignment.CenterStart), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

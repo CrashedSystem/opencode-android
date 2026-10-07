@@ -67,6 +67,20 @@ class ShellOutputTextViewTests {
         assertEquals("the newest line is in view", view.layout.height - view.height + view.paddingBottom, view.scrollY)
     }
 
+    @Test
+    fun logLinesUseTheReferencePitch() {
+        val output = (1..8).joinToString("\n") { "[%04d] Compiled /session in 49 ms".format(it) }
+        compose.setContent {
+            Box(Modifier.fillMaxWidth().height(200.dp)) {
+                ShellOutputTextView(output, 0, isFollowing = true, onFollowingChanged = {}, jumpRequest = 0)
+            }
+        }
+        compose.waitForIdle()
+        val view = textView()
+        val pitch = view.layout.getLineTop(1) - view.layout.getLineTop(0)
+        assertEquals(44, pitch)
+    }
+
     private fun textView(): TextView {
         fun find(view: android.view.View): TextView? = when (view) {
             is TextView -> view
