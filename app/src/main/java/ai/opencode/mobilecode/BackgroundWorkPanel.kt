@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "657c3d8", partial = "all but the -lab-glass-trace overlay and stage log")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "a8e4a66", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -166,13 +166,16 @@ fun BackgroundWork(
     val scope = rememberCoroutineScope()
     var stage by remember { mutableStateOf(BackgroundWorkStage.closed) }
     var contentHeight by remember { mutableStateOf<Float?>(null) }
-    val retained = remember { Retained() }
+    var retained by remember { mutableStateOf(Retained()) }
+    /// The session whose work the glass shows.
+    var glassSession by remember { mutableStateOf<String?>(null) }
     /// 0 the capsule's frame, 1 the panel's.
     val morph = remember { Animatable(0f) }
     var origin by remember { mutableStateOf(Rect.Zero) }
     val hasWork = store.observe { hasBackgroundWork }
 
     fun open() {
+        glassSession = store.state.session?.id
         if (reducedMotion || !hasWork || stage != BackgroundWorkStage.closed) {
             stage = BackgroundWorkStage.panel
             scope.launch { morph.animateTo(1f, BackgroundWorkMotion.open(reducedMotion)) }
@@ -190,10 +193,23 @@ fun BackgroundWork(
         }
     }
 
+    /// The drawer swaps sessions in place: nothing of the last session's
+    /// glass, mid-morph or measured, carries over to the next.
+    fun reset() {
+        isPresented.wrappedValue = false
+        stage = BackgroundWorkStage.closed
+        contentHeight = null
+        scope.launch { morph.snapTo(0f) }
+        retained = Retained()
+        glassSession = null
+    }
+
     /// The panel shrinks back into the capsule's shape, then hands the glass
     /// back to the capsule. Without a capsule to land in, it fades.
     fun close() {
         if (stage == BackgroundWorkStage.closed) return
+        // Opening a subagent swaps the session before the close begins.
+        if (store.state.session?.id != glassSession) return reset()
         if (reducedMotion || !hasWork) {
             stage = BackgroundWorkStage.closed
             scope.launch { morph.snapTo(0f) }
@@ -208,6 +224,12 @@ fun BackgroundWork(
         }
     }
 
+    val sessionID = store.state.session?.id
+    var shownSessionID by remember { mutableStateOf(sessionID) }
+    if (sessionID != shownSessionID) {
+        shownSessionID = sessionID
+        reset()
+    }
     val presented = isPresented.wrappedValue
     LaunchedEffect(presented) {
         if (presented) open() else close()
@@ -224,7 +246,6 @@ fun BackgroundWork(
             close()
         }
     }
-    LaunchedEffect(store.state.session?.id) { isPresented.wrappedValue = false }
 
     /// The capsule's frame, or while the glass is up, where it last was.
     val live = anchor?.bounds?.takeIf { hasWork }
