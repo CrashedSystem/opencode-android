@@ -1031,12 +1031,12 @@ data class OpenCodeOutgoingAttachment(
 
 @Serializable
 data class OpenCodePermissionRequest(
-    var id: String,
-    var sessionID: String,
+    override var id: String,
+    override var sessionID: String,
     var action: String,
     var resources: List<String>,
     var save: List<String>? = null,
-)
+) : PendingRequest
 
 @Serializable
 enum class OpenCodePermissionReply { once, always, reject }
@@ -1204,6 +1204,17 @@ sealed class OpenCodeLiveContentEvent {
             else -> null
         }
 
+    val projectsRows: Boolean
+        get() = when (this) {
+            is textStarted, is textDelta, is textEnded,
+            is toolInputStarted, is toolInputDelta, is toolInputEnded,
+            is toolCalled, is toolProgress, is toolSucceeded, is toolFailed,
+            -> true
+            is stepStarted, is stepStreamed, is stepEnded,
+            is reasoningStarted, is reasoningDelta, is reasoningEnded,
+            -> false
+        }
+
     fun appendingDelta(next: OpenCodeLiveContentEvent): OpenCodeLiveContentEvent? = when {
         this is textDelta && next is textDelta && messageID == next.messageID && ordinal == next.ordinal ->
             textDelta(messageID, ordinal, delta + next.delta)
@@ -1281,45 +1292,45 @@ private class EventBatcher(private val emit: suspend (OpenCodeServerEvent) -> Un
 data class OpenCodeTranscriptPage(var items: List<OpenCodeTranscriptItem>, var next: String?)
 
 class OpenCodeClient(
-    val health: suspend (OpenCodeServer) -> Unit,
-    val redeemPairing: suspend (OpenCodePairingLink) -> OpenCodeServer,
-    val homeSnapshot: suspend (OpenCodeServer) -> OpenCodeHomeSnapshot,
-    val homeAttention: suspend (OpenCodeServer, List<OpenCodeSession>, List<String>) -> Set<String>,
-    val transcript: suspend (OpenCodeServer, String, Int) -> List<OpenCodeTranscriptItem>,
-    val message: suspend (OpenCodeServer, String, String) -> List<OpenCodeTranscriptItem>,
-    val sendPrompt: suspend (OpenCodeServer, String, String, List<OpenCodeOutgoingAttachment>, List<OpenCodeFileReference>, String, OpenCodeDelivery) -> Unit,
-    val sendDeliveredPrompt: suspend (OpenCodeServer, String, String, OpenCodeDelivery?) -> String,
-    val assistantReply: suspend (OpenCodeServer, String, String) -> String?,
-    val uploadFile: (OpenCodeServer, String?, java.io.File, String) -> Flow<OpenCodeUploadEvent>,
-    val waitForIdle: suspend (OpenCodeServer, String) -> Unit,
-    val isSessionActive: suspend (OpenCodeServer, String) -> Boolean,
-    val interrupt: suspend (OpenCodeServer, String) -> Unit,
-    val createSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
-    val deleteSession: suspend (OpenCodeServer, String) -> Unit,
-    val sessionFamily: suspend (OpenCodeServer, OpenCodeSession) -> OpenCodeSessionFamily,
-    val modelCatalog: suspend (OpenCodeServer, String?) -> OpenCodeModelCatalog,
-    val switchModel: suspend (OpenCodeServer, String, OpenCodeModelRef) -> Unit,
-    val familyPendingRequests: suspend (OpenCodeServer, List<String>, String) -> OpenCodePendingRequests,
-    val pendingInputs: suspend (OpenCodeServer, String) -> List<OpenCodePendingInput>,
-    val setPendingInputDelivery: suspend (OpenCodeServer, String, String, OpenCodeDelivery) -> Unit,
-    val cancelPendingInput: suspend (OpenCodeServer, String, String) -> Unit,
-    val replyPermission: suspend (OpenCodeServer, String, String, OpenCodePermissionReply) -> Unit,
-    val replyForm: suspend (OpenCodeServer, String, String, Map<String, OpenCodeFormValue>) -> Unit,
-    val cancelForm: suspend (OpenCodeServer, String, String) -> Unit,
-    val getSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
-    val runningShells: suspend (OpenCodeServer, String) -> List<OpenCodeShell>,
-    val shell: suspend (OpenCodeServer, String, String) -> OpenCodeShell,
-    val shellOutput: suspend (OpenCodeServer, String, String, Long, Long) -> OpenCodeShellOutputPage,
-    val stopShell: suspend (OpenCodeServer, String, String) -> Unit,
-    val moveToBackground: suspend (OpenCodeServer, String) -> Unit,
-    val viewSession: suspend (OpenCodeServer, String, Long) -> Unit,
-    val contextUsage: suspend (OpenCodeServer, String) -> OpenCodeContextReading,
-    val renameSession: suspend (OpenCodeServer, String, String) -> Unit,
-    val compactSession: suspend (OpenCodeServer, String) -> Unit,
-    val forkSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
-    val exportSession: suspend (OpenCodeServer, String) -> ByteArray,
-    val historyPage: suspend (OpenCodeServer, String, String?) -> OpenCodeTranscriptPage,
-    val events: (OpenCodeServer) -> Flow<OpenCodeServerEvent>,
+    var health: suspend (OpenCodeServer) -> Unit,
+    var redeemPairing: suspend (OpenCodePairingLink) -> OpenCodeServer,
+    var homeSnapshot: suspend (OpenCodeServer) -> OpenCodeHomeSnapshot,
+    var homeAttention: suspend (OpenCodeServer, List<OpenCodeSession>, List<String>) -> Set<String>,
+    var transcript: suspend (OpenCodeServer, String, Int) -> List<OpenCodeTranscriptItem>,
+    var message: suspend (OpenCodeServer, String, String) -> List<OpenCodeTranscriptItem>,
+    var sendPrompt: suspend (OpenCodeServer, String, String, List<OpenCodeOutgoingAttachment>, List<OpenCodeFileReference>, String, OpenCodeDelivery) -> Unit,
+    var sendDeliveredPrompt: suspend (OpenCodeServer, String, String, OpenCodeDelivery?) -> String,
+    var assistantReply: suspend (OpenCodeServer, String, String) -> String?,
+    var uploadFile: (OpenCodeServer, String?, java.io.File, String) -> Flow<OpenCodeUploadEvent>,
+    var waitForIdle: suspend (OpenCodeServer, String) -> Unit,
+    var isSessionActive: suspend (OpenCodeServer, String) -> Boolean,
+    var interrupt: suspend (OpenCodeServer, String) -> Unit,
+    var createSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
+    var deleteSession: suspend (OpenCodeServer, String) -> Unit,
+    var sessionFamily: suspend (OpenCodeServer, OpenCodeSession) -> OpenCodeSessionFamily,
+    var modelCatalog: suspend (OpenCodeServer, String?) -> OpenCodeModelCatalog,
+    var switchModel: suspend (OpenCodeServer, String, OpenCodeModelRef) -> Unit,
+    var familyPendingRequests: suspend (OpenCodeServer, List<String>, String) -> OpenCodePendingRequests,
+    var pendingInputs: suspend (OpenCodeServer, String) -> List<OpenCodePendingInput>,
+    var setPendingInputDelivery: suspend (OpenCodeServer, String, String, OpenCodeDelivery) -> Unit,
+    var cancelPendingInput: suspend (OpenCodeServer, String, String) -> Unit,
+    var replyPermission: suspend (OpenCodeServer, String, String, OpenCodePermissionReply) -> Unit,
+    var replyForm: suspend (OpenCodeServer, String, String, Map<String, OpenCodeFormValue>) -> Unit,
+    var cancelForm: suspend (OpenCodeServer, String, String) -> Unit,
+    var getSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
+    var runningShells: suspend (OpenCodeServer, String) -> List<OpenCodeShell>,
+    var shell: suspend (OpenCodeServer, String, String) -> OpenCodeShell,
+    var shellOutput: suspend (OpenCodeServer, String, String, Long, Long) -> OpenCodeShellOutputPage,
+    var stopShell: suspend (OpenCodeServer, String, String) -> Unit,
+    var moveToBackground: suspend (OpenCodeServer, String) -> Unit,
+    var viewSession: suspend (OpenCodeServer, String, Long) -> Unit,
+    var contextUsage: suspend (OpenCodeServer, String) -> OpenCodeContextReading,
+    var renameSession: suspend (OpenCodeServer, String, String) -> Unit,
+    var compactSession: suspend (OpenCodeServer, String) -> Unit,
+    var forkSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
+    var exportSession: suspend (OpenCodeServer, String) -> ByteArray,
+    var historyPage: suspend (OpenCodeServer, String, String?) -> OpenCodeTranscriptPage,
+    var events: (OpenCodeServer) -> Flow<OpenCodeServerEvent>,
 ) {
     companion object : DependencyKey<OpenCodeClient> {
         var waitClock: suspend (Int) -> Unit = { seconds -> delay(seconds * 1000L) }
@@ -1381,7 +1392,7 @@ class OpenCodeClient(
             events = { server -> subscribeEvents(server) },
         )
 
-        override val testValue = OpenCodeClient(
+        override val testValue get() = OpenCodeClient(
             health = { unimplemented() },
             redeemPairing = { unimplemented() },
             homeSnapshot = { unimplemented() },
