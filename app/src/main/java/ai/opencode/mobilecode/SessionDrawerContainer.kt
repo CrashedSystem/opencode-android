@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "ae6c3d3")
+@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "a9fd832")
 
 package ai.opencode.mobilecode
 
@@ -800,6 +800,22 @@ fun Modifier.drawerTouchRegion(region: DrawerTouchRegion): Modifier {
     }
 }
 
+/// Controls whose touches the drawer's pan never takes, for controls that
+/// track a drag of their own: the + menu's press-and-slide and the held
+/// mic's slide to cancel. The pan arbitrates alongside the controls' own
+/// gestures, so without this a sideways drag would move the card too. The
+/// control marks the touch as it lands, as the drawer regions do.
+@Composable
+fun Modifier.excludedFromDrawerPan(): Modifier {
+    val recognizer = LocalDirectionalPanGestureRecognizer.current ?: return this
+    return pointerInput(recognizer) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            recognizer.markExcludedControl()
+        }
+    }
+}
+
 /// A horizontal scroller (code, a table, attachments) under a touch: the
 /// drawer and the catch-up card yield a drag the scroller can still follow.
 @Composable
@@ -915,6 +931,8 @@ class DirectionalPanGestureRecognizer {
     private var hitDrawerList = false
     private var hitDrawerRow = false
     private var hitExposedCard = false
+    private var hitExcludedControl = false
+    private var touchBeganOnExcludedControl = false
     private var horizontalScrollerOwnsRightwardDrag = false
     private var horizontalScrollerOwnsLeftwardDrag = false
 
@@ -927,6 +945,8 @@ class DirectionalPanGestureRecognizer {
         hitDrawerList = false
         hitDrawerRow = false
         hitExposedCard = false
+        hitExcludedControl = false
+        touchBeganOnExcludedControl = false
         horizontalScrollerOwnsRightwardDrag = false
         horizontalScrollerOwnsLeftwardDrag = false
         touchOrigin = TouchOrigin.content(horizontalScrollerOwnsRightwardDrag = false)
@@ -942,12 +962,19 @@ class DirectionalPanGestureRecognizer {
         }
     }
 
+    internal fun markExcludedControl() {
+        hitExcludedControl = true
+    }
+
     internal fun markScroller(ownsRightwardDrag: Boolean, ownsLeftwardDrag: Boolean) {
         if (ownsRightwardDrag) horizontalScrollerOwnsRightwardDrag = true
         if (ownsLeftwardDrag) horizontalScrollerOwnsLeftwardDrag = true
     }
 
     internal fun resolveOrigin() {
+        // Controls that own a sideways drag (the + menu, the held mic) keep it;
+        // on the exposed card of an open drawer, every drag closes it.
+        touchBeganOnExcludedControl = !isDrawerPresented() && hitExcludedControl
         cardSwipeOrigin = CardSwipeOrigin(
             onCard = hitExposedCard,
             scrollerOwnsRightwardDrag = horizontalScrollerOwnsRightwardDrag,
@@ -970,7 +997,9 @@ class DirectionalPanGestureRecognizer {
 
     /// [dx] and [dy] are the touch's travel in points.
     internal fun decide(dx: Float, dy: Float): Decision =
-        if (isCardSwipe()) {
+        if (touchBeganOnExcludedControl) {
+            Decision.fail
+        } else if (isCardSwipe()) {
             cardSwipeDecision(origin = cardSwipeOrigin, dx = dx, dy = dy)
         } else {
             decision(origin = touchOrigin, presented = isDrawerPresented(), dx = dx, dy = dy)

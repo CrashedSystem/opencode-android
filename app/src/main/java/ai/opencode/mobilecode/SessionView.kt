@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "a92bd2d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "a9fd832", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -2056,6 +2056,8 @@ private class SessionViewState {
         with(HoldToDictateButton) {
             Box(
                 modifier
+                    // Sliding left to cancel must not open the drawer.
+                    .excludedFromDrawerPan()
                     .onGloballyPositioned { dictationMicFrame = it.boundsInRoot() }
                     .holdToDictate(
                         onBegan = { beginDictationHold() },
