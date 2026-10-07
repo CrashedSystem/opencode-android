@@ -12,6 +12,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.os.PersistableBundle
 import androidx.core.content.FileProvider
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -59,8 +60,12 @@ class OpenCodeApp : Application() {
             val file = File(context.cacheDir, "lab-pasteboard-image.png")
             file.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-            context.getSystemService(ClipboardManager::class.java)
-                .setPrimaryClip(ClipData.newUri(context.contentResolver, "image", uri))
+            val clip = ClipData.newUri(context.contentResolver, "image", uri)
+            // An emulator's copy confirmation would cover the composer; iOS shows none.
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean("com.android.systemui.SUPPRESS_CLIPBOARD_OVERLAY", true)
+            }
+            context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
         }
 
         /// `-lab-interface-style light|dark`, as a night mode for every window of the app.

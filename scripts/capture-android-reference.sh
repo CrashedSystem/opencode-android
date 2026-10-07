@@ -17,9 +17,14 @@ main() {
   start_fixtures
   build_and_install
   freeze_status_bar
+  local failed=""
   for appearance in $appearances; do
-    capture "$appearance"
+    capture "$appearance" || failed="$failed $appearance"
   done
+  if [[ -n "$failed" ]]; then
+    printf '%s\n' "Some states were not captured in:$failed" >&2
+    exit 1
+  fi
 }
 
 parse_args() {

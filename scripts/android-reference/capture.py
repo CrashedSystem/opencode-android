@@ -152,6 +152,17 @@ class App:
                 raise CaptureError(f"timed out waiting for {label!r}")
             time.sleep(0.3)
 
+    def covered(self, node):
+        """Whether the clipboard preview that follows a copy sits over the node."""
+        x, y = node.center
+        for window in self.windows():
+            if window.get("type") != "SYSTEM" or "clipboard_preview" not in json.dumps(window):
+                continue
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", window["bounds"]))
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return True
+        return False
+
     def dismiss_not_responding(self, windows=None):
         """A loaded emulator can miss the 5 s input deadline while the app is idle; keep waiting."""
         windows = windows if windows is not None else self.windows()
@@ -201,6 +212,7 @@ class App:
 
     def tap(self, target, timeout=8, containing=False):
         node = target if isinstance(target, Node) else self.settled(target, timeout, containing)
+        self.wait_until(lambda: not self.covered(node), timeout=10, what="the clipboard preview to close")
         x, y = node.center
         adb("shell", "input", "tap", str(x), str(y))
 
