@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID")
+@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark and compactionObserved from 0bda024)")
 
 package ai.opencode.mobilecode
 
@@ -66,6 +66,12 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
             val isClientDelegation: Boolean = false,
             val pendingLateText: String? = null,
             val superseded: Boolean = false,
+        )
+
+        /// The newest finished compaction the session screen has seen.
+        data class CompactionMark(
+            val sessionID: String,
+            val compactionID: String,
         )
 
         var target by StoreVar(target)
@@ -309,6 +315,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         data class callEnded(val errorMessage: String?) : Action
 
         data class workAdmitted(val callID: String, val promptID: String) : Action
+
+        /// The session screen saw a finished compaction in the call's session.
+        data class compactionObserved(val mark: State.CompactionMark) : Action
 
         data class lateUtteranceFinished(val callID: String, val capture: VoiceTranscriptTail.Capture, val promptID: String?) : Action
 

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/VoiceHandoffParseTests.swift", "47c055d", partial = "the cases that read voice delegations back for the transcript; the ones that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) are ignored")
+@file:PortedFrom("OpenCodeTests/VoiceHandoffParseTests.swift", "0bda024", partial = "the cases that read voice delegations back for the transcript; the ones that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) are ignored")
 
 package ai.opencode.mobilecode
 
@@ -57,6 +57,28 @@ class VoiceHandoffParseTests {
     }
 
     @Test
+    fun aContinuedDelegationIsShortAndStillAVoiceMessage() {
+        val prompt = VoiceHandoff.format(
+            instruction = "and the retry test",
+            transcriptDelta = listOf("user: and the retry test"),
+            framing = "Checking the retry test.",
+            header = VoiceHandoff.Header.continued,
+        )
+        expect(prompt.startsWith(VoiceHandoff.continuedHeader + "\n{"))
+        expect(!prompt.contains("recognition errors"), "The explanation goes only with the first")
+        expect(
+            VoiceHandoff.parse(prompt) == VoiceHandoff.Delegation(
+                instruction = "and the retry test",
+                transcriptDelta = listOf("user: and the retry test"),
+                framing = "Checking the retry test.",
+            ),
+        )
+        val message = TranscriptUserMessage(id = "msg_2", text = prompt, images = emptyList(), files = emptyList(), pending = null)
+        expect(message.voiceDelegation?.displayText == "Checking the retry test.")
+        // VoiceWorkClient.formatRecentMessages waits for voice calls (Voice/VoiceWorkClient.kt).
+    }
+
+    @Test
     fun promptsFromBeforeTheFramingStillRender() {
         val prompt = "Voice delegation. Instruction is the cleaned interpretation of the user's request.\n{\n  \"instruction\" : \"Check why the upload test keeps failing on CI.\",\n  \"transcript_delta\" : [\n    \"user: hey can you figure out why the upload test keeps failing\"\n  ]\n}"
         val message = TranscriptUserMessage(id = "msg_old", text = prompt, images = emptyList(), files = emptyList(), pending = null)
@@ -99,6 +121,7 @@ class VoiceHandoffParseTests {
     fun plainTextAboutVoiceDelegationIsNotOne() {
         expect(VoiceHandoff.parse("How does voice delegation work?\n{\"instruction\": \"x\"}") == null)
         expect(VoiceHandoff.parse("Can you explain the Voice delegation. header format?") == null)
+        expect(VoiceHandoff.parse("Voice delegation (continued) is what?\n{\"instruction\": \"x\"}") == null)
     }
 
     @Ignore("VoiceWorkClient.formatRecentMessages and VoiceInstructions.build wait for voice calls (Voice/VoiceWorkClient.kt, Voice/VoiceTranscript.kt)")

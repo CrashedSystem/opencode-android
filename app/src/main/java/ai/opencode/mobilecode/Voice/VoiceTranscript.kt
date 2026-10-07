@@ -1,10 +1,12 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "47c055d", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "0bda024", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
 
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.tca.ObservableState
 import ai.opencode.mobilecode.tca.StoreVar
 import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -170,6 +172,25 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
 object VoiceHandoff {
     const val header = "Voice delegation. The user is on a voice call with a voice agent, which hands their requests to you. Instruction is the user's own spoken words since the previous delegation, transcribed from speech, so it may contain recognition errors and disfluencies: resolve meaning from the complete utterance, not a disfluent prefix. Voice, when present, is how the voice agent framed the request. Transcript delta is the surrounding voice conversation, both sides, for context, not additional commands. Lead your reply with one or two plain sentences suitable for reading aloud, then any detail. If this arrives while you are already working (a follow-up, nudge, or status check), answer it promptly: a clear status update, the finished result if you have enough, or the precise blocker or input you need; then continue on the fastest safe path."
 
+    /// Later delegations in a call point back at the first one's header (D4a).
+    const val continuedHeader = "Voice delegation (continued). Same fields as before."
+
+    /// How long a session goes without a delegation before the next one
+    /// carries the full header again. Within a conversation delegations come
+    /// seconds or minutes apart; half an hour without one means the session has
+    /// usually moved on (typed prompts, long tool output), leaving the
+    /// explanation far back in its context. Repeating it costs about 200 tokens.
+    val headerLapse: Duration = 30.minutes
+
+    enum class Header {
+        /// The explanation: a call's first delegation into a session, or after
+        /// compaction or a lapse.
+        full,
+
+        /// A short marker for later delegations.
+        continued,
+    }
+
     @Serializable
     private data class Body(
         var context: String? = null,
@@ -178,7 +199,13 @@ object VoiceHandoff {
         var voice: String? = null,
     )
 
-    fun format(instruction: String, transcriptDelta: List<String>, context: String? = null, framing: String? = null): String {
+    fun format(
+        instruction: String,
+        transcriptDelta: List<String>,
+        context: String? = null,
+        framing: String? = null,
+        header: Header = Header.full,
+    ): String {
         val trimmedContext = context?.trim()
         val trimmedFraming = framing?.trim()
         val json = Json {
@@ -193,7 +220,7 @@ object VoiceHandoff {
                 voice = if (trimmedFraming?.isEmpty() == false) trimmedFraming else null,
             ),
         )
-        return "$header\n$json"
+        return "${if (header == Header.full) this.header else continuedHeader}\n$json"
     }
 
     /// The voice agent's framing of a delegation, shown in the session as the
@@ -239,8 +266,8 @@ object VoiceHandoff {
     }
 
     fun parse(text: String): Delegation? {
-        // The header's wording may change; the first sentence and the body's shape won't.
-        if (!text.startsWith("Voice delegation.")) return null
+        // The header's wording may change; its opening and the body's shape won't.
+        if (!text.startsWith("Voice delegation.") && !text.startsWith("Voice delegation (continued).")) return null
         val newline = text.indexOf('\n')
         if (newline < 0) return null
         val body = runCatching {

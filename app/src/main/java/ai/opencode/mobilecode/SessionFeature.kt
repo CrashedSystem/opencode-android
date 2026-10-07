@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "0bda024")
 
 package ai.opencode.mobilecode
 
@@ -596,6 +596,20 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             get() = isDictating || isFinishingDictation || voice?.let { !it.phase.showsCard } == true
 
         val isLoadingEarlier: Boolean get() = earlierHistory is EarlierHistory.loading
+
+        /// The newest finished compaction in the session a call is on, while the
+        /// screen shows it. Nil without a call, so the scan only runs during one.
+        val voiceCompaction: VoiceFeature.State.CompactionMark?
+            get() {
+                val session = session ?: return null
+                if (voice?.target?.sessionID != session.id) return null
+                for (item in items.asReversed()) {
+                    if (item is OpenCodeTranscriptItem.compaction && (item.info?.status ?: OpenCodeCompaction.Status.completed) == OpenCodeCompaction.Status.completed) {
+                        return VoiceFeature.State.CompactionMark(sessionID = session.id, compactionID = item.id)
+                    }
+                }
+                return null
+            }
 
         /// Some request dock is (or should be) replacing the composer.
         val hasPendingRequests: Boolean
@@ -2804,6 +2818,14 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         val needsInput = state.hasPendingRequests
                         state.voice?.targetNeedsInput = needsInput
                         Effect.none
+                    }
+                }
+                // A compaction in the call's session drops the delegation header from its
+                // context, so the next delegation explains itself again (D4a).
+                .onChange(of = { it.voiceCompaction }) { _, _ ->
+                    Reduce { _ ->
+                        val mark = state.voiceCompaction ?: return@Reduce Effect.none
+                        Effect.send(Action.voice(PresentationAction.presented(VoiceFeature.Action.compactionObserved(mark))))
                     }
                 }
                 // A call on a draft creates its session with the draft's model.
