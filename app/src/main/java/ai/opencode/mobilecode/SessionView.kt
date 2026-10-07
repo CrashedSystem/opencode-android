@@ -44,6 +44,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
@@ -1570,7 +1571,7 @@ private class SessionViewState {
                 // breathing room so it doesn't sit flush against the keys.
                 .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp)
                 // The composer rides on top of the inline photo picker.
-                .padding(bottom = composerLift.dp),
+                .padding(bottom = shownComposerLift.value.dp),
         ) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // A new session's project and model sit right above where you type.
@@ -1855,7 +1856,7 @@ private class SessionViewState {
                     anchors = attachmentMenuAnchors,
                     press = attachmentMenuPress,
                     handedOff = attachmentCardOwnsGlass,
-                    lift = composerLift,
+                    lift = shownComposerLift.value,
                     onChoose = ::chooseAttachment,
                     onPaste = ::pasteAttachments,
                     onDismiss = ::closeAttachmentMenu,
@@ -1882,7 +1883,7 @@ private class SessionViewState {
             Modifier
                 .fillMaxWidth()
                 .animateContentSize(if (reducedMotion) snap() else spring(dampingRatio = 1f, stiffness = 630f))
-                .attachmentMenuAnchor(attachmentMenuAnchors::composer, composerLift)
+                .attachmentMenuAnchor(attachmentMenuAnchors::composer, shownComposerLift.value)
                 .clickable(interactionSource = null, indication = null) { messageFieldFocused = true }
                 .padding(horizontal = 6.dp)
                 .padding(bottom = 6.dp, top = if (composerExpanded) 0.dp else 6.dp)
@@ -1994,7 +1995,7 @@ private class SessionViewState {
                 anchors = attachmentMenuAnchors,
                 press = attachmentMenuPress,
                 rows = if (attachmentMenu == AttachmentMenuPhase.menu) attachmentMenuAnchors.rows else emptyMap(),
-                lift = composerLift,
+                lift = shownComposerLift.value,
                 onToggle = ::toggleAttachmentMenu,
                 onChoose = ::chooseAttachment,
                 // Sliding from + to the rows must not open the drawer; while it's
@@ -2390,6 +2391,7 @@ private class SessionViewState {
     @Composable
     fun AttachmentMenuOverlayHost() {
         val context = LocalContext.current
+        ComposerLiftMotion()
         AttachmentMenuOverlay(
             phase = Binding({ attachmentMenu }, { attachmentMenu = it }),
             cardOwnsGlass = Binding({ attachmentCardOwnsGlass }, { attachmentCardOwnsGlass = it }),
@@ -2471,6 +2473,22 @@ private class SessionViewState {
 
     /// How far the picker card raises the composer.
     val composerLift: Float get() = if (attachmentMenu == AttachmentMenuPhase.photos) pickerReservation else 0f
+
+    /// The lift as drawn: SwiftUI animates the padding with the card's morph,
+    /// and the menu's anchors add back what is drawn to find where they rest.
+    val shownComposerLift = Animatable(0f)
+
+    @Composable
+    fun ComposerLiftMotion() {
+        val target = composerLift
+        val closing = attachmentMenu == AttachmentMenuPhase.closed
+        LaunchedEffect(target) {
+            shownComposerLift.animateTo(
+                target,
+                if (closing) AttachmentMenuMotion.close(reducedMotion) else AttachmentMenuMotion.morph(reducedMotion),
+            )
+        }
+    }
 
     val composerAttachmentIDs: Set<UUID>
         get() = store.state.pendingAttachments.mapNotNull { runCatching { UUID.fromString(it.id) }.getOrNull() }.toSet() +

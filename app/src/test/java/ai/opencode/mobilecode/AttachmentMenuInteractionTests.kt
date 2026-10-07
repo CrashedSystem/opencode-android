@@ -32,10 +32,10 @@ import org.robolectric.annotation.GraphicsMode
 /// a tap opens the menu and the same button closes it, a hold opens it
 /// under the finger, and sliding onto a row and releasing chooses it.
 /// Robolectric has no camera and an empty clipboard, so the rows are
-/// Photos and Files. 1x pixels are points.
+/// Photos and Files. At 3x, the press converts pixels to the anchors' points.
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [33], qualifiers = "w440dp-h956dp-mdpi")
+@Config(sdk = [33], qualifiers = "w440dp-h956dp-xxhdpi")
 class AttachmentMenuInteractionTests {
     @get:Rule
     val dependencies = TestDependencies()
