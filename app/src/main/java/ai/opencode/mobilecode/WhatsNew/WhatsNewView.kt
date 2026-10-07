@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "553a407")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "6d491ac")
 
 package ai.opencode.mobilecode
 
@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -264,6 +265,11 @@ fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 SystemImage("rectangle.stack", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.camera ->
                 SystemImage("camera.aperture", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
+            WhatsNewEntry.Illustration.voiceMessage ->
+                Column(Modifier.width(36.dp), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.End) {
+                    SystemImage("waveform", contentDescription = null, modifier = Modifier.symbolSize(7), tint = SystemColors.secondaryLabel)
+                    Box(Modifier.size(width = 30.dp, height = 14.dp).background(SystemColors.label.copy(alpha = 0.12f), RoundedCornerShape(6.dp)))
+                }
             WhatsNewEntry.Illustration.talkOver ->
                 Box(contentAlignment = Alignment.BottomEnd) {
                     SystemImage(

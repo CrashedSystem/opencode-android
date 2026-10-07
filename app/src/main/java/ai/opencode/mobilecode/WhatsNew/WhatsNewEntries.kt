@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "553a407")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "6d491ac")
 
 package ai.opencode.mobilecode
 
@@ -27,6 +27,7 @@ data class WhatsNewEntry(
         talkOver,
         callButton,
         catchUp,
+        voiceMessage,
     }
 
     constructor(id: String, day: String, title: String, summary: String, example: String, illustration: Illustration) : this(
@@ -42,6 +43,14 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "voice-messages",
+                    day = "2026-10-06",
+                    title = "Voice Messages",
+                    summary = "What the voice agent asks the session on your behalf shows in its own words, marked Voice above the message. Your exact words still go to the session.",
+                    example = "Ask for something on a call, then look at the session",
+                    illustration = Illustration.voiceMessage,
+                ),
                 WhatsNewEntry(
                     id = "catch-up-shortcuts",
                     day = "2026-10-06",

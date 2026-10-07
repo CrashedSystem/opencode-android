@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "553a407", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "ba5769c", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -512,7 +512,9 @@ private fun QueuedMessageRow(
     var expanded by remember { mutableStateOf(false) }
     var showsActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val isLong = input.text.length > 160 || input.text.lines().count { it.isNotEmpty() } > 3
+    // A queued voice delegation reads as its Voice message, not its prompt.
+    val text = VoiceHandoff.parse(input.text)?.displayText ?: input.text
+    val isLong = text.length > 160 || text.lines().count { it.isNotEmpty() } > 3
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
         Column(
             Modifier
@@ -542,9 +544,9 @@ private fun QueuedMessageRow(
                     Text(file.name, style = TextStyles.subheadline, color = SystemColors.secondaryLabel, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
                 }
             }
-            if (input.text.isNotEmpty()) {
+            if (text.isNotEmpty()) {
                 Text(
-                    input.text,
+                    text,
                     Modifier.fillMaxWidth().animateContentSize(),
                     style = TextStyles.body,
                     color = SystemColors.label,
