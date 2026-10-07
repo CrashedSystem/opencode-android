@@ -2,6 +2,7 @@ package ai.opencode.mobilecode.tca
 
 import android.os.Bundle
 import android.os.Looper
+import java.time.Duration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Text
@@ -40,7 +41,8 @@ class TaskTest {
         assertEquals(listOf("task a", "select b", "task b", "hide", "show", "task b"), store.state.log)
     }
 
-    private fun idle() = shadowOf(Looper.getMainLooper()).idle()
+    /** Compose schedules frames ahead of now, so advance the paused main looper past them. */
+    private fun idle() = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
 }
 
 class TaskActivity : ComponentActivity() {
