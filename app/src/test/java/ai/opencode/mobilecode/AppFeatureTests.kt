@@ -14,7 +14,6 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -265,9 +264,49 @@ class AppFeatureTests {
         }
     }
 
-    @Ignore("OpenCode/HomeFeature.kt")
     @Test
-    fun serverBadgeReturnsToThePickerAndAnotherServerConnects() {}
+    fun serverBadgeReturnsToThePickerAndAnotherServerConnects() {
+        val snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = emptyList(), activeSessionIDs = emptySet())
+        val laptop = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "a")
+        val tailnet = OpenCodeServer(url = "https://box.ts.net:4096", username = "opencode", password = "b")
+        val initialState = AppFeature.State().apply {
+            connection = AppFeature.State.Connection.connected
+            home = HomeFeature.State(server = laptop, snapshot = snapshot)
+            this::savedServers.withLock { value = listOf(laptop, tailnet) }
+        }
+        val (store, continuation) = gatedHomeStore(initialState)
+
+        store.send(AppFeature.Action.home(HomeFeature.Action.serverBadgeTapped)) {
+            it.home = null
+            it.connection = AppFeature.State.Connection.picking
+            it.returnServer = laptop
+        }
+        // `.picking` must not auto-reconnect when the view's task re-runs.
+        store.send(AppFeature.Action.task)
+
+        store.send(AppFeature.Action.serverTapped(tailnet)) {
+            it.serverURL = tailnet.url
+            it.username = tailnet.username
+            it.password = tailnet.password
+            it.connection = AppFeature.State.Connection.connecting
+            it.connectionGeneration = 1
+            it.connectionAttempt = AppFeature.ConnectionAttempt(1, tailnet)
+        }
+        store.receive<AppFeature.Action.healthResponse> {
+            it.connection = AppFeature.State.Connection.loadingHome(tailnet)
+            it::savedServer.withLock { value = tailnet }
+            it::savedServers.withLock { value = listOf(tailnet, laptop) }
+        }
+        continuation.trySend(snapshot)
+        continuation.close()
+        store.receive<AppFeature.Action.homeResponse> {
+            it.connection = AppFeature.State.Connection.connected
+            it.connectionAttempt = null
+            it.returnServer = null
+            it.home = HomeFeature.State(server = tailnet, snapshot = snapshot)
+            it::cachedHomeSnapshot.withLock { value = CachedHomeSnapshot(serverID = tailnet.persistenceID, snapshot = snapshot) }
+        }
+    }
 
     @Test
     fun v2PairingLinkDecodesOriginAndOneTimeCode() {
@@ -501,9 +540,40 @@ class AppFeatureTests {
         store.skipInFlightEffects()
     }
 
-    @Ignore("OpenCode/HomeFeature.kt")
     @Test
-    fun serverListOffersAWayBackToTheServerThatWasOpen() {}
+    fun serverListOffersAWayBackToTheServerThatWasOpen() {
+        val snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = emptyList(), activeSessionIDs = emptySet())
+        val server = OpenCodeServer(url = "http://10.0.10.26:4196", username = "opencode", password = "pw")
+        val state = AppFeature.State().apply {
+            this::savedServer.withLock { value = server }
+            this::savedServers.withLock { value = listOf(server) }
+            home = HomeFeature.State(server = server, snapshot = snapshot)
+            connection = AppFeature.State.Connection.connected
+        }
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.openCodeClient.health = {}
+                it.openCodeClient.homeSnapshot = { snapshot }
+            },
+        ) { AppFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(AppFeature.Action.home(HomeFeature.Action.serverBadgeTapped)) {
+            it.home = null
+            it.connection = AppFeature.State.Connection.picking
+            it.returnServer = server
+        }
+        store.send(AppFeature.Action.returnToServerTapped) {
+            it.connection = AppFeature.State.Connection.connecting
+        }
+        store.receive<AppFeature.Action.healthResponse>()
+        store.receive<AppFeature.Action.homeResponse> {
+            it.connection = AppFeature.State.Connection.connected
+            it.returnServer = null
+        }
+        expect(store.state.home?.server == server)
+    }
 
     @Test
     fun returnToTheOpenServerReconnects() {
@@ -707,9 +777,58 @@ class AppFeatureTests {
         store.finish()
     }
 
-    @Ignore("OpenCode/HomeFeature.kt")
     @Test
-    fun editingSavedLANAddressReplacesItOnlyAfterSessionsLoad() {}
+    fun editingSavedLANAddressReplacesItOnlyAfterSessionsLoad() {
+        val lan = OpenCodeServer(
+            url = "http://192.168.1.20:4096",
+            username = "opencode",
+            password = "secret",
+            alternateURLs = listOf("http://192.168.1.21:4096"),
+        )
+        val tailnet = OpenCodeServer(url = "https://box.tailnet.ts.net:4096", username = "opencode", password = "secret")
+        val other = OpenCodeServer(url = "https://other.example", username = "other", password = "other")
+        val snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = emptyList(), activeSessionIDs = emptySet())
+        val snapshots = Channel<OpenCodeHomeSnapshot>(Channel.UNLIMITED)
+        val state = AppFeature.State().apply {
+            load(lan)
+            this::savedServer.withLock { value = lan }
+            this::savedServers.withLock { value = listOf(lan, other) }
+            home = HomeFeature.State(server = lan, snapshot = snapshot)
+            connection = AppFeature.State.Connection.connected
+        }
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.openCodeClient.health = { server -> expect(server == tailnet) }
+                it.openCodeClient.homeSnapshot = { server ->
+                    expect(server == tailnet)
+                    snapshots.receiveCatching().getOrNull() ?: throw OpenCodeClientError(message = "Cancelled")
+                }
+            },
+        ) { AppFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(AppFeature.Action.home(HomeFeature.Action.serverBadgeTapped))
+        store.send(AppFeature.Action.editServerTapped(lan))
+        expect(store.state.isEditingServer)
+        expect(store.state.server == lan)
+        store.send(AppFeature.Action.binding(BindingAction.set(AppFeature.State::serverURL, tailnet.url)))
+        store.send(AppFeature.Action.connectButtonTapped)
+        expect(store.state.connectionAttempt?.server == tailnet)
+        expect(store.state.savedServers == listOf(lan, other))
+
+        store.receive<AppFeature.Action.healthResponse>()
+        expect(store.state.savedServer == lan)
+        expect(store.state.savedServers == listOf(lan, other))
+        snapshots.trySend(snapshot)
+        snapshots.close()
+        store.receive<AppFeature.Action.homeResponse>()
+        expect(store.state.savedServer == tailnet)
+        expect(store.state.savedServers == listOf(tailnet, other))
+        expect(store.state.editingSavedServer == null)
+        expect(store.state.home?.server == tailnet)
+        store.finish()
+    }
 
     @Test
     fun failedEditKeepsTheSavedServerAndCancelDoesNotChangeIt() {

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptEntryTests.swift", "553a407", partial = "pure entry and identity tests; copied markdown round-trip waits on the block parser")
+@file:PortedFrom("OpenCodeTests/TranscriptEntryTests.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -282,10 +282,108 @@ class ReplyEndTests {
         assertEquals(listOf("Working on it"), replyEnds(TranscriptEntry.build(from = items, isRunning = false)))
     }
 
+    @Test
+    fun copiedRepliesKeepTheirMarkdown() {
+        val source = """
+            ## Fix
+
+            The **order** of `rules` matters, see [docs](https://example.com).
+
+            1. First
+            2. Second
+               - nested
+
+            ```swift
+            let x = 1
+            ```
+
+            | A | B |
+            | --- | --- |
+            | 1 | 2 |
+        """.trimIndent()
+        val markdown = replyEnds(TranscriptEntry.build(from = listOf(reply("a1", source)))).firstOrNull()
+        assertEquals(
+            """
+            ## Fix
+
+            The **order** of `rules` matters, see [docs](https://example.com).
+
+            1. First
+            2. Second
+              - nested
+
+            ```swift
+            let x = 1
+            ```
+
+            | A | B |
+            | --- | --- |
+            | 1 | 2 |
+            """.trimIndent(),
+            markdown,
+        )
+    }
+
     private fun reply(id: String, text: String) =
         OpenCodeTranscriptItem.assistantMarkdown(id = id, blocks = OpenCodeMarkdownBlock.blocks(from = text))
 
     private fun replyEnds(entries: List<TranscriptEntry>) = entries.mapNotNull { entry ->
         if (entry is TranscriptEntry.replyEnd) OpenCodeMarkdownBlock.markdown(entry.blocks) else null
+    }
+}
+
+class TaskListAndExecuteTests {
+    @Test
+    fun taskItemsTakeTheirBoxAsTheMarker() {
+        val blocks = OpenCodeMarkdownBlock.blocks(
+            from = """
+            - [ ] Book dinner
+            - [x] Reply to Dmitriy
+              - [X] nested done
+            - plain bullet
+            1. [ ] numbered stays numbered
+            """.trimIndent(),
+        )
+        val markers = blocks.mapNotNull { block ->
+            val item = block.kind as? OpenCodeMarkdownBlock.Kind.listItem ?: return@mapNotNull null
+            "${item.marker} ${item.text.characters}"
+        }
+        assertEquals(listOf("[ ] Book dinner", "[x] Reply to Dmitriy", "[x] nested done", "• plain bullet"), markers)
+        assertEquals(
+            "- [ ] Book dinner\n- [x] Reply to Dmitriy\n  - [x] nested done\n- plain bullet\n1. [ ] numbered stays numbered",
+            OpenCodeMarkdownBlock.markdown(blocks),
+        )
+    }
+
+    @Test
+    fun executeRowsNameTheToolsTheirScriptCalls() {
+        val code = """
+            const all = JSON.parse(await tools.slack.channels({}) || "[]")
+            for (const id of all) await tools.slack.search({ query: "dinner" })
+            await tools["browser-control"].status()
+            await tools.slack.search({ query: "again" })
+            devtools.open()
+        """.trimIndent()
+        assertEquals(listOf("slack.channels", "slack.search", "browser-control.status"), OpenCodeToolCall.calledTools(code))
+        val call = OpenCodeToolCall(
+            callID = "c",
+            name = "execute",
+            status = OpenCodeToolCall.Status.running,
+            input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string(code))),
+            output = emptyList(),
+            error = null,
+            metadata = emptyMap(),
+        )
+        assertEquals("slack.channels, slack.search, browser-control.status", call.subtitle)
+        val plain = OpenCodeToolCall(
+            callID = "c",
+            name = "execute",
+            status = OpenCodeToolCall.Status.running,
+            input = OpenCodeJSONValue.`object`(mapOf("code" to OpenCodeJSONValue.string("return 1 + 1"))),
+            output = emptyList(),
+            error = null,
+            metadata = emptyMap(),
+        )
+        assertEquals("return 1 + 1", plain.subtitle)
     }
 }

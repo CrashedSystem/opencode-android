@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/ShareHandoffTests.swift", "553a407", partial = "store, image encoder, and Home share routing; AppFeature share routing waits for AppFeature")
+@file:PortedFrom("OpenCodeTests/ShareHandoffTests.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -15,7 +15,6 @@ import java.io.FileOutputStream
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -342,6 +341,35 @@ class ShareInboxFeatureTests {
     }
 
     @Test
-    @Ignore("OpenCode/AppFeature.kt will port appConsumesSharesOnActivationAndRoutesThemToTheOpenServer")
-    fun appConsumesSharesOnActivationAndRoutesThemToTheOpenServer() {}
+    fun appConsumesSharesOnActivationAndRoutesThemToTheOpenServer() {
+        val persisted = AppFeature.State()
+        persisted::savedServer.withLock { value = server }
+        persisted::savedServers.withLock { value = listOf(server) }
+        persisted::cachedHomeSnapshot.withLock {
+            value = CachedHomeSnapshot(
+                serverID = server.persistenceID,
+                snapshot = OpenCodeHomeSnapshot(projects = listOf(project, other), sessions = listOf(current, target), activeSessionIDs = emptySet()),
+            )
+        }
+        val pending = share(ShareHandoff.Target.newSession(projectID = project.id), text = "from Photos", images = listOf(screenshot), at = 100)
+        val foreign = share(ShareHandoff.Target.newSession(projectID = null), text = "elsewhere", at = 90).also {
+            it.handoff.serverID = "forgotten-server"
+        }
+        val shares = listOf(foreign, pending)
+        val store = TestStore(
+            initialState = { AppFeature.State() },
+            withDependencies = { it.shareInbox.consume = { shares } },
+        ) { AppFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(AppFeature.Action.pendingSharesRequested)
+        store.receive<AppFeature.Action.sharesReceived>()
+        store.receive({ it is AppFeature.Action.home && it.action is HomeFeature.Action.sharesReceived })
+        expect(store.state.shareError != null)
+        expect(store.state.pendingShares.isEmpty())
+        expect(store.state.home?.sessionDetail?.isDraft == true)
+        expect(store.state.home?.sessionDetail?.draft == "from Photos")
+        expect(store.state.home?.sessionDetail?.pendingAttachments?.map { it.id } == listOf(screenshot.id.toString()))
+        store.finish()
+    }
 }
