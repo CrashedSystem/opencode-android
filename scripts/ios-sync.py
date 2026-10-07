@@ -126,6 +126,7 @@ def progress(config, _args):
     synced = config["upstream"]["commit"]
     claims = marker_claims(config)
     totals = {"ported": [0, 0], "deferred": [0, 0], "missing": [0, 0]}
+    ported = []
     missing = []
     for path in upstream_files(synced):
         if classify(path, config) != "port":
@@ -134,11 +135,17 @@ def progress(config, _args):
         state = "ported" if path in claims else "deferred" if deferral(path, config) else "missing"
         totals[state][0] += 1
         totals[state][1] += lines
+        if state == "ported":
+            ported.append((path, ", ".join(android for android, _ in claims[path])))
         if state == "missing":
             missing.append((lines, path))
     all_lines = sum(lines for _, lines in totals.values()) or 1
     for state, (count, lines) in totals.items():
         print(f"{state:9} {count:4} files {lines:7} Swift lines {100 * lines / all_lines:5.1f}%")
+    if ported:
+        print("\nPorted:")
+        for path, android in ported:
+            print(f"  {path} -> {android}")
     if missing:
         print("\nMissing, largest first:")
         for lines, path in sorted(missing, reverse=True):
