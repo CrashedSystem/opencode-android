@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentMenu.swift", "b479446")
+@file:PortedFrom("OpenCode/AttachmentMenu.swift", "6dd63f3")
 
 package ai.opencode.mobilecode
 
@@ -225,7 +225,8 @@ fun AttachmentMenuPanel(
             buttonCenterX = buttonCenter.x,
             highlighted = highlighted,
             anchors = anchors,
-            isResting = isOpen,
+            // Dragged or lifted, the rows aren't where the menu rests.
+            isResting = isOpen && dragOffset.value == 0f && lift == 0f,
             onChoose = { item ->
                 if (!isDragging) onChoose(item)
             },
@@ -349,6 +350,12 @@ fun AttachmentMenuPanel(
             surface(rect = rect.translate(0f, if (isOpen) dragOffset.value else 0f), radius = radius, isPanel = isOpen, glassAlpha = { glassAlpha })
         }
     }
+    // Rows unmount whenever the menu folds away, but where they rest stays
+    // known (Back from Photos morphs into the Photos row); only rows the
+    // menu no longer offers are forgotten.
+    LaunchedEffect(items) {
+        anchors.rowOffsets = anchors.rowOffsets.filterKeys { it in items }
+    }
     LaunchedEffect(isOpen) {
         if (isOpen) {
             rowsLinger = true
@@ -416,9 +423,6 @@ private class RowsOrigin {
 private fun Modifier.rowAnchor(item: AttachmentMenuItem, anchors: AttachmentMenuAnchors?, isResting: Boolean, origin: RowsOrigin): Modifier {
     if (anchors == null) return this
     val density = LocalDensity.current.density
-    androidx.compose.runtime.DisposableEffect(item, anchors) {
-        onDispose { anchors.rowOffsets -= item }
-    }
     return onGloballyPositioned { coordinates ->
         // Folded into the seed, the rows aren't where the menu rests.
         if (!isResting) return@onGloballyPositioned
