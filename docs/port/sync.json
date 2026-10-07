@@ -2,7 +2,7 @@
   "upstream": {
     "url": "https://github.com/anomalyco/opencode-ios",
     "branch": "main",
-    "commit": "4fb5e0e0a1fbccc5953ec9d3f059d25b1e8e6ef0"
+    "commit": "553a40769bd1a96931635abcdad802ad7de3f2f7"
   },
   "port": [
     "OpenCode/**",
