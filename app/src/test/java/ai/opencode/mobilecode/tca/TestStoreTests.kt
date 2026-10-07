@@ -61,6 +61,19 @@ class TestStoreTests {
     }
 
     @Test
+    fun stateShowsAnEffectsActionOnlyOnceItIsReceived() {
+        val store = TestStore(initialState = { Log() }) { LogFeature() }
+        store.send(LogAction.ordered)
+        val afterSend = store.state
+        assertEquals(emptyList<String>(), afterSend.entries)
+        store.receive(LogAction.append("sent")) { it.entries = listOf("sent") }
+        assertEquals(listOf("sent"), store.state.entries)
+        store.receive(LogAction.append("run")) { it.entries = listOf("sent", "run") }
+        assertEquals(listOf("sent", "run"), store.state.entries)
+        assertEquals(emptyList<String>(), afterSend.entries)
+    }
+
+    @Test
     fun receivingByCaseIgnoresThePayload() {
         val store = TestStore(initialState = { Log() }) { LogFeature() }
         store.send(LogAction.ordered)

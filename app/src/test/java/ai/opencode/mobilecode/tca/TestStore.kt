@@ -1,5 +1,6 @@
 package ai.opencode.mobilecode.tca
 
+import java.lang.reflect.Method
 import java.util.IdentityHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -39,8 +40,17 @@ class TestStore<S, A>(
     /** How long `receive` and `finish` wait for an effect doing real asynchronous work. */
     var timeout: Duration = 1.seconds
 
+    /**
+     * `store.state`: the state the test last asserted, after the last action it sent or received, as in
+     * TCA. Effects run during `send` and the actions they send are reduced at once, but their changes
+     * show here only once the test receives them. It is a detached copy. Writing it throws, and a
+     * shared value reads its key.
+     */
+    @Suppress("UNCHECKED_CAST")
     val state: S
+        get() = frozen ?: (StateCopy(asserted).copy(root) as S).also { frozen = it }
 
+    private val root: S
     private val context = checkNotNull(TestDependencies.current.get()) {
         "A TestStore needs `@get:Rule val dependencies = TestDependencies()` in the test class."
     }
@@ -50,15 +60,20 @@ class TestStore<S, A>(
     private val received = ArrayDeque<Reduction<A>>()
     private val errors = mutableListOf<Throwable>()
     private var sent: Reduction<A>? = null
+    private var frozen: S? = null
     private var asserted: Map<Cell<*>, Any?> = emptyMap()
+        set(value) {
+            field = value
+            frozen = null
+        }
 
     private class Reduction<A>(val action: A, val before: Map<Cell<*>, Any?>, val after: Map<Cell<*>, Any?>)
 
     init {
-        state = StoreContext.run(null, dependencies) { initialState() }
+        root = StoreContext.run(null, dependencies) { initialState() }
         runtime =
             StoreRuntime.create(
-                initialState = state,
+                initialState = root,
                 reducer = StoreContext.run(null, dependencies, reducer),
                 dependencies = dependencies,
                 dispatcher = loop.dispatcher,
@@ -197,7 +212,7 @@ class TestStore<S, A>(
 
     private fun capture(): Map<Cell<*>, Any?> {
         val cells = IdentityHashMap<Cell<*>, Any?>()
-        StateGraph.normalize(state) { cell -> cell.live.also { cells[cell] = it } }
+        StateGraph.normalize(root) { cell -> cell.live.also { cells[cell] = it } }
         return cells
     }
 
@@ -221,7 +236,7 @@ class TestStore<S, A>(
             val previous = Overlay.current.get()
             Overlay.current.set(overlay)
             try {
-                StoreContext.run(null, dependencies) { assert(state) }
+                StoreContext.run(null, dependencies) { assert(root) }
             } finally {
                 Overlay.current.set(previous)
             }
@@ -229,8 +244,8 @@ class TestStore<S, A>(
         val expectedRead: (Cell<*>) -> Any? = overlay::read
         val actualRead: (Cell<*>) -> Any? = { cell -> if (reduction.after.containsKey(cell)) reduction.after[cell] else cell.live }
         if (exhaustive) {
-            val expected = StateGraph.normalize(state, expectedRead)
-            val actual = StateGraph.normalize(state, actualRead)
+            val expected = StateGraph.normalize(root, expectedRead)
+            val actual = StateGraph.normalize(root, actualRead)
             if (expected != actual) fail("A state change does not match expectation after $label:\n${diff(expected, actual)}")
         } else {
             for (cell in overlay.written) {
@@ -387,6 +402,53 @@ internal class TestMainLoop {
         val task = queue.poll(timeout.inWholeMilliseconds.coerceAtLeast(1), TimeUnit.MILLISECONDS) ?: return false
         task.run()
         return true
+    }
+}
+
+/**
+ * Copies a state graph into new objects holding the values [values] recorded, the way Swift copies a
+ * struct. The copies are owned by a store, so writing them throws. They keep their `Shared` keys, so a
+ * shared value reads what its key holds now, as a copied `@Shared` does.
+ */
+private class StateCopy(private val values: Map<Cell<*>, Any?>) {
+    private val copies = IdentityHashMap<Any, Any>()
+
+    fun copy(value: Any?): Any? =
+        when (value) {
+            is ObservableState -> copies[value] ?: copyState(value)
+            is IdentifiedArray<*, *> -> copies[value] ?: copyArray(value)
+            is List<*> -> value.map(::copy)
+            is Set<*> -> value.mapTo(LinkedHashSet(), ::copy)
+            is Map<*, *> -> value.entries.associate { copy(it.key) to copy(it.value) }
+            else -> value
+        }
+
+    private fun copyState(state: ObservableState): ObservableState {
+        // Allocated without its constructor, so a state's initializer does not run again for the copy.
+        val copy = allocateInstance.invoke(unsafe, state.javaClass) as ObservableState
+        copies[state] = copy
+        for (field in StateGraph.fields(state.javaClass)) {
+            val value = field.get(state)
+            field.set(copy, if (value is StoreVar<*>) StoreVar(copy(read(value.cell))) else copy(value))
+        }
+        copy.attached = true
+        return copy
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun copyArray(array: IdentifiedArray<*, *>): IdentifiedArray<*, *> {
+        val elements = (read(array.cell) as IdentifiedStorage<*, *>).elements.map { copy(it) as Identifiable<Any?> }
+        return IdentifiedArray(elements).also {
+            it.attached = true
+            copies[array] = it
+        }
+    }
+
+    private fun read(cell: Cell<*>): Any? = if (values.containsKey(cell)) values[cell] else cell.live
+
+    private companion object {
+        val unsafe: Any = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null)
+        val allocateInstance: Method = unsafe.javaClass.getMethod("allocateInstance", Class::class.java)
     }
 }
 

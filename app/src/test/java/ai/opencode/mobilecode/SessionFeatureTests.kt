@@ -813,9 +813,8 @@ class SessionFeatureTests {
         sessionID: String,
         error: OpenCodeClientError,
     ) {
-        // The Kotlin store runs the poll before `send` returns; the closure starts from the state before its response.
+        expect(store.state.settledRequestLoadError == null)
         store.receive(Action.pendingRequestsResponse(sessionID = sessionID, result = Result.failure(error))) {
-            expect(it.settledRequestLoadError == null)
             it.requestLoadAttempt = null
             it.requestLoadError = error.message
         }
@@ -1124,13 +1123,10 @@ class SessionFeatureTests {
         val unreachable = OpenCodeClientError(message = "Could not reach the OpenCode server.")
         val item = OpenCodeTranscriptItem.userText(id = "message-1", text = "Hello")
         var reachable = false
-        // The live client iOS used here answers after the expectations below; the Kotlin store runs effects at once.
-        val answer = CompletableDeferred<Unit>()
         val state = SessionFeature.State(server = server, session = session, initialTranscriptRequestIsExternal = true)
         val store = TestStore(initialState = { state }, withDependencies = {
             it.openCodeClient.transcript = { _, _, _ ->
                 if (!reachable) throw unreachable
-                answer.await()
                 listOf(item)
             }
             it.openCodeClient.familyPendingRequests = { _, _, _ -> OpenCodePendingRequests(permissions = emptyList()) }
@@ -1145,7 +1141,6 @@ class SessionFeatureTests {
         store.send(Action.requestsConnectionChanged(true))
         expect(store.state.errorMessage == null)
         expect(store.state.isLoading)
-        answer.complete(Unit)
         store.receive<Action.refreshResponse>()
         expect(store.state.items == listOf(item))
         expect(!store.state.isLoading)
@@ -2297,9 +2292,8 @@ class SessionFeatureTests {
         ) { SessionFeature() }
 
         store.send(Action.sendTapped) { expectOptimisticSend(it) }
-        // The Kotlin store delivers before `send` returns; the closure starts from the state before admission.
+        expect(store.state.isSubmittingPrompt)
         store.receive(Action.promptAdmitted(sessionID = "ses_1", messageID = "msg_00000000000000000000000000000000", requestEpoch = 1)) { state ->
-            expect(state.isSubmittingPrompt)
             state.promptStates["msg_00000000000000000000000000000000"]?.let { prompt ->
                 state.promptStates += ("msg_00000000000000000000000000000000" to prompt.copy(admission = SessionFeature.State.PromptState.Admission.admitted))
             }
@@ -3773,23 +3767,17 @@ class SessionRefreshReviewTests {
                 )
                 if (pending != "submitting") state.queuedInputs = listOf(OpenCodePendingInput(id = "msg_next", text = "Next", delivery = OpenCodeDelivery.queue))
             }
-            // The terminal read answers after the first expectations, as a live read does on iOS.
-            val answer = CompletableDeferred<Unit>()
             val store = TestStore(
                 initialState = { state },
                 withDependencies = {
                     it.openCodeClient.getSession = { _, _ -> session }
-                    it.openCodeClient.transcript = { _, _, _ ->
-                        answer.await()
-                        if (pending == "echoed") listOf(user, next) else listOf(user)
-                    }
+                    it.openCodeClient.transcript = { _, _, _ -> if (pending == "echoed") listOf(user, next) else listOf(user) }
                 },
             ) { SessionFeature() }
             store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
             store.send(Action.externalRunStateChanged(isRunning = false))
             expect(store.state.isAwaitingReply == (pending != "none"))
             expect(store.state.isRunning == (pending != "none"))
-            answer.complete(Unit)
             store.receive<Action.refreshResponse>()
             expect(store.state.isAwaitingReply == (pending == "submitting" || pending == "queued"))
             expect(store.state.items == when (pending) {
