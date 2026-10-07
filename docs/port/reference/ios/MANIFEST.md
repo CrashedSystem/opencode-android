@@ -1,16 +1,24 @@
 # iOS reference screenshots
 
-68 uncropped PNGs of OpenCode iOS `553a407` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported that size for `01-first-launch-light.png` and `08-transcript-tasks-light.png`. The status bar time is 9:41.
+68 uncropped PNGs of OpenCode iOS `41099dd` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported 1320 by 2868 for every PNG. The status bar time is 9:41.
 
 Recapture from the Android repo root with `scripts/capture-ios-reference.sh`. Pass a test id, then `light` or `dark`, to recapture one file's test. The driver is `scripts/ios-reference/CaptureUITests/CaptureTests.swift`. Fixture setup for each server is in `../fixtures.md`. The drawer shot is taken only after `ses_gauntlet_02` and `ses_gauntlet_03` are pinned and neither Pin nor Unpin is on screen.
 
 `34` is unused. The simulator has no camera, so pairing is `01-first-launch` with **Scan Pairing Code** and no scanner. `35-composer-empty` is the empty composer on `ses_approval_root`, not the new-session draft in `06-draft`.
 
-## Changes since `4fb5e0e`
+## Changes since `553a407`
 
-`01-first-launch`, `02-server-manual`, and `06-draft` match the previous bytes in both appearances. `03-connect-error-light` matches too. The other files differ.
+Thirty-nine files match the previous bytes. That is both appearances of `01` through `03`, `06` through `12`, `14`, `22`, `24` through `26`, `29`, `33`, and `35`, plus `05-drawer-search-light`, `17-composer-text-light`, and `21-question-dark`.
 
-Transcript rows sit closer together. In `07-transcript-markdown` the heading starts under the header blur, and the code block is in view. `12-tools-expanded` shows the shell command on one line, not a tall output block. Catch Up's card title is a button that opens the session. What's New leads with Catch Up Shortcuts, dated October 6. The dark drawer scrim covers more of the session card. The light drawer still shows the two pins, Catch Up at 9, and no Pin menu.
+Composer pills no longer draw a chevron. That shows on `13-subagent`, `15-running`, and `19-composer-steer-menu`. On `15-running` the transcript also sits higher, so more of the user message is readable under the header. The Working line is still in view.
+
+`27-background-work` opens the panel in place of the capsule. The capsule is not on screen while the panel is open. The shell row's elapsed time is live, so light shows 0:15 and dark shows 0:13.
+
+What's New leads with Send from Dictation, dated October 7, then Voice Gets Around. Notify When Done is the next card, cut off at the bottom of the sheet.
+
+Settings adds Notifications, set to Off, and Voice Calls above Diagnostics.
+
+A few files differ only by something that was moving when the shot was taken. `04-drawer` differs by the spinner frame on Add cursor-paged history. The two pins, Catch Up at 9, and the absence of a Pin menu are unchanged. `16-streaming` differs by how far Window stream update 008 has faded in. `28-shell-output` shows a later slice of the running log and a later elapsed time. `32-diagnostics` differs in the Last 60 seconds counts. `05-drawer-search-dark`, `17-composer-text-dark`, and `18-composer-attachments` differ by the text caret. `20-permission` and `21-question-light` differ by a few edge pixels on the sheet buttons. `23-session-menu` has the same rows. Its glass shadow does not land on the same pixels.
 
 | File | State | Fixture | Command | Device | Points | Scale |
 | --- | --- | --- | --- | --- | --- | --- |
