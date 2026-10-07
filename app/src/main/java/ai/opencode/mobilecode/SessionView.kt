@@ -1072,19 +1072,18 @@ private fun QueuedMessageRow(
 
 @Composable
 private fun SessionHeaderBackdrop() {
-    val parameters = HeaderBlurParameters.shipped
     val background = SystemColors.systemBackground
     // No system scroll-edge effect on Android: the honest fallback is the
     // opaque fade iOS draws under Reduce Transparency.
     Box(
         Modifier
             .fillMaxWidth()
-            .height(parameters.bandHeight)
+            .height(HeaderBlurParameters.bandHeight)
             .background(
                 Brush.verticalGradient(
                     0f to background,
-                    parameters.middleStop to background,
-                    max(parameters.endStop, parameters.middleStop) to background.copy(alpha = 0f),
+                    HeaderBlurParameters.middleStop to background,
+                    max(HeaderBlurParameters.endStop, HeaderBlurParameters.middleStop) to background.copy(alpha = 0f),
                 ),
             )
             .semantics { hideFromAccessibility() },
