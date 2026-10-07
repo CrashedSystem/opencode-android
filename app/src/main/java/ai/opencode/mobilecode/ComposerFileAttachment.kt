@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ComposerFileAttachment.swift", "553a407")
+@file:PortedFrom("OpenCode/ComposerFileAttachment.swift", "553a407", partial = "file reference, prompt presentation, transcript file, upload event")
 
 package ai.opencode.mobilecode
 

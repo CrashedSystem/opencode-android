@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/LabMarks.swift", "553a407")
+@file:PortedFrom("OpenCode/LabMarks.swift", "553a407", partial = "no-op stub")
 
 package ai.opencode.mobilecode
 

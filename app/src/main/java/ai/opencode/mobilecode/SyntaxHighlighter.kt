@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SyntaxHighlighter.swift", "553a407")
+@file:PortedFrom("OpenCode/SyntaxHighlighter.swift", "553a407", partial = "plain highlight")
 
 package ai.opencode.mobilecode
 

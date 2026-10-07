@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AppFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/AppFeature.swift", "553a407", partial = "failure report and connection reduce for the client tests")
 
 package ai.opencode.mobilecode
 

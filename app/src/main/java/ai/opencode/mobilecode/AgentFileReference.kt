@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AgentFiles/AgentFileReference.swift", "553a407")
+@file:PortedFrom("OpenCode/AgentFiles/AgentFileReference.swift", "553a407", partial = "withLocation and hasViewableName for the client")
 
 package ai.opencode.mobilecode
 

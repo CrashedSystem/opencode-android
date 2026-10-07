@@ -39,5 +39,30 @@
     "AppIcon.icon/icon.json"
   ],
   "deferred": {},
-  "assets": {}
+  "assets": {
+    "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {
+      "android": "app/src/main/res/drawable-nodpi/opencode_wordmark_dark.png",
+      "commit": "553a407"
+    },
+    "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-light.png": {
+      "android": "app/src/main/res/drawable-nodpi/opencode_wordmark_light.png",
+      "commit": "553a407"
+    },
+    "OpenCode/Assets.xcassets/OpenCodeWordmarkSimple.imageset/opencode-wordmark-simple-dark.png": {
+      "android": "app/src/main/res/drawable-nodpi/opencode_wordmark_simple_dark.png",
+      "commit": "553a407"
+    },
+    "OpenCode/Assets.xcassets/OpenCodeWordmarkSimple.imageset/opencode-wordmark-simple-light.png": {
+      "android": "app/src/main/res/drawable-nodpi/opencode_wordmark_simple_light.png",
+      "commit": "553a407"
+    },
+    "OpenCode/Fonts/BerkeleyMonoVariable.ttf": {
+      "android": "app/src/main/res/font/berkeley_mono_variable.ttf",
+      "commit": "553a407"
+    },
+    "AppIcon.icon/Assets/logo.svg": {
+      "android": "app/src/main/res/drawable/ic_launcher_foreground.xml",
+      "commit": "553a407"
+    }
+  }
 }

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/RequestReviewView.swift", "553a407")
+@file:PortedFrom("OpenCode/RequestReviewView.swift", "553a407", partial = "permission title helper")
 
 package ai.opencode.mobilecode
 

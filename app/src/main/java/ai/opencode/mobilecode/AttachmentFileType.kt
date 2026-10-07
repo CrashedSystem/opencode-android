@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentFileType.swift", "553a407")
+@file:PortedFrom("OpenCode/AttachmentFileType.swift", "553a407", partial = "name helpers for the client")
 
 package ai.opencode.mobilecode
 

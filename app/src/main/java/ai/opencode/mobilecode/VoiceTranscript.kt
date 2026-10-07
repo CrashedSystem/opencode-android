@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "553a407")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "553a407", partial = "VoiceHandoff format and parse")
 
 package ai.opencode.mobilecode
 
