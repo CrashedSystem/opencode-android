@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/DictationHoldTrackerTests.swift", "8acaf3f")
+@file:PortedFrom("OpenCodeTests/DictationHoldTrackerTests.swift", "27556a1")
 
 package ai.opencode.mobilecode
 
@@ -74,5 +74,28 @@ class DictationHoldTrackerTests {
         expect(track(listOf(0f to -20f, 0f to -60f)).ending(after = 1.2, cancelled = true) == DictationHoldTracker.Ending.interrupted)
         expect(still.ending(after = 0.1, cancelled = false) == DictationHoldTracker.Ending.tap)
         expect(still.ending(after = 1.2, cancelled = false) == DictationHoldTracker.Ending.release)
+    }
+
+    /// What one recording's hold showed never carries into the next: the
+    /// second starts at the mic's size, with no lock target or chevrons.
+    @Test
+    fun aSecondDictationStartsWithNoCircleOrGuides() {
+        // The first: held long enough to grow, slid up to lock, and the lock
+        // target landed in Stop before the bar went away.
+        val visuals = DictationHoldVisuals().begin().copy(showsGuides = true, lockDropDone = true)
+        for (start in listOf(false, true)) {
+            // Ended (the bar left), or a new press began without an end between.
+            val next = if (start) visuals.begin() else visuals.end()
+            val pose = DictationBarPose(
+                hold = SessionFeature.State.DictationHold(text = ""),
+                phase = SessionFeature.State.DictationPhase.preparing,
+                drag = DictationDrag(),
+                reducedMotion = false,
+                visuals = next,
+            )
+            expect(!pose.guidesShown, "start: $start")
+            expect(!pose.showsGrownCircle, "start: $start")
+            expect(!next.lockDropDone, "start: $start")
+        }
     }
 }

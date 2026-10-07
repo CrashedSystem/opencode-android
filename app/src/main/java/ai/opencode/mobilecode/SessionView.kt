@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "8acaf3f", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "27556a1", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -146,6 +146,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -436,20 +438,37 @@ private object HoldToDictateButton {
     }
 }
 
+/// One recording's view-only progress through its hold. It starts over
+/// with every press and when the recording ends, so nothing one hold
+/// showed carries into the next.
+data class DictationHoldVisuals(
+    /// A sustained hold, not a tap: the circle has grown and the targets show.
+    val showsGuides: Boolean = false,
+    /// The lock target has landed in Stop's slot after a slide.
+    val lockDropDone: Boolean = false,
+) {
+    fun begin() = DictationHoldVisuals()
+
+    fun end() = DictationHoldVisuals()
+}
+
 /// Where the recording is, as both halves of the bar draw it: the bar's
 /// buttons and scope inside the composer, and the hold layer's circle and
 /// lock target above the composer's glass.
-private data class DictationBarPose(
+data class DictationBarPose(
     val hold: SessionFeature.State.DictationHold,
     val phase: SessionFeature.State.DictationPhase,
     val drag: DictationDrag,
     val reducedMotion: Boolean,
-    /// A sustained hold, not a tap: the circle has grown and the targets show.
-    val showsHoldGuides: Boolean,
-    /// The lock target has landed in Stop's slot after a slide.
-    val lockDropDone: Boolean,
+    val visuals: DictationHoldVisuals,
     val isLeaving: Boolean = false,
 ) {
+    val showsHoldGuides: Boolean get() = visuals.showsGuides
+    val lockDropDone: Boolean get() = visuals.lockDropDone
+
+    /// The circle under the finger at its full size, rather than the mic's.
+    val showsGrownCircle: Boolean get() = showsHoldGuides && !isLeaving && !isLocked
+
     val isLocked: Boolean get() = hold.isLocked
 
     /// Slid up and let go, rather than tapped.
@@ -519,8 +538,7 @@ private fun DictationScopeBar(
     /// Mid-run, Send steers and touch and hold offers Steer and Queue.
     isRunning: Boolean,
     canSend: Boolean,
-    onShowsHoldGuides: (Boolean) -> Unit,
-    onLockDropDone: (Boolean) -> Unit,
+    onVisualsChange: ((DictationHoldVisuals) -> DictationHoldVisuals) -> Unit,
     onCancel: () -> Unit,
     onStop: () -> Unit,
     onSend: (OpenCodeDelivery) -> Unit,
@@ -540,6 +558,8 @@ private fun DictationScopeBar(
         if (!p.lockedBySliding && locked != null && (System.nanoTime() - locked) / 1e9 < tapGuard) return
         action()
     }
+    // Initial too: VoiceOver opens the bar already locked, and the tap
+    // guard still applies.
     LaunchedEffect(p.isLocked) {
         if (p.isLocked) lockedAt = System.nanoTime()
     }
@@ -547,16 +567,14 @@ private fun DictationScopeBar(
         if (!p.isDroppingLock) return@LaunchedEffect
         delay(((DictationBarPose.lockDropDelay + DictationBarPose.lockDropDuration) * 1_000).toLong())
         // Now identical to Stop beneath it: swap without a flicker.
-        onLockDropDone(true)
+        onVisualsChange { it.copy(lockDropDone = true) }
     }
     // Only a sustained hold grows the circle and offers the targets; a quick
     // tap locks immediately and never flashes them.
     LaunchedEffect(p.isHolding) {
         if (!p.isHolding) return@LaunchedEffect
-        onShowsHoldGuides(false)
-        onLockDropDone(false)
         delay(200)
-        onShowsHoldGuides(true)
+        onVisualsChange { it.copy(showsGuides = true) }
     }
     val armedSpring = if (p.reducedMotion) tween<Float>(150) else spring(dampingRatio = 0.75f, stiffness = 800f)
     val cancelScale by animateFloatAsState(if (p.cancelArmed && !p.reducedMotion) 1.1f else 1f, armedSpring, label = "cancel")
@@ -756,7 +774,7 @@ private fun DictationHoldLayer(
     val lockedSpring = if (p.reducedMotion) tween<Float>(200) else spring(dampingRatio = 0.9f, stiffness = 340f)
     val circleX by animateFloatAsState((if (p.isLocked) sendCenter.x else micCenter.x) + p.follow.x, lockedSpring, label = "circleX")
     val circleY by animateFloatAsState((if (p.isLocked) sendCenter.y else micCenter.y) + p.follow.y, lockedSpring, label = "circleY")
-    val grown = !p.isLocked && p.showsHoldGuides && !p.isLeaving
+    val grown = !p.isLocked && p.showsGrownCircle
     val circleDiameter by animateFloatAsState(
         if (grown) DictationBarPose.holdDiameter else diameter,
         if (p.reducedMotion) tween(200) else spring(dampingRatio = 0.85f, stiffness = 400f),
@@ -1116,8 +1134,7 @@ private class SessionViewState {
     var dictationDrag by mutableStateOf(DictationDrag())
     var dictationMicFrame by mutableStateOf(Rect.Zero)
     var dictationBarFrame by mutableStateOf(Rect.Zero)
-    var dictationShowsHoldGuides by mutableStateOf(false)
-    var dictationLockDropDone by mutableStateOf(false)
+    var dictationHoldVisuals by mutableStateOf(DictationHoldVisuals())
     var attachmentMenu by mutableStateOf(AttachmentMenuPhase.closed)
     var photoSelection = InlinePhotoSelection()
     var pickerReservation by mutableFloatStateOf(0f)
@@ -1223,8 +1240,7 @@ private class SessionViewState {
         phase = store.state.dictationPhase,
         drag = dictationDrag,
         reducedMotion = reducedMotion,
-        showsHoldGuides = dictationShowsHoldGuides,
-        lockDropDone = dictationLockDropDone,
+        visuals = dictationHoldVisuals,
         isLeaving = isLeaving,
     )
 
@@ -1275,6 +1291,10 @@ private class SessionViewState {
                     }
                     // Above the glass, so its rim never crosses the hold circle.
                     val hold = store.state.dictationHold
+                    val holdEnded = hold == null
+                    LaunchedEffect(holdEnded) {
+                        if (holdEnded) dictationHoldVisuals = dictationHoldVisuals.end()
+                    }
                     androidx.compose.animation.AnimatedVisibility(
                         visible = hold != null && store.state.voice == null,
                         modifier = Modifier.matchParentSize(),
@@ -1898,8 +1918,7 @@ private class SessionViewState {
                             pose = dictationPose(hold, isLeaving = transition.targetState == EnterExitState.PostExit),
                             isRunning = store.state.isRunning,
                             canSend = !store.state.isSubmittingPrompt,
-                            onShowsHoldGuides = { dictationShowsHoldGuides = it },
-                            onLockDropDone = { dictationLockDropDone = it },
+                            onVisualsChange = { change -> dictationHoldVisuals = change(dictationHoldVisuals) },
                             onCancel = { store.send(SessionFeature.Action.micPressCancelled) },
                             // The words land in the draft; the keyboard stays as it was.
                             onStop = { store.send(SessionFeature.Action.dictationInsertTapped) },
@@ -1969,8 +1988,14 @@ private class SessionViewState {
         }
     }
 
+    /// A new recording's hold starts from nothing, before its bar mounts.
+    fun beginDictationHold() {
+        if (store.state.dictationHold == null) dictationHoldVisuals = dictationHoldVisuals.begin()
+        store.send(SessionFeature.Action.micPressBegan)
+    }
+
     /// The mic's touch handling. While recording, the composer row is hidden
-    /// under the recording bar, but this view stays mounted beneath it
+    /// under `DictationScopeBar`, but this view stays mounted beneath it
     /// because it owns the finger until it lifts.
     @Composable
     fun HoldToDictateHost(modifier: Modifier = Modifier, label: @Composable () -> Unit) {
@@ -1979,13 +2004,26 @@ private class SessionViewState {
                 modifier
                     .onGloballyPositioned { dictationMicFrame = it.boundsInRoot() }
                     .holdToDictate(
-                        onBegan = { store.send(SessionFeature.Action.micPressBegan) },
+                        onBegan = { beginDictationHold() },
                         onDrag = { dictationDrag = it },
                         onArmed = { store.send(SessionFeature.Action.micPressArmed(it)) },
                         onReleased = { store.send(SessionFeature.Action.micPressReleased) },
                         onLocked = { store.send(SessionFeature.Action.micPressLocked) },
                         onInterrupted = { store.send(SessionFeature.Action.micPressInterrupted) },
-                    ),
+                    )
+                    .semantics {
+                        role = Role.Button
+                        stateDescription = "Tap to dictate into your message, or touch and hold to record and send"
+                        onClick {
+                            if (store.state.isDictating) {
+                                store.send(SessionFeature.Action.dictationInsertTapped)
+                            } else {
+                                beginDictationHold()
+                                store.send(SessionFeature.Action.micPressLocked)
+                            }
+                            true
+                        }
+                    },
             ) { label() }
         }
     }
