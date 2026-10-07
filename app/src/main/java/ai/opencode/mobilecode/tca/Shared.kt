@@ -136,7 +136,7 @@ class SharedMemory internal constructor(private val backend: SharedBackend) {
 
         /** Installs the live storage. `OpenCodeApp.onCreate` calls it before the store exists. */
         fun installLive(context: Context) {
-            if (installed == null) installed = SharedMemory(AndroidSharedBackend(context.applicationContext))
+            installed = SharedMemory(AndroidSharedBackend(context.applicationContext))
         }
 
         override val liveValue: SharedMemory
