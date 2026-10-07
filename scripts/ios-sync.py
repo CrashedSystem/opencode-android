@@ -128,7 +128,9 @@ def gate(config, synced):
     present = set(files)
     for path, ports in claims.items():
         if path not in present:
-            problems["Ports that claim a file missing upstream"].extend(f"{android} claims {path}" for android, _, _ in ports)
+            # A file added after the synced commit, claimed during a sync in progress.
+            missing = [android for android, commit, _ in ports if not (is_ancestor(synced, commit) and exists_at(commit, path))]
+            problems["Ports that claim a file missing upstream"].extend(f"{android} claims {path}" for android in missing)
             continue
         for android, commit, partial in ports:
             placeholder = partial and deferral(path, config)
@@ -358,6 +360,10 @@ def changed_paths(old, new, config=None):
             commits = [commit for commit in git("rev-list", f"{old}..{new}").split() if commit not in skipped]
             _changed[(old, new)] = set().union(*(commit_paths(commit) for commit in commits))
     return _changed[(old, new)]
+
+
+def exists_at(rev, path):
+    return git("cat-file", "-e", f"{rev}:{path}", check=False) is not None
 
 
 def commit_paths(commit):
