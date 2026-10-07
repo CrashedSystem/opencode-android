@@ -10,6 +10,7 @@ class OpenCodeApp : Application() {
         SharedMemory.installLive(this)
         KeychainStorage.install(this)
         DictationClient.install(this)
+        installDiagnosticsStorage(this)
         if (BuildConfig.DEBUG) verifyKeychainRoundTrip(this)
     }
 

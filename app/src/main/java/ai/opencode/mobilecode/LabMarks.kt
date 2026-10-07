@@ -105,8 +105,8 @@ object LabMarks {
         )
     }
 
-    private fun millis(start: Long?, end: Long?): Int? {
+    private fun millis(start: java.time.Instant?, end: java.time.Instant?): Int? {
         if (start == null || end == null) return null
-        return (end - start).toInt()
+        return java.time.Duration.between(start, end).toMillis().toInt()
     }
 }

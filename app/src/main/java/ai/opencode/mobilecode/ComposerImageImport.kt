@@ -34,6 +34,7 @@ class NSItemProvider(
     val data: ByteArray? = null,
     val file: java.io.File? = null,
     val canLoadImage: Boolean = false,
+    val suggestedName: String? = null,
 ) {
     fun hasItemConformingToTypeIdentifier(identifier: String): Boolean =
         registeredTypeIdentifiers.any { it == identifier || it.startsWith("image/") || (identifier == "public.image" && canLoadImage) }
