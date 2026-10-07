@@ -785,14 +785,3 @@ private fun inlineMessage(message: String): AnnotatedString {
         }
     }
 }
-
-/// HomeView.kt does not export the screen yet, and that file belongs to the
-/// home worker. This stand-in keeps the shell calling `HomeView` and sends
-/// `.task`, so a successful connection reaches the unported reducer.
-@Composable
-fun HomeView(store: Store<HomeFeature.State, HomeFeature.Action>) {
-    store.task { store.send(HomeFeature.Action.task) }
-    Box(Modifier.fillMaxSize().background(SystemColors.systemBackground), contentAlignment = Alignment.Center) {
-        Text(store.state.server.host, style = TextStyles.headline, color = SystemColors.label)
-    }
-}
