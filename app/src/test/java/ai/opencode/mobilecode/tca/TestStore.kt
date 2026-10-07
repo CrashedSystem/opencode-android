@@ -122,9 +122,9 @@ class TestStore<S, A>(
         assertReduction(Reduction(null, now, now), assert, "assert")
     }
 
-    /** `await store.finish()`: waits for every effect to finish. */
+    /** `await store.finish()`: waits for every effect to finish. A non-exhaustive store stops waiting quietly, as TCA's does. */
     fun finish(timeout: Duration = this.timeout) {
-        if (!await(timeout) { runtime.inFlightCount == 0 }) {
+        if (!await(timeout) { runtime.inFlightCount == 0 } && exhaustivity == Exhaustivity.on) {
             fail("Expected effects to finish, but ${runtime.inFlightCount} are still running after $timeout.")
         }
     }
