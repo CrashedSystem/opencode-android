@@ -5,6 +5,7 @@ package ai.opencode.mobilecode
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
+import ai.opencode.mobilecode.system.URL
 import ai.opencode.mobilecode.system.medium
 import ai.opencode.mobilecode.system.rememberHaptics
 import ai.opencode.mobilecode.system.semibold
@@ -60,6 +61,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -80,6 +82,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -296,12 +300,25 @@ object TranscriptEntryView {
         disclosure: TranscriptDisclosureState,
         modifier: Modifier = Modifier,
     ) {
-        Box(modifier.fillMaxWidth()) {
-            when (entry) {
-                is TranscriptEntry.single -> ItemView(entry, entry.item, store, onPreviewImage, onOpenFile, disclosure)
-                is TranscriptEntry.userGroup -> Unit
-                is TranscriptEntry.toolGroup -> ToolGroupView(entry, entry.id, entry.tools, store, onPreviewImage, onOpenFile, disclosure)
-                is TranscriptEntry.replyEnd -> ReplyActions(entry.blocks)
+        // File paths in rendered Markdown carry a private link; web links
+        // still open in the browser.
+        val system = LocalUriHandler.current
+        val openURL = remember(system, onOpenFile) {
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    val file = AgentFileReference(linkURL = URL(uri)) ?: return system.openUri(uri)
+                    onOpenFile(file)
+                }
+            }
+        }
+        CompositionLocalProvider(LocalUriHandler provides openURL) {
+            Box(modifier.fillMaxWidth()) {
+                when (entry) {
+                    is TranscriptEntry.single -> ItemView(entry, entry.item, store, onPreviewImage, onOpenFile, disclosure)
+                    is TranscriptEntry.userGroup -> Unit
+                    is TranscriptEntry.toolGroup -> ToolGroupView(entry, entry.id, entry.tools, store, onPreviewImage, onOpenFile, disclosure)
+                    is TranscriptEntry.replyEnd -> ReplyActions(entry.blocks)
+                }
             }
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -64,11 +65,12 @@ class TranscriptLinksTest {
                 )
             }
         }
-        val layout = layout("SessionView.swift")
+        val spans = layout("SessionView.swift").layoutInput.text.spanStyles
         assertTrue(
             "the paragraph is set by the justified renderer",
-            layout.layoutInput.text.spanStyles.any { it.item.letterSpacing != TextUnit.Unspecified || it.item.textGeometricTransform != null },
+            spans.any { it.item.letterSpacing != TextUnit.Unspecified || it.item.textGeometricTransform != null },
         )
+        assertTrue("links are drawn in the link color only, as on iOS", spans.none { it.item.textDecoration == TextDecoration.Underline })
 
         tap("SessionView.swift")
         assertEquals(listOf(AgentFileReference(path = "OpenCode/SessionView.swift", line = 12)), opened)

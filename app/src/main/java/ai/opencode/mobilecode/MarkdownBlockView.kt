@@ -63,7 +63,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -469,6 +471,20 @@ internal fun annotated(text: AttributedString, base: Color): AnnotatedString {
         builder.append(text.characters.substring(start, end))
         builder.pop()
     }
+    // A tapped link opens through `LocalUriHandler` (see `TranscriptEntryView`).
+    // Runs that split one link, such as bold inside it, stay one link.
+    val links = mutableListOf<AttributedString.Run>()
+    for (run in text.runs) {
+        val last = links.lastOrNull()
+        when {
+            run.link == null -> continue
+            last != null && last.link == run.link && last.end == run.start -> links[links.lastIndex] = last.copy(end = run.end)
+            else -> links += run
+        }
+    }
+    // Empty styles, not null: Material's `Text` underlines an unstyled link in
+    // its primary color, and iOS draws a link only in the link color.
+    for (link in links) builder.addLink(LinkAnnotation.Url(link.link!!.absoluteString, TextLinkStyles()), link.start, link.end)
     return builder.toAnnotatedString()
 }
 
