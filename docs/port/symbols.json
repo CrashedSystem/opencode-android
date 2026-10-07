@@ -1,0 +1,786 @@
+[
+  {
+    "sf": "arrow.clockwise",
+    "material": "refresh",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.down",
+    "material": "arrow_downward",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.left.and.right.text.vertical",
+    "material": "swap_horiz",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "arrow.right",
+    "material": "arrow_forward",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.triangle.2.circlepath",
+    "material": "flip_camera_android",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.triangle.branch",
+    "material": "fork_right",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.triangle.pull",
+    "material": "call_merge",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "arrow.turn.down.right",
+    "material": "subdirectory_arrow_right",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.turn.up.right",
+    "material": "redo",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.up",
+    "material": "arrow_upward",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.up.right",
+    "material": "arrow_outward",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "arrow.uturn.backward",
+    "material": "undo",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "bolt.badge.automatic.fill",
+    "material": "flash_auto",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "bolt.fill",
+    "material": "bolt",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "bolt.slash.fill",
+    "material": "flash_off",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "bubble.left.and.bubble.right",
+    "material": "forum",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "bubble.left.and.exclamationmark",
+    "material": "chat_error",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "camera",
+    "material": "photo_camera",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "camera.aperture",
+    "material": "camera",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "camera.fill",
+    "material": "photo_camera",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "camera.metering.unknown",
+    "material": "no_photography",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "camera.viewfinder",
+    "material": "filter_center_focus",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "checkmark",
+    "material": "check",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "checkmark.circle",
+    "material": "check_circle",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "checkmark.circle.fill",
+    "material": "check_circle",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "checkmark.square.fill",
+    "material": "check_box",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.backward",
+    "material": "chevron_left",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.down",
+    "material": "expand_more",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.left",
+    "material": "chevron_left",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.left.forwardslash.chevron.right",
+    "material": "code",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.right",
+    "material": "chevron_right",
+    "filled": false,
+    "mirror": true,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.up",
+    "material": "expand_less",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "chevron.up.chevron.down",
+    "material": "unfold_more",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "circle",
+    "material": "circle",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "circle.fill",
+    "material": "circle",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "clock.arrow.circlepath",
+    "material": "history",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "clock.badge.exclamationmark",
+    "material": "schedule",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "cpu",
+    "material": "memory",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "desktopcomputer",
+    "material": "desktop_windows",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "diamond",
+    "material": "diamond",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc",
+    "material": "description",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc.on.clipboard",
+    "material": "content_paste",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc.plaintext",
+    "material": "text_snippet",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc.richtext",
+    "material": "article",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc.text",
+    "material": "description",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "doc.zipper",
+    "material": "folder_zip",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "ellipsis",
+    "material": "more_horiz",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "envelope.badge",
+    "material": "mark_email_unread",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "envelope.circle.fill",
+    "material": "mail",
+    "filled": true,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "envelope.open",
+    "material": "drafts",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "exclamationmark.bubble",
+    "material": "feedback",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "exclamationmark.circle.fill",
+    "material": "error",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "exclamationmark.triangle",
+    "material": "warning",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "exclamationmark.triangle.fill",
+    "material": "warning",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "eye",
+    "material": "visibility",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "eye.slash",
+    "material": "visibility_off",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "film",
+    "material": "movie",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "folder",
+    "material": "folder",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "folder.badge.questionmark",
+    "material": "folder",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "gearshape.fill",
+    "material": "settings",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "gift",
+    "material": "redeem",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "hand.raised.fill",
+    "material": "front_hand",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "info.circle",
+    "material": "info",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "iphone.radiowaves.left.and.right",
+    "material": "phonelink_ring",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "lock.fill",
+    "material": "lock",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "lock.open.fill",
+    "material": "lock_open",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "mic",
+    "material": "mic",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "mic.fill",
+    "material": "mic",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "mic.slash",
+    "material": "mic_off",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "mic.slash.fill",
+    "material": "mic_off",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "paperclip",
+    "material": "attach_file",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "pause.fill",
+    "material": "pause",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "pencil",
+    "material": "edit",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "phone.down",
+    "material": "call_end",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "phone.down.fill",
+    "material": "call_end",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "photo",
+    "material": "image",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "photo.badge.exclamationmark",
+    "material": "broken_image",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "photo.on.rectangle",
+    "material": "photo_library",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "pin",
+    "material": "keep",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "pin.slash",
+    "material": "keep_off",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "play.fill",
+    "material": "play_arrow",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "plus",
+    "material": "add",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "qrcode.viewfinder",
+    "material": "qr_code_scanner",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "questionmark.bubble.fill",
+    "material": "contact_support",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "questionmark.folder",
+    "material": "folder",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "rectangle.compress.vertical",
+    "material": "unfold_less",
+    "filled": false,
+    "mirror": false,
+    "match": "none"
+  },
+  {
+    "sf": "rectangle.on.rectangle",
+    "material": "slideshow",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "rectangle.stack",
+    "material": "layers",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "server.rack",
+    "material": "dns",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "square",
+    "material": "check_box_outline_blank",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "square.and.arrow.up",
+    "material": "ios_share",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "square.and.pencil",
+    "material": "edit_square",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "square.on.square",
+    "material": "content_copy",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "star",
+    "material": "star",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "star.fill",
+    "material": "star",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "stop.circle",
+    "material": "stop_circle",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "stop.fill",
+    "material": "stop",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "tablecells",
+    "material": "table_chart",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "terminal",
+    "material": "terminal",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "text.badge.plus",
+    "material": "note_add",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "text.bubble",
+    "material": "chat_bubble",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "text.word.spacing",
+    "material": "wrap_text",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "trash",
+    "material": "delete",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "tray",
+    "material": "inbox",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "tray.and.arrow.down",
+    "material": "download",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "tray.full",
+    "material": "all_inbox",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "video",
+    "material": "videocam",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "waveform",
+    "material": "graphic_eq",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "wifi.exclamationmark",
+    "material": "wifi_tethering_error",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "wifi.slash",
+    "material": "wifi_off",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "xmark",
+    "material": "close",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "xmark.circle.fill",
+    "material": "cancel",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  }
+]
