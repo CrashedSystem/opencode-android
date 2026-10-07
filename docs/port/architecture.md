@@ -361,6 +361,8 @@ Observation is per property:
 How the `TestStore` checks:
 
 - It is exhaustive. Each `send` and `receive` compares the whole state, shared values included, with the state before that action as the trailing closure changed it. A change the closure does not make fails with a diff.
+- A shared write made between actions, by an effect or by the test body, must be asserted in the next `send` or `receive`, or with `store.assert { … }`. The end of the test fails otherwise.
+- With `Exhaustivity.off`, the closure starts from the state after the action and only what it sets is checked, as in TCA.
 - Effect actions arrive in order and must each be received. Sending while one waits fails.
 - The test thread runs effects. `receive` and `finish` wait up to `timeout`, one second, for real asynchronous work.
 - When the test ends, `TestDependencies` fails a store that still has unreceived actions or running effects, as a Swift `TestStore` does when it deinitializes.
