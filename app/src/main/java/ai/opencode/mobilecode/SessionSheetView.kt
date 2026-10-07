@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionSheetView.swift", "553a407")
+@file:PortedFrom("OpenCode/SessionSheetView.swift", "4ab457c")
 
 package ai.opencode.mobilecode
 
@@ -377,8 +377,8 @@ private fun SectionScope.row(id: String, content: @Composable () -> Unit) {
     ForEach(listOf(id), id = { it }) { content() }
 }
 
-/// iOS 26 sheets are Liquid Glass at partial height; a grouped list's opaque
-/// backdrop would hide it. Earlier releases keep the grouped background.
+/// Sheets are Liquid Glass at partial height; a grouped list's opaque
+/// backdrop would hide it unless transparency is reduced.
 @Composable
 fun SheetGlassBackground(reduceTransparency: Boolean = false, content: @Composable () -> Unit) {
     content()

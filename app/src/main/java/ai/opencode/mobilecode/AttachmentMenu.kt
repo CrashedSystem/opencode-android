@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentMenu.swift", "553a407")
+@file:PortedFrom("OpenCode/AttachmentMenu.swift", "4ab457c")
 
 package ai.opencode.mobilecode
 
