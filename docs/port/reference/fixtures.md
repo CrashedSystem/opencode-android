@@ -1,6 +1,6 @@
 # Point Android at the iOS fixtures
 
-The iOS screenshots in `ios/` were taken against five loopback servers in `.upstream/opencode-ios/scripts` at commit `4fb5e0e`. Start those servers, then point the Android app at the host.
+The iOS screenshots in `ios/` were taken against five loopback servers in `.upstream/opencode-ios/scripts` at commit `553a407`. Start those servers, then point the Android app at the host.
 
 ## Start the servers
 
