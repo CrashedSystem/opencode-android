@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DiagnosticsView.swift", "dd71df9")
+@file:PortedFrom("OpenCode/DiagnosticsView.swift", "494e433", partial = "all but the Voice Calls row and the saved calls Developer Mode uploads, which arrive with the voice call log")
 
 package ai.opencode.mobilecode
 
@@ -51,6 +51,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import ai.opencode.mobilecode.system.GroupedList
+import ai.opencode.mobilecode.tca.Shared
+import ai.opencode.mobilecode.tca.SharedKey
 
 @Composable
 fun DiagnosticsView() {
@@ -61,6 +63,7 @@ fun DiagnosticsView() {
     var events by remember { mutableStateOf(emptyList<DiagnosticsEvent>()) }
     var metricsByRequest by remember { mutableStateOf(emptyMap<String, DiagnosticsEvent>()) }
     var shareMenu by remember { mutableStateOf(false) }
+    var developerMode by remember<Shared<Boolean>> { Shared(SharedKey.developerMode) }
 
     fun reload() {
         enabled = recorder.isEnabled
@@ -125,6 +128,50 @@ fun DiagnosticsView() {
             Section(
                 footer = {
                     Text(
+                        if (developerMode) {
+                            "Uploading voice calls and traces: a shake, a dropped call, a stalled connection, a crash, and leaving the app each send the timeline and where you were. Anyone with the link can view them; they’re kept 30 days."
+                        } else {
+                            "Turn on to send voice calls and traces to the OpenCode log server for debugging. Nothing leaves this phone while it’s off."
+                        },
+                    )
+                },
+            ) {
+                ForEach(listOf("developer-mode"), { it }) {
+                    DiagnosticsToggle(
+                        title = "Developer Mode",
+                        checked = developerMode,
+                        hint = "Uploads voice calls and traces to the OpenCode log server",
+                        onCheckedChange = { on ->
+                            developerMode = on
+                            // Traces need a timeline.
+                            if (on && !enabled) {
+                                recorder.setEnabled(true)
+                                reload()
+                            }
+                        },
+                    )
+                }
+                if (developerMode) {
+                    ForEach(listOf("open-web"), { it }) {
+                        DiagnosticsLink("Open on the Web", "safari") {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(DeveloperMode.webURL)))
+                        }
+                    }
+                    ForEach(listOf("share-link"), { it }) {
+                        DiagnosticsLink("Share Link", "square.and.arrow.up") {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, DeveloperMode.webURL)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }
+                    }
+                }
+            }
+
+            Section(
+                footer = {
+                    Text(
                         if (InternalBuild.isEnabled) {
                             "On by default in test builds. Diagnostics never include credentials, headers, prompts, tool input, or response bodies; voice turns keep a short excerpt only while Include Transcripts is on."
                         } else {
@@ -138,6 +185,7 @@ fun DiagnosticsView() {
                         title = "Record diagnostics",
                         checked = enabled,
                         hint = "Records a bounded timeline of timing and network metadata on this phone",
+                        enabled = !developerMode,
                         onCheckedChange = { value ->
                             recorder.setEnabled(value)
                             reload()
@@ -186,14 +234,16 @@ private fun DiagnosticsToggle(
     title: String,
     checked: Boolean,
     hint: String,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     Row(
         Modifier
             .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.4f)
             .semantics { contentDescription = "$title. $hint" }
-            .clickable(role = Role.Switch) { onCheckedChange(!checked) },
+            .clickable(enabled = enabled, role = Role.Switch) { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, Modifier.weight(1f), style = TextStyles.body, color = SystemColors.label)
@@ -201,6 +251,7 @@ private fun DiagnosticsToggle(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = SystemColors.systemGreen,
@@ -385,6 +436,19 @@ class DiagnosticsExport(
     fun exported(): ByteArray = when (format) {
         Format.text -> DiagnosticsRecorder.shared.exportText(events = events).toByteArray()
         Format.json -> DiagnosticsRecorder.shared.exportJSON(events = events)
+    }
+}
+
+/// `Link` and `ShareLink` rows: `Label(title, systemImage:)` in the tint.
+@Composable
+private fun DiagnosticsLink(title: String, systemImage: String, action: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = action),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SystemImage(systemImage, contentDescription = null, modifier = Modifier.symbolSize(TextStyles.body), tint = SystemColors.tint)
+        Text(title, style = TextStyles.body, color = SystemColors.tint)
     }
 }
 

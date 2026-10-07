@@ -137,7 +137,8 @@ final class CaptureTests: XCTestCase {
     launch(server: sessionLab, extra: labSessionEnvironment(), arguments: ["-lab-pasteboard-image"])
     XCTAssertTrue(field("Message").waitForExistence(timeout: 20))
     tap(app.buttons["Add attachment"])
-    XCTAssertTrue(app.buttons["Camera"].waitForExistence(timeout: 5))
+    // Photos is in every menu; Camera and Paste depend on the device.
+    XCTAssertTrue(app.buttons["Photos"].waitForExistence(timeout: 5))
     try await settle()
     shot("26-attachment-menu")
     if app.buttons["Paste"].waitForExistence(timeout: 3) {

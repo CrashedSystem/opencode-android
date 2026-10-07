@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SharedKeys.swift", "8f30e6b")
+@file:PortedFrom("OpenCode/SharedKeys.swift", "2e313a1")
 
 package ai.opencode.mobilecode
 
@@ -261,10 +261,15 @@ fun OpenCodeServer.remember(replacing: OpenCodeServer? = null) {
 val SharedKey.Companion.voiceModeEnabled: SharedKey<Boolean>
     get() = SharedKey.appStorage("voice-mode-enabled", default = false)
 
-/// Developer Mode: upload each finished voice call so it can be replayed
-/// on the web. Off by default.
-val SharedKey.Companion.voiceCallUploads: SharedKey<Boolean>
+/// Developer Mode: upload voice calls and traces to the log server. Off by
+/// default. Keeps the key the voice-only switch used.
+val SharedKey.Companion.developerMode: SharedKey<Boolean>
     get() = SharedKey.appStorage("voice-call-uploads", default = false)
+
+/// Raise to Talk: raising the phone to your ear on a session starts a call
+/// that plays from the earpiece. Off by default.
+val SharedKey.Companion.raiseToTalk: SharedKey<Boolean>
+    get() = SharedKey.appStorage("raise-to-talk", default = false)
 
 /// Voice engine for new calls. Defaults to GPT-Live, including for users
 /// upgrading from builds that only had Realtime.
@@ -278,7 +283,7 @@ val SharedKey.Companion.openAIAPIKey: SharedKey<String?>
 
 /// The random key that owns this iPhone's uploaded voice calls; whoever
 /// has it can view them. Made on first upload.
-val SharedKey.Companion.voiceCallUploadOwner: SharedKey<String?>
+val SharedKey.Companion.developerModeOwner: SharedKey<String?>
     get() = SharedKey.keychain("voice-call-upload-owner", default = null)
 
 /// Phone-local voice transcripts keyed by `serverID:sessionID`.

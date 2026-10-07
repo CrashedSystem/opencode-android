@@ -1,9 +1,10 @@
-@file:PortedFrom("OpenCode/SettingsView.swift", "8f30e6b", partial = "all but the Voice Calls row")
+@file:PortedFrom("OpenCode/SettingsView.swift", "d809b1e", partial = "all but the Voice page's dot scope preview (494e433), Raise to Talk (2e313a1), VoiceKeyFingerprint (f3bda52), and the Notifications row")
 
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.GlassSurface
 import ai.opencode.mobilecode.system.GroupedList
+import ai.opencode.mobilecode.system.ListSectionSpacing
 import ai.opencode.mobilecode.system.LocalDismiss
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
@@ -14,12 +15,14 @@ import ai.opencode.mobilecode.system.SystemMenu
 import ai.opencode.mobilecode.system.SystemMenuItem
 import ai.opencode.mobilecode.system.SystemMenuSection
 import ai.opencode.mobilecode.system.TextStyles
+import ai.opencode.mobilecode.system.bold
 import ai.opencode.mobilecode.system.TitleDisplayMode
 import ai.opencode.mobilecode.system.Toolbar
 import ai.opencode.mobilecode.system.ToolbarItem
 import ai.opencode.mobilecode.system.ToolbarItemPlacement
 import ai.opencode.mobilecode.system.glassEffect
 import ai.opencode.mobilecode.system.listRowSeparatorLeading
+import ai.opencode.mobilecode.system.semibold
 import ai.opencode.mobilecode.system.symbolSize
 import ai.opencode.mobilecode.tca.Dependency
 import ai.opencode.mobilecode.tca.DependencyValues
@@ -32,6 +35,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +47,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -61,19 +66,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -85,16 +95,17 @@ fun SessionSettingsView(
     connectionErrorMessage: String?,
     onChangeServer: () -> Unit,
     onRetryConnection: () -> Unit,
-    reports: Store<ProblemReportsFeature.State, ProblemReportsFeature.Action>? = null,
     whatsNew: Store<WhatsNewFeature.State, WhatsNewFeature.Action>,
 ) {
+    val voiceModeEnabled by remember<Shared<Boolean>> { Shared(SharedKey.voiceModeEnabled) }
+    val developerMode by remember<Shared<Boolean>> { Shared(SharedKey.developerMode) }
     val dismiss = LocalDismiss.current
     // `NavigationLink`'s pushes; the system layer has no navigation path yet.
     var pushed by rememberSaveable { mutableStateOf<SettingsDestination?>(null) }
     BackHandler(enabled = pushed != null) { pushed = null }
     Box(Modifier.fillMaxWidth().hidesFromProblemReports()) {
         when (pushed) {
-            SettingsDestination.advanced -> PushedScreen(onBack = { pushed = null }) { AdvancedSettingsView() }
+            SettingsDestination.voice -> PushedScreen(onBack = { pushed = null }) { VoiceSettingsView() }
             SettingsDestination.diagnostics -> {
                 // Diagnostics draws its own bar; the back button sits in its leading slot.
                 Box(Modifier.fillMaxSize()) {
@@ -102,7 +113,10 @@ fun SessionSettingsView(
                     BackButton(Modifier.padding(start = 16.dp).height(56.dp)) { pushed = null }
                 }
             }
-            SettingsDestination.whatsNew -> PushedScreen(onBack = { pushed = null }) { WhatsNewList(store = whatsNew) }
+            SettingsDestination.whatsNew -> PushedScreen(
+                onBack = { pushed = null },
+                trailing = { WhatsNewOptions(whatsNew) },
+            ) { WhatsNewList(store = whatsNew) }
             null -> NavigationStack(Modifier.fillMaxWidth()) {
                 NavigationTitle("Settings", displayMode = TitleDisplayMode.inline)
                 Toolbar {
@@ -110,87 +124,46 @@ fun SessionSettingsView(
                         SystemButton("Done") { dismiss() }
                     }
                 }
-                GroupedList(scrollContentBackground = false) {
-                    Section(header = { Text("Server") }) {
-                        ForEach(listOf("server"), { it }) {
-                            Row(
-                                Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    serverHost,
-                                    Modifier.weight(1f, fill = false).listRowSeparatorLeading(),
-                                    style = TextStyles.body,
-                                    color = SystemColors.label,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.MiddleEllipsis,
-                                )
-                                Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
-                                when (connectionStatus) {
-                                    HomeFeature.State.ConnectionStatus.connected ->
-                                        Text("Connected", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                                    HomeFeature.State.ConnectionStatus.reconnecting ->
-                                        CircularProgressIndicator(Modifier.size(18.dp), color = SystemColors.secondaryLabel, strokeWidth = 2.dp)
-                                    HomeFeature.State.ConnectionStatus.disconnected ->
-                                        Text("Offline", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                                }
-                            }
-                        }
-                        if (connectionStatus != HomeFeature.State.ConnectionStatus.connected) {
-                            if (connectionErrorMessage != null) {
-                                ForEach(listOf("error"), { it }) {
-                                    SelectionContainer {
-                                        Text(connectionErrorMessage, Modifier.listRowSeparatorLeading(), style = TextStyles.footnote, color = SystemColors.secondaryLabel)
-                                    }
-                                }
-                            }
-                            ForEach(listOf("retry"), { it }) {
-                                SettingsLabel("Retry Connection", "arrow.clockwise", enabled = connectionErrorMessage == null, action = onRetryConnection)
-                            }
-                        }
-                        ForEach(listOf("change-server"), { it }) {
-                            SettingsLabel("Change Server", "server.rack") {
-                                dismiss()
-                                onChangeServer()
-                            }
-                        }
-                    }
-
-                    Section(
-                        footer = {
-                            Text(
-                                if (InternalBuild.isEnabled) {
-                                    "Test builds record diagnostics by default and keep the last 15 minutes on this phone."
-                                } else {
-                                    "Diagnostics recording is off by default and keeps at most the last 10 minutes on this phone."
+                GroupedList(sectionSpacing = ListSectionSpacing.compact, scrollContentBackground = false) {
+                    Section {
+                        ForEach(listOf("server"), { it }, plain = true) {
+                            SettingsServerHeader(
+                                host = serverHost,
+                                status = connectionStatus,
+                                error = connectionErrorMessage,
+                                onRetry = onRetryConnection,
+                                onChange = {
+                                    dismiss()
+                                    onChangeServer()
                                 },
                             )
-                        },
-                    ) {
-                        ForEach(listOf("advanced"), { it }) {
-                            NavigationLinkRow("Advanced", hint = "Experimental features including Voice Mode") { pushed = SettingsDestination.advanced }
-                        }
-                        ForEach(listOf("diagnostics"), { it }) {
-                            NavigationLinkRow("Diagnostics", hint = "Inspect and share on-device timing and network metadata") {
-                                pushed = SettingsDestination.diagnostics
-                            }
-                        }
-                        if (reports != null) {
-                            ForEach(listOf("reports"), { it }) { ProblemReportSettingsRows(store = reports) }
                         }
                     }
 
-                    // Below Diagnostics, so Report Problem stays within the half-height sheet.
+                    // Notifications wait for an Android delivery path (docs/port/deviations.md).
+                    Section {
+                        ForEach(listOf("voice"), { it }) {
+                            NavigationLinkRow(push = { pushed = SettingsDestination.voice }) {
+                                SettingsRow("Voice", symbol = "waveform", color = SystemColors.systemIndigo, value = if (voiceModeEnabled) "On" else "Off")
+                            }
+                        }
+                        ForEach(listOf("diagnostics"), { it }) {
+                            NavigationLinkRow(push = { pushed = SettingsDestination.diagnostics }) {
+                                SettingsRow(
+                                    "Diagnostics",
+                                    symbol = "waveform.path.ecg",
+                                    color = SystemColors.systemTeal,
+                                    value = if (developerMode) "Developer Mode" else null,
+                                )
+                            }
+                        }
+                    }
+
                     Section {
                         ForEach(listOf("whats-new"), { it }) {
-                            NavigationLinkRow("What’s New") { pushed = SettingsDestination.whatsNew }
-                        }
-                        ForEach(listOf("show-whats-new"), { it }) {
-                            SettingsToggle(
-                                title = "Show What’s New",
-                                isOn = whatsNew.state.isButtonEnabled,
-                                onChange = { whatsNew.send(WhatsNewFeature.Action.buttonEnabledChanged(it)) },
-                            )
+                            NavigationLinkRow(push = { pushed = SettingsDestination.whatsNew }) {
+                                SettingsRow("What’s New", symbol = "sparkles", color = SystemColors.systemOrange)
+                            }
                         }
                     }
                 }
@@ -199,8 +172,196 @@ fun SessionSettingsView(
     }
 }
 
-private enum class SettingsDestination { advanced, diagnostics, whatsNew }
+private enum class SettingsDestination { voice, diagnostics, whatsNew }
 
+/// What's New's page menu: the drawer toggle moved here from Settings.
+@Composable
+private fun WhatsNewOptions(whatsNew: Store<WhatsNewFeature.State, WhatsNewFeature.Action>) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        SystemImage(
+            "ellipsis",
+            contentDescription = "What’s New options",
+            modifier = Modifier.symbolSize(TextStyles.body).clickable(role = Role.Button) { open = true },
+            tint = SystemColors.label,
+        )
+        SystemMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            sections = listOf(
+                SystemMenuSection(
+                    listOf(
+                        SystemMenuItem("Show in Drawer", systemImage = if (whatsNew.state.isButtonEnabled) "checkmark" else null) {
+                            open = false
+                            whatsNew.send(WhatsNewFeature.Action.buttonEnabledChanged(!whatsNew.state.isButtonEnabled))
+                        },
+                    ),
+                ),
+            ),
+        )
+    }
+}
+
+/// A settings row: a tinted symbol tile, the title, and a quiet value.
+@Composable
+fun SettingsRow(title: String, symbol: String, color: Color, value: String? = null) {
+    Row(
+        Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(29.dp)
+                .background(Brush.verticalGradient(listOf(color.lighten(0.12f), color)), RoundedCornerShape(7.dp))
+                .clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
+        ) {
+            SystemImage(symbol, contentDescription = null, modifier = Modifier.symbolSize(TextStyle(fontSize = 14.sp).semibold), tint = Color.White)
+        }
+        Text(title, Modifier.weight(1f).listRowSeparatorLeading(), style = TextStyles.body, color = SystemColors.label, maxLines = 1)
+        if (value != null) Text(value, style = TextStyles.body, color = SystemColors.secondaryLabel, maxLines = 1)
+    }
+}
+
+/// SwiftUI's `Color.gradient`: the color, a touch lighter at the top.
+private fun Color.lighten(amount: Float): Color =
+    Color(red + (1 - red) * amount, green + (1 - green) * amount, blue + (1 - blue) * amount, alpha)
+
+/// The server, as a living card: a dot field in the connection's color that
+/// drifts while connected, quickens while reconnecting, and rests when
+/// offline (and under Reduce Motion).
+@Composable
+fun SettingsServerHeader(
+    host: String,
+    status: HomeFeature.State.ConnectionStatus,
+    error: String?,
+    onRetry: () -> Unit,
+    onChange: () -> Unit,
+) {
+    val reduceMotion = LocalReduceMotion.current
+    val dark = isSystemInDarkTheme()
+    val tint = when (status) {
+        HomeFeature.State.ConnectionStatus.connected -> SystemColors.systemGreen
+        HomeFeature.State.ConnectionStatus.reconnecting -> SystemColors.systemOrange
+        HomeFeature.State.ConnectionStatus.disconnected -> SystemColors.systemGray
+    }
+    val statusText = when (status) {
+        HomeFeature.State.ConnectionStatus.connected -> "Connected"
+        HomeFeature.State.ConnectionStatus.reconnecting -> "Reconnecting…"
+        HomeFeature.State.ConnectionStatus.disconnected -> "Offline"
+    }
+    val phase = if (reduceMotion) {
+        0f
+    } else {
+        when (status) {
+            HomeFeature.State.ConnectionStatus.connected -> 1f
+            HomeFeature.State.ConnectionStatus.reconnecting -> 2.4f
+            HomeFeature.State.ConnectionStatus.disconnected -> 0f
+        }
+    }
+    val time = settingsAuraTime(paused = phase == 0f)
+    /// The machine's name: a host name's first label ("basebook" of
+    /// basebook.tail1234.ts.net:4443), or the whole address for an IP.
+    val name = machineName(host)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(26.dp))
+            .settingsAura(time = { time.value }, tint = tint, phase = phase, dark = dark)
+            .padding(horizontal = 18.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        // Status and actions share the top row, so the name below gets the
+        // card's full width instead of being cut to fit beside a button.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.semantics(mergeDescendants = true) {},
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(8.dp).background(tint, CircleShape))
+                Text(statusText, style = TextStyles.subheadline.semibold, color = tint)
+            }
+            Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+            if (status != HomeFeature.State.ConnectionStatus.connected) {
+                GlassButton("Retry", enabled = error == null, action = onRetry)
+                Spacer(Modifier.width(8.dp))
+            }
+            GlassButton("Change", accessibilityLabel = "Change Server", action = onChange)
+        }
+        Column(
+            Modifier.clearAndSetSemantics { contentDescription = "Server $host" },
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            ScaledLine(name, style = TextStyles.title2.bold, minimumScaleFactor = 0.7f)
+            if (name != host) {
+                Text(
+                    host,
+                    style = TextStyles.footnote.copy(fontFamily = FontFamily.Monospace),
+                    color = SystemColors.secondaryLabel,
+                    maxLines = 2,
+                    overflow = TextOverflow.MiddleEllipsis,
+                )
+            }
+        }
+        if (error != null && status != HomeFeature.State.ConnectionStatus.connected) {
+            SelectionContainer {
+                Text(error, style = TextStyles.footnote, color = SystemColors.secondaryLabel, maxLines = 3)
+            }
+        }
+    }
+}
+
+fun machineName(host: String): String {
+    val address = host.split(":", limit = 2).first()
+    val labels = address.split(".").filter { it.isNotEmpty() }
+    if (labels.size <= 1 || address.all { it.isDigit() || it == '.' }) return host
+    return labels.first()
+}
+
+/// One line that shrinks to `minimumScaleFactor` before it truncates in the middle.
+@Composable
+private fun ScaledLine(text: String, style: TextStyle, minimumScaleFactor: Float) {
+    var scale by remember(text) { mutableStateOf(1f) }
+    Text(
+        text,
+        style = style.copy(fontSize = style.fontSize * scale, lineHeight = style.lineHeight * scale),
+        color = SystemColors.label,
+        maxLines = 1,
+        overflow = if (scale <= minimumScaleFactor) TextOverflow.MiddleEllipsis else TextOverflow.Clip,
+        onTextLayout = { layout ->
+            if (layout.hasVisualOverflow && scale > minimumScaleFactor) scale = maxOf(minimumScaleFactor, scale - 0.05f)
+        },
+    )
+}
+
+/// `.buttonStyle(.glass)`.
+@Composable
+private fun GlassButton(title: String, enabled: Boolean = true, accessibilityLabel: String? = null, action: () -> Unit) {
+    Text(
+        title,
+        Modifier
+            .alpha(if (enabled) 1f else 0.4f)
+            .glassEffect(GlassSurface.Capsule, interactive = true)
+            .clickable(enabled = enabled, role = Role.Button, onClick = action)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .semantics { if (accessibilityLabel != null) contentDescription = accessibilityLabel },
+        style = TextStyles.body,
+        color = SystemColors.label,
+        maxLines = 1,
+    )
+}
+
+/// Voice: its own page, with the call's dot scope at rest above the switch,
+/// model, and key.
+@Composable
+fun VoiceSettingsView() {
+    AdvancedSettingsView()
+    NavigationTitle("Voice", displayMode = TitleDisplayMode.inline)
+}
+
+/// The Voice page's content: the switch, the model, and the key.
 @Composable
 fun AdvancedSettingsView() {
     val realtimePreflight by Dependency(DependencyValues::realtimePreflight)
@@ -214,15 +375,14 @@ fun AdvancedSettingsView() {
     var picksEngine by remember { mutableStateOf(false) }
     val apiKeyValue = (openAIAPIKey ?: "").trim()
 
-    GroupedList(scrollContentBackground = false) {
+    GroupedList(sectionSpacing = ListSectionSpacing.compact, scrollContentBackground = false) {
         Section(
-            header = { Text("Voice") },
             footer = {
-                Text("Voice calls stream your speech to OpenAI with your own project key. The key stays in this phone’s keychain and is never sent to your OpenCode server.")
+                Text("Talk to your sessions hands-free. Voice calls stream your speech to OpenAI with your own project key. The key stays in this phone’s keychain and is never sent to your OpenCode server.")
             },
         ) {
             ForEach(listOf("voice-mode"), { it }) {
-                SettingsToggle("Enable Voice Mode", isOn = voiceModeEnabled, onChange = { voiceModeEnabled = it })
+                SettingsToggle("Enable Voice", isOn = voiceModeEnabled, onChange = { voiceModeEnabled = it })
             }
             if (voiceModeEnabled) {
                 ForEach(listOf("voice-model"), { it }) {
@@ -314,7 +474,6 @@ fun AdvancedSettingsView() {
             }
         }
     }
-    NavigationTitle("Advanced", displayMode = TitleDisplayMode.inline)
     LaunchedEffect("$voiceModeEnabled|${voiceEngine.name}|$apiKeyValue|$verifyRequest") {
         if (!voiceModeEnabled) return@LaunchedEffect
         val debounce = verifyRequest == 0
@@ -383,35 +542,17 @@ private fun KeyVerificationStatusRow(status: KeyVerificationStatus) {
 private fun keyFingerprint(key: String, model: String): String =
     MessageDigest.getInstance("SHA-256").digest("$model:$key".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
-/// `Label { Text(title) } icon: { Image(systemName:).foregroundStyle(.secondary) }`
-/// as a button, in the section's `.tint(.primary)`.
+/// `NavigationLink { … } label: { … }`: the label and a disclosure chevron.
 @Composable
-private fun SettingsLabel(title: String, systemImage: String, enabled: Boolean = true, action: () -> Unit) {
+private fun NavigationLinkRow(push: () -> Unit, label: @Composable () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.4f)
-            .clickable(enabled = enabled, role = Role.Button, onClick = action),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .clickable(role = Role.Button, onClick = push),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SystemImage(systemImage, contentDescription = null, modifier = Modifier.symbolSize(TextStyles.body), tint = SystemColors.secondaryLabel)
-        Text(title, Modifier.listRowSeparatorLeading(), style = TextStyles.body, color = SystemColors.label)
-    }
-}
-
-/// `NavigationLink(title) { … }`: the title and a disclosure chevron.
-@Composable
-private fun NavigationLinkRow(title: String, hint: String? = null, push: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = push)
-            .semantics { if (hint != null) stateDescription = hint },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, Modifier.weight(1f).listRowSeparatorLeading(), style = TextStyles.body, color = SystemColors.label)
-        SystemImage("chevron.right", contentDescription = null, modifier = Modifier.symbolSize(TextStyles.footnote), tint = SystemColors.tertiaryLabel)
+        Box(Modifier.weight(1f)) { label() }
+        SystemImage("chevron.right", contentDescription = null, modifier = Modifier.padding(start = 8.dp).symbolSize(TextStyles.footnote), tint = SystemColors.tertiaryLabel)
     }
 }
 
@@ -442,7 +583,7 @@ private fun SettingsToggle(title: String, isOn: Boolean, onChange: (Boolean) -> 
 
 /// A pushed screen's stack: its bar with the back button in the leading slot.
 @Composable
-private fun PushedScreen(onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun PushedScreen(onBack: () -> Unit, trailing: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     NavigationStack(Modifier.fillMaxWidth()) {
         Toolbar {
             ToolbarItem(placement = ToolbarItemPlacement.topBarLeading) {
@@ -452,6 +593,9 @@ private fun PushedScreen(onBack: () -> Unit, content: @Composable () -> Unit) {
                     modifier = Modifier.symbolSize(TextStyles.body).clickable(role = Role.Button, onClick = onBack),
                     tint = SystemColors.label,
                 )
+            }
+            if (trailing != null) {
+                ToolbarItem(placement = ToolbarItemPlacement.topBarTrailing) { trailing() }
             }
         }
         content()

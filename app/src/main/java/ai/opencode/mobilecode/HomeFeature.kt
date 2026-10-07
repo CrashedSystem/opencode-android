@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "9219884")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "5cfc623", partial = "all but the voice agent's makeDraft(directory:), setPinned, and openDraft (5cfc623)")
 
 package ai.opencode.mobilecode
 
@@ -136,7 +136,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
 
         /// What the voice call's Live Activity last showed.
         var voiceCallActivity by StoreVar<VoiceCallActivityAttributes.ContentState?>(null)
-        var problemReports by StoreVar(ProblemReportsFeature.State())
+        var traces by StoreVar(TraceUploadsFeature.State())
 
         /// Moves shared items into the open composer when it is their target.
         /// Catch Up cards are left alone: their composers are not kept.
@@ -673,8 +673,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
 
         data class voiceCallCommand(val command: VoiceCallCommand) : Action
 
-        data class problemReports(val action: ProblemReportsFeature.Action) : Action {
-            companion object : Case<Action, ProblemReportsFeature.Action>({ problemReports(it) }, { (it as? problemReports)?.action })
+        data class traces(val action: TraceUploadsFeature.Action) : Action {
+            companion object : Case<Action, TraceUploadsFeature.Action>({ traces(it) }, { (it as? traces)?.action })
         }
     }
 
@@ -714,8 +714,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
     override val body: Reducer<State, Action> =
         combine(
             BindingReducer(),
-            ProblemReportTriggers(),
-            Scope(state = State::problemReports, action = Action.problemReports) { ProblemReportsFeature() },
+            TraceTriggers(),
+            Scope(state = State::traces, action = Action.traces) { TraceUploadsFeature() },
             Scope(state = State::whatsNew, action = Action.whatsNew) {
                 WhatsNewFeature()
             },
@@ -1462,7 +1462,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
                             Effect.none
                         }
 
-                        is Action.problemReports -> Effect.none
+                        is Action.traces -> Effect.none
 
                         is Action.markRead -> {
                             val session = state.sessions.firstOrNull { it.id == action.sessionID } ?: return@Reduce Effect.none
@@ -1527,7 +1527,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
             Reduce { action ->
                 // Only list and attention changes move the stack; skip the transcript's
                 // own high-frequency traffic.
-                if (action is Action.sessionDetail || action is Action.problemReports) return@Reduce Effect.none
+                if (action is Action.sessionDetail || action is Action.traces) return@Reduce Effect.none
                 if (action is Action.serverEvent &&
                     (action.event is OpenCodeServerEvent.contentBatch || action.event is OpenCodeServerEvent.messageInvalidated)
                 ) {
@@ -1642,7 +1642,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
                     } catch (error: Exception) {
                         // A live stream that went silent past its 90 s timeout.
                         if (connected && DiagnosticsErrorCategory(error) == DiagnosticsErrorCategory.timeout) {
-                            send(Action.problemReports(ProblemReportsFeature.Action.troubleDetected(ProblemReportTrigger.streamStalled)))
+                            send(Action.traces(TraceUploadsFeature.Action.traceRequested(ProblemReportTrigger.streamStalled)))
                         }
                         val failure = error as? OpenCodeClientError ?: OpenCodeClientError(message = "Couldn’t reach the OpenCode server")
                         if (failure.statusCode == 401) {

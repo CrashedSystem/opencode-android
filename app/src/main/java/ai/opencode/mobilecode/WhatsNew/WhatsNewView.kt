@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "9ed3520")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "166a26d")
 
 package ai.opencode.mobilecode
 
@@ -265,6 +265,8 @@ private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 SystemImage("rectangle.stack", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.camera ->
                 SystemImage("camera.aperture", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
+            WhatsNewEntry.Illustration.attachmentMenu ->
+                SystemImage("plus.circle", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.voiceMessage ->
                 Column(Modifier.width(36.dp), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.End) {
                     SystemImage("waveform", contentDescription = null, modifier = Modifier.symbolSize(7), tint = SystemColors.secondaryLabel)

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeView.swift", "9f4d56c")
+@file:PortedFrom("OpenCode/HomeView.swift", "494e433")
 
 package ai.opencode.mobilecode
 
@@ -137,7 +137,7 @@ fun HomeView(store: Store<HomeFeature.State, HomeFeature.Action>, modifier: Modi
     val home = HomeActions(store, closeSessionDrawer = { isSessionDrawerPresented = false })
 
     store.task { store.send(HomeFeature.Action.task) }
-    problemReports(store.scope(HomeFeature.State::problemReports, HomeFeature.Action.problemReports)) {
+    traceUploads(store.scope(HomeFeature.State::traces, HomeFeature.Action.traces)) {
         WhatsNewSheet(store.scope(HomeFeature.State::whatsNew, HomeFeature.Action.whatsNew)) {
             // The window behind the card's rounded corners.
             BoxWithConstraints(modifier.fillMaxSize().background(SystemColors.systemBackground)) {
@@ -180,9 +180,6 @@ fun HomeView(store: Store<HomeFeature.State, HomeFeature.Action>, modifier: Modi
             }
         }
     }
-    LaunchedEffect(Unit) {
-        ProblemReportRequest.phoneReportsOpened.collect { home.closeSessionDrawer() }
-    }
     val settingsPresented = store.state.activeSheet == HomeFeature.State.Sheet.settings
     sheet(
         isPresented = Binding(
@@ -196,7 +193,6 @@ fun HomeView(store: Store<HomeFeature.State, HomeFeature.Action>, modifier: Modi
             connectionErrorMessage = store.state.connectionErrorMessage,
             onChangeServer = { store.send(HomeFeature.Action.serverBadgeTapped) },
             onRetryConnection = { store.send(HomeFeature.Action.retryConnectionTapped) },
-            reports = if (ProblemReportsFeature.isAvailable) store.scope(HomeFeature.State::problemReports, HomeFeature.Action.problemReports) else null,
             whatsNew = store.scope(HomeFeature.State::whatsNew, HomeFeature.Action.whatsNew),
         )
     }

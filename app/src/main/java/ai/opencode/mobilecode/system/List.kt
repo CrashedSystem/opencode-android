@@ -65,12 +65,16 @@ fun GroupedList(
             section.header?.let { header -> item(key = "header ${section.id}") { SectionHeader(header) } }
             section.rows.forEachIndexed { rowIndex, row ->
                 item(key = row.id) {
-                    GroupedRow(
-                        first = rowIndex == 0,
-                        last = rowIndex == section.rows.lastIndex,
-                        background = rowBackground,
-                        content = row.content,
-                    )
+                    if (row.plain) {
+                        Box(Modifier.padding(horizontal = ListMetrics.margin).fillMaxWidth()) { row.content() }
+                    } else {
+                        GroupedRow(
+                            first = rowIndex == 0,
+                            last = rowIndex == section.rows.lastIndex,
+                            background = rowBackground,
+                            content = row.content,
+                        )
+                    }
                 }
             }
             section.footer?.let { footer ->
@@ -115,15 +119,19 @@ class SectionScope internal constructor(private val sectionID: Any) {
     fun <T : Identifiable<*>> ForEach(
         items: List<T>,
         content: @Composable (T) -> Unit,
-    ) = ForEach(items, { it.id }, content)
+    ) = ForEach(items, { it.id }, content = content)
 
-    /** `ForEach(items, id: \.key) { item in Row(item: item) }` */
+    /**
+     * `ForEach(items, id: \.key) { item in Row(item: item) }`. [plain] is
+     * `.listRowInsets(EdgeInsets()).listRowBackground(Color.clear)`: the row draws edge to edge on nothing.
+     */
     fun <T> ForEach(
         items: List<T>,
         id: (T) -> Any?,
+        plain: Boolean = false,
         content: @Composable (T) -> Unit,
     ) {
-        items.forEach { item -> rows += ListRow("row $sectionID ${id(item)}") { content(item) } }
+        items.forEach { item -> rows += ListRow("row $sectionID ${id(item)}", plain) { content(item) } }
     }
 }
 
@@ -135,7 +143,7 @@ internal class ListSection(
 )
 
 /** [id] is a string: Android saves lazy list keys in a Bundle. */
-internal class ListRow(val id: String, val content: @Composable () -> Unit)
+internal class ListRow(val id: String, val plain: Boolean = false, val content: @Composable () -> Unit)
 
 @Composable
 private fun SectionHeader(header: @Composable () -> Unit) {

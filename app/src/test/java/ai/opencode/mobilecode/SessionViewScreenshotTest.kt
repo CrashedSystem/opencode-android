@@ -1,5 +1,12 @@
 package ai.opencode.mobilecode
 
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.RuntimeEnvironment
+import android.net.Uri
+import android.content.pm.PackageManager
+import android.content.ClipboardManager
+import android.content.ClipDescription
+import android.content.ClipData
 import ai.opencode.mobilecode.system.LocalGlassBlurEnabled
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemTheme
@@ -50,6 +57,11 @@ class SessionViewScreenshotTest {
     fun locale() {
         Locale.setDefault(Locale.US)
     }
+
+    @Test fun attachmentMenuLight() = attachmentMenu("light")
+
+    @Test @Config(qualifiers = "+night")
+    fun attachmentMenuDark() = attachmentMenu("dark")
 
     @Test fun draftLight() = draft("light")
 
@@ -288,6 +300,23 @@ class SessionViewScreenshotTest {
 
     private fun composerEmpty(appearance: String) = capture("35-composer-empty", appearance) {
         SessionViewFixture.state(SessionViewFixture.intro)
+    }
+
+    /// A camera and an image on the clipboard, like the simulator with its
+    /// lab pasteboard image, so the menu offers all four rows.
+    private fun attachmentMenu(appearance: String) {
+        val application = RuntimeEnvironment.getApplication()
+        shadowOf(application.packageManager).setSystemFeature(PackageManager.FEATURE_CAMERA_ANY, true)
+        application.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+            ClipData(ClipDescription("image", arrayOf("image/png")), ClipData.Item(Uri.parse("content://lab/pasteboard.png"))),
+        )
+        capture(
+            "26-attachment-menu",
+            appearance,
+            interact = { compose.onNodeWithTag("attachment-menu-button").performClick() },
+        ) {
+            SessionViewFixture.state(SessionViewFixture.intro)
+        }
     }
 
     @OptIn(ExperimentalRoborazziApi::class)
