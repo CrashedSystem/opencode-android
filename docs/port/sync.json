@@ -24,7 +24,9 @@
     "OpenCode/OpenCode.entitlements",
     "OpenCodeShare/Info.plist",
     "OpenCodeShare/OpenCodeShare.entitlements",
-    "OpenCodeWidgets/Info.plist"
+    "OpenCodeWidgets/Info.plist",
+    "packages/notify-plugin/**",
+    "packages/notify-relay/**"
   ],
   "ignore": [
     ".gitignore",
@@ -38,6 +40,11 @@
     "**/Contents.json",
     "AppIcon.icon/icon.json"
   ],
+  "reasons": {
+    "packages/**": "Server and web tooling beside the app (the voice web demo, the voice call log worker): no Android code mirrors them",
+    "packages/notify-plugin/**": "The server's notify plugin is the callback contract an Android FCM relay would serve, so its changes are reviewed though notifications are skipped",
+    "packages/notify-relay/**": "The APNs relay is the model for an FCM relay; review its changes until Android has one"
+  },
   "deferred": {
     "OpenCode/Voice/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
     "OpenCode/LiveActivity/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",

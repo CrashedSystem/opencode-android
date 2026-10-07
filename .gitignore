@@ -1,4 +1,4 @@
-.upstream/
+/.upstream
 .arena/
 .ios-build/
 *.iml
@@ -17,3 +17,4 @@
 .cxx
 local.properties
 .ios-capture-build/
+/.kotlin

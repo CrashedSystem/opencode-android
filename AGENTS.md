@@ -16,5 +16,5 @@
 
 ## Port records
 
-- `docs/port/PLAN.md` is the plan, `docs/port/decisions.tsv` the decision log, and `docs/port/sync.json` the upstream commit plus the files deliberately deferred.
+- `docs/port/PLAN.md` is the plan, `docs/port/decisions.tsv` the decision log, and `docs/port/sync.json` the upstream commit plus what is deliberately left out: deferred files, partly ported files, and skipped commits, each with its reason.
 - `docs/port/ios-architecture.md` and `docs/port/explore/*.md` describe the iOS app for porting.

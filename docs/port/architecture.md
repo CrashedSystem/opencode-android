@@ -53,7 +53,12 @@ A ported Kotlin file starts with the marker, before `package`:
 package ai.opencode.mobilecode
 ```
 
-The path is the iOS file. The commit is the upstream revision that file was last synced against. `scripts/ios-sync.py` reads the markers: `progress` lists ported files, `check` fails on unported, stale, or missing claims, and `plan` and `advance` drive a sync. When you port an upstream change to a file, set its commit to that revision. A marker with `partial = "<what is ported>"` keeps the iOS file counted as unported in `progress` and `check` while still mapping it for `plan`. Never claim a file in full that you ported in part.
+The path is the iOS file. The commit is the upstream revision that file was last synced against, apart from the commits `docs/port/sync.json` lists under `skipped`. `scripts/ios-sync.py` reads the markers: `progress` lists ported files, `check` fails on unported, stale, or missing claims, and `plan` and `advance` drive a sync. When you port an upstream change to a file, set its commit to that revision with `scripts/ios-sync.py mark <commit> <file>`. A marker with `partial = "<what is ported>"` keeps the iOS file counted as unported in `progress` while still mapping it for `plan`. Never claim a file in full that you ported in part.
+
+A partial marker means one of two things, and `sync.json` says which:
+
+- On a file that `deferred` covers, it is a placeholder: the declarations other ports need, carved from the iOS file at the marker's commit and pinned there. `check` does not stale-check it. When a ported caller needs a member the placeholder lacks, add it and name it in the `partial` note.
+- On a file listed under `partial`, it is a tracked partial port: `check` stale-checks it like a full claim, and the entry says why the rest waits.
 
 ## State
 
