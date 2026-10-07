@@ -39,7 +39,9 @@ object DeveloperMode {
             return enabled
         }
 
-    /// This phone's owner key, made once.
+    /// This phone's owner key, made once. Uploads run off the main thread, so
+    /// two first uploads must not each make one.
+    @Synchronized
     fun owner(): String {
         var owner by Shared(SharedKey.developerModeOwner)
         owner?.let { if (it.length == 64) return it }

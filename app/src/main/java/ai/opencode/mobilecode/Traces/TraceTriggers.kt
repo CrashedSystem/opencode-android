@@ -2,6 +2,8 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.tca.Shared
+import ai.opencode.mobilecode.tca.SharedKey
 import ai.opencode.mobilecode.tca.Store
 import ai.opencode.mobilecode.tca.task
 import android.app.Activity
@@ -27,6 +29,8 @@ import android.widget.EditText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -251,7 +255,11 @@ fun traceUploads(
     }
     DisposableEffect(context) {
         ProblemReportRequest.installLabShakeBridge(context)
-        val stop = listenForShakes(context)
+        onDispose {}
+    }
+    val developerMode by remember<Shared<Boolean>> { Shared(SharedKey.developerMode) }
+    DisposableEffect(context, developerMode) {
+        val stop = if (developerMode) listenForShakes(context) else ({})
         onDispose { stop() }
     }
     store.task { store.send(TraceUploadsFeature.Action.task) }
@@ -265,7 +273,7 @@ private fun listenForShakes(context: Context): () -> Unit {
     val detector = ProblemReportShake()
     val listener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
-            if (!DeveloperMode.isEnabled || !ProblemReportRequest.shakeReports(canUndo = false)) return
+            if (!ProblemReportRequest.shakeReports(canUndo = false)) return
             val values = event.values
             if (values.size < 3) return
             if (detector.add(event.timestamp, values[0], values[1], values[2])) {
