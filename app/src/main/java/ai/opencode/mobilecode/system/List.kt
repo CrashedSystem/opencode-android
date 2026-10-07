@@ -61,8 +61,8 @@ fun GroupedList(
         contentPadding = PaddingValues(top = 4.dp, bottom = 20.dp),
     ) {
         sections.forEachIndexed { sectionIndex, section ->
-            if (sectionIndex > 0) item(key = Spacing(section.id)) { Spacer(Modifier.height(sectionSpacing)) }
-            section.header?.let { header -> item(key = Header(section.id)) { SectionHeader(header) } }
+            if (sectionIndex > 0) item(key = "spacing ${section.id}") { Spacer(Modifier.height(sectionSpacing)) }
+            section.header?.let { header -> item(key = "header ${section.id}") { SectionHeader(header) } }
             section.rows.forEachIndexed { rowIndex, row ->
                 item(key = row.id) {
                     GroupedRow(
@@ -119,19 +119,14 @@ class SectionScope internal constructor(private val sectionID: Any) {
         id: (T) -> Any?,
         content: @Composable (T) -> Unit,
     ) {
-        items.forEach { item -> rows += ListRow(RowKey(sectionID, id(item))) { content(item) } }
+        items.forEach { item -> rows += ListRow("row $sectionID ${id(item)}") { content(item) } }
     }
 }
 
 internal class ListSection(val id: Any, val header: (@Composable () -> Unit)?, val rows: List<ListRow>)
 
-internal class ListRow(val id: Any, val content: @Composable () -> Unit)
-
-private data class Spacing(val section: Any)
-
-private data class Header(val section: Any)
-
-private data class RowKey(val section: Any, val row: Any?)
+/** [id] is a string: Android saves lazy list keys in a Bundle. */
+internal class ListRow(val id: String, val content: @Composable () -> Unit)
 
 @Composable
 private fun SectionHeader(header: @Composable () -> Unit) {
