@@ -89,7 +89,7 @@ class JustifiedTextTests {
                         worst = maxOf(worst, abs(right - line.right))
                         checked++
                         val endsSegment = text.text.substring(line.end).substringBefore('\n').isBlank()
-                        if (!endsSegment && right < width - 0.01) failures += "$where line $index ends at $right, short of the margin"
+                        if (!endsSegment && !line.loose && right < width - 0.01) failures += "$where line $index ends at $right, short of the margin"
                         if (!endsSegment && plan.text.spanStyles.any { it.item.background.isSpecified && line.end in it.start until it.end }) {
                             failures += "$where line $index: the break space keeps a background"
                         }
@@ -101,6 +101,22 @@ class JustifiedTextTests {
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
         assertTrue("worst right edge error $worst px", worst < 0.01)
         assertEquals(265, checked)
+    }
+
+    @Test
+    fun streamedWordsMoveOnlyTheLastTwoLinesAndStillLand() {
+        val text = paragraphs[1]
+        val widths = TextWidths(Justification.style(style), Density(2.75f), fonts)
+        val ends = text.text.indices.filter { text.text[it] == ' ' } + text.length
+        var previous: Justification.Plan? = null
+        for (end in ends) {
+            val plan = Justification.plan(text.subSequence(0, end), 770, widths, previous = previous)!!
+            previous?.lines?.dropLast(2)?.forEachIndexed { index, line -> assertEquals("line $index at $end", line, plan.lines[index]) }
+            val laid = Paragraph(plan.text.text, Justification.style(style), Constraints(maxWidth = plan.width), Density(2.75f), fonts, plan.text.spanStyles)
+            assertEquals(plan.lines.map { it.start to it.end }, (0 until laid.lineCount).map { laid.getLineStart(it) to laid.getLineEnd(it, visibleEnd = true) })
+            previous = plan
+        }
+        assertEquals(text.length, previous!!.lines.last().end)
     }
 
     @Test

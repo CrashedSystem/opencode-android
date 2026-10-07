@@ -199,4 +199,13 @@ class JusticeTests {
         val single = "aa bb cc"
         assertNull(Justice.prepare(single, 4.0, { start, end -> measure(single.substring(start, end)) }, measureGaps = true).gaps)
     }
+
+    @Test
+    fun suppliedClusterCountsReplaceGraphemesWhereGiven() {
+        val text = "first fish"
+        val ranged = { start: Int, end: Int -> measure(text.substring(start, end)) }
+        val ligature = Justice.prepare(text, 4.0, ranged, measureGaps = false) { start, end -> if (text.substring(start, end) == "first") 4 else null }
+        assertEquals(listOf(0.0, 4.0, 8.0), ligature.characters.toList())
+        assertEquals(listOf(0.0, 5.0, 9.0), Justice.prepare(text, 4.0, ranged, measureGaps = false).characters.toList())
+    }
 }

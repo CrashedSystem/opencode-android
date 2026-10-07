@@ -14,8 +14,9 @@ import kotlin.math.sign
  *
  * Not ported: `withHyphenation` (no hyphenation dictionary ships in the app, and a generated
  * hyphen would put a glyph on screen that is not in the selectable text) and `static.ts`.
- * Added: [prepare] over source ranges, which measures each whitespace run instead of
- * collapsing it to one space, for text whose gaps are not all the same width.
+ * Added: [prepare] over source ranges, which can measure each whitespace run instead of
+ * collapsing it to one space, and count letter-spaced units per word where a renderer does not
+ * space every grapheme (Android spaces a ligature once).
  */
 object Justice {
     enum class Mode { balanced, strict }
@@ -138,8 +139,15 @@ object Justice {
 
     /** [prepare] over source ranges, for an adapter that measures styled text. Each word,
      * punctuation edge, and hyphen fragment is measured by its range in [text]. With
-     * [measureGaps], each whitespace run between words keeps its measured width. */
-    fun prepare(text: String, space: Double, measure: (start: Int, end: Int) -> Double, measureGaps: Boolean): Prepared {
+     * [measureGaps], each whitespace run between words keeps its measured width. [clusters]
+     * counts the units a renderer letter-spaces in a range, or returns null for one per grapheme. */
+    fun prepare(
+        text: String,
+        space: Double,
+        measure: (start: Int, end: Int) -> Double,
+        measureGaps: Boolean,
+        clusters: ((start: Int, end: Int) -> Int?)? = null,
+    ): Prepared {
         if (!space.isFinite() || space < 0) throw IllegalArgumentException("Invalid measured word width")
         if (space <= 0) throw IllegalArgumentException("Space width must be positive")
         val ranges = wordRanges(text)
@@ -151,18 +159,19 @@ object Justice {
         val startHangs = DoubleArray(n)
         val gapWidths = DoubleArray(n)
         var uniform = true
-        val graphemes = BreakIterator.getCharacterInstance()
+        val iterator = BreakIterator.getCharacterInstance()
         var hyphenation: Array<WordFragments?>? = null
         for (i in 0 until n) {
             val from = ranges[2 * i]
             val word = words[i]
             val widthOf = { start: Int, end: Int -> measured(measure(from + start, from + end)) }
+            val countOf = { start: Int, end: Int -> clusters?.invoke(from + start, from + end) ?: graphemeCount(iterator, word.substring(start, end)) }
             val w = widthOf(0, word.length)
             val punctuation = trailingPunctuation.find(word)
             if (punctuation != null) endHangs[i] = min(w, widthOf(punctuation.range.first, word.length))
             if (word.isNotEmpty() && word[0] in openingQuotes) startHangs[i] = min(w, widthOf(0, 1))
             widths[i + 1] = widths[i] + w
-            characters[i + 1] = characters[i] + graphemeCount(graphemes, word)
+            characters[i + 1] = characters[i] + countOf(0, word.length)
             if (measureGaps && i > 0) {
                 val gap = measured(measure(ranges[2 * i - 1], from))
                 uniform = uniform && gap == space
@@ -171,7 +180,7 @@ object Justice {
             val explicit = explicitHyphens(word)
             if (explicit.isNotEmpty()) {
                 if (hyphenation == null) hyphenation = arrayOfNulls(n)
-                hyphenation[i] = fragments(word, w, intArrayOf(0, *explicit, word.length), explicit.toSet(), graphemes, widthOf)
+                hyphenation[i] = fragments(w, intArrayOf(0, *explicit, word.length), explicit.toSet(), widthOf, countOf)
             }
         }
         return Prepared(words, widths, characters, endHangs, startHangs, space, hyphenation = hyphenation?.toList(), gaps = if (uniform) null else gapWidths)
@@ -351,12 +360,11 @@ object Justice {
     }
 
     private fun fragments(
-        word: String,
         wordWidth: Double,
         offsets: IntArray,
         explicitAt: Set<Int>,
-        graphemes: BreakIterator,
         widthOf: (start: Int, end: Int) -> Double,
+        countOf: (start: Int, end: Int) -> Int,
     ): WordFragments {
         val n = offsets.size
         val widths = DoubleArray(n * n)
@@ -368,7 +376,7 @@ object Justice {
             widths[cell] = if (from == 0 && to == n - 1) wordWidth else widthOf(offsets[from], offsets[to])
             // A generated hyphen only arises from dictionary breaks, which this port does not add.
             if (to < n - 1) hyphenWidths[cell] = widths[cell]
-            characters[cell] = graphemeCount(graphemes, word.substring(offsets[from], offsets[to])).toDouble()
+            characters[cell] = countOf(offsets[from], offsets[to]).toDouble()
         }
         return WordFragments(offsets, widths, hyphenWidths, characters, explicit = if (explicit.any { it }) explicit else null)
     }

@@ -24,13 +24,15 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.isSpecified
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 /**
  * Text set justified by [Justice] at its measured width. The characters stay as they are, so
  * selection, copying, links, and accessibility read the source text. Spacing is letter spacing:
  * each line's tracking on every character, plus its word spacing on the first character of each
  * gap. A line breaks where the engine broke it because the space there is scaled too wide for
- * the next word to fit; a trailing space hangs past the margin and draws nothing. Text the
+ * the next word to fit; a trailing space hangs past the margin and draws nothing. While the text
+ * only grows, as a streamed reply does, lines above the last two keep their breaks. Text the
  * engine does not cover (tabs, scripts other than Latin, Greek, and Cyrillic) is set ragged.
  */
 @Composable
@@ -41,8 +43,11 @@ fun JustifiedText(text: AnnotatedString, style: TextStyle, color: Color, modifie
         val justified = remember(style) { Justification.style(style) }
         val widths = remember(justified, density, fonts) { TextWidths(justified, density, fonts) }
         val width = constraints.maxWidth
+        val previous = remember(widths) { arrayOfNulls<Justification.Plan>(1) }
         val plan = remember(text, width, widths) {
-            if (constraints.hasBoundedWidth) Justification.plan(text, width, widths) else null
+            val plan = if (constraints.hasBoundedWidth) Justification.plan(text, width, widths, previous = previous[0]) else null
+            previous[0] = plan
+            plan
         }
         if (plan == null) {
             Text(text, Modifier.fillMaxWidth(), style = style, color = color)
@@ -61,10 +66,13 @@ fun JustifiedText(text: AnnotatedString, style: TextStyle, color: Color, modifie
     }
 }
 
-/** Advances of styled pieces of text in one style, in pixels. Misses are measured together in
- * one paragraph, one piece per line, and kept, so a streamed token measures only what it changed. */
+/** Advances of styled pieces of text in one style, in pixels, and how many units Android
+ * letter-spaces in each: one per character, except that a ligature counts once. Misses are
+ * measured together in one paragraph, one piece per line, and kept, so a streamed token
+ * measures only what it changed. */
 class TextWidths(private val style: TextStyle, val density: Density, private val fonts: FontFamily.Resolver) {
     private val cache = HashMap<AnnotatedString, Double>()
+    private val clusters = HashMap<AnnotatedString, Int>()
     private val space = AnnotatedString(" ")
     private val pixelsPerEm = HashMap<TextUnit, Float>()
 
@@ -100,53 +108,84 @@ class TextWidths(private val style: TextStyle, val density: Density, private val
         width(space) / density.density,
         { a, b -> width(text.subSequence(start + a, start + b)) / density.density },
         measureGaps = true,
+        clusters = { a, b -> clusters[text.subSequence(start + a, start + b)] },
     )
 
+    /** Each piece is laid out twice, plain and at [probe] em of letter spacing, which stays below
+     * the 0.03 em at which Minikin turns ligatures off. The difference counts the spaced units. */
     private fun measure(pieces: Collection<AnnotatedString>) {
         val joined = AnnotatedString.Builder()
-        pieces.forEachIndexed { index, piece ->
-            if (index > 0) joined.append('\n')
+        for (piece in pieces) {
             joined.append(piece)
+            joined.append('\n')
+            val start = joined.length
+            joined.append(piece)
+            joined.addStyle(SpanStyle(letterSpacing = probe.em), start, joined.length)
+            joined.append('\n')
         }
         val text = joined.toAnnotatedString()
         val paragraph = Paragraph(text.text, style, Constraints(), density, fonts, text.spanStyles)
         var start = 0
         for (piece in pieces) {
-            val end = start + piece.length
-            cache[piece] = (paragraph.getHorizontalPosition(end, true) - paragraph.getHorizontalPosition(start, true)).toDouble()
-            start = end + 1
+            val plain = paragraph.getHorizontalPosition(start + piece.length, true) - paragraph.getHorizontalPosition(start, true)
+            start += piece.length + 1
+            val spaced = paragraph.getHorizontalPosition(start + piece.length, true) - paragraph.getHorizontalPosition(start, true)
+            start += piece.length + 1
+            cache[piece] = plain.toDouble()
+            val size = piece.spanStyles.singleOrNull { it.start == 0 && it.end == piece.length && it.item.fontSize.isSpecified }?.item?.fontSize
+            if (size != null || piece.spanStyles.none { it.item.fontSize.isSpecified }) {
+                clusters[piece] = ((spaced - plain) / (probe * pixelsPerEm(size ?: TextUnit.Unspecified))).roundToInt()
+            }
         }
+    }
+
+    private companion object {
+        const val probe = 0.02f
     }
 }
 
 object Justification {
     /** [text] with its spacing spans, and the width in pixels to lay it out at: the paragraph's
      * width plus room for punctuation hanging past the right margin. */
-    class Plan(val text: AnnotatedString, val width: Int, val lines: List<Line>)
+    class Plan(
+        val text: AnnotatedString,
+        val width: Int,
+        val lines: List<Line>,
+        internal val source: AnnotatedString,
+        internal val measure: Int,
+        internal val spacing: FloatArray,
+        internal val breaks: BooleanArray,
+    ) {
+        /** Where a plan for [next] starts solving: the start of this plan's second-to-last line,
+         * when [next] only adds text at the end at the same width. Lines above it keep their
+         * breaks and spacing, so a streamed token does not move text already read. */
+        internal fun settled(next: AnnotatedString, width: Int): Int {
+            if (width != measure || lines.size < 3 || next.length < source.length) return 0
+            if (next.subSequence(0, source.length) != source) return 0
+            return lines[lines.size - 2].start
+        }
+    }
 
     /** A line as the engine set it: its characters, where its last character ends, and how far
-     * right it may draw, in pixels. */
-    data class Line(val start: Int, val end: Int, val right: Double, val reach: Double)
+     * right it may draw, in pixels. A [loose] line would have needed gaps wider than the bound
+     * and is set ragged. */
+    data class Line(val start: Int, val end: Int, val right: Double, val reach: Double, val loose: Boolean)
 
     /** [style] as justified text draws and measures it. The breaker is greedy, so it takes each
-     * planned line whole. Standard ligatures are off because Android letter-spaces a ligature
-     * once, while the engine spaces every character. */
-    fun style(style: TextStyle) = style.copy(
-        fontFeatureSettings = listOfNotNull(style.fontFeatureSettings, "liga 0, clig 0").joinToString(", "),
-        lineBreak = LineBreak.Simple,
-        textAlign = TextAlign.Left,
-    )
+     * planned line whole. */
+    fun style(style: TextStyle) = style.copy(lineBreak = LineBreak.Simple, textAlign = TextAlign.Left)
 
     /** A hard-break-delimited run `text[start, end)`, its word ranges relative to [start], and the
      * width in dp of any whitespace it opens with. */
     private class Segment(val start: Int, val end: Int, val ranges: IntArray, val indent: Double, val prepared: Justice.Prepared?)
 
-    fun plan(text: AnnotatedString, width: Int, widths: TextWidths, options: Justice.Options = Justice.defaults): Plan? {
+    fun plan(text: AnnotatedString, width: Int, widths: TextWidths, options: Justice.Options = Justice.defaults, previous: Plan? = null): Plan? {
         val source = text.text
         if (width <= 0 || !justifiable(source)) return null
         val scale = widths.density.density.toDouble()
+        val settled = previous?.settled(text, width) ?: 0
         val segments = buildList {
-            var start = 0
+            var start = settled
             while (start <= source.length) {
                 val end = source.indexOf('\n', start).let { if (it < 0) source.length else it }
                 val ranges = Justice.wordRanges(source.substring(start, end))
@@ -159,7 +198,10 @@ object Justification {
         }
         val spacing = FloatArray(source.length)
         val breaks = BooleanArray(source.length)
-        val lines = segments.flatMap { set(text, it, width / scale, scale, options, spacing, breaks) }
+        previous?.spacing?.copyInto(spacing, endIndex = settled)
+        previous?.breaks?.copyInto(breaks, endIndex = settled)
+        val kept = previous?.lines?.filter { it.start < settled }.orEmpty()
+        val lines = kept + segments.flatMap { set(text, it, width / scale, scale, options, spacing, breaks) }
         // Room for the hanging punctuation, plus the letter spacing Android trims or estimates
         // at line edges. A line too long even for that wraps where Android breaks it.
         val layoutWidth = ceil(lines.fold(width.toDouble()) { widest, line -> maxOf(widest, line.reach) } + 2 * options.tracking * scale + 1).toInt()
@@ -188,7 +230,7 @@ object Justification {
             if (em != 0f) builder.addStyle(SpanStyle(letterSpacing = em.em), run, index)
             run = index
         }
-        return Plan(builder.toAnnotatedString(), layoutWidth, lines)
+        return Plan(builder.toAnnotatedString(), layoutWidth, lines, text, width, spacing, breaks)
     }
 
     /** Solves [segment] at [measure] dp and writes each character's letter spacing in pixels into
@@ -209,24 +251,35 @@ object Justification {
         return layout.lines.mapIndexed { index, line ->
             val first = segment.start + segment.ranges[2 * line.start]
             val last = segment.start + segment.ranges[2 * line.end - 1]
-            for (i in first until last) {
-                spacing[i] = (scale * when {
-                    !Justice.isSeparator(source[i]) -> line.tracking
-                    Justice.isSeparator(source[i - 1]) -> 0.0
-                    else -> line.wordSpacing + line.tracking
-                }).toFloat()
+            // The library's own bound for whole-word mobile layouts. Past it, as before a word too
+            // long to share a line, the line keeps its break but is set ragged.
+            val loose = p.space + line.wordSpacing + line.tracking > p.space * maxGap
+            if (!loose) {
+                for (i in first until last) {
+                    spacing[i] = (scale * when {
+                        !Justice.isSeparator(source[i]) -> line.tracking
+                        Justice.isSeparator(source[i - 1]) -> 0.0
+                        else -> line.wordSpacing + line.tracking
+                    }).toFloat()
+                }
+                // The opening quote's advance shrinks so the rest of the line starts where the engine hung it.
+                if (line.opening > 0) spacing[first] = (scale * (line.tracking - line.opening)).toFloat()
             }
-            // The opening quote's advance shrinks so the rest of the line starts where the engine hung it.
-            if (line.opening > 0) spacing[first] = (scale * (line.tracking - line.opening)).toFloat()
             if (index < layout.lines.lastIndex) breaks[last] = true
-            val ragged = line.last && line.natural <= line.width + line.hanging + line.opening
-            val right = (if (index == 0) segment.indent else 0.0) + if (ragged) line.natural - line.opening else line.width + line.hanging - line.residual
+            val ragged = loose || line.last && line.natural <= line.width + line.hanging + line.opening
+            val right = (if (index == 0) segment.indent else 0.0) + when {
+                loose -> line.natural
+                ragged -> line.natural - line.opening
+                else -> line.width + line.hanging - line.residual
+            }
             // Android 15 trims the opening quote's negative spacing at the line edge, which moves
             // the line right by up to half the opening.
             val reach = minOf(right, measure + line.hanging) + line.opening / 2
-            Line(if (index == 0) segment.start else first, last, right * scale, reach * scale)
+            Line(if (index == 0) segment.start else first, last, right * scale, reach * scale, loose)
         }
     }
+
+    private const val maxGap = 3.5
 
     private fun pixelsPerEm(text: AnnotatedString, widths: TextWidths): FloatArray {
         val sizes = FloatArray(text.length) { widths.pixelsPerEm(TextUnit.Unspecified) }
