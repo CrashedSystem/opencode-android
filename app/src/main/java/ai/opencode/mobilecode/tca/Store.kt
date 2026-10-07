@@ -84,18 +84,23 @@ fun <S, A> Store(
  * `let task = await store.send(.task)` then `await task.cancel()` or `task.finish()`.
  */
 class StoreTask internal constructor() {
-    private val jobs = mutableListOf<Job>()
+    private val jobs = mutableSetOf<Job>()
     private var cancelled = false
 
     val isCancelled: Boolean
         get() = synchronized(this) { cancelled }
 
+    /** True until every job has completed, including one still cleaning up after cancellation. */
     internal val isActive: Boolean
-        get() = synchronized(this) { jobs.any(Job::isActive) }
+        get() = synchronized(this) { jobs.isNotEmpty() }
 
     internal fun track(job: Job) {
         val cancel = synchronized(this) { cancelled.also { if (!it) jobs.add(job) } }
-        if (cancel) job.cancel()
+        if (cancel) {
+            job.cancel()
+            return
+        }
+        job.invokeOnCompletion { synchronized(this) { jobs.remove(job) } }
     }
 
     fun cancel() {
@@ -105,9 +110,9 @@ class StoreTask internal constructor() {
 
     suspend fun finish() {
         while (true) {
-            val active = synchronized(this) { jobs.filter(Job::isActive) }
-            if (active.isEmpty()) return
-            active.joinAll()
+            val pending = synchronized(this) { jobs.toList() }
+            if (pending.isEmpty()) return
+            pending.joinAll()
         }
     }
 }
