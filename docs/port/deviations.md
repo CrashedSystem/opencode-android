@@ -17,3 +17,9 @@ The rendering differs from the library in these ways:
 - A line that would need gaps wider than 3.5 spaces keeps its break but is set ragged. That is the library's own test bound for whole-word mobile layouts. It applies before a word too long to share a line, such as an inline path in a narrow list item.
 - While a reply streams in, lines above the last two keep their breaks, so new tokens do not move text the user is reading. A paragraph that is drawn again later solves from scratch and can break differently.
 - An opening quote hangs about half as far as the library places it, because Compose letter spacing cannot move one glyph left of the line start. The rest of the line starts where the engine put it.
+
+## Features not on Android yet
+
+- **Voice calls.** Deferred by the user on 2026-10-07 until the core app is done. `docs/port/sync.json` lists the deferred files. The session and home features keep the voice state and actions so a later port drops into place; the call button stays hidden because voice cannot be turned on.
+- **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at 41099dd shows that row; the parity review should expect its absence.
+- **iOS-only lab and UI-test bridges.** The lab pasteboard bridge and lab color scheme in `OpenCodeApp.swift` have Android equivalents as debug intent extras instead.
