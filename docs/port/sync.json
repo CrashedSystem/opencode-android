@@ -43,13 +43,20 @@
     "OpenCode/LiveActivity/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
     "OpenCodeWidgets/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
     "OpenCodeTests/Voice*Tests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
-    "OpenCodeTests/DotScopeSimulationTests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access"
+    "OpenCodeTests/DotScopeSimulationTests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
+    "OpenCode/SessionNotifications.swift": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay"
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",
     "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView wait for voice calls; ProblemReportOfferPill is not wired into the pill row yet",
     "OpenCode/Voice/VoiceTranscript.swift": "VoiceHandoff renders voice delegations in the transcript, so this file is tracked though voice calls are deferred; its call-only parts (the VoiceInstructions builders) wait for voice calls",
     "OpenCodeTests/VoiceHandoffParseTests.swift": "the read-back cases are tracked with VoiceTranscript.swift; the cases that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) stay ignored until voice calls"
+  },
+  "skipped": {
+    "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",
+    "6eff60f": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the relay URL and the Notify When Done What's New entry wait for it",
+    "f2afbb8": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; Settings → Notifications and its notify plugin check wait for it",
+    "d4cd513": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; notification tap handling lives in the deferred SessionNotifications.swift"
   },
   "assets": {
     "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {

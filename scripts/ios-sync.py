@@ -10,7 +10,8 @@ where the commit is the upstream revision that file was last synced against.
 A port file is ported (a full claim), deferred (`deferred`: not tracked; a
 partial claim on it is a placeholder for callers and stays pinned at the commit
 it was carved from), or partly ported (`partial`: a partial claim that is kept
-in sync, with the reason its remainder waits).
+in sync, with the reason its remainder waits). Upstream commits listed in
+`skipped` were deliberately not ported: a claim is not stale for their changes.
 """
 
 import argparse
@@ -58,8 +59,9 @@ def status(config, _args):
         print("\nThe port is synced with upstream.")
         return
     print(f"\n{len(commits)} upstream commit(s) not yet ported:")
+    skipped = skipped_commits(config)
     for commit in commits:
-        print(f"  {describe(commit)}")
+        print(f"  {describe(commit)}" + (f"  [skipped: {skipped[commit]}]" if commit in skipped else ""))
     report_changes(config, changed_files(synced, head))
     print("\nRun scripts/ios-sync.py plan to write the porting worklist.")
 
@@ -131,7 +133,7 @@ def gate(config, synced):
         for android, commit, partial in ports:
             placeholder = partial and deferral(path, config)
             # A claim ahead of the synced commit is a sync in progress, not stale.
-            if not placeholder and is_ancestor(commit, synced) and path in changed_paths(commit, synced):
+            if not placeholder and is_ancestor(commit, synced) and path in changed_paths(commit, synced, config):
                 problems["Ports older than the synced commit (the iOS file changed since)"].append(f"{android} synced {path} at {commit[:7]}")
             if not (ROOT / android).exists():
                 problems["Claimed Android files that do not exist"].append(android)
@@ -180,6 +182,7 @@ def plan_worklist(config, args):
         print("Nothing to plan, the port is synced.")
         return
     claims = marker_claims(config)
+    skipped = skipped_commits(config)
     out = [
         f"# Port upstream {synced[:7]}..{head[:7]}",
         "",
@@ -193,6 +196,8 @@ def plan_worklist(config, args):
         subject = git("log", "-1", "--format=%s", commit).strip()
         out.append(f"## {commit[:7]} {subject}")
         out.append("")
+        if commit in skipped:
+            out.extend([f"Skipped in sync.json: {skipped[commit]}", ""])
         body = git("log", "-1", "--format=%b", commit).strip()
         if body:
             out.extend(["```", body, "```", ""])
@@ -341,10 +346,33 @@ def is_ancestor(old, new):
     return _ancestors[(old, new)]
 
 
-def changed_paths(old, new):
+def changed_paths(old, new, config=None):
+    """Files changed from `old` to `new`, leaving out commits sync.json skips."""
+    skipped = skipped_commits(config) if config else {}
     if (old, new) not in _changed:
-        _changed[(old, new)] = set() if old == new else set(git("diff", "--name-only", old, new).splitlines())
+        if old == new:
+            _changed[(old, new)] = set()
+        elif not skipped:
+            _changed[(old, new)] = set(git("diff", "--name-only", old, new).splitlines())
+        else:
+            commits = [commit for commit in git("rev-list", f"{old}..{new}").split() if commit not in skipped]
+            _changed[(old, new)] = set().union(*(commit_paths(commit) for commit in commits))
     return _changed[(old, new)]
+
+
+def commit_paths(commit):
+    return set(git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines())
+
+
+_skipped = None
+
+
+def skipped_commits(config):
+    """Upstream commits deliberately not ported, by full SHA, with the reason."""
+    global _skipped
+    if _skipped is None:
+        _skipped = {resolve(rev): reason for rev, reason in config.get("skipped", {}).items()}
+    return _skipped
 
 
 def changed_files(old, new):
