@@ -27,6 +27,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -403,16 +404,36 @@ private class OutputTextView(context: Context) : TextView(context) {
     private var renderedUTF8 = 0
     private var renderedStart: Long? = null
     private var programmatic = false
+    private var isTracking = false
 
     init {
         setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            if (programmatic) return@setOnScrollChangeListener
+            // Only the reader's own scrolling changes whether we follow.
+            if (programmatic || !isTracking) return@setOnScrollChangeListener
             val distance = layout?.let { it.height - height - scrollY } ?: return@setOnScrollChangeListener
             val following = distance < followThreshold
             if (following == isFollowing) return@setOnScrollChangeListener
             isFollowing = following
             post { onFollowingChanged?.invoke(following) }
         }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        isTracking = event.actionMasked != MotionEvent.ACTION_UP && event.actionMasked != MotionEvent.ACTION_CANCEL
+        return super.onTouchEvent(event)
+    }
+
+    // Selectable text keeps a caret at 0 and scrolls it into view after every change.
+    // Read-only output has no caret to show; only a reader's selection moves the view.
+    override fun bringPointIntoView(offset: Int): Boolean =
+        (isTracking || hasSelection()) && super.bringPointIntoView(offset)
+
+    override fun bringPointIntoView(offset: Int, requestRectWithoutFocus: Boolean): Boolean =
+        (isTracking || hasSelection()) && super.bringPointIntoView(offset, requestRectWithoutFocus)
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (isFollowing) scrollToBottom(animated = false)
     }
 
     fun render(next: String, startCursor: Long) {
