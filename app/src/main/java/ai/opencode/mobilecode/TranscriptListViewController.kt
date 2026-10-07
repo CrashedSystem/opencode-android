@@ -335,6 +335,8 @@ class TranscriptListViewController(
         reduceMotion: Boolean,
         jumpRequest: Int,
     ) {
+        // Android has no system scroll edge: the list always takes the whole
+        // header band as padding, as iOS does without it.
         this.usesSystemEdge = usesSystemEdge
         this.composerInset = composerInset
         this.keyboardIsMoving = keyboardIsMoving
@@ -839,9 +841,6 @@ class TranscriptListViewController(
         val inserted = pendingEntrances.remove(key) ?: return false
         return now() - inserted < RowEntrance.window
     }
-
-    private fun isTailEntry(stableIDs: Collection<String>): Boolean =
-        TranscriptEntry.tail(of = configuration.entries).any { tail -> stableIDs.contains(entryStableIDs[tail.id] ?: tail.id) }
 
     private fun execute(commands: List<TranscriptScrollBehavior.Command>) {
         if (commands.isEmpty()) return
