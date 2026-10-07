@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DictationClient.swift", "f7cdc3a")
+@file:PortedFrom("OpenCode/DictationClient.swift", "6da352d")
 
 package ai.opencode.mobilecode
 
@@ -218,6 +218,9 @@ private class LiveDictation {
     private var transcripts: Channel<String>? = null
     private var generation = 0
     private var finalized = ""
+    /// When the current recording's press began, for the latency marks.
+    private var pressed = 0L
+    private var heardFirstAudio = false
 
     /// Resolved once (by `prepare()` when a session opens) so a press doesn't
     /// repeat the system lookup.
@@ -232,6 +235,8 @@ private class LiveDictation {
     /// stream's error.
     suspend fun start(): Flow<String> {
         stop()
+        pressed = System.nanoTime()
+        heardFirstAudio = false
         val started = ++generation
         if (!ensurePermission()) throw DictationError.microphoneDenied
         if (generation != started) throw CancellationException()
@@ -306,12 +311,19 @@ private class LiveDictation {
     }
 
     private fun listener(channel: Channel<String>, started: Int, created: SpeechRecognizer) = object : RecognitionListener {
-        override fun onReadyForSpeech(params: Bundle?) = Unit
+        override fun onReadyForSpeech(params: Bundle?) {
+            if (generation != started) return
+            DiagnosticsRecorder.shared.recordMark("dictation_mic_live_ms=${milliseconds(since = pressed)}", sessionID = null)
+        }
 
         override fun onBeginningOfSpeech() = Unit
 
         override fun onRmsChanged(rmsdB: Float) {
             DictationLevels.shared.set((rmsdB + 2f) / 12f)
+            if (!heardFirstAudio && generation == started) {
+                heardFirstAudio = true
+                DiagnosticsRecorder.shared.recordMark("dictation_first_audio_ms=${milliseconds(since = pressed)}", sessionID = null)
+            }
         }
 
         override fun onBufferReceived(buffer: ByteArray?) = Unit
@@ -358,6 +370,8 @@ private class LiveDictation {
         SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_CLIENT -> null
         else -> DictationError.localeUnsupported
     }
+
+    private fun milliseconds(since: Long): Long = (System.nanoTime() - since) / 1_000_000
 
     private fun best(results: Bundle?): String =
         results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
