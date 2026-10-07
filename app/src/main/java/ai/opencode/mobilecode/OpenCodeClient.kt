@@ -2,6 +2,8 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.tca.DependencyKey
+import ai.opencode.mobilecode.tca.DependencyValues
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -1307,7 +1309,7 @@ class OpenCodeClient(
     val getSession: suspend (OpenCodeServer, String) -> OpenCodeSession,
     val runningShells: suspend (OpenCodeServer, String) -> List<OpenCodeShell>,
     val shell: suspend (OpenCodeServer, String, String) -> OpenCodeShell,
-    val shellOutput: suspend (OpenCodeServer, String, String, Int, Int) -> OpenCodeShellOutputPage,
+    val shellOutput: suspend (OpenCodeServer, String, String, Long, Long) -> OpenCodeShellOutputPage,
     val stopShell: suspend (OpenCodeServer, String, String) -> Unit,
     val moveToBackground: suspend (OpenCodeServer, String) -> Unit,
     val viewSession: suspend (OpenCodeServer, String, Long) -> Unit,
@@ -1319,7 +1321,7 @@ class OpenCodeClient(
     val historyPage: suspend (OpenCodeServer, String, String?) -> OpenCodeTranscriptPage,
     val events: (OpenCodeServer) -> Flow<OpenCodeServerEvent>,
 ) {
-    companion object {
+    companion object : DependencyKey<OpenCodeClient> {
         var waitClock: suspend (Int) -> Unit = { seconds -> delay(seconds * 1000L) }
         const val locationBootTimeout: Long = 60
 
@@ -1335,7 +1337,7 @@ class OpenCodeClient(
             .readTimeout(90, TimeUnit.SECONDS)
             .build()
 
-        val liveValue = OpenCodeClient(
+        override val liveValue = OpenCodeClient(
             health = { server -> requestHealth(server) },
             redeemPairing = { link -> requestRedeemPairing(link) },
             homeSnapshot = { server -> requestHomeSnapshot(server) },
@@ -1379,7 +1381,7 @@ class OpenCodeClient(
             events = { server -> subscribeEvents(server) },
         )
 
-        val testValue = OpenCodeClient(
+        override val testValue = OpenCodeClient(
             health = { unimplemented() },
             redeemPairing = { unimplemented() },
             homeSnapshot = { unimplemented() },
@@ -1947,7 +1949,7 @@ class OpenCodeClient(
         private suspend fun requestShell(server: OpenCodeServer, directory: String, shellID: String): OpenCodeShell =
             decoded(DataPayload.serializer(ShellInfo.serializer()), perform(path = "/api/shell/$shellID", query = locationQuery(directory), server = server)).data.shell(true)
 
-        private suspend fun requestShellOutput(server: OpenCodeServer, directory: String, shellID: String, cursor: Int, limit: Int): OpenCodeShellOutputPage =
+        private suspend fun requestShellOutput(server: OpenCodeServer, directory: String, shellID: String, cursor: Long, limit: Long): OpenCodeShellOutputPage =
             decoded(DataPayload.serializer(OpenCodeShellOutputPage.serializer()), perform(
                 path = "/api/shell/$shellID/output",
                 query = locationQuery(directory) + listOf(URLQueryItem("cursor", cursor.toString()), URLQueryItem("limit", limit.toString())),
@@ -2606,3 +2608,9 @@ private fun String.bounded(limit: Int): String {
     if (toByteArray(Charsets.UTF_8).size <= limit || length <= limit) return this
     return take(limit) + "\n… output truncated"
 }
+
+var DependencyValues.openCodeClient: OpenCodeClient
+    get() = this[OpenCodeClient]
+    set(value) {
+        this[OpenCodeClient] = value
+    }
