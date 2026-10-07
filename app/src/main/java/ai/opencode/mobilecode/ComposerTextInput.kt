@@ -291,7 +291,7 @@ fun SendFlightOverlay(transition: ComposerSendTransition, modifier: Modifier = M
                     .background(SystemColors.secondarySystemBackground, RoundedCornerShape(TranscriptMetrics.bubbleCornerRadius.dp))
                     .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
             ) {
-                Text(landing.text, style = TextStyles.body.copy(lineHeight = 24.sp), color = SystemColors.label)
+                Text(landing.text, style = TextStyles.body.copy(lineHeight = (TranscriptMetrics.bodyLine + 2).sp), color = SystemColors.label)
             }
         }
         val width = with(density) { source.frame.width.toDp() }
