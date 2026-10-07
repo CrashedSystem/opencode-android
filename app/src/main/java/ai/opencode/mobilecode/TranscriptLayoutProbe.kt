@@ -4,10 +4,6 @@ package ai.opencode.mobilecode
 
 import android.os.Looper
 
-object InternalBuild {
-    val isEnabled: Boolean get() = BuildConfig.DEBUG
-}
-
 class TranscriptLayoutProbe {
     var rowKind = "list"
     var sessionID: String? = null

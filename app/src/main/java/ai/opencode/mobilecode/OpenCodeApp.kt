@@ -7,5 +7,6 @@ class OpenCodeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         SharedMemory.installLive(this)
+        installDiagnosticsStorage(this)
     }
 }
