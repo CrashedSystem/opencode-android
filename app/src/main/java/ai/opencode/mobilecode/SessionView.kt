@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "a1ce7ab", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "494e433", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -1629,12 +1629,8 @@ private class SessionViewState {
     fun hasComposerPills(): Boolean {
         val hasActivity = store.observe { hasBackgroundWork }
         val canMove = store.observe { showsMoveToBackground }
-        return hasActivity || canMove || queuedMessages().isNotEmpty() || showsReportOffer
+        return hasActivity || canMove || queuedMessages().isNotEmpty()
     }
-
-    /// Send Report? waits while you type, dictate, or talk.
-    val showsReportOffer: Boolean
-        get() = ProblemReportOfferPill.isOffered && !messageFieldFocused && onCatchUpDone == null && !store.state.defersReportOffer
 
     /// Move to Background, when offered, gets its own row on top. Below it,
     /// one row: background work on the left; queued messages and the jump
@@ -1645,16 +1641,14 @@ private class SessionViewState {
         val hasActivity = store.observe { hasBackgroundWork }
         val canMove = store.observe { showsMoveToBackground }
         val hasQueued = queuedMessages().isNotEmpty()
-        val hasOffer = showsReportOffer
-        if (!(hasActivity || canMove || hasQueued || hasOffer)) return
+        if (!(hasActivity || canMove || hasQueued)) return
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (canMove) MoveToBackground()
-            if (hasActivity || hasQueued || hasOffer || showsJumpButton) {
+            if (hasActivity || hasQueued || showsJumpButton) {
                 ViewThatFits(
                     {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (hasActivity) BackgroundActivity()
-                            if (hasOffer) ProblemReportOfferPill()
                             Spacer(Modifier.weight(1f))
                             if (hasQueued) QueuedActivity()
                             if (showsJumpButton) JumpToLatestButton()
@@ -1663,7 +1657,6 @@ private class SessionViewState {
                     {
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End) {
                             if (hasActivity) Box(Modifier.fillMaxWidth()) { BackgroundActivity() }
-                            if (hasOffer) Box(Modifier.fillMaxWidth()) { ProblemReportOfferPill() }
                             if (hasQueued || showsJumpButton) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (hasQueued) QueuedActivity()

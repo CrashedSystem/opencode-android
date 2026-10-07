@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ProblemReports/ProblemReport.swift", "dd71df9")
+@file:PortedFrom("OpenCode/Traces/ProblemReport.swift", "494e433")
 
 package ai.opencode.mobilecode
 
@@ -13,11 +13,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class ProblemReportTrigger {
     shake, settings, callDropped, crash, streamStalled,
+
+    /// Leaving the app with Developer Mode on: the session's flow so far.
+    snapshot,
     ;
 
     val isAutomatic: Boolean
         get() = when (this) {
-            callDropped, crash, streamStalled -> true
+            callDropped, crash, streamStalled, snapshot -> true
             shake, settings -> false
         }
 
@@ -29,14 +32,7 @@ enum class ProblemReportTrigger {
             callDropped -> "Call dropped"
             crash -> "App closed unexpectedly"
             streamStalled -> "Connection stalled"
-        }
-
-    val symbolName: String
-        get() = when (this) {
-            shake, settings -> "exclamationmark.bubble"
-            callDropped -> "phone.down"
-            crash -> "exclamationmark.triangle"
-            streamStalled -> "wifi.exclamationmark"
+            snapshot -> "Left the app"
         }
 }
 

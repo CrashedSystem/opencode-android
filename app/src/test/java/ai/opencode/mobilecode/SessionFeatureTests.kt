@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "8acaf3f")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "494e433")
 
 package ai.opencode.mobilecode
 
@@ -3031,13 +3031,6 @@ class SessionFeatureTests {
         store.receive(Action.dictationStopped(errorMessage = null)) {
             it.dictationPhase = SessionFeature.State.DictationPhase.idle
         }
-    }
-
-    /// Send Report? waits out dictation and a call on its bar, then returns:
-    /// hiding it never touches the pending report.
-    @Ignore("Needs VoiceFeature's reducer, ported with OpenCode/Voice/VoiceFeature.swift")
-    @Test
-    fun reportOfferWaitsOutDictationAndCalls() {
     }
 
     @Test

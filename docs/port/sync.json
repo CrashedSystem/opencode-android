@@ -56,7 +56,9 @@
     "OpenCodeTests/VoiceHandoffParseTests.swift": "the read-back cases are tracked with VoiceTranscript.swift; the cases that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) stay ignored until voice calls",
     "OpenCode/Transcript/TranscriptListViewController.swift": "the lab scroll trace's follow measurements (c00f453, c3a6c9a) track absolute content ends, which the Compose list does not expose; the Android lab reads frame stats through scripts/session-lab-gfxinfo.py instead",
     "OpenCode/BackgroundWorkPanel.swift": "the -lab-glass-trace overlay and stage log wait with the deferred GlassMorphTrace",
-    "OpenCode/SettingsView.swift": "the Voice Calls row opens VoiceCallLogList (8f30e6b), which waits with voice calls; Settings \u2192 Notifications belongs to the skipped notification commits"
+    "OpenCode/SettingsView.swift": "the Voice page's dot scope preview (DotScopeView in preview mode, 494e433) waits for the voice port; Settings \u2192 Notifications belongs to the skipped notification commits",
+    "OpenCode/DiagnosticsView.swift": "the Voice Calls row (VoiceCallLogList) and uploading the saved calls when Developer Mode turns on (VoiceCallLogRecorder), both 494e433, wait for the voice port",
+    "OpenCode/Traces/DeveloperMode.swift": "upload(_ log: VoiceCallLog) waits for the voice port's VoiceCallLog"
   },
   "skipped": {
     "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",

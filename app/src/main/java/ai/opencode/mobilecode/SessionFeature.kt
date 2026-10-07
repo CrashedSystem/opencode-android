@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "8acaf3f")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "494e433")
 
 package ai.opencode.mobilecode
 
@@ -594,11 +594,6 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         val isPreparingDictation: Boolean get() = dictationPhase == DictationPhase.preparing
 
         val isFinishingDictation: Boolean get() = dictationPhase is DictationPhase.finishing
-
-        /// Dictation or a call's bar has the composer, so a Send Report? offer
-        /// waits until it's done. A dropped or failed call's card leaves room.
-        val defersReportOffer: Boolean
-            get() = isDictating || isFinishingDictation || voice?.let { !it.phase.showsCard } == true
 
         val isLoadingEarlier: Boolean get() = earlierHistory is EarlierHistory.loading
 
