@@ -117,7 +117,7 @@ class TranscriptFollowTests {
         assertTrue("Scrolling up shows Jump to Latest", showsJumpButton)
 
         val anchor = firstVisible()
-        repeat(120) { index ->
+        repeat(600) { index ->
             reply += token(index)
             compose.runOnUiThread { store.send(update(base + streamed(reply))) }
             compose.mainClock.advanceTimeByFrame()
