@@ -142,7 +142,7 @@ object Justice {
     fun prepare(text: String, space: Double, measure: (start: Int, end: Int) -> Double, measureGaps: Boolean): Prepared {
         if (!space.isFinite() || space < 0) throw IllegalArgumentException("Invalid measured word width")
         if (space <= 0) throw IllegalArgumentException("Space width must be positive")
-        val ranges = words(text)
+        val ranges = wordRanges(text)
         val n = ranges.size / 2
         val words = List(n) { text.substring(ranges[2 * it], ranges[2 * it + 1]) }
         val widths = DoubleArray(n + 1)
@@ -305,8 +305,9 @@ object Justice {
     private const val openingQuotes = "“‘\"'«‹"
     private val explicitHyphen = Regex("(?<=[\\p{L}\\p{N}])[-\\u2010](?=[\\p{L}\\p{N}])")
 
-    /** Source ranges of the words, as start and end pairs, splitting where `text.trim().split(/[ \t\r\n\f]+/)` does. */
-    private fun words(text: String): IntArray {
+    /** Source ranges of [prepare]'s words, as start and end pairs, splitting where
+     * `text.trim().split(/[ \t\r\n\f]+/)` does. */
+    fun wordRanges(text: String): IntArray {
         var from = 0
         var to = text.length
         while (from < to && isTrimmed(text[from])) from++
@@ -324,7 +325,8 @@ object Justice {
         return ranges.toIntArray()
     }
 
-    private fun isSeparator(c: Char) = c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\u000C'
+    /** The whitespace that separates words; NBSP and other spaces stay inside a word. */
+    fun isSeparator(c: Char) = c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\u000C'
 
     /** JavaScript's `String.prototype.trim` set, which unlike Kotlin's includes NBSP. */
     private fun isTrimmed(c: Char) = c in "\t\n\u000B\u000C\r \u00A0\u1680\u2028\u2029\u202F\u205F\u3000\uFEFF" || c in '\u2000'..'\u200A'
