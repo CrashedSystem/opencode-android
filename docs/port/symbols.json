@@ -581,6 +581,13 @@
     "match": "good"
   },
   {
+    "sf": "plus.circle",
+    "material": "add_circle",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
     "sf": "qrcode.viewfinder",
     "material": "qr_code_scanner",
     "filled": false,
@@ -623,8 +630,22 @@
     "match": "good"
   },
   {
+    "sf": "safari",
+    "material": "explore",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
     "sf": "server.rack",
     "material": "dns",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "sparkles",
+    "material": "auto_awesome",
     "filled": false,
     "mirror": false,
     "match": "good"
@@ -758,6 +779,13 @@
   {
     "sf": "waveform",
     "material": "graphic_eq",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "waveform.path.ecg",
+    "material": "ecg",
     "filled": false,
     "mirror": false,
     "match": "good"
