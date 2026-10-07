@@ -1,48 +1,48 @@
 package ai.opencode.mobilecode.tca
 
 import android.os.Bundle
-import android.os.Looper
-import java.time.Duration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class TaskTest {
+    /** Drives the frames of every composition the test creates, including `TaskActivity`'s. */
+    @get:Rule
+    val compose = createComposeRule()
+
     @Test
     fun aTaskRunsOnAppearAndOnANewIDButNotAfterAConfigurationChange() {
         val store = Store(initialState = Visit()) { VisitFeature() }
         TaskActivity.content = { VisitView(store) }
         val activity = Robolectric.buildActivity(TaskActivity::class.java).setup()
-        idle()
+        compose.waitForIdle()
         assertEquals(listOf("task a"), store.state.log)
 
         activity.recreate()
-        idle()
+        compose.waitForIdle()
         assertEquals(listOf("task a"), store.state.log)
 
         store.send(VisitAction.select("b"))
-        idle()
+        compose.waitForIdle()
         assertEquals(listOf("task a", "select b", "task b"), store.state.log)
 
         store.send(VisitAction.hide)
-        idle()
+        compose.waitForIdle()
         store.send(VisitAction.show)
-        idle()
+        compose.waitForIdle()
         assertEquals(listOf("task a", "select b", "task b", "hide", "show", "task b"), store.state.log)
     }
-
-    /** Compose schedules frames ahead of now, so advance the paused main looper past them. */
-    private fun idle() = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
 }
 
 class TaskActivity : ComponentActivity() {
