@@ -77,30 +77,7 @@ class AgentFilesScreenshotTest {
 
 @Composable
 private fun MenuShot() {
-    val anchors = remember { AttachmentMenuAnchors() }
-    val selection = remember { InlinePhotoSelection() }
-    Box(Modifier.fillMaxSize()) {
-        ComposerCapsule(text = "", attachment = false, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
-        AttachmentMenuOverlay(
-            phase = AttachmentMenuPhase.menu,
-            onPhase = {},
-            anchors = anchors,
-            selection = selection,
-            includesVideos = true,
-            canUseCamera = true,
-            canAttachFiles = true,
-            canPaste = true,
-            onCamera = {},
-            onCameraCapture = {},
-            onFiles = {},
-            onFilesPicked = {},
-            onPaste = {},
-            onPhotos = {},
-            pickerReservation = 0f,
-            onPickerReservation = {},
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
+    AttachmentMenuSurface(phase = AttachmentMenuPhase.menu)
 }
 
 @Composable

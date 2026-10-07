@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "cba9609", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "a92bd2d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -31,6 +31,11 @@ import ai.opencode.mobilecode.tca.task
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.format.Formatter
@@ -90,6 +95,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -1153,8 +1159,16 @@ private class SessionViewState {
     var dictationHoldVisuals by mutableStateOf(DictationHoldVisuals())
     var attachmentMenu by mutableStateOf(AttachmentMenuPhase.closed)
     var photoSelection = InlinePhotoSelection()
+    /// In points, like the menu's anchors.
     var pickerReservation by mutableFloatStateOf(0f)
     val attachmentMenuAnchors = AttachmentMenuAnchors()
+    val attachmentMenuPress = AttachmentMenuPress()
+    /// The photo-picker card holds the menu's glass (see `AttachmentMenuOverlay`).
+    var attachmentCardOwnsGlass by mutableStateOf(false)
+    var showsFileImporter by mutableStateOf(false)
+    var showsAttachmentCamera by mutableStateOf(false)
+    /// Photos without an inline picker: the system picker opens instead.
+    var showsSystemPhotoPicker by mutableStateOf(false)
     /// Close the attachment menu into a focused field: it had focus when the
     /// menu opened, or something was attached.
     var attachmentMenuRestoresFocus = false
@@ -1556,7 +1570,7 @@ private class SessionViewState {
                 // breathing room so it doesn't sit flush against the keys.
                 .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp)
                 // The composer rides on top of the inline photo picker.
-                .padding(bottom = with(LocalDensity.current) { composerLift.toDp() }),
+                .padding(bottom = composerLift.dp),
         ) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // A new session's project and model sit right above where you type.
@@ -1828,8 +1842,32 @@ private class SessionViewState {
     /// The composer and a call share one glass capsule.
     @Composable
     fun ComposerCapsule() {
-        Box(Modifier.fillMaxWidth().openCodeGlass(RoundedCornerShape(28.dp))) {
-            Composer()
+        Box(Modifier.fillMaxWidth()) {
+            // Behind the composer, so its × stays reachable: a tap anywhere else
+            // or a downward drag dismisses the menu.
+            if (attachmentMenu == AttachmentMenuPhase.menu) {
+                AttachmentMenuDismissArea(
+                    onDismiss = ::closeAttachmentMenu,
+                    modifier = Modifier.matchParentSize().wrapContentSize(unbounded = true),
+                    extent = 4_000f,
+                )
+            }
+            Box(Modifier.fillMaxWidth().openCodeGlass(RoundedCornerShape(28.dp))) {
+                Composer()
+            }
+            if (store.state.voice == null) {
+                AttachmentMenuPanel(
+                    isOpen = attachmentMenu == AttachmentMenuPhase.menu && !attachmentCardOwnsGlass,
+                    items = attachmentMenuItems(LocalContext.current),
+                    anchors = attachmentMenuAnchors,
+                    press = attachmentMenuPress,
+                    lift = composerLift,
+                    onChoose = ::chooseAttachment,
+                    onPaste = ::pasteAttachments,
+                    onDismiss = ::closeAttachmentMenu,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
         }
         // The inline photo picker can't stay under a call's transcript.
         val hasCall = store.state.voice != null
@@ -1850,7 +1888,7 @@ private class SessionViewState {
             Modifier
                 .fillMaxWidth()
                 .animateContentSize(if (reducedMotion) snap() else spring(dampingRatio = 1f, stiffness = 630f))
-                .attachmentMenuAnchor(attachmentMenuAnchors, { attachmentMenuAnchors.composer = it }, composerLift)
+                .attachmentMenuAnchor(attachmentMenuAnchors::composer, composerLift)
                 .clickable(interactionSource = null, indication = null) { messageFieldFocused = true }
                 .padding(horizontal = 6.dp)
                 .padding(bottom = 6.dp, top = if (composerExpanded) 0.dp else 6.dp)
@@ -1958,9 +1996,12 @@ private class SessionViewState {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AttachmentPickerButton(
                 isLoading = isImporting || fileImporter.isLoading,
+                isOpen = attachmentMenu != AttachmentMenuPhase.closed,
                 anchors = attachmentMenuAnchors,
+                press = attachmentMenuPress,
                 lift = composerLift,
-                action = { toggleAttachmentMenu() },
+                onToggle = ::toggleAttachmentMenu,
+                onChoose = ::chooseAttachment,
             )
             if (expanded) {
                 val name = store.state.currentModelName
@@ -2349,30 +2390,55 @@ private class SessionViewState {
     fun AttachmentMenuOverlayHost() {
         val context = LocalContext.current
         AttachmentMenuOverlay(
-            phase = attachmentMenu,
-            onPhase = { attachmentMenu = it },
+            phase = Binding({ attachmentMenu }, { attachmentMenu = it }),
+            cardOwnsGlass = Binding({ attachmentCardOwnsGlass }, { attachmentCardOwnsGlass = it }),
             anchors = attachmentMenuAnchors,
             selection = photoSelection,
+            items = attachmentMenuItems(context),
             includesVideos = store.state.supportsFileUploads,
-            canUseCamera = cameraAvailable(context),
-            canAttachFiles = store.state.supportsFileUploads,
-            canPaste = clipboardHasImage(context),
-            onCamera = { attachmentMenuRestoresFocus = false },
-            onCameraCapture = { data -> startImageImport(listOf(ComposerImageSource.data(data)), onAdded = ::focusComposer) },
-            onFiles = { attachmentMenuRestoresFocus = false },
-            onFilesPicked = { uris -> importPickedFiles(context, uris) },
-            onPaste = { providers ->
-                attachmentMenuRestoresFocus = true
-                startImageImport(providers.map { ComposerImageSource.itemProvider(it) })
-            },
+            pickerReservation = Binding({ pickerReservation }, { pickerReservation = it }),
             onPhotos = { items ->
                 photoSelection.items = items
                 syncPickedPhotos()
             },
-            pickerReservation = pickerReservation,
-            onPickerReservation = { pickerReservation = it },
-            reduceMotion = reducedMotion,
         )
+        // SwiftUI's `.fileImporter(isPresented:)` and the camera's `.fullScreenCover`.
+        val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            if (uris.isNotEmpty()) importPickedFiles(context, uris)
+        }
+        LaunchedEffect(showsFileImporter) {
+            if (!showsFileImporter) return@LaunchedEffect
+            showsFileImporter = false
+            files.launch(arrayOf("*/*"))
+        }
+        val photos = rememberLauncherForActivityResult(
+            ActivityResultContracts.PickMultipleVisualMedia(AttachmentPickerButton.maxPhotoSelection),
+        ) { uris ->
+            val picks = uris.map { uri ->
+                PhotosPickerItem(itemIdentifier = uri.toString(), supportedContentTypes = listOf(context.contentResolver.getType(uri).orEmpty()), uri = uri)
+            }
+            photoSelection.items = picks
+            syncPickedPhotos()
+        }
+        LaunchedEffect(showsSystemPhotoPicker) {
+            if (!showsSystemPhotoPicker) return@LaunchedEffect
+            showsSystemPhotoPicker = false
+            val type = if (store.state.supportsFileUploads) {
+                ActivityResultContracts.PickVisualMedia.ImageAndVideo
+            } else {
+                ActivityResultContracts.PickVisualMedia.ImageOnly
+            }
+            photos.launch(PickVisualMediaRequest(type))
+        }
+        if (showsAttachmentCamera) {
+            AttachmentCameraView(
+                onCapture = { data ->
+                    showsAttachmentCamera = false
+                    startImageImport(listOf(ComposerImageSource.data(data)), onAdded = ::focusComposer)
+                },
+                onBack = { showsAttachmentCamera = false },
+            )
+        }
         LaunchedEffect(attachmentMenu) {
             if (attachmentMenu != AttachmentMenuPhase.closed || !attachmentMenuRestoresFocus) return@LaunchedEffect
             attachmentMenuRestoresFocus = false
@@ -2402,16 +2468,67 @@ private class SessionViewState {
         get() = store.state.pendingAttachments.mapNotNull { runCatching { UUID.fromString(it.id) }.getOrNull() }.toSet() +
             store.state.pendingFiles.map { it.id }
 
+    /// Camera, Photos, Files (when the server takes uploads), and Paste (when
+    /// the pasteboard has an image).
+    fun attachmentMenuItems(context: Context): List<AttachmentMenuItem> = buildList {
+        if (cameraAvailable(context)) add(AttachmentMenuItem.camera)
+        add(AttachmentMenuItem.photos)
+        if (store.state.supportsFileUploads) add(AttachmentMenuItem.files)
+        if (clipboardHasImage(context)) add(AttachmentMenuItem.paste)
+    }
+
+    /// + opens the menu; the same button, now a ×, closes it (or the card).
     fun toggleAttachmentMenu() {
         when (attachmentMenu) {
             AttachmentMenuPhase.closed -> {
                 attachmentMenuRestoresFocus = messageFieldFocused
                 messageFieldFocused = false
                 attachmentMenu = AttachmentMenuPhase.menu
+                attachmentMenuPress.menuOpened()
             }
-            AttachmentMenuPhase.menu -> attachmentMenu = AttachmentMenuPhase.closed
-            AttachmentMenuPhase.photos -> attachmentMenu = AttachmentMenuPhase.menu
+            AttachmentMenuPhase.menu, AttachmentMenuPhase.photos -> closeAttachmentMenu()
         }
+    }
+
+    fun closeAttachmentMenu() {
+        attachmentMenu = AttachmentMenuPhase.closed
+    }
+
+    /// A row tapped, or released on after sliding a finger from +.
+    fun chooseAttachment(item: AttachmentMenuItem) {
+        if (attachmentMenu != AttachmentMenuPhase.menu) return
+        when (item) {
+            AttachmentMenuItem.camera -> {
+                attachmentMenuRestoresFocus = false
+                showsAttachmentCamera = true
+                closeAttachmentMenu()
+            }
+            AttachmentMenuItem.files -> {
+                attachmentMenuRestoresFocus = false
+                showsFileImporter = true
+                closeAttachmentMenu()
+            }
+            AttachmentMenuItem.photos -> {
+                if (photoPickerKind() == PhotoPickerKind.system) {
+                    showsSystemPhotoPicker = true
+                    closeAttachmentMenu()
+                    return
+                }
+                // The card takes the glass over in place, then morphs it into itself.
+                attachmentCardOwnsGlass = true
+                Handler(Looper.getMainLooper()).post {
+                    if (attachmentMenu != AttachmentMenuPhase.menu) return@post
+                    attachmentMenu = AttachmentMenuPhase.photos
+                }
+            }
+            AttachmentMenuItem.paste -> Unit
+        }
+    }
+
+    fun pasteAttachments(providers: List<NSItemProvider>) {
+        attachmentMenuRestoresFocus = true
+        startImageImport(providers.map { ComposerImageSource.itemProvider(it) })
+        closeAttachmentMenu()
     }
 
     /// Picker taps attach immediately: images on the inline image path,

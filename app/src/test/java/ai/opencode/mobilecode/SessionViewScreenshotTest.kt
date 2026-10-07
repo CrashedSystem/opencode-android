@@ -51,6 +51,11 @@ class SessionViewScreenshotTest {
         Locale.setDefault(Locale.US)
     }
 
+    @Test fun attachmentMenuLight() = attachmentMenu("light")
+
+    @Test @Config(qualifiers = "+night")
+    fun attachmentMenuDark() = attachmentMenu("dark")
+
     @Test fun draftLight() = draft("light")
 
     @Test @Config(qualifiers = "+night")
@@ -287,6 +292,16 @@ class SessionViewScreenshotTest {
     }
 
     private fun composerEmpty(appearance: String) = capture("35-composer-empty", appearance) {
+        SessionViewFixture.state(SessionViewFixture.intro)
+    }
+
+    /// Robolectric has no camera and an empty clipboard, so the menu offers
+    /// Photos and Files, as the simulator does without its lab pasteboard image.
+    private fun attachmentMenu(appearance: String) = capture(
+        "26-attachment-menu",
+        appearance,
+        interact = { compose.onNodeWithTag("attachment-menu-button").performClick() },
+    ) {
         SessionViewFixture.state(SessionViewFixture.intro)
     }
 
