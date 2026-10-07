@@ -2,6 +2,8 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.URL
+
 import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

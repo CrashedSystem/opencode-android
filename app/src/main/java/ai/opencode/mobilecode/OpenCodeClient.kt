@@ -19,12 +19,15 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import ai.opencode.mobilecode.system.AttributedString
+import ai.opencode.mobilecode.system.URL
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.Transient
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
@@ -62,39 +65,6 @@ internal val protocolJson = Json {
     explicitNulls = false
     encodeDefaults = false
     isLenient = true
-}
-
-@Serializable
-data class AttributedString(
-    val characters: String,
-    val runs: List<Run> = emptyList(),
-) {
-    @Serializable
-    data class Run(
-        val start: Int,
-        val end: Int,
-        val foregroundColor: Foreground? = null,
-        val link: URL? = null,
-        val inlinePresentationIntent: Set<Intent> = emptySet(),
-        val codeBackground: Boolean = false,
-    )
-
-    @Serializable
-    enum class Intent { code, stronglyEmphasized, emphasized, strikethrough }
-
-    @Serializable
-    sealed class Foreground {
-        @Serializable data object primary : Foreground()
-        @Serializable data object secondary : Foreground()
-        @Serializable data object link : Foreground()
-        @Serializable data object clear : Foreground()
-        @Serializable data class syntax(val role: SyntaxRole) : Foreground()
-    }
-
-    @Serializable
-    enum class SyntaxRole { keyword, string, comment, type, number }
-
-    fun slice(start: Int, end: Int): String = characters.substring(start, end.coerceAtMost(characters.length))
 }
 
 data class URLQueryItem(val name: String, val value: String?)
@@ -594,7 +564,11 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
     }
 
     @Serializable
-    data class HighlightedCode(val source: String, val language: String?, val text: AttributedString = SyntaxHighlighter.highlight(source, language)) {
+    data class HighlightedCode(
+        val source: String,
+        val language: String?,
+        @Transient val text: AttributedString = SyntaxHighlighter.highlight(source, language),
+    ) {
         override fun equals(other: Any?): Boolean {
             val code = other as? HighlightedCode ?: return false
             return source == code.source && language == code.language
@@ -621,6 +595,57 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
             is Kind.pullRequest, is Kind.files -> null
         }
 
+    class InlineCache(
+        private val maximumEntries: Int = 512,
+        private val maximumSourceBytes: Int = 128 * 1024,
+    ) {
+        private class Storage {
+            val values = HashMap<SourceKey, AttributedString>()
+            val insertionOrder = ArrayDeque<SourceKey>()
+            var sourceBytes = 0
+        }
+
+        // iOS keys the cache by UTF-8 bytes because String equality folds there.
+        private class SourceKey(val bytes: ByteArray) {
+            val count: Int get() = bytes.size
+            override fun equals(other: Any?): Boolean = other is SourceKey && bytes.contentEquals(other.bytes)
+            override fun hashCode(): Int = bytes.contentHashCode()
+        }
+
+        private val storage = Storage()
+
+        init {
+            require(maximumEntries >= 0 && maximumSourceBytes >= 0)
+        }
+
+        val entryCount: Int get() = synchronized(storage) { storage.values.size }
+        val retainedSourceBytes: Int get() = synchronized(storage) { storage.sourceBytes }
+
+        fun parse(text: String): AttributedString {
+            val key = SourceKey(text.toByteArray(Charsets.UTF_8))
+            if (maximumEntries == 0 || key.count > maximumSourceBytes) return uncachedInline(text)
+            synchronized(storage) { storage.values[key] }?.let { return it }
+            val parsed = uncachedInline(text)
+            synchronized(storage) {
+                if (storage.values[key] == null) {
+                    while (storage.values.size >= maximumEntries || storage.sourceBytes + key.count > maximumSourceBytes) {
+                        val evicted = storage.insertionOrder.removeFirst()
+                        storage.values.remove(evicted)
+                        storage.sourceBytes -= evicted.count
+                    }
+                    storage.values[key] = parsed
+                    storage.insertionOrder.addLast(key)
+                    storage.sourceBytes += key.count
+                }
+            }
+            return parsed
+        }
+
+        companion object {
+            val shared = InlineCache()
+        }
+    }
+
     companion object {
         const val openTask = "[ ]"
         const val doneTask = "[x]"
@@ -639,21 +664,98 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
             return result
         }
 
-        fun markdown(text: AttributedString): String = text.characters
+        fun markdown(text: AttributedString): String {
+            val result = StringBuilder()
+            for (run in text.runs) {
+                var piece = text.characters.substring(run.start, run.end)
+                val intent = run.inlinePresentationIntent
+                if (AttributedString.Intent.code in intent) {
+                    piece = "`$piece`"
+                } else {
+                    if (AttributedString.Intent.emphasized in intent) piece = "*$piece*"
+                    if (AttributedString.Intent.stronglyEmphasized in intent) piece = "**$piece**"
+                }
+                val link = run.link
+                if (link != null && AgentFileReference(linkURL = link) == null) {
+                    piece = "[$piece](${link.absoluteString})"
+                }
+                result.append(piece)
+            }
+            return result.toString()
+        }
 
-        fun blocks(from: String, reusing: List<OpenCodeMarkdownBlock> = emptyList()): List<OpenCodeMarkdownBlock> {
+        fun blocks(
+            from: String,
+            inlineCache: InlineCache? = InlineCache.shared,
+            reusing: List<OpenCodeMarkdownBlock> = emptyList(),
+        ): List<OpenCodeMarkdownBlock> {
+            val previousCode = buildMap {
+                for (block in reusing) {
+                    val code = (block.kind as? Kind.code)?.code ?: continue
+                    put(CodeSource(code.source, code.language), code)
+                }
+            }
             val blocks = mutableListOf<OpenCodeMarkdownBlock>()
             val segments = codeFenceSegments(from)
             segments.forEachIndexed { index, segment ->
-                if (index % 2 == 0) appendTextBlocks(segment, blocks)
-                else appendCode(segment, blocks, reusing)
+                if (index % 2 == 0) appendTextBlocks(segment, blocks, inlineCache)
+                else appendCode(segment, blocks, previousCode)
             }
             return insertFileCards(blocks)
         }
 
-        fun codeFenceSegments(text: String): List<String> = text.split("```")
+        fun codeFenceSegments(text: String): List<String> {
+            if (text.all { it.code < 0x80 }) return splitSeparator(text, "```")
+            return splitFence(text)
+        }
 
-        private fun appendCode(segment: String, blocks: MutableList<OpenCodeMarkdownBlock>, previous: List<OpenCodeMarkdownBlock>) {
+        private fun splitSeparator(text: String, separator: String): List<String> {
+            val parts = mutableListOf<String>()
+            var start = 0
+            var index = text.indexOf(separator)
+            while (index >= 0) {
+                parts += text.substring(start, index)
+                start = index + separator.length
+                index = text.indexOf(separator, start)
+            }
+            parts += text.substring(start)
+            return parts
+        }
+
+        private fun splitFence(text: String): List<String> {
+            val parts = mutableListOf<String>()
+            var start = 0
+            var index = 0
+            while (index <= text.length - 3) {
+                if (isFenceBoundary(text, index) && isFenceBoundary(text, index + 3) && text.startsWith("```", index)) {
+                    parts += text.substring(start, index)
+                    start = index + 3
+                    index = start
+                    continue
+                }
+                index++
+            }
+            parts += text.substring(start)
+            return parts
+        }
+
+        // Swift keeps a joiner on the last backtick inside the fence. BreakIterator
+        // on the test JVM reports a boundary there, so the fence scan cannot use it.
+        private fun isFenceBoundary(text: String, index: Int): Boolean {
+            if (index <= 0 || index >= text.length) return true
+            val next = text[index]
+            if (next == '\u200D' || next == '\u200C') return false
+            val type = Character.getType(next)
+            return type != Character.NON_SPACING_MARK.toInt() && type != Character.ENCLOSING_MARK.toInt()
+        }
+
+        private data class CodeSource(val source: String, val language: String?)
+
+        private fun appendCode(
+            segment: String,
+            blocks: MutableList<OpenCodeMarkdownBlock>,
+            previous: Map<CodeSource, HighlightedCode>,
+        ) {
             val lines = segment.split("\n").toMutableList()
             var language: String? = null
             if (lines.size > 1) {
@@ -662,41 +764,189 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
             }
             val code = lines.joinToString("\n").trim()
             if (code.isEmpty()) return
-            val reused = previous.firstNotNullOfOrNull { block ->
-                (block.kind as? Kind.code)?.code?.takeIf { it.source == code && it.language == language }
-            }
+            val reused = previous[CodeSource(code, language)]
             blocks += OpenCodeMarkdownBlock(blocks.size, Kind.code(reused ?: HighlightedCode(code, language)))
         }
 
-        private fun appendTextBlocks(text: String, blocks: MutableList<OpenCodeMarkdownBlock>) {
-            val paragraph = StringBuilder()
-            fun flush() {
-                val value = paragraph.toString().trim()
+        private fun appendTextBlocks(segment: String, blocks: MutableList<OpenCodeMarkdownBlock>, cache: InlineCache?) {
+            val paragraph = mutableListOf<String>()
+            var listMarker: String? = null
+            var listLevel = 0
+            val listIndents = mutableListOf<Int>()
+
+            fun flushParagraph() {
+                var text = paragraph.joinToString("\n").trim()
                 paragraph.clear()
-                if (value.isEmpty()) return
-                blocks += OpenCodeMarkdownBlock(blocks.size, paragraphKind(value))
-            }
-            for (line in text.split("\n")) {
-                val heading = Regex("""^(#{1,6}) (.+)$""").matchEntire(line.trimEnd())
-                if (heading != null) {
-                    flush()
-                    blocks += OpenCodeMarkdownBlock(
-                        blocks.size,
-                        Kind.heading(heading.groupValues[1].length, AttributedString(heading.groupValues[2])),
-                    )
-                } else if (line.isBlank()) {
-                    flush()
-                } else {
-                    if (paragraph.isNotEmpty()) paragraph.append('\n')
-                    paragraph.append(line)
+                var marker = listMarker
+                listMarker = null
+                if (text.isEmpty()) return
+                if (marker == "•") {
+                    val box = taskMarkers.firstOrNull { text.lowercase().startsWith("$it ") }
+                    if (box != null) {
+                        marker = box
+                        text = text.drop(box.length).trim()
+                    }
                 }
+                val kind = when {
+                    marker != null && marker != "•" && marker !in taskMarkers && listLevel == 0 ->
+                        Kind.numberedItem(marker, inline(text, cache))
+                    marker != null -> Kind.listItem(marker, listLevel, inline(text, cache))
+                    else -> Kind.paragraph(inline(text, cache))
+                }
+                blocks += OpenCodeMarkdownBlock(blocks.size, kind)
+                appendPullRequests(text, blocks)
             }
-            flush()
+
+            val lines = segment.split("\n")
+            var index = 0
+            while (index < lines.size) {
+                val trimmed = lines[index].trim()
+                if (trimmed.isEmpty()) {
+                    flushParagraph()
+                    index++
+                    continue
+                }
+                val image = markdownImage(trimmed)
+                if (image != null) {
+                    flushParagraph()
+                    blocks += OpenCodeMarkdownBlock(blocks.size, image)
+                    index++
+                    continue
+                }
+                if (trimmed.startsWith(">")) {
+                    flushParagraph()
+                    val quote = mutableListOf<String>()
+                    while (index < lines.size) {
+                        val line = lines[index].trim()
+                        if (!line.startsWith(">")) break
+                        var content = line.drop(1)
+                        if (content.startsWith(" ")) content = content.drop(1)
+                        quote += content
+                        index++
+                    }
+                    blocks += OpenCodeMarkdownBlock(blocks.size, Kind.blockquote(inline(quote.joinToString("\n"), cache)))
+                    continue
+                }
+                if (isThematicBreak(trimmed)) {
+                    flushParagraph()
+                    blocks += OpenCodeMarkdownBlock(blocks.size, Kind.divider)
+                    index++
+                    continue
+                }
+                if (isListItem(trimmed)) {
+                    flushParagraph()
+                    val indent = lines[index].takeWhile { it == ' ' || it == '\t' }.sumOf { if (it == '\t') 4 else 1 }
+                    while (listIndents.lastOrNull()?.let { it > indent } == true) listIndents.removeAt(listIndents.lastIndex)
+                    if (listIndents.lastOrNull() != indent) listIndents += indent
+                    listLevel = minOf(listIndents.size - 1, 3)
+                    if (trimmed.firstOrNull()?.isDigit() == true) {
+                        val space = trimmed.indexOf(' ')
+                        listMarker = trimmed.substring(0, space)
+                        paragraph += trimmed.substring(space + 1)
+                    } else {
+                        listMarker = "•"
+                        paragraph += trimmed.drop(2)
+                    }
+                    index++
+                    continue
+                }
+                if (lines[index].firstOrNull() != ' ' && lines[index].firstOrNull() != '\t') listIndents.clear()
+                if (trimmed.startsWith("|") && index + 1 < lines.size && isTableSeparator(lines[index + 1].trim())) {
+                    flushParagraph()
+                    val header = tableCells(trimmed, cache)
+                    val rows = mutableListOf<List<AttributedString>>()
+                    var next = index + 2
+                    while (next < lines.size) {
+                        val rowLine = lines[next].trim()
+                        if (!rowLine.startsWith("|")) break
+                        rows += tableCells(rowLine, cache)
+                        next++
+                    }
+                    blocks += OpenCodeMarkdownBlock(blocks.size, Kind.table(header, rows))
+                    index = next
+                    continue
+                }
+                if (trimmed.startsWith("#")) {
+                    val level = trimmed.takeWhile { it == '#' }.length
+                    val heading = trimmed.drop(level).trim()
+                    if (heading.isNotEmpty() && level <= 6) {
+                        flushParagraph()
+                        blocks += OpenCodeMarkdownBlock(blocks.size, Kind.heading(level, inline(heading, cache)))
+                        index++
+                        continue
+                    }
+                }
+                paragraph += lines[index]
+                index++
+            }
+            flushParagraph()
         }
 
-        private fun paragraphKind(value: String): Kind {
-            if (!value.contains("\n")) markdownImage(value)?.let { return it }
-            return Kind.paragraph(inline(value))
+        private fun isThematicBreak(line: String): Boolean {
+            val mark = line.firstOrNull() ?: return false
+            if (mark !in "-*_") return false
+            val marks = line.filter { it != ' ' && it != '\t' }
+            return marks.length >= 3 && marks.all { it == mark }
+        }
+
+        private fun isTableSeparator(line: String): Boolean {
+            if (!line.startsWith("|") || '-' !in line) return false
+            return line.all { it in "|-: " }
+        }
+
+        private fun tableCells(line: String, cache: InlineCache?): List<AttributedString> {
+            var body = line
+            if (body.startsWith("|")) body = body.drop(1)
+            if (body.endsWith("|")) body = body.dropLast(1)
+            return body.split("|").map { inline(it.trim(), cache) }
+        }
+
+        private fun inline(text: String, cache: InlineCache?): AttributedString =
+            cache?.parse(text) ?: uncachedInline(text)
+
+        private val inlineOptions = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax = AttributedString.MarkdownParsingOptions.InterpretedSyntax.inlineOnlyPreservingWhitespace,
+        )
+
+        private fun uncachedInline(text: String): AttributedString {
+            val attributed = runCatching {
+                AttributedString(markdown = text, options = inlineOptions)
+            }.getOrElse { AttributedString(text) }
+            val runs = attributed.runs.map { run ->
+                val code = AttributedString.Intent.code in run.inlinePresentationIntent
+                if (!code) {
+                    val url = run.link
+                    if (url == null || url.scheme == AgentFileReference.linkScheme) return@map run
+                    val file = AgentFileReference.fromLink(url.absoluteString) ?: return@map run
+                    return@map run.copy(link = file.linkURL)
+                }
+                if (run.link == null) {
+                    val file = AgentFileReference.fromInlineCode(attributed.characters.substring(run.start, run.end))
+                    if (file != null) return@map run.copy(link = file.linkURL)
+                }
+                run.copy(foregroundColor = AttributedString.Foreground.secondary)
+            }
+            return attributed.copy(runs = runs)
+        }
+
+        private fun isListItem(line: String): Boolean {
+            if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) return true
+            val digits = line.takeWhile { it.isDigit() }
+            return digits.isNotEmpty() && line.drop(digits.length).startsWith(". ")
+        }
+
+        private fun appendPullRequests(text: String, blocks: MutableList<OpenCodeMarkdownBlock>) {
+            if (!text.contains("github.com/")) return
+            val pattern = Regex("""https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)""")
+            for (match in pattern.findAll(text)) {
+                blocks += OpenCodeMarkdownBlock(
+                    blocks.size,
+                    Kind.pullRequest(
+                        "${match.groupValues[1]}/${match.groupValues[2]} #${match.groupValues[3]}",
+                        match.value,
+                    ),
+                )
+            }
         }
 
         private fun markdownImage(line: String): Kind? {
@@ -712,22 +962,6 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
             val file = AgentFileReference.fromLink(source)
             if (file != null && file.kind != AgentFileReference.Kind.image && file.kind.showsCard) return Kind.files(listOf(file))
             return Kind.image(alt, source)
-        }
-
-        private fun inline(text: String): AttributedString {
-            val runs = Regex("""`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)""").findAll(text).mapNotNull { match ->
-                val code = match.groupValues[1]
-                val start = match.range.first
-                val end = match.range.last + 1
-                if (code.isNotEmpty()) {
-                    AgentFileReference.fromInlineCode(code)?.linkURL?.let { AttributedString.Run(start, end, link = it) }
-                } else {
-                    val destination = match.groupValues[3]
-                    val file = AgentFileReference.fromLink(destination)
-                    AttributedString.Run(start, end, link = file?.linkURL ?: URL.parse(destination))
-                }
-            }.toList()
-            return AttributedString(text, runs)
         }
 
         private fun insertFileCards(blocks: List<OpenCodeMarkdownBlock>): List<OpenCodeMarkdownBlock> {
