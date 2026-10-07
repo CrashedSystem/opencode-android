@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "0890b59", partial = "all but the -lab-glass-trace overlay and stage log")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "cba9609", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -148,7 +148,7 @@ object BackgroundWorkMotion {
 fun BackgroundWorkCapsuleLabel(summary: String) {
     val hidden = LocalBackgroundActivityAnchor.current?.capsuleHidden == true
     Box(Modifier.alpha(if (hidden) 0f else 1f)) {
-        ComposerPillLabel(title = summary, trailingSystemImage = "chevron.up") {
+        ComposerPillLabel(title = summary) {
             AgentActivityGlyph()
         }
     }
@@ -443,7 +443,7 @@ private fun BackgroundWorkSurface(
                         .clearAndSetSemantics {},
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    ComposerPillContent(title = BackgroundWorkPanel.summary(agents, shells), trailingSystemImage = "chevron.up") {
+                    ComposerPillContent(title = BackgroundWorkPanel.summary(agents, shells)) {
                         AgentActivityGlyph()
                     }
                 }

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "0890b59", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "cba9609", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -899,20 +899,19 @@ private fun rememberDictationSwell(swells: Boolean): Float {
 @Composable
 fun ComposerPillLabel(
     title: String,
-    trailingSystemImage: String? = null,
     leading: @Composable () -> Unit,
 ) {
     // Slim glass, full 44 pt target.
     Box(Modifier.padding(vertical = 5.dp)) {
-        ComposerPillContent(title, trailingSystemImage, Modifier.openCodeGlass(CircleShape, interactive = true), leading)
+        ComposerPillContent(title, Modifier.openCodeGlass(CircleShape, interactive = true), leading)
     }
 }
 
-/// A composer pill's glyph, title, and chevron, without its glass.
+/// A composer pill's glyph and title, without its glass. No chevron: a
+/// glass pill already reads as a button.
 @Composable
 fun ComposerPillContent(
     title: String,
-    trailingSystemImage: String? = null,
     modifier: Modifier = Modifier,
     leading: @Composable () -> Unit,
 ) {
@@ -928,9 +927,6 @@ fun ComposerPillContent(
             CompositionLocalProvider(LocalContentColor provides SystemColors.label) { leading() }
         }
         Text(title, style = TextStyles.subheadline.medium, color = SystemColors.label, maxLines = 1)
-        if (trailingSystemImage != null) {
-            SystemImage(trailingSystemImage, null, Modifier.symbolSize(TextStyles.caption.semibold), tint = SystemColors.secondaryLabel)
-        }
     }
 }
 
@@ -1726,7 +1722,7 @@ private class SessionViewState {
                     contentDescription = if (count == 1) "1 queued message" else "$count queued messages"
                 },
         ) {
-            ComposerPillLabel(title = "$count queued", trailingSystemImage = "chevron.up") {
+            ComposerPillLabel(title = "$count queued") {
                 SystemImage("text.bubble", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.label)
             }
         }
