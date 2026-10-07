@@ -48,12 +48,19 @@ class Shared<T>(key: SharedKey<T>) : ReadWriteProperty<Any?, T> {
 /** The value inside `withLock`, Swift's `$0`. */
 class Inout<T>(var value: T)
 
-/** `$seenIDs.withLock { $0.formUnion(ids) }` is `::seenIDs.withLock { value += ids }`. */
+/**
+ * `$seenIDs.withLock { $0.formUnion(ids) }` is `::seenIDs.withLock { value += ids }`. The read, the
+ * change, and the write happen under one lock, so concurrent updates from effects are not lost.
+ */
 fun <T> KMutableProperty0<T>.withLock(body: Inout<T>.() -> Unit) {
-    val box = Inout(get())
-    box.body()
-    set(box.value)
+    synchronized(withLockMonitor) {
+        val box = Inout(get())
+        box.body()
+        set(box.value)
+    }
 }
+
+private val withLockMonitor = Any()
 
 /**
  * A `SharedKey`. Declare one the way Swift extends `SharedKey`:
