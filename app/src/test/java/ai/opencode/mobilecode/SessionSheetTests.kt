@@ -5,6 +5,8 @@ package ai.opencode.mobilecode
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.continuousClock
 import ai.opencode.mobilecode.tca.uuid
+import ai.opencode.mobilecode.tca.Exhaustivity
+import ai.opencode.mobilecode.tca.ImmediateClock
 import ai.opencode.mobilecode.tca.TestClock
 import ai.opencode.mobilecode.tca.TestDependencies
 import ai.opencode.mobilecode.tca.TestStore
@@ -19,6 +21,9 @@ import kotlinx.serialization.json.jsonObject
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 class SessionSheetTests {
     @get:Rule
@@ -349,9 +354,8 @@ class SessionSheetTests {
     @Test
     fun chooseModelSwapsTheSheetForThePicker() {}
 
-    @Ignore("HomeFeature.kt")
-    @Test
-    fun homeOpensForksAndRoutesSheetActionsThroughTheDrawerPaths() {}
+    // homeOpensForksAndRoutesSheetActionsThroughTheDrawerPaths is in SessionSheetHomeTests below:
+    // Home's reducer marks LabMarks, which needs Robolectric's android.util.Log.
 
     @Test
     fun headerProjectSkipsTheGlobalProject() {
@@ -440,4 +444,59 @@ class SessionSheetTests {
           ]}
         ]}}
     """.trimIndent()
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class SessionSheetHomeTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    private val server = OpenCodeServer(url = "http://localhost:9", username = "", password = "")
+
+    private fun session(id: String = "ses_sheet", title: String = "Sheet") =
+        OpenCodeSession(id = id, title = title, projectID = "prj", directory = "/work/app", updatedAt = 100_000)
+
+    // MARK: Home
+
+    @Test
+    fun homeOpensForksAndRoutesSheetActionsThroughTheDrawerPaths() {
+        val open = session()
+        val forked = session("ses_fork", title = "Sheet (fork)")
+        val state = HomeFeature.State(server = server, snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = listOf(open), activeSessionIDs = emptySet()))
+        state.sessionDetail = SessionFeature.State(server = server, session = open, cachedItems = emptyList())
+        state.markReadLocally(open)
+        state.transcriptCache += (forked.id to emptyList())
+        val deleted = mutableListOf<String>()
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.continuousClock = ImmediateClock()
+                it.openCodeClient.viewSession = { _, _, _ -> }
+                it.openCodeClient.deleteSession = { _, id -> deleted += id }
+            },
+        ) {
+            HomeFeature()
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(sessionAction(SessionFeature.Action.delegate(SessionFeature.Delegate.togglePin(open.id))))
+        store.receive<HomeFeature.Action.togglePin>()
+        expect(store.state.isPinned(open.id))
+        store.send(sessionAction(SessionFeature.Action.delegate(SessionFeature.Delegate.toggleRead(open.id))))
+        store.receive<HomeFeature.Action.markUnread>()
+        expect(store.state.isUnread(open))
+
+        store.send(sessionAction(SessionFeature.Action.delegate(SessionFeature.Delegate.openSession(forked))))
+        store.receive<HomeFeature.Action.sessionTapped>()
+        expect(store.state.sessions.map { it.id } == listOf(forked.id, open.id))
+        expect(store.state.sessionDetail?.session?.id == forked.id)
+
+        store.send(sessionAction(SessionFeature.Action.delegate(SessionFeature.Delegate.deleteSession(forked.id))))
+        store.receive<HomeFeature.Action.deleteSessionConfirmed>()
+        store.receive<HomeFeature.Action.deleteSessionResponse>()
+        expect(deleted == listOf(forked.id))
+        expect(store.state.sessions.map { it.id } == listOf(open.id))
+        expect(store.state.sessionDetail?.isDraft == true)
+    }
 }

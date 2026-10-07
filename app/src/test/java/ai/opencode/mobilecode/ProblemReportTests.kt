@@ -4,6 +4,7 @@ package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.tca.DateGenerator
 import ai.opencode.mobilecode.tca.Exhaustivity
+import ai.opencode.mobilecode.tca.ImmediateClock
 import ai.opencode.mobilecode.tca.TestClock
 import ai.opencode.mobilecode.tca.TestDependencies
 import ai.opencode.mobilecode.tca.TestStore
@@ -23,6 +24,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 private fun temporaryDirectory(): File {
     val directory = File(System.getProperty("java.io.tmpdir"), "reports-test-${UUID.randomUUID()}")
@@ -1351,22 +1355,106 @@ class ProblemReportNoticeTests {
     }
 }
 
+// Robolectric gives the reducers' LabMarks a working android.util.Log.
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class PhoneReportsNavigationTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    @Ignore("HomeFeature+ProblemReports.kt")
+    val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
+    val listed = OpenCodeSession(id = "ses_listed", title = "Phone Reports", projectID = "p", directory = "/reports", updatedAt = distantPast)
+
     @Test
-    fun opensPhoneReportsFromTheDrawerListOrTheServer() = Unit
+    fun opensPhoneReportsFromTheDrawerListOrTheServer() {
+        val fetched = OpenCodeSession(id = "ses_old", title = "Phone Reports", projectID = "p", directory = "/reports", updatedAt = distantPast)
+        val store = TestStore(
+            initialState = { HomeFeature.State(server = server, snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = listOf(listed), activeSessionIDs = emptySet())) },
+            withDependencies = {
+                it.problemReportsEnabled = true
+                it.continuousClock = ImmediateClock()
+                it.openCodeClient.getSession = { _, id ->
+                    expect(id == "ses_old")
+                    fetched
+                }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+            },
+        ) {
+            HomeFeature()
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(HomeFeature.Action.problemReports(ProblemReportsFeature.Action.delegate(ProblemReportsFeature.Delegate.openSession("ses_listed"))))
+        store.receive(HomeFeature.Action.sessionTapped("ses_listed"))
+
+        // Older than the drawer's recent sessions.
+        store.send(HomeFeature.Action.problemReports(ProblemReportsFeature.Action.delegate(ProblemReportsFeature.Delegate.openSession("ses_old"))))
+        store.receive(HomeFeature.Action.problemReports(ProblemReportsFeature.Action.delegate(ProblemReportsFeature.Delegate.openFetchedSession(fetched))))
+        store.receive(HomeFeature.Action.sessionTapped("ses_old"))
+        expect(store.state.sessions.firstOrNull()?.id == "ses_old")
+    }
 }
 
 class ProblemReportModelTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    @Ignore("HomeFeature+ProblemReports.kt")
+    val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
+    val project = OpenCodeProject(id = "p", name = "app", directory = "/app")
+    val modelA = OpenCodeModelRef(id = "model-a", providerID = "provider-a")
+    val modelB = OpenCodeModelRef(id = "model-b", providerID = "provider-b")
+    val failingDefault = OpenCodeModelRef(id = "model-default", providerID = "provider-c")
+
+    private fun session(id: String, model: OpenCodeModelRef?, updated: Long): OpenCodeSession =
+        OpenCodeSession(id = id, title = id, projectID = "p", directory = "/app", updatedAt = updated * 1_000, model = model)
+
     @Test
-    fun aReportTakesTheModelOfItsSessionThenTheLastOneUsed() = Unit
+    fun aReportTakesTheModelOfItsSessionThenTheLastOneUsed() {
+        val state = HomeFeature.State(
+            server = server,
+            snapshot = OpenCodeHomeSnapshot(
+                projects = listOf(project),
+                sessions = listOf(
+                    session("ses_reports", model = failingDefault, updated = 300),
+                    session("ses_untouched", model = null, updated = 200),
+                    session("ses_recent", model = modelB, updated = 100),
+                    session("ses_about", model = modelA, updated = 50),
+                ),
+                activeSessionIDs = emptySet(),
+            ),
+        )
+        state.problemReports.server = server
+        state.problemReports::destinations.withLock {
+            value += (server.persistenceID to PhoneReportsDestination(projectID = "p", projectName = "app", directory = "/app", sessionID = "ses_reports"))
+        }
+
+        // A new session's draft takes the newest session's model, never
+        // Phone Reports' (here the server's failing default), and so does a report.
+        state.sessionDetail = state.makeDraft()
+        expect(state.sessionDetail?.currentModel == modelB)
+        expect(state.problemReportContext.model == modelB)
+        state.sessionDetail = null
+        expect(state.problemReportContext.model == modelB)
+
+        // The session the report is about, as its composer has it.
+        state.sessionDetail = state.makeDetail(state.sessions[3])
+        expect(state.problemReportContext.model == modelA)
+        state.sessionDetail?.currentModel = modelB
+        expect(state.problemReportContext.model == modelB, "Picked since the list was read")
+
+        // A draft: whatever its composer is set to.
+        state.sessionDetail = state.makeDraft()
+        state.sessionDetail?.currentModel = modelA
+        expect(state.problemReportContext.model == modelA)
+
+        // No model anywhere: left unset, for the server to choose.
+        val bare = HomeFeature.State(
+            server = server,
+            snapshot = OpenCodeHomeSnapshot(projects = listOf(project), sessions = listOf(session("ses_a", model = null, updated = 1)), activeSessionIDs = emptySet()),
+        )
+        bare.sessionDetail = bare.makeDetail(bare.sessions[0])
+        expect(bare.problemReportContext.model == null)
+    }
 }
 
 class VoiceTimelineTests {

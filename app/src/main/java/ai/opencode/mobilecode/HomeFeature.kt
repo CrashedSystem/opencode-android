@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "553a407", partial = "State, nested types, Action, CancelID, attentionDirectories; the reducer body and its helpers follow, and problemReports waits for ProblemReportsFeature")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -8,6 +8,7 @@ import ai.opencode.mobilecode.tca.BindingReducer
 import ai.opencode.mobilecode.tca.Case
 import ai.opencode.mobilecode.tca.Dependency
 import ai.opencode.mobilecode.tca.DependencyValues
+import ai.opencode.mobilecode.tca.Effect
 import ai.opencode.mobilecode.tca.Identifiable
 import ai.opencode.mobilecode.tca.ObservableState
 import ai.opencode.mobilecode.tca.PresentationAction
@@ -22,8 +23,21 @@ import ai.opencode.mobilecode.tca.combine
 import ai.opencode.mobilecode.tca.continuousClock
 import ai.opencode.mobilecode.tca.date
 import ai.opencode.mobilecode.tca.ifLet
+import ai.opencode.mobilecode.tca.cancellable
+import ai.opencode.mobilecode.tca.onChange
 import ai.opencode.mobilecode.tca.withLock
 import java.time.Instant
+import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
     class State(
@@ -121,6 +135,7 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
 
         /// What the voice call's Live Activity last showed.
         var voiceCallActivity by StoreVar<VoiceCallActivityAttributes.ContentState?>(null)
+        var problemReports by StoreVar(ProblemReportsFeature.State())
 
         /// Moves shared items into the open composer when it is their target.
         /// Catch Up cards are left alone: their composers are not kept.
@@ -658,6 +673,10 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         data class selectedTranscriptResponse(val sessionID: String, val result: Result<List<OpenCodeTranscriptItem>>) : Action
 
         data class voiceCallCommand(val command: VoiceCallCommand) : Action
+
+        data class problemReports(val action: ProblemReportsFeature.Action) : Action {
+            companion object : Case<Action, ProblemReportsFeature.Action>({ problemReports(it) }, { (it as? problemReports)?.action })
+        }
     }
 
     private sealed interface CancelID {
@@ -682,6 +701,9 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         data object markAllReceipts : CancelID
     }
 
+    /// A view receipt for one session: its idle watermark.
+    private data class Receipt(val sessionID: String, val idle: Long)
+
     private val openCodeClient by Dependency(DependencyValues::openCodeClient)
     private val clock by Dependency(DependencyValues::continuousClock)
     private val now by Dependency { it.date.now }
@@ -693,14 +715,1105 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
     override val body: Reducer<State, Action> =
         combine(
             BindingReducer(),
+            ProblemReportTriggers(),
+            Scope(state = State::problemReports, action = Action.problemReports) { ProblemReportsFeature() },
             Scope(state = State::whatsNew, action = Action.whatsNew) {
                 WhatsNewFeature()
             },
-            Reduce<State, Action> { _ -> TODO("HomeFeature's reducer is ported in phase 2") }
+            Reduce<State, Action> { action ->
+                try {
+                    when (action) {
+                        Action.catchUpTapped -> {
+                            val queue = state.catchUpSessions.map { it.id }
+                            if (queue.isEmpty()) return@Reduce Effect.none
+                            val detail = state.sessionDetail
+                            state.catchUp = CatchUp(
+                                queue = queue,
+                                returnSessionID = if (detail?.isDraft == false) detail.familyRootID else null,
+                                returnComposer = detail?.draftState ?: SessionFeature.State.DraftState(),
+                            )
+                            state.openCatchUpCard()
+                            Effect.merge(Effect.cancel(CancelID.selectedTranscript), prefetchTranscripts(state))
+                        }
+
+                        is Action.catchUpCardDismissed -> {
+                            val sessionID = action.sessionID
+                            val disposition = action.disposition
+                            val catchUp = state.catchUp
+                            var session = state.sessions.firstOrNull { it.id == sessionID }
+                            if (catchUp == null || catchUp.queue.firstOrNull() != sessionID || session == null) return@Reduce Effect.none
+                            // The card may have observed a newer idle watermark than the list.
+                            val observed = state.sessionDetail?.session
+                            if (observed != null && observed.id == sessionID &&
+                                (observed.idleMilliseconds ?: -1) > (session.idleMilliseconds ?: -1)
+                            ) {
+                                session = session.copy(idleMilliseconds = observed.idleMilliseconds)
+                            }
+                            state.catchUp = catchUp.copy(
+                                queue = catchUp.queue.drop(1),
+                                handled = catchUp.handled + CatchUp.Handled(
+                                    sessionID = sessionID,
+                                    disposition = disposition,
+                                    idleMilliseconds = session.idleMilliseconds,
+                                    updatedAt = session.updatedAt,
+                                    neededAttention = state.attentionSessionIDs.contains(sessionID),
+                                ),
+                            )
+                            state.openCatchUpCard()
+                            // The card's flight plays its own haptic (CatchUpStackController).
+                            if (disposition != CatchUpDisposition.markRead) return@Reduce prefetchTranscripts(state)
+                            state.markReadLocally(session)
+                            Effect.merge(acknowledgeView(session, server = state.server), prefetchTranscripts(state))
+                        }
+
+                        Action.catchUpUndoTapped -> {
+                            val catchUp = state.catchUp
+                            val card = catchUp?.handled?.lastOrNull() ?: return@Reduce Effect.none
+                            state.catchUp = catchUp.copy(
+                                queue = listOf(card.sessionID) + catchUp.queue.filter { it != card.sessionID },
+                                handled = catchUp.handled.dropLast(1),
+                            )
+                            haptics.selection()
+                            if (card.disposition == CatchUpDisposition.markRead) {
+                                state.sessions.firstOrNull { it.id == card.sessionID }?.let { state.markUnreadLocally(it) }
+                            }
+                            state.openCatchUpCard()
+                            // A receipt still in flight would otherwise clear the restored unread.
+                            Effect.cancel(CancelID.viewReceipt(card.sessionID))
+                        }
+
+                        Action.catchUpExitTapped -> {
+                            val catchUp = state.catchUp ?: return@Reduce Effect.none
+                            state.catchUp = null
+                            val session = catchUp.returnSessionID?.let { id -> state.sessions.firstOrNull { it.id == id } }
+                            if (session != null) {
+                                state.sessionDetail = state.makeDetail(session, cachedItems = state.transcriptCache[session.id])
+                            } else {
+                                state.sessionDetail = state.makeDraft()
+                            }
+                            if (catchUp.returnComposer != SessionFeature.State.DraftState()) {
+                                state.sessionDetail?.restoreDraft(catchUp.returnComposer)
+                            }
+                            Effect.none
+                        }
+
+                        Action.catchUpOpenTapped -> {
+                            val catchUp = state.catchUp
+                            val detail = state.sessionDetail
+                            val rootID = detail?.familyRootID
+                            if (catchUp == null || detail == null || rootID == null || catchUp.queue.firstOrNull() != rootID) {
+                                return@Reduce Effect.none
+                            }
+                            var root = state.sessions.firstOrNull { it.id == rootID } ?: return@Reduce Effect.none
+                            val shown = detail.session
+                            // The card may have observed a newer idle watermark than the list.
+                            val observed = if (shown?.id == rootID) shown else detail.familySessions.firstOrNull { it.id == rootID }
+                            if (observed != null && (observed.idleMilliseconds ?: -1) > (root.idleMilliseconds ?: -1)) {
+                                root = root.copy(idleMilliseconds = observed.idleMilliseconds)
+                            }
+                            // The card already is the session: keep it, its draft, and any
+                            // subagent the reader opened, and let it read as any open session.
+                            state.catchUp = null
+                            state::lastViewedSessionIDs.withLock { value += (state.server.persistenceID to rootID) }
+                            state.markReadLocally(root)
+                            state.sessionDetail?.readsOnView = true
+                            state.sessionDetail?.markViewed(root)
+                            val receipts = mutableListOf(acknowledgeView(root, server = state.server))
+                            // A subagent on screen reads too, as it would had it been picked.
+                            val idle = shown?.idleMilliseconds
+                            if (shown != null && shown.id != rootID && idle != null && idle > (shown.viewedMilliseconds ?: -1)) {
+                                state.sessionDetail?.markViewed(shown)
+                                receipts += acknowledgeShownSubagent(shown.id, idle = idle, server = state.server)
+                            }
+                            Effect.merge(receipts)
+                        }
+
+                        Action.catchUpMarkAllReadTapped -> {
+                            // Waiting sessions keep their unread state as well as their request:
+                            // what led up to the question is still unseen.
+                            val unread = state.sessions.filter { state.indicator(it) == State.Indicator.unread }
+                            if (unread.isEmpty()) return@Reduce Effect.none
+                            haptics.selection()
+                            val receipts = mutableListOf<Receipt>()
+                            val backups = mutableMapOf<String, ReadBackup>()
+                            for (session in unread) {
+                                val idle = session.idleMilliseconds
+                                if (idle != null) {
+                                    backups[session.id] = state.readBackup(session, idle = idle)
+                                    receipts += Receipt(session.id, idle)
+                                }
+                                state.markReadLocally(session)
+                            }
+                            state.markAllReceipts += backups
+                            state.reconcileCatchUp()
+                            acknowledgeViews(receipts, server = state.server)
+                        }
+
+                        is Action.markAllReceiptResponse -> {
+                            // Reading or unreading the session since then supersedes the receipt.
+                            val backup = state.markAllReceipts[action.sessionID]
+                            if (backup == null || backup.idle != action.idle) return@Reduce Effect.none
+                            state.markAllReceipts -= action.sessionID
+                            if (action.succeeded) {
+                                state.noteViewAcknowledged(sessionID = action.sessionID, idle = action.idle)
+                            } else {
+                                state.restoreRead(action.sessionID, from = backup)
+                                state.reconcileCatchUp()
+                            }
+                            Effect.none
+                        }
+
+                        Action.settingsTapped -> {
+                            state.activeSheet = State.Sheet.settings
+                            Effect.none
+                        }
+
+                        is Action.sessionDrawerSettled -> {
+                            haptics.drawer()
+                            Effect.none
+                        }
+
+                        is Action.whatsNew -> Effect.none
+
+                        is Action.sessionDetail if action.presented?.voiceDelegate == VoiceFeature.Delegate.checkAPIKey -> {
+                            state.activeSheet = State.Sheet.settings
+                            Effect.none
+                        }
+
+                        is Action.sessionDetail if action.presented == SessionFeature.Action.sendTapped -> {
+                            // The session reducer has already run: an accepted send cleared the
+                            // draft and is awaiting its reply. Recents lists roots.
+                            val detail = state.sessionDetail
+                            val sessionID = detail?.familyRootID ?: detail?.session?.id
+                            if (detail == null || !detail.isAwaitingReply || detail.draft.isNotEmpty() || sessionID == null) {
+                                return@Reduce Effect.none
+                            }
+                            state.noteLocalActivity(sessionID = sessionID, at = now)
+                            Effect.none
+                        }
+
+                        Action.task -> {
+                            LabMarks.mark("home_task_started")
+                            if (state.isConnected) state.initializeInbox()
+                            state.isStreaming = true
+                            val server = state.server
+                            val voiceLiveActivity = voiceLiveActivity
+                            Effect.merge(
+                                eventStream(server),
+                                if (state.isConnected) refreshAttention(state) else refreshSnapshot(state),
+                                Effect.run<Action> { send ->
+                                    voiceLiveActivity.commands().collect { command ->
+                                        send(Action.voiceCallCommand(command))
+                                    }
+                                }.cancellable(CancelID.voiceCallCommands, cancelInFlight = true),
+                            )
+                        }
+
+                        is Action.voiceCallCommand -> {
+                            val voice = state.sessionDetail?.voice
+                            if (voice == null) {
+                                // No call owns the activity the tap came from.
+                                state.voiceCallActivity = null
+                                val voiceLiveActivity = voiceLiveActivity
+                                return@Reduce Effect.run { _ -> voiceLiveActivity.update(null, null) }
+                            }
+                            // An ended call can still be in state while its bar sweeps out.
+                            if (voice.phase.isTerminal) return@Reduce Effect.none
+                            when (action.command) {
+                                VoiceCallCommand.end -> Effect.send(voiceAction(VoiceFeature.Action.endTapped))
+                                VoiceCallCommand.toggleMute -> Effect.send(voiceAction(VoiceFeature.Action.muteTapped))
+                            }
+                        }
+
+                        Action.transcriptCacheFlushRequested -> {
+                            // Leaving the app is when the share sheet becomes reachable.
+                            shareInbox.publishTargets(state.shareTargets)
+                            val transcriptCachePersistence = transcriptCachePersistence
+                            Effect.run { _ -> transcriptCachePersistence.flush() }
+                        }
+
+                        is Action.sharesReceived -> {
+                            if (action.shares.isEmpty()) return@Reduce Effect.none
+                            var newestTarget: SharedDraftTarget = SharedDraftTarget.newSession
+                            for (share in action.shares) {
+                                val (target, projectID) = state.resolvedShareTarget(share.handoff.target)
+                                val draft = (state.sharedDrafts[target] ?: SharedComposerDraft()).copy()
+                                draft.append(SharedComposerDraft(share, projectID = projectID))
+                                state.sharedDrafts += (target to draft)
+                                newestTarget = target
+                            }
+                            state.catchUp = null
+                            haptics.success()
+                            when (val target = newestTarget) {
+                                is SharedDraftTarget.session -> Effect.send(Action.sessionTapped(target.id))
+                                SharedDraftTarget.newSession -> {
+                                    if (state.sessionDetail?.isDraft != true) state.sessionDetail = state.makeDraft()
+                                    Effect.none
+                                }
+                            }
+                        }
+
+                        is Action.serverConnected -> {
+                            state.server = action.server
+                            state.hasConnected = true
+                            state.connectionErrorMessage = null
+                            Effect.merge(
+                                Effect.send(Action.serverEvent(OpenCodeServerEvent.connected)),
+                                if (state.sessionDetail == null) {
+                                    Effect.none
+                                } else {
+                                    Effect.send(sessionAction(SessionFeature.Action.eventStreamConnected(action.server)))
+                                },
+                            )
+                        }
+
+                        is Action.eventStreamFailed -> {
+                            state.connectionErrorMessage = action.error.message
+                            state.connectionStatus = State.ConnectionStatus.disconnected
+                            requestsDisconnected(state)
+                        }
+
+                        Action.connectionLost -> {
+                            // A live stream dropping is a reconnect (the loop retries in a second;
+                            // keep last-known rows meanwhile). Failing again is an outage.
+                            state.connectionStatus = if (state.connectionStatus == State.ConnectionStatus.connected) {
+                                State.ConnectionStatus.reconnecting
+                            } else {
+                                State.ConnectionStatus.disconnected
+                            }
+                            Effect.merge(
+                                Effect.cancel(CancelID.refresh),
+                                Effect.cancel(CancelID.attention),
+                                requestsDisconnected(state),
+                            )
+                        }
+
+                        Action.snapshotFailed -> {
+                            state.connectionStatus = State.ConnectionStatus.disconnected
+                            requestsDisconnected(state)
+                        }
+
+                        Action.retryConnectionTapped -> {
+                            if (state.credentialsRejected) return@Reduce Effect.none
+                            if (!state.isConnected) state.connectionStatus = State.ConnectionStatus.reconnecting
+                            val server = state.server
+                            // Foregrounding restarts the stream rather than trusting a socket that
+                            // may have died while the phone slept; its `.connected` refresh
+                            // coalesces with the one requested here.
+                            Effect.merge(
+                                if (state.isStreaming) eventStream(server) else Effect.none,
+                                refreshSnapshot(state),
+                            )
+                        }
+
+                        is Action.serverEvent -> when (val event = action.event) {
+                            OpenCodeServerEvent.sessionViewChanged -> refreshSnapshot(state)
+
+                            OpenCodeServerEvent.connected, OpenCodeServerEvent.sessionCreated -> {
+                                val refresh = refreshSnapshot(state)
+                                if (state.sessionDetail == null) return@Reduce refresh
+                                Effect.merge(refresh, Effect.send(sessionAction(SessionFeature.Action.familyRefreshRequested)))
+                            }
+
+                            is OpenCodeServerEvent.contentBatch -> {
+                                if (state.sessionDetail?.session?.id != event.sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.contentBatch(sessionID = event.sessionID, events = event.events)))
+                            }
+
+                            is OpenCodeServerEvent.messageInvalidated -> {
+                                if (state.sessionDetail?.session?.id != event.sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.messageInvalidated(sessionID = event.sessionID)))
+                            }
+
+                            is OpenCodeServerEvent.inputQueueChanged -> {
+                                // Queued work lives outside projected history, so only the open
+                                // session cares; the list already reorders on execution events.
+                                if (state.sessionDetail?.session?.id != event.sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.inputQueueChanged))
+                            }
+
+                            is OpenCodeServerEvent.inputEnqueued -> {
+                                if (state.sessionDetail?.session?.id != event.sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.inputEnqueued))
+                            }
+
+                            is OpenCodeServerEvent.inputCancelled -> {
+                                if (state.sessionDetail?.session?.id != event.sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.inputCancelled(event.inputID)))
+                            }
+
+                            is OpenCodeServerEvent.attentionChanged -> {
+                                // A request on a root we already list can light up now; the
+                                // authoritative refetch settles child-owned requests and removals.
+                                val askedSessionID = event.askedSessionID
+                                if (askedSessionID != null && state.sessions.any { it.id == askedSessionID }) {
+                                    state.attentionSessionIDs += askedSessionID
+                                }
+                                Effect.merge(
+                                    refreshAttention(state),
+                                    if (state.sessionDetail?.session == null) Effect.none else Effect.send(sessionAction(SessionFeature.Action.requestsChanged)),
+                                )
+                            }
+
+                            is OpenCodeServerEvent.shellStarted -> {
+                                val sessionID = event.shell.sessionID
+                                if (sessionID == null || state.sessionDetail?.session?.id != sessionID) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.shellStarted(event.shell)))
+                            }
+
+                            is OpenCodeServerEvent.shellEnded -> {
+                                if (state.sessionDetail == null) return@Reduce Effect.none
+                                Effect.send(sessionAction(SessionFeature.Action.shellEnded(event.shellID)))
+                            }
+
+                            is OpenCodeServerEvent.executionStarted -> {
+                                val sessionID = event.sessionID
+                                state.activeSessionIDs += sessionID
+                                state.runsStartedDuringRefresh += sessionID
+                                if (state.sessionDetail?.familySessions?.any { it.id == sessionID } == true) {
+                                    return@Reduce Effect.send(sessionAction(SessionFeature.Action.familyRunStateChanged(sessionID = sessionID, isRunning = true)))
+                                }
+                                // A newly spawned child may not be discovered yet. Refresh metadata
+                                // so its ancestors light up even when that parent isn't open.
+                                if (state.sessions.any { it.id == sessionID }) Effect.none else refreshSnapshot(state)
+                            }
+
+                            is OpenCodeServerEvent.executionEnded -> {
+                                val sessionID = event.sessionID
+                                state.activeSessionIDs -= sessionID
+                                // Refetch for updatedAt/ordering; if the finished run belongs to
+                                // the open session, stop its working indicator and pull the reply.
+                                if (state.sessionDetail?.familySessions?.any { it.id == sessionID } == true) {
+                                    return@Reduce Effect.merge(
+                                        refreshSnapshot(state),
+                                        Effect.send(sessionAction(SessionFeature.Action.familyRunStateChanged(sessionID = sessionID, isRunning = false))),
+                                    )
+                                }
+                                refreshSnapshot(state)
+                            }
+
+                            is OpenCodeServerEvent.sessionRenamed -> {
+                                val sessionID = event.sessionID
+                                val index = state.sessions.indexOfFirst { it.id == sessionID }
+                                if (index >= 0) {
+                                    state.sessions = state.sessions.toMutableList().also { it[index] = it[index].copy(title = event.title) }
+                                }
+                                val detail = state.sessionDetail
+                                if (detail == null ||
+                                    !(detail.familySessions.any { it.id == sessionID } || detail.voice?.target?.sessionID == sessionID)
+                                ) {
+                                    return@Reduce Effect.none
+                                }
+                                Effect.send(sessionAction(SessionFeature.Action.familySessionRenamed(sessionID = sessionID, title = event.title)))
+                            }
+
+                            is OpenCodeServerEvent.sessionDeleted -> {
+                                val sessionID = event.sessionID
+                                state.purgeSession(sessionID)
+                                state.recentlyDeletedIDs -= sessionID
+                                val detail = state.sessionDetail
+                                if (detail == null || !detail.familySessions.any { it.id == sessionID }) return@Reduce Effect.none
+                                if (detail.familyRootID == sessionID) {
+                                    state.sessionDetail = state.makeDraft()
+                                    return@Reduce Effect.none
+                                }
+                                Effect.send(sessionAction(SessionFeature.Action.familySessionDeleted(sessionID)))
+                            }
+                        }
+
+                        is Action.sessionDetail if action.presented is SessionFeature.Action.viewAcknowledged -> {
+                            val acknowledged = action.presented as SessionFeature.Action.viewAcknowledged
+                            state.noteViewAcknowledged(sessionID = acknowledged.sessionID, idle = acknowledged.idle)
+                            Effect.none
+                        }
+
+                        is Action.viewAcknowledged -> {
+                            state.noteViewAcknowledged(sessionID = action.sessionID, idle = action.idle)
+                            Effect.none
+                        }
+
+                        is Action.sessionDetail if action.presented is SessionFeature.Action.familyPicked -> {
+                            val sessionID = (action.presented as SessionFeature.Action.familyPicked).id
+                            val session = state.sessionDetail?.familySessions?.firstOrNull { it.id == sessionID }
+                            if (state.sessionDetail?.readsOnView == true && session != null) {
+                                state.markReadLocally(session)
+                            }
+                            Effect.none
+                        }
+
+                        is Action.sessionDetail if action.presented is SessionFeature.Action.acceptedTranscriptUpdated -> {
+                            val accepted = action.presented as SessionFeature.Action.acceptedTranscriptUpdated
+                            if (state.publishTranscript(sessionID = accepted.sessionID, items = accepted.items)) {
+                                state.persistTranscriptCache()
+                            }
+                            prefetchTranscripts(state)
+                        }
+
+                        is Action.snapshotRefreshed -> {
+                            val snapshot = action.snapshot.copy()
+                            val wasConnected = state.isConnected
+                            val incomingSessionIDs = snapshot.sessions.map { it.id }.toSet()
+                            state.recentlyDeletedIDs = state.recentlyDeletedIDs.filter(incomingSessionIDs::contains).toSet()
+                            snapshot.sessions = snapshot.sessions.filterNot { state.recentlyDeletedIDs.contains(it.id) }
+                            snapshot.activeSessionIDs = snapshot.activeSessionIDs - state.recentlyDeletedIDs
+                            snapshot.activeSessionIDs = snapshot.activeSessionIDs + state.runsStartedDuringRefresh
+                            state.runsStartedDuringRefresh = emptySet()
+                            val previousUpdatedAt = state.sessions.associate { it.id to it.updatedAt }
+                            val sessions = snapshot.sessions.toMutableList()
+                            for (index in sessions.indices) {
+                                val sessionID = sessions[index].id
+                                val local = state.localActivity[sessionID]
+                                if (local != null) {
+                                    if (sessions[index].updatedAt > local.serverUpdatedAt) {
+                                        state.localActivity -= sessionID
+                                    } else {
+                                        sessions[index] = sessions[index].copy(updatedAt = local.sentAt)
+                                    }
+                                }
+                                val viewed = state.locallyViewedMilliseconds[sessionID] ?: continue
+                                if ((sessions[index].viewedMilliseconds ?: -1) >= viewed) {
+                                    state.locallyViewedMilliseconds -= sessionID
+                                } else {
+                                    sessions[index] = sessions[index].copy(viewedMilliseconds = viewed)
+                                }
+                            }
+                            snapshot.sessions = sessions.toList()
+                            state.projects = snapshot.projects
+                            // The list is one page of the newest roots, not the whole server.
+                            // Whatever is open or pinned and fell off that page is unknown, not
+                            // gone — deletion arrives as its own event — so keep the last copy
+                            // instead of kicking the reader to a draft or silently dropping a pin.
+                            val openRootID = state.sessionDetail?.familyRootID
+                            val carried = state.sessions.filter { session ->
+                                !incomingSessionIDs.contains(session.id) &&
+                                    !state.recentlyDeletedIDs.contains(session.id) &&
+                                    (session.id == openRootID || state.isPinned(session.id))
+                            }
+                            state.sessions = snapshot.sessions + carried
+                            state.activeSessionIDs = snapshot.activeSessionIDs
+                            state.activeSessionParents = snapshot.activeSessionParents ?: emptyMap()
+                            if (state.sessionDetail?.session != null) {
+                                state.sessionDetail?.activeFamilySessionIDs = snapshot.activeSessionIDs
+                            }
+                            val selectedID = state.sessionDetail?.session?.id
+                            val selected = selectedID?.let { id -> state.sessions.firstOrNull { it.id == id } }
+                            if (state.sessionDetail?.isVisible == true && state.sessionDetail?.readsOnView == true && selected != null) {
+                                state.markReadLocally(selected)
+                            }
+                            val openID = state.sessionDetail?.familyRootID
+                            if (openID != null && !state.sessions.any { it.id == openID }) {
+                                state::lastViewedSessionIDs.withLock { value -= state.server.persistenceID }
+                                state.sessionDetail = state.makeDraft()
+                            } else if (state.sessionDetail?.isDraft == true) {
+                                // A draft opened before the first snapshot (cold launch, empty
+                                // cache) has no folders to offer; refresh its choices as the list
+                                // arrives so the Project picker is never empty on a live server.
+                                val projects = state.projectsByRecency
+                                state.sessionDetail?.projects = projects
+                                if (state.sessionDetail?.draftProject == null) {
+                                    state.sessionDetail?.draftProject = projects.firstOrNull()
+                                }
+                            }
+                            val currentUpdatedAt = state.sessions.associate { it.id to it.updatedAt }
+                            state.transcriptCache = state.transcriptCache.filter { (sessionID, _) ->
+                                val current = currentUpdatedAt[sessionID] ?: return@filter false
+                                previousUpdatedAt[sessionID]?.let { it == current } ?: true
+                            }
+                            state.restoreTranscriptCache()
+                            state.connectionStatus = State.ConnectionStatus.connected
+                            state.connectionErrorMessage = null
+                            state.server.remember()
+                            state.initializeInbox()
+                            val attention = refreshAttention(state)
+                            val prefetch = prefetchTranscripts(state)
+                            // A whole run can start and finish while disconnected. Even idle →
+                            // idle must revalidate the transcript, not just the working indicator.
+                            val detail = state.sessionDetail
+                            val openSessionID = detail?.session?.id
+                            if (detail != null && openSessionID != null) {
+                                val update = snapshot.sessions.firstOrNull { it.id == openSessionID }?.let {
+                                    Effect.send(sessionAction(SessionFeature.Action.sessionSnapshotUpdated(it)))
+                                } ?: Effect.none
+                                val runState = snapshot.activeSessionIDs.contains(openSessionID)
+                                return@Reduce Effect.merge(
+                                    attention,
+                                    prefetch,
+                                    update,
+                                    if (detail.isExternallyActive == runState) {
+                                        Effect.none
+                                    } else {
+                                        Effect.send(sessionAction(SessionFeature.Action.externalRunStateChanged(isRunning = runState)))
+                                    },
+                                    if (wasConnected) Effect.none else Effect.send(sessionAction(SessionFeature.Action.requestsConnectionChanged(true))),
+                                )
+                            }
+                            Effect.merge(attention, prefetch)
+                        }
+
+                        is Action.transcriptPrefetched -> {
+                            // Fill an empty slot only; an opened session owns its entry.
+                            if (!state.sessions.any { it.id == action.sessionID } ||
+                                state.recentlyDeletedIDs.contains(action.sessionID) ||
+                                state.transcriptCache[action.sessionID] != null
+                            ) {
+                                return@Reduce Effect.none
+                            }
+                            state.publishTranscript(sessionID = action.sessionID, items = action.items)
+                            state.persistTranscriptCache()
+                            Effect.none
+                        }
+
+                        is Action.selectedTranscriptResponse -> {
+                            if (state.sessionDetail?.session?.id != action.sessionID) return@Reduce Effect.none
+                            action.result.onSuccess { state.publishTranscript(sessionID = action.sessionID, items = it) }
+                            Effect.send(sessionAction(SessionFeature.Action.transcriptResponse(sessionID = action.sessionID, result = action.result)))
+                        }
+
+                        is Action.sessionNavigationReady -> {
+                            val session = state.sessions.firstOrNull { it.id == action.sessionID } ?: return@Reduce Effect.none
+                            state.sessionDetail = state.makeDetail(session, externalTranscript = true)
+                            LabMarks.mark("session_navigation_started", sessionID = action.sessionID)
+                            Effect.none
+                        }
+
+                        is Action.attentionRefreshed -> {
+                            state.attentionSessionIDs = action.sessionIDs
+                            Effect.none
+                        }
+
+                        Action.newSessionTapped -> {
+                            // A draft is local; the server is only needed on first send, which
+                            // reports failure in the transcript. The event stream drops often on
+                            // a phone, so a retrying connection must not dead-end the button.
+                            // Only a confirmed outage blocks it.
+                            if (state.connectionStatus == State.ConnectionStatus.disconnected) return@Reduce Effect.none
+                            state.catchUp = null
+                            state.sessionDetail = state.makeDraft()
+                            Effect.none
+                        }
+
+                        is Action.sessionDetail if action.presented is SessionFeature.Action.sessionCreated -> {
+                            val session = (action.presented as SessionFeature.Action.sessionCreated).session
+                            // The event stream may have listed it already.
+                            state.sessions = listOf(session) + state.sessions.filterNot { it.id == session.id }
+                            state::sessionReadDates.withLock { value += (state.sessionKey(session.id) to session.updatedAt) }
+                            state::lastViewedSessionIDs.withLock { value += (state.server.persistenceID to session.id) }
+                            Effect.none
+                        }
+
+                        is Action.sessionDetail if action.presented is SessionFeature.Action.delegate -> {
+                            when (val delegate = (action.presented as SessionFeature.Action.delegate).action) {
+                                is SessionFeature.Delegate.openSession -> {
+                                    if (!state.sessions.any { it.id == delegate.session.id }) {
+                                        state.sessions = listOf(delegate.session) + state.sessions
+                                    }
+                                    Effect.send(Action.sessionTapped(delegate.session.id))
+                                }
+                                is SessionFeature.Delegate.togglePin -> Effect.send(Action.togglePin(delegate.sessionID))
+                                is SessionFeature.Delegate.toggleRead -> {
+                                    val session = state.sessions.firstOrNull { it.id == delegate.sessionID } ?: return@Reduce Effect.none
+                                    Effect.send(if (state.isUnread(session)) Action.markRead(delegate.sessionID) else Action.markUnread(delegate.sessionID))
+                                }
+                                is SessionFeature.Delegate.deleteSession -> {
+                                    // The sheet already confirmed; the drawer's deletion path does the rest.
+                                    val session = state.sessions.firstOrNull { it.id == delegate.sessionID } ?: return@Reduce Effect.none
+                                    state.pendingDeletion = session
+                                    state.deletionError = null
+                                    Effect.send(Action.deleteSessionConfirmed)
+                                }
+                            }
+                        }
+
+                        is Action.binding, is Action.sessionDetail, Action.serverBadgeTapped -> Effect.none
+
+                        is Action.sessionTapped -> {
+                            val sessionID = action.sessionID
+                            // Navigation and cached transcripts do not require a live event stream.
+                            val session = state.sessions.firstOrNull { it.id == sessionID } ?: return@Reduce Effect.none
+                            // Opening a session leaves the stack for the session it names.
+                            state.catchUp = null
+                            state::lastViewedSessionIDs.withLock { value += (state.server.persistenceID to sessionID) }
+                            state.markReadLocally(session)
+                            // Re-opening the session already on screen (a repeated row tap) must
+                            // not rebuild it and lose the composer draft.
+                            if (state.sessionDetail?.session?.id == sessionID) {
+                                state.sessionDetail?.readsOnView = true
+                                return@Reduce acknowledgeView(session, server = state.server)
+                            }
+                            LabMarks.mark("session_tap", sessionID = sessionID)
+                            val cachedItems = state.transcriptCache[sessionID]
+                            if (cachedItems == null) {
+                                val server = state.server
+                                return@Reduce Effect.merge(
+                                    Effect.cancel(CancelID.prefetch),
+                                    acknowledgeView(session, server = server),
+                                    Effect.run<Action> { send ->
+                                        LabMarks.mark("selected_transcript_effect_started", sessionID = sessionID)
+                                        coroutineScope {
+                                            val result = async { selectedTranscript(server = server, sessionID = sessionID) }
+                                            send(Action.sessionNavigationReady(sessionID))
+                                            send(Action.selectedTranscriptResponse(sessionID = sessionID, result = result.await()))
+                                        }
+                                    }.cancellable(CancelID.selectedTranscript, cancelInFlight = true),
+                                )
+                            }
+                            state.sessionDetail = state.makeDetail(session, cachedItems = cachedItems)
+                            LabMarks.mark("session_navigation_started", sessionID = sessionID)
+                            Effect.merge(
+                                Effect.cancel(CancelID.prefetch),
+                                Effect.cancel(CancelID.selectedTranscript),
+                                acknowledgeView(session, server = state.server),
+                            )
+                        }
+
+                        is Action.togglePin -> {
+                            if (!state.sessions.any { it.id == action.sessionID }) return@Reduce Effect.none
+                            haptics.selection()
+                            val key = state.sessionKey(action.sessionID)
+                            if (state.isPinned(action.sessionID)) {
+                                state::pinnedSessionKeys.withLock { value = value.filterNot { it == key } }
+                            } else {
+                                state::pinnedSessionKeys.withLock { value += key }
+                            }
+                            Effect.none
+                        }
+
+                        is Action.pinsMoved -> {
+                            // Search can hide pins, so offsets resolve against the displayed rows.
+                            // The destination is an offset into the pre-move array.
+                            val ids = state.pinnedSessions.map { it.id }
+                            val index = action.fromOffsets.minOrNull()
+                            val destination = action.toOffset
+                            if (index == null || index !in ids.indices || destination == index || destination == index + 1) {
+                                return@Reduce Effect.none
+                            }
+                            movePin(state, id = ids[index], before = if (destination < ids.size) ids[destination] else null)
+                        }
+
+                        is Action.movePinUp -> {
+                            val ids = state.pinnedSessions.map { it.id }
+                            val index = ids.indexOf(action.id)
+                            if (index <= 0) return@Reduce Effect.none
+                            movePin(state, id = action.id, before = ids[index - 1])
+                        }
+
+                        is Action.movePinDown -> {
+                            val ids = state.pinnedSessions.map { it.id }
+                            val index = ids.indexOf(action.id)
+                            if (index < 0 || index + 1 >= ids.size) return@Reduce Effect.none
+                            val next = if (index + 2 < ids.size) ids[index + 2] else null
+                            movePin(state, id = action.id, before = next)
+                        }
+
+                        is Action.deleteSessionTapped -> {
+                            state.pendingDeletion = state.sessions.firstOrNull { it.id == action.sessionID }
+                            state.deletionError = null
+                            Effect.none
+                        }
+
+                        Action.deleteSessionCancelled -> {
+                            state.pendingDeletion = null
+                            Effect.none
+                        }
+
+                        Action.deleteSessionConfirmed -> {
+                            val session = state.pendingDeletion
+                            val backup = session?.let { hideSession(state, session = it) }
+                            if (session == null || backup == null) {
+                                state.pendingDeletion = null
+                                return@Reduce Effect.none
+                            }
+                            state.pendingDeletion = null
+                            state.deletionError = null
+                            haptics.impact()
+                            val server = state.server
+                            val deletion = Effect.run<Action> { send ->
+                                try {
+                                    openCodeClient.deleteSession(server, session.id)
+                                    send(Action.deleteSessionResponse(sessionID = session.id, backup = backup, error = null))
+                                } catch (error: OpenCodeClientError) {
+                                    send(Action.deleteSessionResponse(sessionID = session.id, backup = backup, error = error))
+                                }
+                            }.cancellable(CancelID.deleteSession(session.id), cancelInFlight = true)
+                            Effect.merge(
+                                Effect.cancel(CancelID.prefetch),
+                                if (backup.replacementDraftID != null) Effect.cancel(CancelID.selectedTranscript) else Effect.none,
+                                deletion,
+                            )
+                        }
+
+                        is Action.deleteSessionResponse -> {
+                            val error = action.error
+                            if (error == null) {
+                                state.purgeSession(action.sessionID)
+                                return@Reduce Effect.none
+                            }
+                            state.recentlyDeletedIDs -= action.sessionID
+                            restoreSession(state, from = action.backup)
+                            state.deletionError = "Couldn’t delete “${action.backup.session.title}”. ${error.message}"
+                            haptics.error()
+                            Effect.run<Action> { send ->
+                                clock.sleep(3.seconds)
+                                send(Action.clearDeletionError)
+                            }.cancellable(CancelID.deletionError, cancelInFlight = true)
+                        }
+
+                        Action.clearDeletionError -> {
+                            state.deletionError = null
+                            Effect.none
+                        }
+
+                        is Action.problemReports -> Effect.none
+
+                        is Action.markRead -> {
+                            val session = state.sessions.firstOrNull { it.id == action.sessionID } ?: return@Reduce Effect.none
+                            haptics.selection()
+                            state.markReadLocally(session)
+                            acknowledgeView(session, server = state.server)
+                        }
+
+                        is Action.markUnread -> {
+                            val session = state.sessions.firstOrNull { it.id == action.sessionID } ?: return@Reduce Effect.none
+                            haptics.selection()
+                            state.markUnreadLocally(session)
+                            // A receipt still in flight would otherwise mark it read again.
+                            Effect.cancel(CancelID.viewReceipt(action.sessionID))
+                        }
+                    }
+                } finally {
+                    state.absorbSharedDrafts()
+                    if (persistsSnapshot(action)) state.persistSnapshot()
+                }
+            }
                 .ifLet(State::sessionDetail, Action.sessionDetail) {
                     SessionFeature()
+                }
+                // Whoever moves a live call (the drawer, New Session, a draft's project)
+                // only edits its target; the voice model hears about it here.
+                .onChange(of = { it.sessionDetail?.voice?.placement }) { old, _ ->
+                    Reduce { _ ->
+                        val new = state.sessionDetail?.voice?.placement
+                        if (old == null || new == null) return@Reduce Effect.none
+                        // Releasing what was let go clears it; that alone isn't a move.
+                        if (old.target == new.target && new.abandonedCallIDs.isEmpty()) return@Reduce Effect.none
+                        Effect.send(voiceAction(VoiceFeature.Action.targetChanged))
+                    }
+                }
+                // The Live Activity follows the call wherever it moves; it is pushed
+                // only when what it shows changes, never per second.
+                .onChange(of = { it.sessionDetail?.voice?.let(VoiceLiveActivity::Call) }) { _, _ ->
+                    Reduce { _ ->
+                        val call = state.sessionDetail?.voice?.let(VoiceLiveActivity::Call)
+                        val content = VoiceLiveActivity.content(call, previous = state.voiceCallActivity, now = now)
+                        if (content == state.voiceCallActivity) return@Reduce Effect.none
+                        state.voiceCallActivity = content
+                        val attributes = call?.let(VoiceLiveActivity::attributes)
+                        val voiceLiveActivity = voiceLiveActivity
+                        Effect.run { _ -> voiceLiveActivity.update(content, attributes) }
+                    }
+                }
+                .onChange(of = { if (LabMarks.isEnabled) it.sessionIndicators else emptyMap() }) { old, _ ->
+                    Reduce { _ ->
+                        for ((sessionID, indicator) in state.sessionIndicators) {
+                            if (old[sessionID] != indicator) LabMarks.mark("indicator:${indicator.labMarkName}", sessionID = sessionID)
+                        }
+                        Effect.none
+                    }
                 },
+            // Absorbing shared files is a pure state change; start their uploads here.
+            Reduce { _ ->
+                if (state.sessionDetail?.unstartedUploadIDs?.isEmpty() != false) return@Reduce Effect.none
+                Effect.send(sessionAction(SessionFeature.Action.queuedUploadsStarted))
+            },
+            Reduce { action ->
+                // Only list and attention changes move the stack; skip the transcript's
+                // own high-frequency traffic.
+                if (action is Action.sessionDetail || action is Action.problemReports) return@Reduce Effect.none
+                if (action is Action.serverEvent &&
+                    (action.event is OpenCodeServerEvent.contentBatch || action.event is OpenCodeServerEvent.messageInvalidated)
+                ) {
+                    return@Reduce Effect.none
+                }
+                val front = state.catchUp?.queue?.firstOrNull()
+                state.reconcileCatchUp()
+                if (state.catchUp?.queue?.firstOrNull() != front) prefetchTranscripts(state) else Effect.none
+            },
         )
+
+    private fun persistsSnapshot(action: Action): Boolean =
+        when (action) {
+            is Action.snapshotRefreshed, Action.deleteSessionConfirmed, is Action.deleteSessionResponse -> true
+            is Action.serverEvent -> action.event is OpenCodeServerEvent.sessionRenamed || action.event is OpenCodeServerEvent.sessionDeleted
+            is Action.sessionDetail -> action.presented is SessionFeature.Action.sessionCreated
+            else -> false
+        }
+
+    private fun requestsDisconnected(state: State): Effect<Action> =
+        if (state.sessionDetail == null) Effect.none else Effect.send(sessionAction(SessionFeature.Action.requestsConnectionChanged(false)))
+
+    /// Removes only the row; phone-local records wait for the server's answer.
+    private fun hideSession(state: State, session: OpenCodeSession): DeletionBackup? {
+        val sessionIndex = state.sessions.indexOfFirst { it.id == session.id }
+        if (sessionIndex < 0) return null
+        val wasOpen = state.sessionDetail?.familyRootID == session.id
+        val openItems = if (wasOpen) state.sessionDetail?.items ?: emptyList() else emptyList()
+        var backup = DeletionBackup(
+            session = session,
+            sessionIndex = sessionIndex,
+            wasActive = state.activeSessionIDs.contains(session.id),
+            neededAttention = state.attentionSessionIDs.contains(session.id),
+            runStartedDuringRefresh = state.runsStartedDuringRefresh.contains(session.id),
+            openItems = openItems,
+        )
+        state.recentlyDeletedIDs += session.id
+        state.sessions = state.sessions.toMutableList().also { it.removeAt(sessionIndex) }
+        state.activeSessionIDs -= session.id
+        state.attentionSessionIDs -= session.id
+        state.runsStartedDuringRefresh -= session.id
+        if (wasOpen) {
+            state.sessionDetail = state.makeDraft()
+            backup = backup.copy(replacementDraftID = state.sessionDetail?.navigationID)
+        }
+        return backup
+    }
+
+    private fun restoreSession(state: State, from: DeletionBackup) {
+        val backup = from
+        if (state.sessions.any { it.id == backup.session.id }) return
+        state.sessions = state.sessions.toMutableList().also { it.add(minOf(backup.sessionIndex, it.size), backup.session) }
+        if (backup.wasActive) state.activeSessionIDs += backup.session.id
+        if (backup.neededAttention) state.attentionSessionIDs += backup.session.id
+        if (backup.runStartedDuringRefresh) state.runsStartedDuringRefresh += backup.session.id
+        // Reopen only if the reader is still looking at the untouched draft the
+        // deletion left behind; anywhere else they have moved on.
+        val draftID = backup.replacementDraftID
+        val detail = state.sessionDetail
+        if (draftID != null && detail != null && detail.navigationID == draftID && detail.isDraft && !detail.hasPromptContent) {
+            state.sessionDetail = state.makeDetail(backup.session, cachedItems = backup.openItems)
+        }
+    }
+
+    private fun movePin(state: State, id: String, before: String?): Effect<Action> {
+        val targetID = before
+        val key = state.sessionKey(id)
+        if (!state.pinnedSessionKeys.contains(key)) return Effect.none
+        val targetKey = targetID?.let(state::sessionKey)
+        if (targetKey == key) return Effect.none
+        state::pinnedSessionKeys.withLock {
+            val keys = value.filterNot { it == key }.toMutableList()
+            val index = targetKey?.let(keys::indexOf) ?: -1
+            if (index >= 0) {
+                keys.add(index, key)
+            } else {
+                // Server-scoped keys for other servers retain their relative order;
+                // this server's pin moves to the end of its visible sequence.
+                val last = keys.indexOfLast { it.startsWith("${state.server.persistenceID}|") }
+                keys.add(if (last >= 0) last + 1 else keys.size, key)
+            }
+            value = keys.toList()
+        }
+        haptics.selection()
+        return Effect.none
+    }
+
+    /// Live updates, TUI-style: subscribe to the SSE firehose, reconnect forever
+    /// with a short delay. Every (re)connection replays `.connected`, which
+    /// rehydrates the snapshot so missed events (the stream is volatile by
+    /// contract) can't leave us stale. Cancel-in-flight makes it restartable.
+    private fun eventStream(server: OpenCodeServer): Effect<Action> {
+        val events = openCodeClient.events
+        return Effect.run<Action> { send ->
+            var attempt = 0
+            while (currentCoroutineContext().isActive) {
+                var connected = false
+                for (address in server.candidateURLs) {
+                    val candidate = server.at(url = address)
+                    try {
+                        events(candidate).collect { event ->
+                            if (event == OpenCodeServerEvent.connected) {
+                                connected = true
+                                attempt = 0
+                                send(Action.serverConnected(candidate))
+                            } else {
+                                send(Action.serverEvent(event))
+                            }
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        // A live stream that went silent past its 90 s timeout.
+                        if (connected && DiagnosticsErrorCategory(error) == DiagnosticsErrorCategory.timeout) {
+                            send(Action.problemReports(ProblemReportsFeature.Action.troubleDetected(ProblemReportTrigger.streamStalled)))
+                        }
+                        val failure = error as? OpenCodeClientError ?: OpenCodeClientError(message = "Couldn’t reach the OpenCode server")
+                        if (failure.statusCode == 401) {
+                            send(Action.eventStreamFailed(failure))
+                            return@run
+                        }
+                    }
+                    if (!currentCoroutineContext().isActive) return@run
+                    send(Action.connectionLost)
+                }
+                attempt = if (connected) 1 else minOf(attempt + 1, 5)
+                val baseMilliseconds = minOf(15_000, 1_000 * (1 shl maxOf(0, attempt - 1)))
+                val jitter = abs(server.persistenceID.hashCode() % 401)
+                clock.sleep((baseMilliseconds + jitter).milliseconds)
+            }
+        }.cancellable(CancelID.events, cancelInFlight = true)
+    }
+
+    /// Warm the transcript cache for the rows most likely to be opened next, so
+    /// the first tap renders instantly instead of waiting a round trip. Only the
+    /// top few are ever fetched, so the cache stays bounded to the hot set plus
+    /// whatever was actually opened. Staggered so it never competes with the
+    /// snapshot or an open session's own fetch.
+    private fun prefetchTranscripts(state: State): Effect<Action> {
+        // A cached frame is not a fresh frame. Keep speculative history off the
+        // connection until the selected session's authoritative owner settles.
+        val detail = state.sessionDetail
+        if (detail != null && detail.session != null && (detail.refresh != null || !detail.initialTranscriptIsFresh)) {
+            return Effect.none
+        }
+        val byID = state.sessions.distinctBy { it.id }.associateBy { it.id }
+        val ranked = state.catchUp?.let { catchUp -> catchUp.queue.mapNotNull { byID[it] } } ?: state.sessionsByPriority()
+        val openID = state.sessionDetail?.session?.id
+        val targets = ranked.take(prefetchCount)
+            .filter { state.transcriptCache[it.id] == null && it.id != openID }
+            .map { it.id }
+        if (targets.isEmpty()) return Effect.none
+        val server = state.server
+        return Effect.run<Action> { send ->
+            for ((index, sessionID) in targets.withIndex()) {
+                if (index > 0) clock.sleep(50.milliseconds)
+                val items = try {
+                    openCodeClient.transcript(server, sessionID, SessionFeature.initialFetchLimit)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    continue
+                }
+                send(Action.transcriptPrefetched(sessionID = sessionID, items = items))
+            }
+        }.cancellable(CancelID.prefetch, cancelInFlight = true)
+    }
+
+    private suspend fun selectedTranscript(
+        server: OpenCodeServer,
+        sessionID: String,
+    ): Result<List<OpenCodeTranscriptItem>> =
+        try {
+            Result.success(openCodeClient.transcript(server, sessionID, SessionFeature.firstFrameFetchLimit))
+        } catch (error: OpenCodeClientError) {
+            Result.failure(error)
+        }
+
+    /// One receipt per session, a few at a time: Mark All can cover a whole
+    /// page of sessions.
+    private fun acknowledgeViews(receipts: List<Receipt>, server: OpenCodeServer): Effect<Action> {
+        if (receipts.isEmpty()) return Effect.none
+        val client = openCodeClient
+        return Effect.run<Action> { send ->
+            coroutineScope {
+                val permits = Semaphore(receiptConcurrency)
+                for (receipt in receipts) {
+                    launch {
+                        permits.withPermit {
+                            val succeeded = try {
+                                client.viewSession(server, receipt.sessionID, receipt.idle)
+                                true
+                            } catch (_: OpenCodeClientError) {
+                                false
+                            }
+                            if (!currentCoroutineContext().isActive) return@withPermit
+                            send(Action.markAllReceiptResponse(sessionID = receipt.sessionID, idle = receipt.idle, succeeded = succeeded))
+                        }
+                    }
+                }
+            }
+        }.cancellable(CancelID.markAllReceipts)
+    }
+
+    /// Routed through the session screen so it records the receipt as its own.
+    private fun acknowledgeShownSubagent(sessionID: String, idle: Long, server: OpenCodeServer): Effect<Action> =
+        Effect.run<Action> { send ->
+            try {
+                openCodeClient.viewSession(server, sessionID, idle)
+                send(sessionAction(SessionFeature.Action.viewAcknowledged(sessionID = sessionID, idle = idle)))
+            } catch (_: OpenCodeClientError) {
+            }
+        }.cancellable(CancelID.viewReceipt(sessionID), cancelInFlight = true)
+
+    private fun acknowledgeView(session: OpenCodeSession, server: OpenCodeServer): Effect<Action> {
+        val idle = session.idleMilliseconds ?: return Effect.none
+        return Effect.run<Action> { send ->
+            try {
+                openCodeClient.viewSession(server, session.id, idle)
+                send(Action.viewAcknowledged(sessionID = session.id, idle = idle))
+            } catch (_: OpenCodeClientError) {
+                /* Keep the server unread state until an acknowledgment succeeds. */
+            }
+        }.cancellable(CancelID.viewReceipt(session.id), cancelInFlight = true)
+    }
+
+    /// Debounced and serialized: event bursts (subagent swarms finishing)
+    /// coalesce into one fetch, and cancel-in-flight guarantees an older
+    /// response can never land after a newer one and resurrect stale state.
+    /// Execution events from here until the response are re-applied over it.
+    private fun refreshSnapshot(state: State): Effect<Action> {
+        state.runsStartedDuringRefresh = emptySet()
+        val server = state.server
+        return Effect.run<Action> { send ->
+            clock.sleep(250.milliseconds)
+            try {
+                LabMarks.mark("home_snapshot_request")
+                val snapshot = openCodeClient.homeSnapshot(server)
+                LabMarks.mark("home_snapshot_response")
+                if (!currentCoroutineContext().isActive) return@run
+                send(Action.snapshotRefreshed(snapshot))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                if (!currentCoroutineContext().isActive) return@run
+                send(Action.snapshotFailed)
+            }
+        }.cancellable(CancelID.refresh, cancelInFlight = true)
+    }
+
+    private fun refreshAttention(state: State): Effect<Action> {
+        val server = state.server
+        val roots = state.sessions
+        val directories = attentionDirectories(state)
+        return Effect.run<Action> { send ->
+            clock.sleep(150.milliseconds)
+            val sessionIDs = try {
+                openCodeClient.homeAttention(server, roots, directories)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+            if (sessionIDs != null) send(Action.attentionRefreshed(sessionIDs))
+        }.cancellable(CancelID.attention, cancelInFlight = true)
+    }
+
+    /// `.sessionDetail(.presented(action))`
+    private fun sessionAction(action: SessionFeature.Action): Action =
+        Action.sessionDetail(PresentationAction.presented(action))
+
+    /// `.sessionDetail(.presented(.voice(.presented(action))))`
+    private fun voiceAction(action: VoiceFeature.Action): Action =
+        sessionAction(SessionFeature.Action.voice(PresentationAction.presented(action)))
+
+    /// The open session's action in a `.sessionDetail(.presented(…))` case.
+    private val Action.sessionDetail.presented: SessionFeature.Action?
+        get() = (action as? PresentationAction.presented)?.action
+
+    /// The call's delegate in a `.sessionDetail(.presented(.voice(.presented(.delegate(…)))))` case.
+    private val SessionFeature.Action.voiceDelegate: VoiceFeature.Delegate?
+        get() {
+            val voice = ((this as? SessionFeature.Action.voice)?.action as? PresentationAction.presented)?.action
+            return (voice as? VoiceFeature.Action.delegate)?.action
+        }
 
     companion object {
         /// Mark All as Read receipts in flight at once.

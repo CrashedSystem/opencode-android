@@ -462,6 +462,13 @@
     "match": "good"
   },
   {
+    "sf": "magnifyingglass",
+    "material": "search",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
     "sf": "mic",
     "material": "mic",
     "filled": false,
