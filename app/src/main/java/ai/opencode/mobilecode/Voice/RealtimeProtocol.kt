@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/RealtimeProtocol.swift", "553a407", partial = "RealtimeJSON")
+@file:PortedFrom("OpenCode/Voice/RealtimeProtocol.swift", "4084466", partial = "RealtimeJSON")
 
 package ai.opencode.mobilecode
 

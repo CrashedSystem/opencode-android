@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/LiveProtocol.swift", "553a407", partial = "VoiceEngine")
+@file:PortedFrom("OpenCode/Voice/LiveProtocol.swift", "4084466", partial = "VoiceEngine")
 
 package ai.opencode.mobilecode
 

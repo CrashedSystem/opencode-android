@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/DotScopeSimulation.swift", "553a407", partial = "VoiceCallHaptic, DotScopeSimulation.exitDuration")
+@file:PortedFrom("OpenCode/Voice/DotScopeSimulation.swift", "4fff88f", partial = "VoiceCallHaptic, DotScopeSimulation.exitDuration")
 
 package ai.opencode.mobilecode
 
