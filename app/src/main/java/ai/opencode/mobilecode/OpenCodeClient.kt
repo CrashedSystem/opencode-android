@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "8fd69ec")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "ba012e9")
 
 package ai.opencode.mobilecode
 
@@ -1010,11 +1010,10 @@ val OpenCodeMarkdownBlock.fileReferences: List<AgentFileReference>
 data class OpenCodeImageAttachment(
     var id: String,
     @Serializable(with = ByteArrayBase64Serializer::class) var data: ByteArray,
-    var mime: String,
 ) {
     override fun equals(other: Any?): Boolean {
         val image = other as? OpenCodeImageAttachment ?: return false
-        return id == image.id && data.contentEquals(image.data) && mime == image.mime
+        return id == image.id && data.contentEquals(image.data)
     }
     override fun hashCode(): Int = id.hashCode() * 31 + data.contentHashCode()
 }
@@ -2045,7 +2044,7 @@ class OpenCodeClient(
                 if (!mime.startsWith("image/")) return@mapIndexedNotNull null
                 val encoded = file.data ?: return@mapIndexedNotNull null
                 val data = runCatching { Base64.getDecoder().decode(encoded) }.getOrNull() ?: return@mapIndexedNotNull null
-                OpenCodeImageAttachment("${message.id}-img-$index", data, mime)
+                OpenCodeImageAttachment("${message.id}-img-$index", data)
             }
             if (images.isNotEmpty()) items += OpenCodeTranscriptItem.userImages("${message.id}-images", images)
             val references = OpenCodePromptPresentation.files(message.metadata)
@@ -2114,7 +2113,7 @@ class OpenCodeClient(
                 val data = runCatching { Base64.getDecoder().decode(encoded) }.getOrNull() ?: continue
                 if (data.size > 20_000_000 || total + data.size > 32_000_000) continue
                 total += data.size
-                images += OpenCodeImageAttachment("$idPrefix-image-$index", data, mime)
+                images += OpenCodeImageAttachment("$idPrefix-image-$index", data)
             }
             return images
         }

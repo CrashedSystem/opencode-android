@@ -109,7 +109,7 @@ struct SessionSummary: Equatable {
             output = listOf("Image read successfully"),
             metadata = emptyMap(),
             images = (0 until count).map { index ->
-                OpenCodeImageAttachment(id = "lab-image-$index", data = previewPNG(labImageColors[index % labImageColors.size]), mime = "image/png")
+                OpenCodeImageAttachment(id = "lab-image-$index", data = previewPNG(labImageColors[index % labImageColors.size]))
             },
         ),
     )

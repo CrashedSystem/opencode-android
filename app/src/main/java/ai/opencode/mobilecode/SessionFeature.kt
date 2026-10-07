@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "9219884")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "ba012e9")
 
 package ai.opencode.mobilecode
 
@@ -194,8 +194,6 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             val text: String,
             /// Slid up or tapped: recording continues hands-free until Send or Cancel.
             val isLocked: Boolean = false,
-            /// When the mic went down, for the recording timer.
-            val startedAt: Instant,
         )
 
         /// The server is running this session (any client or agent) — driven by
@@ -1731,7 +1729,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         val optimisticIDs = mutableSetOf<String>()
                         var lastOptimisticID: String? = null
                         val images = attachments.filter { it.isImage }.map { attachment ->
-                            OpenCodeImageAttachment(id = "local-img-${uuid().toString().uppercase()}", data = attachment.data, mime = attachment.mime)
+                            OpenCodeImageAttachment(id = "local-img-${uuid().toString().uppercase()}", data = attachment.data)
                         }
                         val references = files.mapNotNull { it.reference }
                         val transcriptFiles = references.mapIndexed { index, file ->
@@ -1834,7 +1832,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         if (state.isDictating || state.isFinishingDictation) return@Reduce Effect.none
                         haptics.impact()
                         val start = startDictation(state)
-                        state.dictationHold = State.DictationHold(text = state.draft, startedAt = date.now)
+                        state.dictationHold = State.DictationHold(text = state.draft)
                         start
                     }
 
@@ -2882,10 +2880,6 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         }
     }
 
-    /// Discards dictation: tears down the mic and cancels the transcript
-    /// stream so nothing else lands in the draft. For sends and manual edits,
-    /// where a late result would clobber what the user committed to. Safe to
-    /// call unconditionally: a no-op unless dictation is active.
     private fun startDictation(state: State): Effect<Action> {
         state.dictationError = null
         state.dictationPhase = State.DictationPhase.preparing
@@ -2908,6 +2902,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             .cancellable(CancelID.dictation, cancelInFlight = true)
     }
 
+    /// Discards dictation: tears down the mic and cancels the transcript
+    /// stream so nothing else lands in the draft. For sends and manual edits,
+    /// where a late result would clobber what the user committed to. Safe to
+    /// call unconditionally: a no-op unless dictation is active.
     private fun stopDictation(state: State): Effect<Action> {
         val phase = state.dictationPhase
         state.dictationPhase = State.DictationPhase.idle
@@ -3760,14 +3758,14 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
         private fun messageID(`for`: OpenCodeTranscriptItem): String {
             val item = `for`
+            TranscriptEntry.promptID(forItem = item)?.let { return it }
             return when (item) {
                 is OpenCodeTranscriptItem.tool ->
                     item.call.messageID ?: item.id.indexOf("-tool-").takeIf { it >= 0 }?.let { item.id.substring(0, it) } ?: item.id
                 is OpenCodeTranscriptItem.assistantMarkdown ->
                     item.id.lastIndexOf("-text-").takeIf { it >= 0 }?.let { item.id.substring(0, it) } ?: item.id
-                is OpenCodeTranscriptItem.userImages -> item.id.dropLast("-images".length)
-                is OpenCodeTranscriptItem.userFiles -> item.id.dropLast("-files".length)
-                else -> item.id
+                else ->
+                    item.id
             }
         }
 

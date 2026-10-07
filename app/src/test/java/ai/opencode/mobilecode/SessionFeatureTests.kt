@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "626fbb8")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "ba012e9")
 
 package ai.opencode.mobilecode
 
@@ -220,7 +220,7 @@ class SessionFeatureTests {
     @Test
     fun completedReadToolImageSettlesIntoTheOpenTranscript() {
         val session = testSession(id = "ses_image", title = "Image")
-        val image = OpenCodeImageAttachment(id = "msg_reply-tool-call_read-image-1", data = byteArrayOf(1, 2, 3), mime = "image/png")
+        val image = OpenCodeImageAttachment(id = "msg_reply-tool-call_read-image-1", data = byteArrayOf(1, 2, 3))
         val settled = listOf(OpenCodeTranscriptItem.tool(
             id = "msg_reply-tool-call_read",
             call = OpenCodeToolCall(
@@ -2250,7 +2250,7 @@ class SessionFeatureTests {
         expect(store.state.queuedInputRows.firstOrNull()?.images?.map { it.data }?.singleOrNull()?.contentEquals(data) == true)
 
         val promoted = listOf(
-            OpenCodeTranscriptItem.userImages(id = "$messageID-images", images = listOf(OpenCodeImageAttachment(id = "server-image", data = data, mime = "image/png"))),
+            OpenCodeTranscriptItem.userImages(id = "$messageID-images", images = listOf(OpenCodeImageAttachment(id = "server-image", data = data))),
             OpenCodeTranscriptItem.userText(id = messageID, text = "Look"),
         )
         store.send(Action.transcriptResponse(sessionID = session.id, result = Result.success(promoted)))
@@ -2782,7 +2782,7 @@ class SessionFeatureTests {
         state.familyTranscriptCache += (child.id to listOf(OpenCodeTranscriptItem.userText(id = "child", text = "Child")))
         state.draft = "Unsent root work"
         state.queuedInputs = listOf(OpenCodePendingInput(id = "msg_queued", text = "Look"))
-        state.queuedInputImages += ("msg_queued" to listOf(OpenCodeImageAttachment(id = "img", data = byteArrayOf(1), mime = "image/png")))
+        state.queuedInputImages += ("msg_queued" to listOf(OpenCodeImageAttachment(id = "img", data = byteArrayOf(1))))
         val store = TestStore(
             initialState = { state },
             withDependencies = {
@@ -3113,15 +3113,11 @@ class SessionFeatureTests {
 
     @Test
     fun heldMicKeepsWordsOffTheDraftAndSendsOnRelease() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
-        val pressedAt = Instant.ofEpochSecond(1_000)
         val feed = Channel<String>(Channel.UNLIMITED)
         val store = TestStore(
-            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            initialState = { makeState() },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
-                it.date = DateGenerator.constant(pressedAt)
                 it.dictation.start = { feed.consumeAsFlow() }
                 it.dictation.stop = {
                     feed.trySend("Rename the tab bar")
@@ -3138,7 +3134,7 @@ class SessionFeatureTests {
 
         store.send(Action.micPressBegan) {
             it.dictationPhase = SessionFeature.State.DictationPhase.preparing
-            it.dictationHold = SessionFeature.State.DictationHold(text = "", startedAt = pressedAt)
+            it.dictationHold = SessionFeature.State.DictationHold(text = "")
         }
         store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
         feed.trySend("Rename the")
@@ -3169,16 +3165,12 @@ class SessionFeatureTests {
     /// while setup is still waiting on Allow. Recording must carry on locked.
     @Test
     fun releasingWhilePreparingLocksTheRecordingInsteadOfStopping() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
-        val pressedAt = Instant.ofEpochSecond(1_000)
         val feed = Channel<String>(Channel.UNLIMITED)
         val allow = CompletableDeferred<Unit>()
         var stops = 0
         val store = TestStore(
-            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            initialState = { makeState() },
             withDependencies = {
-                it.date = DateGenerator.constant(pressedAt)
                 it.dictation.start = {
                     allow.await()
                     feed.consumeAsFlow()
@@ -3193,7 +3185,7 @@ class SessionFeatureTests {
 
         store.send(Action.micPressBegan) {
             it.dictationPhase = SessionFeature.State.DictationPhase.preparing
-            it.dictationHold = SessionFeature.State.DictationHold(text = "", startedAt = pressedAt)
+            it.dictationHold = SessionFeature.State.DictationHold(text = "")
         }
         store.send(Action.micPressReleased) { state ->
             state.dictationHold?.let { hold -> state.dictationHold = hold.copy(isLocked = true) }
@@ -3221,16 +3213,11 @@ class SessionFeatureTests {
     /// whether recording from a tap or mid-hold, and nothing is sent.
     @Test
     fun leavingTheAppStopsDictationAndKeepsTheWordsInTheDraft() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
         for (holding in listOf(false, true)) {
-            val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-            state.draft = "Check"
             val feed = Channel<String>(Channel.UNLIMITED)
             val store = TestStore(
-                initialState = { state },
+                initialState = { makeState(draft = "Check") },
                 withDependencies = {
-                    it.date = DateGenerator.constant(Instant.ofEpochSecond(1_000))
                     it.dictation.start = { feed.consumeAsFlow() }
                     it.dictation.stop = {
                         feed.trySend("the failing test suite")
@@ -3262,16 +3249,10 @@ class SessionFeatureTests {
 
     @Test
     fun slidingLeftCancelsAHeldMicWithoutSending() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
-        val pressedAt = Instant.ofEpochSecond(1_000)
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "Typed"
         val feed = Channel<String>(Channel.UNLIMITED)
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(draft = "Typed") },
             withDependencies = {
-                it.date = DateGenerator.constant(pressedAt)
                 it.dictation.start = { feed.consumeAsFlow() }
                 it.dictation.stop = { feed.close() }
                 it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
@@ -3283,7 +3264,7 @@ class SessionFeatureTests {
 
         store.send(Action.micPressBegan) {
             it.dictationPhase = SessionFeature.State.DictationPhase.preparing
-            it.dictationHold = SessionFeature.State.DictationHold(text = "Typed", startedAt = pressedAt)
+            it.dictationHold = SessionFeature.State.DictationHold(text = "Typed")
         }
         store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
         feed.trySend("never mind")
@@ -3301,16 +3282,10 @@ class SessionFeatureTests {
 
     @Test
     fun lockedRecordingIgnoresReleaseAndInsertsIntoDraftOnStop() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
-        val pressedAt = Instant.ofEpochSecond(1_000)
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "Check"
         val feed = Channel<String>(Channel.UNLIMITED)
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(draft = "Check") },
             withDependencies = {
-                it.date = DateGenerator.constant(pressedAt)
                 it.dictation.start = { feed.consumeAsFlow() }
                 it.dictation.stop = {
                     feed.trySend("the failing test suite")
@@ -3325,7 +3300,7 @@ class SessionFeatureTests {
 
         store.send(Action.micPressBegan) {
             it.dictationPhase = SessionFeature.State.DictationPhase.preparing
-            it.dictationHold = SessionFeature.State.DictationHold(text = "Check", startedAt = pressedAt)
+            it.dictationHold = SessionFeature.State.DictationHold(text = "Check")
         }
         store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
         store.send(Action.micPressLocked) { state ->
@@ -3356,16 +3331,10 @@ class SessionFeatureTests {
 
     @Test
     fun tappedRecordingCancelDiscardsWordsAndKeepsTypedDraft() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
-        val pressedAt = Instant.ofEpochSecond(1_000)
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "Keep this"
         val feed = Channel<String>(Channel.UNLIMITED)
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(draft = "Keep this") },
             withDependencies = {
-                it.date = DateGenerator.constant(pressedAt)
                 it.dictation.start = { feed.consumeAsFlow() }
                 it.dictation.stop = { feed.close() }
                 it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
@@ -3377,7 +3346,7 @@ class SessionFeatureTests {
 
         store.send(Action.micPressBegan) {
             it.dictationPhase = SessionFeature.State.DictationPhase.preparing
-            it.dictationHold = SessionFeature.State.DictationHold(text = "Keep this", startedAt = pressedAt)
+            it.dictationHold = SessionFeature.State.DictationHold(text = "Keep this")
         }
         store.receive(Action.dictationReady) { it.dictationPhase = SessionFeature.State.DictationPhase.recording }
         store.send(Action.micPressLocked) { state ->
@@ -3932,7 +3901,7 @@ class SessionRefreshReviewTests {
                     output = listOf("Image read successfully"),
                     error = if (status == OpenCodeToolCall.Status.error) "Failed" else null,
                     metadata = mapOf("known" to OpenCodeJSONValue.bool(true)),
-                    images = listOf(OpenCodeImageAttachment(id = "image", data = byteArrayOf(1, 2, 3), mime = "image/png")),
+                    images = listOf(OpenCodeImageAttachment(id = "image", data = byteArrayOf(1, 2, 3))),
                     startedAt = 0L,
                 )
                 val tool = OpenCodeTranscriptItem.tool(id = "msg_reply-tool-call", call = call)
