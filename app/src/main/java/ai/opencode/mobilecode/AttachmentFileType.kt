@@ -186,4 +186,18 @@ object AttachmentFileType {
         }
         return "$text ${unit.first}"
     }
+
+    fun fileSize(size: Long): String {
+        if (size < 1000) return "$size bytes"
+        val units = listOf("KB", "MB", "GB", "TB")
+        var value = size.toDouble()
+        var unit = "bytes"
+        for (next in units) {
+            value /= 1000.0
+            unit = next
+            if (value < 1000) break
+        }
+        val digits = if (value < 10) 1 else 0
+        return "%.${digits}f %s".format(value, unit)
+    }
 }

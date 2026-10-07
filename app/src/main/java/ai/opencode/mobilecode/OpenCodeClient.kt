@@ -70,7 +70,31 @@ data class AttributedString(
     val runs: List<Run> = emptyList(),
 ) {
     @Serializable
-    data class Run(val link: URL? = null)
+    data class Run(
+        val start: Int,
+        val end: Int,
+        val foregroundColor: Foreground? = null,
+        val link: URL? = null,
+        val inlinePresentationIntent: Set<Intent> = emptySet(),
+        val codeBackground: Boolean = false,
+    )
+
+    @Serializable
+    enum class Intent { code, stronglyEmphasized, emphasized, strikethrough }
+
+    @Serializable
+    sealed class Foreground {
+        @Serializable data object primary : Foreground()
+        @Serializable data object secondary : Foreground()
+        @Serializable data object link : Foreground()
+        @Serializable data object clear : Foreground()
+        @Serializable data class syntax(val role: SyntaxRole) : Foreground()
+    }
+
+    @Serializable
+    enum class SyntaxRole { keyword, string, comment, type, number }
+
+    fun slice(start: Int, end: Int): String = characters.substring(start, end.coerceAtMost(characters.length))
 }
 
 data class URLQueryItem(val name: String, val value: String?)
@@ -693,12 +717,14 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
         private fun inline(text: String): AttributedString {
             val runs = Regex("""`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)""").findAll(text).mapNotNull { match ->
                 val code = match.groupValues[1]
+                val start = match.range.first
+                val end = match.range.last + 1
                 if (code.isNotEmpty()) {
-                    AgentFileReference.fromInlineCode(code)?.linkURL?.let { AttributedString.Run(it) }
+                    AgentFileReference.fromInlineCode(code)?.linkURL?.let { AttributedString.Run(start, end, link = it) }
                 } else {
                     val destination = match.groupValues[3]
                     val file = AgentFileReference.fromLink(destination)
-                    AttributedString.Run(file?.linkURL ?: URL.parse(destination))
+                    AttributedString.Run(start, end, link = file?.linkURL ?: URL.parse(destination))
                 }
             }.toList()
             return AttributedString(text, runs)
