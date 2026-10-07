@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.AttributedString
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -464,6 +466,7 @@ private fun annotated(text: AttributedString, base: Color): AnnotatedString {
             background = if (code) SystemColors.tertiarySystemFill else Color.Unspecified,
             fontWeight = if (active.any { AttributedString.Intent.stronglyEmphasized in it.inlinePresentationIntent }) FontWeight.Bold else null,
             fontStyle = if (active.any { AttributedString.Intent.emphasized in it.inlinePresentationIntent }) FontStyle.Italic else null,
+            textDecoration = if (active.any { AttributedString.Intent.strikethrough in it.inlinePresentationIntent }) TextDecoration.LineThrough else null,
             fontFamily = if (code) FontFamily.Monospace else null,
             fontSize = if (code) 15.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         )

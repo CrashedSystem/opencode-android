@@ -1,5 +1,6 @@
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.AttributedString
 import ai.opencode.mobilecode.system.ForcedAppearance
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemTheme

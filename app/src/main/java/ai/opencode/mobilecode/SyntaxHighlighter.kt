@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.AttributedString
 import java.text.BreakIterator
 import java.util.Locale
 

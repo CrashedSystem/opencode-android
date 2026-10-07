@@ -1,5 +1,7 @@
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.AttributedString
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
