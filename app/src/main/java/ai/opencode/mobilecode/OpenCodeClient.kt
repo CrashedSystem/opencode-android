@@ -64,7 +64,14 @@ internal val protocolJson = Json {
     isLenient = true
 }
 
-data class AttributedString(val characters: String)
+@Serializable
+data class AttributedString(
+    val characters: String,
+    val runs: List<Run> = emptyList(),
+) {
+    @Serializable
+    data class Run(val link: URL? = null)
+}
 
 data class URLQueryItem(val name: String, val value: String?)
 
@@ -545,21 +552,24 @@ data class OpenCodeToolCall(
     }
 }
 
+@Serializable
 data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
+    @Serializable
     sealed class Kind {
-        data class paragraph(val text: AttributedString) : Kind()
-        data class numberedItem(val marker: String, val text: AttributedString) : Kind()
-        data class listItem(val marker: String, val level: Int, val text: AttributedString) : Kind()
-        data class blockquote(val text: AttributedString) : Kind()
-        data class heading(val level: Int, val text: AttributedString) : Kind()
-        data class code(val code: HighlightedCode) : Kind()
-        data class table(val header: List<AttributedString>, val rows: List<List<AttributedString>>) : Kind()
-        data class image(val alt: String, val source: String) : Kind()
-        data class pullRequest(val title: String, val url: String) : Kind()
-        data object divider : Kind()
-        data class files(val files: List<AgentFileReference>) : Kind()
+        @Serializable data class paragraph(val text: AttributedString) : Kind()
+        @Serializable data class numberedItem(val marker: String, val text: AttributedString) : Kind()
+        @Serializable data class listItem(val marker: String, val level: Int, val text: AttributedString) : Kind()
+        @Serializable data class blockquote(val text: AttributedString) : Kind()
+        @Serializable data class heading(val level: Int, val text: AttributedString) : Kind()
+        @Serializable data class code(val code: HighlightedCode) : Kind()
+        @Serializable data class table(val header: List<AttributedString>, val rows: List<List<AttributedString>>) : Kind()
+        @Serializable data class image(val alt: String, val source: String) : Kind()
+        @Serializable data class pullRequest(val title: String, val url: String) : Kind()
+        @Serializable data object divider : Kind()
+        @Serializable data class files(val files: List<AgentFileReference>) : Kind()
     }
 
+    @Serializable
     data class HighlightedCode(val source: String, val language: String?, val text: AttributedString = SyntaxHighlighter.highlight(source, language)) {
         override fun equals(other: Any?): Boolean {
             val code = other as? HighlightedCode ?: return false
@@ -614,7 +624,7 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
                 if (index % 2 == 0) appendTextBlocks(segment, blocks)
                 else appendCode(segment, blocks, reusing)
             }
-            return blocks
+            return insertFileCards(blocks)
         }
 
         fun codeFenceSegments(text: String): List<String> = text.split("```")
@@ -640,7 +650,7 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
                 val value = paragraph.toString().trim()
                 paragraph.clear()
                 if (value.isEmpty()) return
-                blocks += OpenCodeMarkdownBlock(blocks.size, Kind.paragraph(AttributedString(value)))
+                blocks += OpenCodeMarkdownBlock(blocks.size, paragraphKind(value))
             }
             for (line in text.split("\n")) {
                 val heading = Regex("""^(#{1,6}) (.+)$""").matchEntire(line.trimEnd())
@@ -659,8 +669,75 @@ data class OpenCodeMarkdownBlock(var id: Int, var kind: Kind) {
             }
             flush()
         }
+
+        private fun paragraphKind(value: String): Kind {
+            if (!value.contains("\n")) markdownImage(value)?.let { return it }
+            return Kind.paragraph(inline(value))
+        }
+
+        private fun markdownImage(line: String): Kind? {
+            if (!line.startsWith("![") || !line.endsWith(")")) return null
+            val separator = line.indexOf("](")
+            if (separator < 0) return null
+            val alt = line.substring(2, separator)
+            var source = line.substring(separator + 2, line.lastIndex).trim()
+            if (source.startsWith("<") && source.endsWith(">")) source = source.drop(1).dropLast(1)
+            val title = source.indexOf(" \"")
+            if (title >= 0) source = source.substring(0, title)
+            if (source.isEmpty()) return null
+            val file = AgentFileReference.fromLink(source)
+            if (file != null && file.kind != AgentFileReference.Kind.image && file.kind.showsCard) return Kind.files(listOf(file))
+            return Kind.image(alt, source)
+        }
+
+        private fun inline(text: String): AttributedString {
+            val runs = Regex("""`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)""").findAll(text).mapNotNull { match ->
+                val code = match.groupValues[1]
+                if (code.isNotEmpty()) {
+                    AgentFileReference.fromInlineCode(code)?.linkURL?.let { AttributedString.Run(it) }
+                } else {
+                    val destination = match.groupValues[3]
+                    val file = AgentFileReference.fromLink(destination)
+                    AttributedString.Run(file?.linkURL ?: URL.parse(destination))
+                }
+            }.toList()
+            return AttributedString(text, runs)
+        }
+
+        private fun insertFileCards(blocks: List<OpenCodeMarkdownBlock>): List<OpenCodeMarkdownBlock> {
+            val seen = mutableSetOf<String>()
+            val result = mutableListOf<OpenCodeMarkdownBlock>()
+            for (block in blocks) {
+                val files = block.kind as? Kind.files
+                if (files != null) {
+                    val unseen = files.files.filter { seen.add(it.path) }
+                    if (unseen.isNotEmpty()) result += OpenCodeMarkdownBlock(result.size, Kind.files(unseen))
+                    continue
+                }
+                result += OpenCodeMarkdownBlock(result.size, block.kind)
+                val cards = block.fileReferences.filter { it.kind.showsCard && seen.add(it.path) }
+                if (cards.isNotEmpty()) result += OpenCodeMarkdownBlock(result.size, Kind.files(cards))
+            }
+            return result
+        }
     }
 }
+
+val OpenCodeMarkdownBlock.fileReferences: List<AgentFileReference>
+    get() {
+        val files = kind as? OpenCodeMarkdownBlock.Kind.files
+        if (files != null) return files.files
+        val texts = when (val value = kind) {
+            is OpenCodeMarkdownBlock.Kind.paragraph -> listOf(value.text)
+            is OpenCodeMarkdownBlock.Kind.blockquote -> listOf(value.text)
+            is OpenCodeMarkdownBlock.Kind.heading -> listOf(value.text)
+            is OpenCodeMarkdownBlock.Kind.numberedItem -> listOf(value.text)
+            is OpenCodeMarkdownBlock.Kind.listItem -> listOf(value.text)
+            is OpenCodeMarkdownBlock.Kind.table -> value.header + value.rows.flatten()
+            else -> emptyList()
+        }
+        return texts.flatMap { text -> text.runs.mapNotNull { run -> run.link?.let { AgentFileReference(linkURL = it) } } }
+    }
 
 @Serializable
 data class OpenCodeImageAttachment(
