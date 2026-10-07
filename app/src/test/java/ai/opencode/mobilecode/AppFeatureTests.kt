@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AppFeatureTests.swift", "8bec12f")
+@file:PortedFrom("OpenCodeTests/AppFeatureTests.swift", "ef77344")
 
 package ai.opencode.mobilecode
 
@@ -14,6 +14,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -663,6 +664,16 @@ class AppFeatureTests {
         store.receive<AppFeature.Action.healthResponse>()
 
         expect(attempted == listOf("http://100.84.220.87:4102", "https://my-mac.example:4096"))
+    }
+
+    /// ATS silently ignores a malformed `NSExceptionDomains` key, so this asks
+    /// URLSession, under the app's real Info.plist, about each excepted range
+    /// and name (and their edges): an excepted target fails with anything but
+    /// ATS's own error (none are reachable here), any other with exactly it.
+    /// Opt-in because it touches the network: `TEST_RUNNER_OPENCODE_ATS_PROBE=1`.
+    @Ignore("Android has no App Transport Security: the manifest allows cleartext to every host")
+    @Test
+    fun transportSecurityAllowsPrivateOverlays() {
     }
 
     @Test
