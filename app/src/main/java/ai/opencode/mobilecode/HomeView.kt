@@ -1137,7 +1137,7 @@ private fun CatchUpChrome(
                 Modifier
                     .weight(1f)
                     .heightIn(min = 50.dp)
-                    .glassEffect(GlassSurface.rounded(14.dp), interactive = true, tint = CatchUpMetrics.readControlColor)
+                    .glassEffect(GlassSurface.Capsule, interactive = true, tint = CatchUpMetrics.readControlColor)
                     .clickable(enabled = remaining > 0, role = Role.Button) { onDismiss(HomeFeature.CatchUpDisposition.markRead) },
                 contentAlignment = Alignment.Center,
             ) {
