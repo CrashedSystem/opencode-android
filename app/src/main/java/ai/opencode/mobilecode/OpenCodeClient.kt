@@ -1351,47 +1351,50 @@ class OpenCodeClient(
             .readTimeout(90, TimeUnit.SECONDS)
             .build()
 
+        /** Endpoints decode on a background thread so large pages never block the main thread. */
+        private suspend inline fun <T> offMain(crossinline block: suspend () -> T): T = withContext(Dispatchers.Default) { block() }
+
         override val liveValue = OpenCodeClient(
-            health = { server -> requestHealth(server) },
-            redeemPairing = { link -> requestRedeemPairing(link) },
-            homeSnapshot = { server -> requestHomeSnapshot(server) },
-            homeAttention = { server, roots, directories -> requestHomeAttention(server, roots, directories) },
-            transcript = { server, sessionID, limit -> requestTranscript(server, sessionID, limit) },
-            message = { server, sessionID, messageID -> requestMessage(server, sessionID, messageID) },
+            health = { server -> offMain { requestHealth(server) } },
+            redeemPairing = { link -> offMain { requestRedeemPairing(link) } },
+            homeSnapshot = { server -> offMain { requestHomeSnapshot(server) } },
+            homeAttention = { server, roots, directories -> offMain { requestHomeAttention(server, roots, directories) } },
+            transcript = { server, sessionID, limit -> offMain { requestTranscript(server, sessionID, limit) } },
+            message = { server, sessionID, messageID -> offMain { requestMessage(server, sessionID, messageID) } },
             sendPrompt = { server, sessionID, text, attachments, files, messageID, delivery ->
-                requestSendPrompt(server, sessionID, text, attachments, files, messageID, delivery)
+                offMain { requestSendPrompt(server, sessionID, text, attachments, files, messageID, delivery) }
             },
-            sendDeliveredPrompt = { server, sessionID, text, delivery -> requestSendDeliveredPrompt(server, sessionID, text, delivery) },
-            assistantReply = { server, sessionID, afterMessageID -> requestAssistantReply(server, sessionID, afterMessageID) },
+            sendDeliveredPrompt = { server, sessionID, text, delivery -> offMain { requestSendDeliveredPrompt(server, sessionID, text, delivery) } },
+            assistantReply = { server, sessionID, afterMessageID -> offMain { requestAssistantReply(server, sessionID, afterMessageID) } },
             uploadFile = { server, directory, file, name -> uploadFile(server, directory, file, name) },
-            waitForIdle = { server, sessionID -> requestWaitForIdle(server, sessionID) },
-            isSessionActive = { server, sessionID -> requestIsSessionActive(server, sessionID) },
-            interrupt = { server, sessionID -> requestInterrupt(server, sessionID) },
-            createSession = { server, directory -> requestCreateSession(server, directory) },
-            deleteSession = { server, sessionID -> requestDeleteSession(server, sessionID) },
-            sessionFamily = { server, root -> requestSessionFamily(server, root) },
-            modelCatalog = { server, directory -> requestModelCatalog(server, directory) },
-            switchModel = { server, sessionID, model -> requestSwitchModel(server, sessionID, model) },
-            familyPendingRequests = { server, sessionIDs, directory -> requestFamilyPendingRequests(server, sessionIDs, directory) },
-            pendingInputs = { server, sessionID -> requestPendingInputs(server, sessionID) },
-            setPendingInputDelivery = { server, sessionID, inputID, delivery -> requestSetPendingInputDelivery(server, sessionID, inputID, delivery) },
-            cancelPendingInput = { server, sessionID, inputID -> requestCancelPendingInput(server, sessionID, inputID) },
-            replyPermission = { server, sessionID, requestID, reply -> requestReplyPermission(server, sessionID, requestID, reply) },
-            replyForm = { server, sessionID, formID, answer -> requestReplyForm(server, sessionID, formID, answer) },
-            cancelForm = { server, sessionID, formID -> requestCancelForm(server, sessionID, formID) },
-            getSession = { server, sessionID -> requestGetSession(server, sessionID) },
-            runningShells = { server, directory -> requestRunningShells(server, directory) },
-            shell = { server, directory, shellID -> requestShell(server, directory, shellID) },
-            shellOutput = { server, directory, shellID, cursor, limit -> requestShellOutput(server, directory, shellID, cursor, limit) },
-            stopShell = { server, directory, shellID -> requestStopShell(server, directory, shellID) },
-            moveToBackground = { server, sessionID -> requestMoveToBackground(server, sessionID) },
-            viewSession = { server, sessionID, idle -> requestViewSession(server, sessionID, idle) },
-            contextUsage = { server, sessionID -> requestContextUsage(server, sessionID) },
-            renameSession = { server, sessionID, title -> requestRenameSession(server, sessionID, title) },
-            compactSession = { server, sessionID -> requestCompactSession(server, sessionID) },
-            forkSession = { server, sessionID -> requestForkSession(server, sessionID) },
-            exportSession = { server, sessionID -> requestExportSession(server, sessionID) },
-            historyPage = { server, sessionID, cursor -> requestHistoryPage(server, sessionID, cursor) },
+            waitForIdle = { server, sessionID -> offMain { requestWaitForIdle(server, sessionID) } },
+            isSessionActive = { server, sessionID -> offMain { requestIsSessionActive(server, sessionID) } },
+            interrupt = { server, sessionID -> offMain { requestInterrupt(server, sessionID) } },
+            createSession = { server, directory -> offMain { requestCreateSession(server, directory) } },
+            deleteSession = { server, sessionID -> offMain { requestDeleteSession(server, sessionID) } },
+            sessionFamily = { server, root -> offMain { requestSessionFamily(server, root) } },
+            modelCatalog = { server, directory -> offMain { requestModelCatalog(server, directory) } },
+            switchModel = { server, sessionID, model -> offMain { requestSwitchModel(server, sessionID, model) } },
+            familyPendingRequests = { server, sessionIDs, directory -> offMain { requestFamilyPendingRequests(server, sessionIDs, directory) } },
+            pendingInputs = { server, sessionID -> offMain { requestPendingInputs(server, sessionID) } },
+            setPendingInputDelivery = { server, sessionID, inputID, delivery -> offMain { requestSetPendingInputDelivery(server, sessionID, inputID, delivery) } },
+            cancelPendingInput = { server, sessionID, inputID -> offMain { requestCancelPendingInput(server, sessionID, inputID) } },
+            replyPermission = { server, sessionID, requestID, reply -> offMain { requestReplyPermission(server, sessionID, requestID, reply) } },
+            replyForm = { server, sessionID, formID, answer -> offMain { requestReplyForm(server, sessionID, formID, answer) } },
+            cancelForm = { server, sessionID, formID -> offMain { requestCancelForm(server, sessionID, formID) } },
+            getSession = { server, sessionID -> offMain { requestGetSession(server, sessionID) } },
+            runningShells = { server, directory -> offMain { requestRunningShells(server, directory) } },
+            shell = { server, directory, shellID -> offMain { requestShell(server, directory, shellID) } },
+            shellOutput = { server, directory, shellID, cursor, limit -> offMain { requestShellOutput(server, directory, shellID, cursor, limit) } },
+            stopShell = { server, directory, shellID -> offMain { requestStopShell(server, directory, shellID) } },
+            moveToBackground = { server, sessionID -> offMain { requestMoveToBackground(server, sessionID) } },
+            viewSession = { server, sessionID, idle -> offMain { requestViewSession(server, sessionID, idle) } },
+            contextUsage = { server, sessionID -> offMain { requestContextUsage(server, sessionID) } },
+            renameSession = { server, sessionID, title -> offMain { requestRenameSession(server, sessionID, title) } },
+            compactSession = { server, sessionID -> offMain { requestCompactSession(server, sessionID) } },
+            forkSession = { server, sessionID -> offMain { requestForkSession(server, sessionID) } },
+            exportSession = { server, sessionID -> offMain { requestExportSession(server, sessionID) } },
+            historyPage = { server, sessionID, cursor -> offMain { requestHistoryPage(server, sessionID, cursor) } },
             events = { server -> subscribeEvents(server) },
         )
 
@@ -1710,7 +1713,7 @@ class OpenCodeClient(
                 .build()
             emit(OpenCodeUploadEvent.progress(0))
             val response = execute(httpClient.newBuilder().callTimeout(120, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build(), request)
-            val body = response.body.bytes()
+            val body = response.body
             if (response.code == 404 && !body.decodeToString().contains("Location")) throw OpenCodeClientError.uploadsUnsupported
             if (response.code !in 200..299) throw httpError(response.code)
             emit(OpenCodeUploadEvent.progress(bytes.size.toLong()))
@@ -2298,14 +2301,17 @@ class OpenCodeClient(
             val callClient = httpClient.newBuilder().callTimeout(timeout, TimeUnit.SECONDS).readTimeout(timeout, TimeUnit.SECONDS).build()
             val response = execute(callClient, builder.build())
             if (response.code !in 200..299) throw httpError(response.code)
-            return response.body.bytes()
+            return response.body
         }
 
-        private suspend fun execute(client: OkHttpClient, request: Request): okhttp3.Response {
+        private class ReadResponse(val code: Int, val body: ByteArray)
+
+        /** Runs the call and reads its whole body on the IO dispatcher: Android forbids socket reads on the main thread. */
+        private suspend fun execute(client: OkHttpClient, request: Request): ReadResponse {
             val call = client.newCall(request)
             kotlin.coroutines.coroutineContext[Job]?.invokeOnCompletion { if (it is CancellationException) call.cancel() }
             return try {
-                withContext(Dispatchers.IO) { call.execute() }
+                withContext(Dispatchers.IO) { call.execute().use { ReadResponse(it.code, it.body.bytes()) } }
             } catch (error: OpenCodeClientError) {
                 throw error
             } catch (_: Exception) {
