@@ -1,5 +1,7 @@
 package ai.opencode.mobilecode.system
 
+import android.view.View
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -48,10 +50,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 
 enum class SheetDetent { Medium, Large }
@@ -153,6 +157,7 @@ fun SystemSheet(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SystemMenu(
     expanded: Boolean,
@@ -160,12 +165,43 @@ fun SystemMenu(
     sections: List<SystemMenuSection>,
     modifier: Modifier = Modifier,
 ) {
+    val view = LocalView.current
+    val imeVisible = WindowInsets.isImeVisible
+    // Last keyboard state while the menu was closed. The open frame must not
+    // overwrite it, or a focusable popup that hides the IME looks like it never was up.
+    var keyboardBeforeMenu by remember { mutableStateOf(false) }
+    if (!expanded) keyboardBeforeMenu = imeVisible
+    var openedWithKeyboard by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            openedWithKeyboard = keyboardBeforeMenu
+            return@LaunchedEffect
+        }
+        if (!openedWithKeyboard) return@LaunchedEffect
+        openedWithKeyboard = false
+        restoreKeyboard(view)
+    }
+    // The default menu is focusable, so it takes window focus and the IME hides. The
+    // composer then moves. Leaving it unfocusable keeps the field and the keyboard.
+    BackHandler(enabled = expanded, onBack = onDismissRequest)
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = modifier,
+        properties = menuKeepsKeyboard,
     ) {
         SystemMenuSections(sections)
+    }
+}
+
+private val menuKeepsKeyboard = PopupProperties(focusable = false)
+
+private fun restoreKeyboard(view: View) {
+    val focused = view.rootView.findFocus()
+    view.post {
+        val target = focused?.takeIf { it.isAttachedToWindow } ?: view.rootView.findFocus() ?: return@post
+        if (!target.hasFocus()) target.requestFocus()
+        target.windowInsetsController?.show(android.view.WindowInsets.Type.ime())
     }
 }
 
