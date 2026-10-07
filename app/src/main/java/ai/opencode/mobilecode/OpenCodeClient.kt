@@ -235,11 +235,14 @@ data class OpenCodePairingLink(
 
         private fun decodeLink(text: String): OpenCodePairingLink? {
             val link = runCatching { URI(text) }.getOrNull() ?: return null
-            val parts = link.path.split("/", limit = 0)
+            if (!link.rawQuery.isNullOrEmpty() || link.rawFragment != null || !link.userInfo.isNullOrEmpty()) return null
+            val parts = link.path?.split("/", limit = 0) ?: return null
             if (parts.size != 4 || parts[0].isNotEmpty() || parts[1] != "auth" || parts[2] != "connect" || !isCode(parts[3])) {
                 return null
             }
-            val address = normalizedOrigin(URI(link.scheme, null, link.host, link.port, "", null, null).toString()) ?: return null
+            val address = runCatching {
+                normalizedOrigin(URI(link.scheme, null, link.host, link.port, "", null, null).toString())
+            }.getOrNull() ?: return null
             return OpenCodePairingLink(origin = address, code = parts[3])
         }
 

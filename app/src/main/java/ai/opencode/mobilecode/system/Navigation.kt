@@ -69,6 +69,18 @@ fun NavigationStack(
     }
 }
 
+/** `.toolbar(.hidden, for: .navigationBar)` */
+@Composable
+fun NavigationBarHidden(hidden: Boolean = true) {
+    val bar = LocalNavigationBar.current ?: return
+    DisposableEffect(bar, hidden) {
+        bar.hidden = hidden
+        onDispose {
+            if (bar.hidden == hidden) bar.hidden = false
+        }
+    }
+}
+
 /** `.navigationTitle("Title")` with `.navigationBarTitleDisplayMode(displayMode)` */
 @Composable
 fun NavigationTitle(
@@ -106,6 +118,7 @@ fun ToolbarItem(
 private class NavigationBarState {
     var title by mutableStateOf<String?>(null)
     var displayMode by mutableStateOf(TitleDisplayMode.automatic)
+    var hidden by mutableStateOf(false)
     val items = mutableStateListOf<ToolbarEntry>()
 }
 
@@ -115,6 +128,7 @@ private val LocalNavigationBar = staticCompositionLocalOf<NavigationBarState?> {
 
 @Composable
 private fun NavigationBar(bar: NavigationBarState) {
+    if (bar.hidden) return
     Box(
         Modifier
             .fillMaxWidth()

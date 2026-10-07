@@ -1,9 +1,10 @@
-@file:PortedFrom("OpenCode/ShareInbox.swift", "553a407", partial = "client, drafts, and draft target; SessionFeature.absorb and HomeFeature share resolution wait for those features")
+@file:PortedFrom("OpenCode/ShareInbox.swift", "553a407")
 
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.tca.DependencyKey
 import ai.opencode.mobilecode.tca.DependencyValues
+import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -49,7 +50,7 @@ var DependencyValues.shareInbox: ShareInboxClient
     }
 
 /// What a share adds to one composer.
-class SharedComposerDraft(
+data class SharedComposerDraft(
     var text: String = "",
     var attachments: List<OpenCodeOutgoingAttachment> = emptyList(),
     /// Staged non-image files; they upload once the composer absorbs them.
@@ -71,13 +72,6 @@ class SharedComposerDraft(
         projectID = other.projectID ?: projectID
     }
 
-    override fun equals(other: Any?): Boolean {
-        val draft = other as? SharedComposerDraft ?: return false
-        return text == draft.text && attachments == draft.attachments && files == draft.files && projectID == draft.projectID
-    }
-
-    override fun hashCode(): Int = text.hashCode()
-
     companion object {
         fun joined(first: String, second: String): String {
             if (first.isEmpty()) return second
@@ -89,5 +83,56 @@ class SharedComposerDraft(
 
 sealed interface SharedDraftTarget {
     data class session(val id: String) : SharedDraftTarget
+
     data object newSession : SharedDraftTarget
 }
+
+/// Shared text follows whatever is already typed; images join the tray.
+/// Files join as uploads that `queuedUploadsStarted` sets going.
+fun SessionFeature.State.absorb(shared: SharedComposerDraft) {
+    draft = SharedComposerDraft.joined(draft, shared.text)
+    pendingAttachments += shared.attachments
+    pendingFiles += shared.files.map { ComposerFileAttachment(it) }
+    unstartedUploadIDs += shared.files.map { it.id }
+}
+
+data class ResolvedShareTarget(val target: SharedDraftTarget, val projectID: String?)
+
+/// A deleted session's items start a new session in the same project.
+fun HomeFeature.State.resolvedShareTarget(target: ShareHandoff.Target): ResolvedShareTarget =
+    when (target) {
+        is ShareHandoff.Target.session ->
+            if (sessions.any { it.id == target.id }) {
+                ResolvedShareTarget(SharedDraftTarget.session(target.id), null)
+            } else {
+                ResolvedShareTarget(SharedDraftTarget.newSession, target.projectID)
+            }
+        is ShareHandoff.Target.newSession -> ResolvedShareTarget(SharedDraftTarget.newSession, target.projectID)
+    }
+
+/// Pinned and recent sessions in drawer order, without the drawer's search.
+val HomeFeature.State.shareTargets: ShareTargets
+    get() {
+        val projectsByID = projects.distinctBy { it.id }.associateBy { it.id }
+        fun target(session: OpenCodeSession) = ShareTargets.Session(
+            id = session.id,
+            title = session.title,
+            projectID = session.projectID,
+            projectName = projectsByID[session.projectID]?.name ?: File(session.directory).name,
+        )
+        val indexed = sessions.distinctBy { sessionKey(it.id) }.associateBy { sessionKey(it.id) }
+        val pinned = pinnedSessionKeys.mapNotNull { indexed[it] }
+        val recents = sessions.filter { !isPinned(it.id) }
+            .sortedByDescending { it.updatedAt }
+            .take(ShareTargets.maximumRecents)
+        val draftProject = if (sessionDetail?.isDraft == true) sessionDetail?.draftProject else null
+        val project = draftProject ?: projectsByRecency.firstOrNull()
+        return ShareTargets(
+            serverID = server.persistenceID,
+            serverName = server.host,
+            lastViewedSessionID = sessionDetail?.session?.id,
+            newSessionProject = project?.let { ShareTargets.Project(id = it.id, name = it.name) },
+            pinned = pinned.map(::target),
+            recents = recents.map(::target),
+        )
+    }
