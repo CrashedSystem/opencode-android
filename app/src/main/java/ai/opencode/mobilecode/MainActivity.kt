@@ -7,9 +7,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         // The iOS lab's launch environment and arguments arrive as extras with the same names.
         if (BuildConfig.DEBUG) {
@@ -23,7 +29,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             SystemTheme {
                 CompositionLocalProvider(LocalReduceMotion provides (LocalReduceMotion.current || OpenCodeApp.labReducesMotion)) {
-                    AppView(store = OpenCodeApp.store)
+                    // UI Automator sees test tags as resource IDs, as XCUITest sees accessibility identifiers.
+                    Box(Modifier.semantics { testTagsAsResourceId = true }) {
+                        AppView(store = OpenCodeApp.store)
+                    }
                 }
             }
         }

@@ -37,9 +37,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -86,7 +89,7 @@ fun SystemButton(
  * The platform sheet with the medium and large detents. Its surface stands in for iOS 26 glass,
  * the grouped background in light and the elevated background in dark, under an iOS-sized grabber.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SystemSheet(
     onDismissRequest: () -> Unit,
@@ -120,7 +123,7 @@ fun SystemSheet(
         },
     ) {
         CompositionLocalProvider(LocalDismiss provides dismiss) {
-            Column(Modifier.fillMaxWidth(), content = content)
+            Column(Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }, content = content)
         }
     }
 }
