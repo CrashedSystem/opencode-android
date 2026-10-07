@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentMenu.swift", "a92bd2d")
+@file:PortedFrom("OpenCode/AttachmentMenu.swift", "b479446")
 
 package ai.opencode.mobilecode
 
@@ -599,6 +599,10 @@ fun AttachmentMenuOverlay(
             if (closing) AttachmentMenuMotion.close(reduceMotion) else AttachmentMenuMotion.morph(reduceMotion),
             animates = owned,
         )
+        /// Where the menu's glass and rows are: travelling with the card, or
+        /// under Reduce Motion staying on the menu while they cross-fade.
+        val glassRect = if (reduceMotion) frames.menu else panelRect
+        val glassRadius = if (reduceMotion) AttachmentMenuMetrics.cornerRadius else panelRadius
         val showsCard = current == AttachmentMenuPhase.photos || (closing && openPhase == AttachmentMenuPhase.photos)
         /// Where the picker shows. It is drawn opaque from the moment the menu
         /// opens, so revealing it never waits on the system's placeholder.
@@ -674,9 +678,9 @@ fun AttachmentMenuOverlay(
             )
             Box(
                 Modifier
-                    .frame(panelRect)
+                    .frame(glassRect)
                     .graphicsLayer { alpha = glassAlpha }
-                    .glassEffect(RoundedCornerShape(panelRadius.dp))
+                    .glassEffect(RoundedCornerShape(glassRadius.dp))
                     .clearAndSetSemantics {},
             )
             // The menu's rows, drawn over the glass the card took over, fading as it
@@ -688,8 +692,8 @@ fun AttachmentMenuOverlay(
             )
             Box(
                 Modifier
-                    .frame(panelRect)
-                    .clip(RoundedCornerShape(panelRadius.dp))
+                    .frame(glassRect)
+                    .clip(RoundedCornerShape(glassRadius.dp))
                     .clearAndSetSemantics {},
             ) {
                 AttachmentMenuRows(
@@ -697,7 +701,7 @@ fun AttachmentMenuOverlay(
                     buttonCenterX = frames.button.center.x - frames.menu.left,
                     enabled = false,
                     modifier = Modifier
-                        .frame(frames.menu.translate(-panelRect.left, -panelRect.top))
+                        .frame(frames.menu.translate(-glassRect.left, -glassRect.top))
                         .wrapContentSize(Alignment.BottomCenter, unbounded = true)
                         .graphicsLayer { alpha = rowsAlpha },
                 )
