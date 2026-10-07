@@ -6,6 +6,11 @@ docs/port/sync.json records the upstream commit the port is synced to and
 classifies every upstream file as port, review, or ignore. A Kotlin file
 claims the iOS file it mirrors with @file:PortedFrom("<ios path>", "<commit>"),
 where the commit is the upstream revision that file was last synced against.
+
+A port file is ported (a full claim), deferred (`deferred`: not tracked; a
+partial claim on it is a placeholder for callers and stays pinned at the commit
+it was carved from), or partly ported (`partial`: a partial claim that is kept
+in sync, with the reason its remainder waits).
 """
 
 import argparse
@@ -98,6 +103,7 @@ def gate(config, synced):
         "Upstream files with no category in sync.json": [],
         "Port files neither ported nor deferred": [],
         "Port files both ported and deferred": [],
+        "Partial reasons in sync.json without a partial port": [],
         "Ports that claim a file missing upstream": [],
         "Ports older than the synced commit (the iOS file changed since)": [],
         "Claimed Android files that do not exist": [],
@@ -111,16 +117,21 @@ def gate(config, synced):
             ported = is_ported(path, claims)
             if ported and deferred:
                 problems["Port files both ported and deferred"].append(path)
-            elif not ported and not deferred:
+            elif not ported and not deferred and not (path in claims and remainder(path, config)):
                 notes = "; ".join(partial for _, _, partial in claims.get(path, []) if partial)
                 problems["Port files neither ported nor deferred"].append(f"{path} (partial: {notes})" if notes else path)
+    for path in config.get("partial", {}):
+        if path not in claims or is_ported(path, claims):
+            problems["Partial reasons in sync.json without a partial port"].append(path)
     present = set(files)
     for path, ports in claims.items():
         if path not in present:
             problems["Ports that claim a file missing upstream"].extend(f"{android} claims {path}" for android, _, _ in ports)
             continue
-        for android, commit, _ in ports:
-            if path in changed_paths(commit, synced):
+        for android, commit, partial in ports:
+            placeholder = partial and deferral(path, config)
+            # A claim ahead of the synced commit is a sync in progress, not stale.
+            if not placeholder and is_ancestor(commit, synced) and path in changed_paths(commit, synced):
                 problems["Ports older than the synced commit (the iOS file changed since)"].append(f"{android} synced {path} at {commit[:7]}")
             if not (ROOT / android).exists():
                 problems["Claimed Android files that do not exist"].append(android)
@@ -151,7 +162,14 @@ def progress(config, _args):
     if missing:
         print("\nNot yet ported, largest first:")
         for lines, path, state in sorted(missing, reverse=True):
-            print(f"  {lines:6} {path}{' (partial)' if state == 'partial' else ''}")
+            waits = remainder(path, config)
+            note = f" (partial; the rest waits: {waits})" if waits else " (partial)" if state == "partial" else ""
+            print(f"  {lines:6} {path}{note}")
+    placeholders = sorted((path, android, commit) for path, ports in claims.items() for android, commit, partial in ports if partial and deferral(path, config))
+    if placeholders:
+        print("\nPlaceholders for deferred files, pinned where they were carved:")
+        for path, android, commit in placeholders:
+            print(f"  {android} at {commit[:7]} ({path})")
 
 
 def plan_worklist(config, args):
@@ -207,6 +225,7 @@ def advance_sync(config, args):
         path for path, kind in changed_files(synced, target)
         if kind != "deleted" and classify(path, config) == "port"
         and not is_ported(path, claims) and not deferral(path, config)
+        and not (path in claims and remainder(path, config))
     ]
     if stale or unported:
         for item in stale:
@@ -268,6 +287,11 @@ def deferral(path, config):
     return next((reason for pattern, reason in config["deferred"].items() if PurePosixPath(path).full_match(pattern)), None)
 
 
+def remainder(path, config):
+    """Why the unported rest of a partly ported file waits, from sync.json `partial`."""
+    return config.get("partial", {}).get(path)
+
+
 def marker_claims(config):
     claims = {}
     for source in sorted(SOURCES.rglob("*.kt")):
@@ -288,13 +312,16 @@ def targets(path, claims, config, kind="modified"):
         if path in claims:
             return "deleted upstream, remove or re-home " + ", ".join(f"`{android}`" for android, _, _ in claims[path])
         return "deleted upstream, nothing to port"
+    reason = deferral(path, config)
+    if reason:
+        pinned = ", ".join(f"`{android}` at {commit[:7]}" for android, commit, _ in claims.get(path, []))
+        return f"deferred: {reason}" + (f" (placeholder {pinned} stays pinned; add only what callers need)" if pinned else "")
     if path in claims:
         return ", ".join(
             f"`{android}` (synced {commit[:7]}{', partial: ' + partial if partial else ''})"
             for android, commit, partial in claims[path]
         )
-    reason = deferral(path, config)
-    return f"deferred: {reason}" if reason else "NEW, no Kotlin counterpart yet"
+    return "NEW, no Kotlin counterpart yet"
 
 
 def upstream_files(rev):
@@ -302,6 +329,13 @@ def upstream_files(rev):
 
 
 _changed = {}
+_ancestors = {}
+
+
+def is_ancestor(old, new):
+    if (old, new) not in _ancestors:
+        _ancestors[(old, new)] = git("merge-base", "--is-ancestor", old, new, check=False) is not None
+    return _ancestors[(old, new)]
 
 
 def changed_paths(old, new):
