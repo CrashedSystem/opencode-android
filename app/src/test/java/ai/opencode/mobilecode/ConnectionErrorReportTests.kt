@@ -2,13 +2,19 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.tca.BindingAction
+import ai.opencode.mobilecode.tca.TestDependencies
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class ConnectionErrorReportTests {
+    @get:Rule
+    val dependencies = TestDependencies()
     @Test
     fun reportContainsOnlySafeTargetAndExplicitMetadata() {
         val server = OpenCodeServer(
@@ -17,7 +23,7 @@ class ConnectionErrorReportTests {
             password = "auth-password",
         )
         val state = AppFeature.State()
-        state.connection = AppFeature.Connection.failed(
+        state.connection = AppFeature.State.Connection.failed(
             message = "Server returned HTTP 503.",
             phase = AppFeature.FailureContext.Phase.loadSessions,
             context = AppFeature.FailureContext(server, AppFeature.FailureContext.Phase.loadSessions, 7),
@@ -34,7 +40,7 @@ class ConnectionErrorReportTests {
             Message:
             Server returned HTTP 503.
             """.trimIndent(),
-            state.errorReport("1.2.3", "45", 0),
+            state.errorReport("1.2.3", "45", Instant.EPOCH),
         )
     }
 
@@ -87,27 +93,28 @@ class ConnectionErrorReportTests {
             val state = AppFeature.State()
             state.connectionGeneration = 2
             state.connectionAttempt = AppFeature.ConnectionAttempt(2, selected)
-            state.connection = if (afterHealth) AppFeature.Connection.loadingHome(winner) else AppFeature.Connection.connecting
+            state.connection = if (afterHealth) AppFeature.State.Connection.loadingHome(winner) else AppFeature.State.Connection.connecting
             state.serverURL = "https://form.example/private?token=other-secret"
             state.username = "form-user"
             state.password = "form-secret"
             val error = OpenCodeClientError(message = "Server returned HTTP 503.")
-            if (afterHealth) state.reduce(AppFeature.Action.homeResponse(2, error))
-            else state.reduce(AppFeature.Action.healthResponse(2, error))
+            val feature = AppFeature()
+            if (afterHealth) feature.reduce(state, AppFeature.Action.homeResponse(2, Result.failure(error)))
+            else feature.reduce(state, AppFeature.Action.healthResponse(2, Result.failure(error)))
             val expected = AppFeature.FailureContext(
                 server = if (afterHealth) winner else selected,
                 phase = if (afterHealth) AppFeature.FailureContext.Phase.loadSessions else AppFeature.FailureContext.Phase.connect,
                 attempt = 2,
             )
             assertEquals(expected, state.errorContext)
-            state.reduce(AppFeature.Action.healthResponse(1, null))
-            state.reduce(AppFeature.Action.healthResponse(1, OpenCodeClientError(message = "Stale A health failure")))
-            state.reduce(AppFeature.Action.homeResponse(1, null))
-            state.reduce(AppFeature.Action.homeResponse(1, OpenCodeClientError(message = "Stale A home failure")))
-            state.reduce(AppFeature.Action.binding("https://edited.example"))
+            feature.reduce(state, AppFeature.Action.healthResponse(1, Result.success(selected)))
+            feature.reduce(state, AppFeature.Action.healthResponse(1, Result.failure(OpenCodeClientError(message = "Stale A health failure"))))
+            feature.reduce(state, AppFeature.Action.homeResponse(1, Result.success(OpenCodeHomeSnapshot(emptyList(), emptyList(), emptySet()))))
+            feature.reduce(state, AppFeature.Action.homeResponse(1, Result.failure(OpenCodeClientError(message = "Stale A home failure"))))
+            feature.reduce(state, AppFeature.Action.binding(BindingAction.set(AppFeature.State::serverURL, "https://edited.example")))
             assertEquals(expected, state.errorContext)
             assertEquals(error.message, state.errorMessage)
-            val report = state.errorReport("1", "2", 0)!!
+            val report = state.errorReport("1", "2", Instant.EPOCH)!!
             assertTrue(report.contains("Server: ${if (afterHealth) "b-alternate.example:4096" else "b.example"}"))
             assertTrue(report.contains("Attempt: 2"))
             assertFalse(report.contains("secret"))
@@ -119,9 +126,9 @@ class ConnectionErrorReportTests {
     @Test
     fun invalidPairingCodeReportsOnlyTheSafeMessage() {
         val state = AppFeature.State()
-        state.reduce(AppFeature.Action.pairingCodeScanned("invalid QR containing a private password"))
+        AppFeature().reduce(state, AppFeature.Action.pairingCodeScanned("invalid QR containing a private password"))
         assertNull(state.errorContext)
-        val report = state.errorReport("1", "2", 0)!!
+        val report = state.errorReport("1", "2", Instant.EPOCH)!!
         assertTrue(report.contains("That isn’t an OpenCode pairing code."))
         assertFalse(report.contains("private password"))
         assertFalse(report.contains("Server:"))
