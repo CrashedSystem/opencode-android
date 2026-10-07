@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -92,9 +93,10 @@ fun RequestReviewView(store: Store<SessionFeature.State, SessionFeature.Action>)
     LaunchedEffect(pageIndex) { focusManager.clearFocus() }
 
     // The medium detent shows the whole surface: the actions stay in view
-    // and the request scrolls above them.
+    // and the request scrolls above them. Like the detent, its height does
+    // not follow the request.
     val mediumDetent = (LocalConfiguration.current.screenHeightDp * 0.5f).dp - 24.dp
-    NavigationStack(Modifier.heightIn(max = mediumDetent).background(SystemColors.systemBackground)) {
+    NavigationStack(Modifier.height(mediumDetent).background(SystemColors.systemBackground)) {
         NavigationTitle(title, displayMode = TitleDisplayMode.inline)
         ToolbarItem(placement = ToolbarItemPlacement.topBarLeading) {
             Box(
@@ -117,7 +119,7 @@ fun RequestReviewView(store: Store<SessionFeature.State, SessionFeature.Action>)
         }
         Column(
             Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp)
                 .fillMaxWidth(),

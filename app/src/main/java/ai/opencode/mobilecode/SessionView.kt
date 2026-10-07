@@ -70,6 +70,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1926,7 +1927,7 @@ private class SessionViewState {
                     modifier = Modifier.padding(vertical = 48.dp),
                 )
                 projects.isEmpty() -> SearchUnavailable(store.state.projectFilter)
-                else -> LazyColumn(Modifier.fillMaxWidth()) {
+                else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(projects, key = { it.id }) { project ->
                         PlainListRow(onClick = { store.send(SessionFeature.Action.projectPicked(project)) }) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1962,7 +1963,8 @@ private class SessionViewState {
                         modifier = Modifier.padding(vertical = 48.dp),
                     )
                 }
-                else -> LazyColumn(Modifier.fillMaxWidth()) {
+                // Filling the sheet keeps the last row's hairline inside the list's clip.
+                else -> LazyColumn(Modifier.fillMaxSize()) {
                     if (!state.isFilteringModels && state.favoriteModels.isNotEmpty()) {
                         item(key = "favorites") { PlainSectionHeader("Favorites") }
                         items(state.favoriteModels, key = { "favorite-" + it.id }) { ModelRow(it) }
@@ -1976,9 +1978,11 @@ private class SessionViewState {
         }
     }
 
+    /// Laid out at the large detent: the medium detent shows its top half
+    /// and dragging up reveals the rest, as `[.medium, .large]` does.
     @Composable
     fun PickerSheet(title: String, filter: Binding<String>, onCancel: () -> Unit, content: @Composable () -> Unit) {
-        NavigationStack {
+        NavigationStack(Modifier.fillMaxHeight()) {
             NavigationTitle(title, displayMode = TitleDisplayMode.inline)
             ToolbarItem(placement = ToolbarItemPlacement.cancellationAction) {
                 SystemButton("Cancel", action = onCancel)
