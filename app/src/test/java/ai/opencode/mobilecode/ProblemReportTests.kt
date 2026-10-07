@@ -88,6 +88,8 @@ class DiagnosticsJournalTests {
             second.append(event("launched"))
             second.markForeground()
             second.markBackground()
+            // The delete is queued. Flush so the next open sees it.
+            second.flush()
             expect(DiagnosticsJournal(directory = directory).open(recording = true).endedUnexpectedly == false)
         } finally {
             directory.deleteRecursively()

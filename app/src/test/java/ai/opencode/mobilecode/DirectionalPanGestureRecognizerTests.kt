@@ -22,7 +22,6 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.abs
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -347,8 +346,29 @@ class SessionDrawerSettleTests {
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class ComposerSendTransitionTests {
-    @Ignore("ComposerTextInput.kt: ComposerSendTransition belongs to the composer's port")
     @Test
-    fun interruptedSendRestoresTheBubbleAndRemovesBothSnapshots() {}
+    fun interruptedSendRestoresTheBubbleAndRemovesBothSnapshots() {
+        val transition = ComposerSendTransition()
+        transition.text = "Keep the text continuous"
+        transition.input = Rect(20f, 500f, 320f, 560f)
+        transition.usedText = Rect(0f, 0f, 200f, 40f)
+        transition.prepare(reduceMotion = false)
+        expect(transition.isPrepared)
+        transition.markerPositioned("message", Rect(20f, 100f, 320f, 160f))
+        expect(transition.beginLanding("message"))
+        expect(transition.hiddenItemID == "message")
+        // The list steps the flight toward wherever the bubble is this frame.
+        transition.stepLanding(0.5f)
+        transition.markerPositioned("message", Rect(20f, 140f, 320f, 200f))
+        transition.stepLanding(0.9f)
+        // Interrupted mid-flight: the bubble shows again and both snapshots go.
+        transition.finishLanding()
+        expect(transition.hiddenItemID == null)
+        expect(!transition.isPrepared)
+        transition.prepare(reduceMotion = true)
+        expect(!transition.isPrepared)
+    }
 }

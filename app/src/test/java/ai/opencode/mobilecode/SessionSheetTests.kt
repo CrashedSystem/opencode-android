@@ -2,29 +2,32 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.tca.BindingAction
-import ai.opencode.mobilecode.tca.continuousClock
-import ai.opencode.mobilecode.tca.uuid
 import ai.opencode.mobilecode.tca.Exhaustivity
 import ai.opencode.mobilecode.tca.ImmediateClock
 import ai.opencode.mobilecode.tca.TestClock
 import ai.opencode.mobilecode.tca.TestDependencies
 import ai.opencode.mobilecode.tca.TestStore
 import ai.opencode.mobilecode.tca.UUIDGenerator
+import ai.opencode.mobilecode.tca.continuousClock
 import ai.opencode.mobilecode.tca.expect
+import ai.opencode.mobilecode.tca.uuid
 import java.io.File
 import kotlin.io.use
 import kotlin.time.Duration.Companion.seconds
+import androidx.compose.ui.test.junit4.createComposeRule
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class SessionSheetTests {
     @get:Rule
     val dependencies = TestDependencies()
@@ -65,13 +68,29 @@ class SessionSheetTests {
         },
     ) { SessionSheetFeature() }
 
-    @Ignore("SessionFeature.kt")
     @Test
-    fun contextFractionUsesTheReplyModelsWindow() {}
+    fun contextFractionUsesTheReplyModelsWindow() {
+        val state = SessionFeature.State(server = server, session = session())
+        expect(state.contextFraction == null)
+        state.contextUsage = OpenCodeContextUsage(tokens = 128_000, model = model)
+        expect(state.contextFraction == null, "No catalog yet: hide the ring")
+        state.models = listOf(catalogModel(400_000))
+        expect(state.contextLimit == 400_000)
+        expect(state.contextFraction == 0.32)
+        expect(SessionContextText.summary(tokens = 128_000, limit = 400_000) == "32% of 400K")
+        expect(SessionContextText.summary(tokens = 53_200, limit = null) == "53,200 tokens")
 
-    @Ignore("SessionContextRing.tint reads theme colors in composition")
-    @Test
-    fun contextRingTintTracksTheThresholds() {}
+        // Message refs name the catalog key, which can differ from the API ID.
+        state.models = listOf(OpenCodeModel(modelID = "api-name", providerID = "fixture", name = "Fixture", contextLimit = 200_000, catalogID = model.id))
+        expect(state.contextFraction == 0.64)
+    }
+
+    private fun catalogModel(limit: Int) = OpenCodeModel(
+        modelID = model.id,
+        providerID = model.providerID,
+        name = "Fixture",
+        contextLimit = limit,
+    )
 
     @Test
     fun contextDecodingMatchesTheTUI() {
@@ -103,21 +122,107 @@ class SessionSheetTests {
         expect(runCatching { OpenCodeClient.decodeContextUsage("[]".toByteArray()) }.exceptionOrNull() is OpenCodeClientError)
     }
 
-    @Ignore("SessionFeature.kt")
     @Test
-    fun pageRefreshReadsContextAndInconclusiveReadsKeepIt() {}
+    fun pageRefreshReadsContextAndInconclusiveReadsKeepIt() {
+        val session = session()
+        val readings = ArrayDeque(
+            listOf(
+                OpenCodeContextReading.measured(OpenCodeContextUsage(64_000, model)),
+                OpenCodeContextReading.inconclusive,
+                OpenCodeContextReading.empty,
+            ),
+        )
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.getSession = { _, _ -> session }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+                it.openCodeClient.contextUsage = { _, _ -> readings.removeFirst() }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
 
-    @Ignore("SessionFeature.kt")
-    @Test
-    fun onlyAnEndedStepRereadsContextWithItsSettlement() {}
+        store.send(SessionFeature.Action.refreshRequested(SessionFeature.RefreshReason.open))
+        store.receive<SessionFeature.Action.refreshResponse> { it.contextUsage = OpenCodeContextUsage(64_000, model) }
+        store.send(SessionFeature.Action.refreshRequested(SessionFeature.RefreshReason.runState))
+        store.receive<SessionFeature.Action.refreshResponse>()
+        expect(store.state.contextUsage?.tokens == 64_000)
+        store.send(SessionFeature.Action.refreshRequested(SessionFeature.RefreshReason.invalidation))
+        store.receive<SessionFeature.Action.refreshResponse> { it.contextUsage = null }
+    }
 
-    @Ignore("SessionFeature.kt")
     @Test
-    fun switchingFamilyMemberForgetsTheOtherSessionsContext() {}
+    fun onlyAnEndedStepRereadsContextWithItsSettlement() {
+        val session = session()
+        var reads = 0
+        val reply = listOf(OpenCodeTranscriptItem.assistantMarkdown(id = "msg_reply-text-0", blocks = OpenCodeMarkdownBlock.blocks(from = "Done")))
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = reply) },
+            withDependencies = {
+                it.continuousClock = ImmediateClock()
+                it.openCodeClient.message = { _, _, _ -> reply }
+                it.openCodeClient.contextUsage = { _, _ ->
+                    reads += 1
+                    OpenCodeContextReading.measured(OpenCodeContextUsage(90_000, model))
+                }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
 
-    @Ignore("SessionFeature.kt")
+        store.send(SessionFeature.Action.contentBatch(sessionID = session.id, events = listOf(OpenCodeLiveContentEvent.textEnded(messageID = "msg_reply", ordinal = 0, text = "Done"))))
+        store.receive<SessionFeature.Action.refreshResponse>()
+        expect(reads == 0, "A text boundary does not change usage")
+
+        store.send(
+            SessionFeature.Action.contentBatch(
+                sessionID = session.id,
+                events = listOf(
+                    OpenCodeLiveContentEvent.textEnded(messageID = "msg_reply", ordinal = 0, text = "Done"),
+                    OpenCodeLiveContentEvent.stepEnded(messageID = "msg_reply"),
+                ),
+            ),
+        ) { it.contextNeedsRead = true }
+        store.receive<SessionFeature.Action.refreshResponse> {
+            it.contextUsage = OpenCodeContextUsage(90_000, model)
+            it.contextNeedsRead = false
+        }
+        expect(reads == 1)
+    }
+
     @Test
-    fun rootCostIncludesSubagentsAndChildCostIsItsOwn() {}
+    fun switchingFamilyMemberForgetsTheOtherSessionsContext() {
+        val root = session("ses_root")
+        val child = session("ses_child", parentID = "ses_root")
+        val state = SessionFeature.State(server = server, session = root, cachedItems = emptyList())
+        state.familySessions = listOf(root, child)
+        state.contextUsage = OpenCodeContextUsage(tokens = 1, model = model)
+        state.sessionSheet = SessionSheetFeature.State(server = server, sessionID = root.id)
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+                it.openCodeClient.familyPendingRequests = { _, _, _ -> OpenCodePendingRequests(permissions = emptyList(), forms = emptyList()) }
+                it.openCodeClient.pendingInputs = { _, _ -> emptyList() }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(SessionFeature.Action.familyPicked(child.id))
+        expect(store.state.contextUsage == null)
+        expect(store.state.sessionSheet == null, "The sheet's in-flight work stays with the old session")
+        store.skipInFlightEffects()
+    }
+
+    @Test
+    fun rootCostIncludesSubagentsAndChildCostIsItsOwn() {
+        val state = SessionFeature.State(server = server, session = session("ses_root", cost = 0.5))
+        state.familySessions = listOf(session("ses_root", cost = 0.5), session("ses_child", parentID = "ses_root", cost = 0.25))
+        expect(state.sessionCost == 0.75)
+        state.session = session("ses_child", parentID = "ses_root", cost = 0.25)
+        expect(state.sessionCost == 0.25)
+        state.session = session("ses_free")
+        state.familySessions = emptyList()
+        expect(state.sessionCost == null)
+    }
 
     @Test
     fun renameTrimsPatchesAndUpdatesTheTitle() {
@@ -231,9 +336,38 @@ class SessionSheetTests {
         expect(store.state.failure == null)
     }
 
-    @Ignore("SessionFeature.kt")
     @Test
-    fun compactQueuesThenClosesTheSheetToShowTheCompactionRow() {}
+    fun compactQueuesThenClosesTheSheetToShowTheCompactionRow() {
+        val session = session()
+        var compacted = 0
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.compactSession = { _, id ->
+                    expect(id == session.id)
+                    compacted += 1
+                }
+                it.openCodeClient.pendingInputs = { _, _ -> listOf(OpenCodePendingInput(id = "msg_compact", text = "", isCompaction = true)) }
+                it.openCodeClient.getSession = { _, _ -> session }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+            },
+        ) { SessionFeature() }
+        openSheet(store)
+        store.send(SessionFeature.Action.sessionSheet(SessionSheetFeature.Action.compactTapped)) {
+            it.sessionSheet?.operation = SessionSheetFeature.Operation.compacting
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.receive({ presentedSheet(it) is SessionSheetFeature.Action.compactFinished }) {
+            it.sessionSheet?.operation = null
+        }
+        store.receive({ presentedSheet(it) == SessionSheetFeature.Action.delegate(SessionSheetFeature.Delegate.compacted) }) {
+            it.activePicker = null
+        }
+        store.receive(SessionFeature.Action.inputQueueChanged)
+        store.receive<SessionFeature.Action.pendingInputsResponse>()
+        expect(compacted == 1)
+        expect(store.state.queuedInputs.map { it.id } == listOf("msg_compact"))
+    }
 
     @Test
     fun compactClearsTheOperationAndDelegates() {
@@ -350,9 +484,28 @@ class SessionSheetTests {
         store.receive(SessionSheetFeature.Action.delegate(SessionSheetFeature.Delegate.deleteSession))
     }
 
-    @Ignore("SessionFeature.kt")
     @Test
-    fun chooseModelSwapsTheSheetForThePicker() {}
+    fun chooseModelSwapsTheSheetForThePicker() {
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session(), cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.modelCatalog = { _, _ -> OpenCodeModelCatalog(models = emptyList(), defaultModel = null) }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        openSheet(store)
+        store.send(SessionFeature.Action.modelButtonTapped) { it.activePicker = SessionFeature.State.ActivePicker.model }
+    }
+
+    private fun openSheet(store: TestStore<SessionFeature.State, SessionFeature.Action>, sessionID: String = "ses_sheet") {
+        store.send(SessionFeature.Action.sessionInfoTapped) {
+            it.sessionSheet = SessionSheetFeature.State(server = server, sessionID = sessionID)
+            it.activePicker = SessionFeature.State.ActivePicker.session
+        }
+    }
+
+    private fun presentedSheet(action: SessionFeature.Action): SessionSheetFeature.Action? =
+        (action as? SessionFeature.Action.sessionSheet)?.action
 
     // homeOpensForksAndRoutesSheetActionsThroughTheDrawerPaths is in SessionSheetHomeTests below:
     // Home's reducer marks LabMarks, which needs Robolectric's android.util.Log.
@@ -498,5 +651,30 @@ class SessionSheetHomeTests {
         expect(deleted == listOf(forked.id))
         expect(store.state.sessions.map { it.id } == listOf(open.id))
         expect(store.state.sessionDetail?.isDraft == true)
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class SessionContextRingTintTests {
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun contextRingTintTracksTheThresholds() {
+        val cases = listOf(0.3 to "neutral", 0.79 to "neutral", 0.85 to "orange", 0.97 to "red", 1.2 to "red")
+        val names = mutableListOf<String>()
+        compose.setContent {
+            names.clear()
+            names += cases.map { (fraction, _) ->
+                val tint = SessionContextRing.tint(fraction)
+                when (tint) {
+                    SystemColors.systemRed -> "red"
+                    SystemColors.systemOrange -> "orange"
+                    else -> "neutral"
+                }
+            }
+        }
+        expect(names == cases.map { it.second })
     }
 }

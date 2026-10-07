@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "553a407", partial = "pure follow and browse policy, and the list's jump and assistive-scroll tests; SessionFeature window tests wait for its reducer")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "553a407")
 
 package ai.opencode.mobilecode
 
@@ -152,6 +152,9 @@ class TranscriptAssistiveScrollTests {
 
 
 class TranscriptScrollBehaviorTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
     @Test
     fun followingAppendsAndKeyboardLayoutStayAtBottom() {
         val behavior = TranscriptScrollBehavior()
@@ -377,6 +380,33 @@ class TranscriptScrollBehaviorTests {
             behavior.handle(TranscriptScrollBehavior.Event.contentChanged(-19f, false, viewport(537f, 1_618f, 500f), true)),
         )
         assertEquals(TranscriptScrollBehavior.Mode.browsing, behavior.mode)
+    }
+
+    @Test
+    fun browsingWindowKeepsItsLeadingBoundaryAcrossTailAppends() {
+        val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
+        val session = OpenCodeSession(
+            id = "ses_window",
+            title = "Window",
+            projectID = "project",
+            directory = "/project",
+            updatedAt = 0,
+        )
+        val state = SessionFeature.State(
+            server = server,
+            session = session,
+            cachedItems = (0 until 30).map { OpenCodeTranscriptItem.userText(id = "message-$it", text = "Message $it") },
+        )
+        state.browsingWindowStartID = state.visibleItems.firstOrNull()?.id
+        val leadingID = state.visibleItems.firstOrNull()?.id
+
+        state.items += (30 until 35).map { OpenCodeTranscriptItem.assistantMarkdown(id = "message-$it", blocks = emptyList()) }
+        assertEquals(leadingID, state.visibleItems.firstOrNull()?.id)
+        assertEquals(25, state.visibleItems.size)
+
+        state.browsingWindowStartID = null
+        assertEquals("message-15", state.visibleItems.firstOrNull()?.id)
+        assertEquals(20, state.visibleItems.size)
     }
 
     @Test

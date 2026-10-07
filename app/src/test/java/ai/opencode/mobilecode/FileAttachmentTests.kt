@@ -1,10 +1,26 @@
-@file:PortedFrom("OpenCodeTests/FileAttachmentTests.swift", "553a407", partial = "typing, presentation, and upload wire; SessionFeature and ShareHandoffStore are outside this slice")
+@file:PortedFrom("OpenCodeTests/FileAttachmentTests.swift", "553a407")
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.tca.Exhaustivity
+import ai.opencode.mobilecode.tca.TestDependencies
+import ai.opencode.mobilecode.tca.TestStore
+import ai.opencode.mobilecode.tca.UUIDGenerator
+import ai.opencode.mobilecode.tca.expect
+import ai.opencode.mobilecode.tca.uuid
+import ai.opencode.mobilecode.tca.withLock
 import java.io.File
+import java.time.Instant
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -12,7 +28,11 @@ import kotlinx.serialization.json.putJsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 class AttachmentFileTypeTests {
     @Test
@@ -116,6 +136,279 @@ class PromptPresentationTests {
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class FileAttachmentFeatureTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    private val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
+    private val session = OpenCodeSession(id = "ses_1", title = "Files", projectID = "p", directory = "/project", updatedAt = System.currentTimeMillis())
+
+    private fun staged(name: String, mime: String = "application/pdf", size: Long = 100, id: Int = 1) = ComposerStagedFile(
+        id = uuid(id),
+        name = name,
+        mime = mime,
+        size = size,
+        url = File("/nonexistent/ComposerFiles/${uuid(id)}/$name"),
+    )
+
+    private fun uploadPath(name: String) = "/tmp/opencode/uploads/u/$name"
+
+    private fun file(files: List<ComposerFileAttachment>, index: Int, status: ComposerFileAttachment.Status) =
+        files.toMutableList().also { it[index] = it[index].copy(status = status) }
+
+    @Test
+    fun uploadReportsProgressThenBecomesAPathReference() {
+        val events = Channel<OpenCodeUploadEvent>(Channel.UNLIMITED)
+        val requests = mutableListOf<String>()
+        val file = staged("Report.pdf")
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.uploadFile = { _, directory, url, name ->
+                    requests += "${directory ?: "-"} ${url.name} $name"
+                    events.consumeAsFlow()
+                }
+            },
+        ) { SessionFeature() }
+
+        store.send(SessionFeature.Action.filesStaged(listOf(file))) {
+            it.pendingFiles = listOf(ComposerFileAttachment(file))
+        }
+        expect(store.state.hasPromptContent)
+        events.trySend(OpenCodeUploadEvent.progress(40))
+        store.receive(SessionFeature.Action.fileUploadProgress(id = file.id, sent = 40)) {
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.uploading(40))
+        }
+        expect(store.state.pendingFiles[0].progress == 0.4)
+        events.trySend(OpenCodeUploadEvent.finished(uploadPath("Report.pdf")))
+        store.receive(SessionFeature.Action.fileUploadFinished(id = file.id, result = Result.success(uploadPath("Report.pdf")))) {
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.uploaded(uploadPath("Report.pdf")))
+        }
+        events.close()
+        expect(requests == listOf("/project Report.pdf Report.pdf"))
+        expect(
+            store.state.pendingFiles[0].reference == OpenCodeFileReference(
+                name = "Report.pdf",
+                mime = "application/pdf",
+                path = uploadPath("Report.pdf"),
+            ),
+        )
+        store.skipInFlightEffects()
+    }
+
+    @Test
+    fun sendWaitsForUploadsAndCarriesTheirReferences() {
+        val events = Channel<OpenCodeUploadEvent>(Channel.UNLIMITED)
+        val sent = mutableListOf<Pair<String, List<OpenCodeFileReference>>>()
+        val file = staged("clip.mov", mime = "video/quicktime")
+        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        state.draft = "What happens here?"
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.uuid = UUIDGenerator.incrementing()
+                it.openCodeClient.uploadFile = { _, _, _, _ -> events.consumeAsFlow() }
+                it.openCodeClient.sendPrompt = { _, _, text, _, files, _, _ -> sent += text to files }
+                it.openCodeClient.waitForIdle = { _, _ -> }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(SessionFeature.Action.filesStaged(listOf(file)))
+        store.send(SessionFeature.Action.sendTapped) { it.sendAfterUploads = OpenCodeDelivery.steer }
+        expect(store.state.draft == "What happens here?", "The draft stays put until the message goes")
+        expect(store.state.promptStates.isEmpty())
+        expect(!store.state.canSendPrompt)
+
+        events.trySend(OpenCodeUploadEvent.finished(uploadPath("clip.mov")))
+        events.close()
+        store.receive<SessionFeature.Action.fileUploadFinished>()
+        store.receive<SessionFeature.Action.sendTapped> {
+            it.sendAfterUploads = null
+            it.pendingFiles = emptyList()
+            it.draft = ""
+        }
+        val messageID = "msg_00000000000000000000000000000000"
+        expect(
+            store.state.items == listOf(
+                OpenCodeTranscriptItem.userFiles(
+                    id = "$messageID-files",
+                    files = listOf(OpenCodeTranscriptFile(id = "$messageID-file-0", name = "clip.mov", mime = "video/quicktime", path = uploadPath("clip.mov"))),
+                ),
+                OpenCodeTranscriptItem.userText(id = messageID, text = "What happens here?"),
+            ),
+        )
+        store.receive<SessionFeature.Action.promptAdmitted>()
+        expect(sent.map { it.first } == listOf("What happens here?"))
+        expect(sent.map { it.second } == listOf(listOf(OpenCodeFileReference(name = "clip.mov", mime = "video/quicktime", path = uploadPath("clip.mov")))))
+        store.finish()
+    }
+
+    @Test
+    fun failedUploadBlocksSendUntilRetried() {
+        var attempts = 0
+        val file = staged("notes.txt", mime = "text/plain")
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.uploadFile = { _, _, _, _ ->
+                    attempts += 1
+                    val attempt = attempts
+                    flow {
+                        if (attempt == 1) {
+                            throw OpenCodeClientError(message = "The server returned HTTP 500.", statusCode = 500)
+                        }
+                        emit(OpenCodeUploadEvent.finished("/tmp/opencode/uploads/u/notes.txt"))
+                    }
+                }
+            },
+        ) { SessionFeature() }
+
+        store.send(SessionFeature.Action.filesStaged(listOf(file))) {
+            it.pendingFiles = listOf(ComposerFileAttachment(file))
+        }
+        store.receive(
+            SessionFeature.Action.fileUploadFinished(
+                id = file.id,
+                result = Result.failure(OpenCodeClientError(message = "The server returned HTTP 500.", statusCode = 500)),
+            ),
+        ) {
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.failed("Couldn’t upload"))
+        }
+        expect(!store.state.canSendPrompt)
+        store.send(SessionFeature.Action.sendTapped)
+        expect(store.state.promptStates.isEmpty())
+
+        store.send(SessionFeature.Action.fileRetryTapped(file.id)) {
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.uploading(0))
+        }
+        store.receive(SessionFeature.Action.fileUploadFinished(id = file.id, result = Result.success("/tmp/opencode/uploads/u/notes.txt"))) {
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.uploaded("/tmp/opencode/uploads/u/notes.txt"))
+        }
+        expect(attempts == 2)
+        expect(store.state.canSendPrompt)
+    }
+
+    @Test
+    fun removingAnUploadingFileCancelsItAndReleasesAWaitingSend() = runBlocking {
+        var terminated = false
+        val file = staged("big.zip", mime = "application/zip")
+        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        state.draft = "Go"
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.uuid = UUIDGenerator.incrementing()
+                it.openCodeClient.uploadFile = { _, _, _, _ ->
+                    callbackFlow {
+                        awaitClose { terminated = true }
+                    }
+                }
+                it.openCodeClient.sendPrompt = { _, _, _, _, files, _, _ -> expect(files.isEmpty()) }
+                it.openCodeClient.waitForIdle = { _, _ -> }
+                it.openCodeClient.transcript = { _, _, _ -> emptyList() }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(SessionFeature.Action.filesStaged(listOf(file)))
+        store.send(SessionFeature.Action.sendTapped) { it.sendAfterUploads = OpenCodeDelivery.steer }
+        store.send(SessionFeature.Action.fileRemoved(file.id)) { it.pendingFiles = emptyList() }
+        repeat(100) {
+            if (terminated) return@repeat
+            yield()
+        }
+        expect(terminated, "Removing the chip cancels its transfer")
+        store.receive<SessionFeature.Action.sendTapped>()
+        store.receive<SessionFeature.Action.promptAdmitted>()
+        store.finish()
+    }
+
+    @Test
+    fun missingRouteHidesFileOptionsForThatServer() {
+        val file = staged("a.pdf")
+        val serverID = server.persistenceID
+        val store = TestStore(
+            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            withDependencies = {
+                it.openCodeClient.uploadFile = { _, _, _, _ ->
+                    flow { throw OpenCodeClientError.uploadsUnsupported }
+                }
+            },
+        ) { SessionFeature() }
+        expect(store.state.supportsFileUploads)
+
+        store.send(SessionFeature.Action.filesStaged(listOf(file))) {
+            it.pendingFiles = listOf(ComposerFileAttachment(file))
+        }
+        store.receive(SessionFeature.Action.fileUploadFinished(id = file.id, result = Result.failure(OpenCodeClientError.uploadsUnsupported))) {
+            it::uploadUnsupportedServerIDs.withLock { value = setOf(serverID) }
+            it.pendingFiles = file(it.pendingFiles, 0, ComposerFileAttachment.Status.failed("Server doesn’t support files"))
+        }
+        expect(!store.state.supportsFileUploads)
+        // Retrying can't help until the server is updated.
+        store.send(SessionFeature.Action.fileRetryTapped(file.id))
+        // Another screen on the same server starts out without file options.
+        expect(!SessionFeature.State(server = server, session = session).supportsFileUploads)
+    }
+
+    @Test
+    fun pdfTravelsInlineWhenTheModelReadsPDFs() {
+        val folder = File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString())
+        folder.mkdirs()
+        val url = File(folder, "Spec.pdf").apply { writeBytes("%PDF-1.7".toByteArray()) }
+        val file = ComposerStagedFile(id = uuid(7), name = "Spec.pdf", mime = "application/pdf", size = 8, url = url)
+        val model = OpenCodeModel(modelID = "m", providerID = "p", name = "Reader", inputs = setOf("text", "image", "pdf"))
+        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        state.models = listOf(model)
+        state.currentModel = model.ref
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.openCodeClient.uploadFile = { _, _, _, _ ->
+                    error("A PDF the model reads natively must not upload")
+                }
+            },
+        ) { SessionFeature() }
+
+        val attachment = OpenCodeOutgoingAttachment(id = uuid(7).toString(), data = "%PDF-1.7".toByteArray(), mime = "application/pdf", name = "Spec.pdf")
+        store.send(SessionFeature.Action.filesStaged(listOf(file)))
+        store.receive(SessionFeature.Action.attachmentAdded(attachment)) {
+            it.pendingAttachments = listOf(attachment)
+        }
+        expect(store.state.pendingFiles.isEmpty())
+    }
+
+    @Test
+    fun sharedFilesStartUploadingOnceAbsorbed() {
+        var calls = 0
+        val file = staged("memo.docx", mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        state.absorb(SharedComposerDraft(text = "From Files", files = listOf(file)))
+        expect(state.pendingFiles == listOf(ComposerFileAttachment(file)))
+        expect(state.unstartedUploadIDs == listOf(file.id))
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = {
+                it.openCodeClient.uploadFile = { _, _, _, _ ->
+                    calls += 1
+                    flow { throw CancellationException() }
+                }
+            },
+        ) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(SessionFeature.Action.queuedUploadsStarted) { it.unstartedUploadIDs = emptyList() }
+        expect(calls == 1)
+        store.finish()
+    }
+
+    private fun uuid(value: Int) = UUID(0, value.toLong())
+}
+
 class FileAttachmentWireTests {
     private fun temporaryFile(name: String, contents: String): File {
         val folder = File(System.getProperty("java.io.tmpdir"), java.util.UUID.randomUUID().toString())
@@ -201,6 +494,43 @@ class FileAttachmentWireTests {
             } finally {
                 fixture.close()
             }
+        }
+    }
+}
+
+class ShareHandoffFileTests {
+    @Test
+    fun sharedFilesMoveIntoTheAppStagingDirectory() {
+        val root = File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString())
+        val staging = File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString())
+        try {
+            val source = File(root, "source.pdf")
+            root.mkdirs()
+            source.writeBytes("%PDF".toByteArray())
+            val store = ShareHandoffStore(File(root, "Shares"))
+            val id = UUID.randomUUID()
+            val handoff = ShareHandoff(
+                id = UUID.randomUUID(),
+                createdAt = Instant.now(),
+                serverID = "server",
+                target = ShareHandoff.Target.newSession(projectID = null),
+                text = "",
+                files = listOf(ShareHandoff.File(id = id, fileName = "file-0", name = "Q3 Report.pdf", mime = "application/pdf")),
+            )
+            store.save(handoff, emptyList(), listOf(source))
+
+            val shares = store.consumeAll(Instant.now(), staging)
+
+            val file = shares.first().files.first()
+            assertEquals("Q3 Report.pdf", file.name)
+            assertEquals(4L, file.size)
+            assertEquals(File(File(staging, id.toString()), "Q3 Report.pdf"), file.url)
+            assertTrue("%PDF".toByteArray().contentEquals(file.url.readBytes()))
+            val draft = SharedComposerDraft(shares.first(), projectID = null)
+            assertEquals(listOf("Q3 Report.pdf"), draft.files.map { it.name })
+        } finally {
+            root.deleteRecursively()
+            staging.deleteRecursively()
         }
     }
 }
