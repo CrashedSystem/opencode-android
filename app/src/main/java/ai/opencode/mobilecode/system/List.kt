@@ -73,6 +73,9 @@ fun GroupedList(
                     )
                 }
             }
+            section.footer?.let { footer ->
+                item(key = "footer ${section.id}") { SectionFooter(footer) }
+            }
         }
     }
 }
@@ -81,13 +84,14 @@ class GroupedListScope internal constructor() {
     internal val sections = mutableListOf<ListSection>()
     private var sectionID: Any? = null
 
-    /** `Section { rows } header: { header }` */
+    /** `Section { rows } header: { header } footer: { footer }` */
     fun Section(
         header: (@Composable () -> Unit)? = null,
+        footer: (@Composable () -> Unit)? = null,
         rows: SectionScope.() -> Unit,
     ) {
         val id = sectionID ?: sections.size
-        sections += ListSection(id, header, SectionScope(id).apply(rows).rows)
+        sections += ListSection(id, header, footer, SectionScope(id).apply(rows).rows)
     }
 
     /** `ForEach(items, id: \.key) { item in Section { … } }` */
@@ -123,7 +127,12 @@ class SectionScope internal constructor(private val sectionID: Any) {
     }
 }
 
-internal class ListSection(val id: Any, val header: (@Composable () -> Unit)?, val rows: List<ListRow>)
+internal class ListSection(
+    val id: Any,
+    val header: (@Composable () -> Unit)?,
+    val footer: (@Composable () -> Unit)?,
+    val rows: List<ListRow>,
+)
 
 /** [id] is a string: Android saves lazy list keys in a Bundle. */
 internal class ListRow(val id: String, val content: @Composable () -> Unit)
@@ -133,6 +142,15 @@ private fun SectionHeader(header: @Composable () -> Unit) {
     CompositionLocalProvider(LocalContentColor provides SystemColors.secondaryLabel, LocalTextStyle provides TextStyles.headline) {
         Box(Modifier.padding(start = ListMetrics.margin + ListMetrics.rowInset, end = ListMetrics.margin, top = 8.dp, bottom = 10.dp)) {
             header()
+        }
+    }
+}
+
+@Composable
+private fun SectionFooter(footer: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalContentColor provides SystemColors.secondaryLabel, LocalTextStyle provides TextStyles.footnote) {
+        Box(Modifier.padding(start = ListMetrics.margin + ListMetrics.rowInset, end = ListMetrics.margin, top = 8.dp, bottom = 8.dp)) {
+            footer()
         }
     }
 }
