@@ -75,7 +75,7 @@ class JustifiedTextTests {
                 for (text in paragraphs) {
                     val plan = Justification.plan(text, width, widths)!!
                     assertEquals("the characters are unchanged", text.text, plan.text.text)
-                    val laid = Paragraph(plan.text.text, Justification.style(style), Constraints(maxWidth = plan.width), Density(density), fonts, plan.text.spanStyles)
+                    val laid = Paragraph(plan.text.text, Justification.style(style), Constraints(maxWidth = plan.layoutWidth), Density(density), fonts, plan.text.spanStyles)
                     val where = "\"${text.text.take(24)}\" at $width px (density $density)"
                     if (plan.lines.size != laid.lineCount) {
                         failures += "$where: ${laid.lineCount} lines, planned ${plan.lines.size}"
@@ -112,7 +112,7 @@ class JustifiedTextTests {
         for (end in ends) {
             val plan = Justification.plan(text.subSequence(0, end), 770, widths, previous = previous)!!
             previous?.lines?.dropLast(2)?.forEachIndexed { index, line -> assertEquals("line $index at $end", line, plan.lines[index]) }
-            val laid = Paragraph(plan.text.text, Justification.style(style), Constraints(maxWidth = plan.width), Density(2.75f), fonts, plan.text.spanStyles)
+            val laid = Paragraph(plan.text.text, Justification.style(style), Constraints(maxWidth = plan.layoutWidth), Density(2.75f), fonts, plan.text.spanStyles)
             assertEquals(plan.lines.map { it.start to it.end }, (0 until laid.lineCount).map { laid.getLineStart(it) to laid.getLineEnd(it, visibleEnd = true) })
             previous = plan
         }

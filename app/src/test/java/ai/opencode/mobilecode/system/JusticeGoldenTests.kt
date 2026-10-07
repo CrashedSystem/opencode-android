@@ -14,7 +14,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every layout the TypeScript engine produced for `golden.json`, reproduced by the port. */
 class JusticeGoldenTests {
     @Test
     fun defaultsMatchTheLibrary() {

@@ -13,7 +13,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** `golden.json`, written by `scripts/justice-golden.ts` from the TypeScript engine. */
 object JusticeGolden {
     val root: JsonObject by lazy {
         val text = JusticeGolden::class.java.getResourceAsStream("/justice/golden.json")!!.bufferedReader().readText()
@@ -24,7 +23,6 @@ object JusticeGolden {
 
     val cases: List<JsonObject> by lazy { root.getValue("cases").jsonArray.map { it.jsonObject } }
 
-    /** The test measures, by the names the generator uses. */
     val measures: Map<String, (String) -> Double> = mapOf(
         "eight" to { text -> text.codePoints().toArray().sumOf { if (it == ' '.code) 4.0 else 8.0 } },
         "shaped" to { text -> text.codePoints().toArray().sumOf { if (it == ' '.code) 4.0 else 8.0 } - Regex("a-").findAll(text).count() * 2 },

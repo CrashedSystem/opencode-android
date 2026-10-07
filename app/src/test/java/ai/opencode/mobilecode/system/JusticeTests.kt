@@ -7,8 +7,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The library's behavior tests (`test/engine.test.ts`, `refinements.test.ts`,
- * `mobile-spacing.test.ts`) that do not need a hyphenation dictionary. */
+// Ported from justice's test/engine.test.ts, refinements.test.ts, and mobile-spacing.test.ts. MIT license: see Justice.kt.
 class JusticeTests {
     private val measure = JusticeGolden.measures.getValue("eight")
     private val mobile = JusticeGolden.prepared.getValue("mobile")
@@ -159,8 +158,6 @@ class JusticeTests {
     @Test
     fun doesNotPreferEightfoldMobileSpaces() {
         for (hyphenated in listOf(false, true)) {
-            // The reported 350px measure selected three words, then stretched its two
-            // spaces from 4.84px to 39.37px, despite fitting "models," on that line.
             val p = if (hyphenated) mobile else mobile.copy(hyphenation = null)
             val lines = Justice.solve(p, 350.0).lines
             assertEquals("OpenCode’s environment (its models,", Justice.lineText(p, lines[0]))
@@ -204,7 +201,7 @@ class JusticeTests {
     fun suppliedClusterCountsReplaceGraphemesWhereGiven() {
         val text = "first fish"
         val ranged = { start: Int, end: Int -> measure(text.substring(start, end)) }
-        val ligature = Justice.prepare(text, 4.0, ranged, measureGaps = false) { start, end -> if (text.substring(start, end) == "first") 4 else null }
+        val ligature = Justice.prepare(text, 4.0, ranged, measureGaps = false, clusters = { start, end -> if (text.substring(start, end) == "first") 4 else null })
         assertEquals(listOf(0.0, 4.0, 8.0), ligature.characters.toList())
         assertEquals(listOf(0.0, 5.0, 9.0), Justice.prepare(text, 4.0, ranged, measureGaps = false).characters.toList())
     }

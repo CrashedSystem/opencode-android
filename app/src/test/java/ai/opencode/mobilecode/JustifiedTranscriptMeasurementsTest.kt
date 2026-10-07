@@ -25,8 +25,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Gap sizes, reflow while streaming, and solve cost for justified transcript prose, measured on
- * Android's own layout of the transcript fixture. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [33])
@@ -63,7 +61,7 @@ class JustifiedTranscriptMeasurementsTest {
                 val ragged = laid(text, style, width)
                 val android = laid(text, style.copy(textAlign = TextAlign.Justify), width)
                 val plan = Justification.plan(text, width, widths)!!
-                val justice = laid(plan.text, Justification.style(style), plan.width)
+                val justice = laid(plan.text, Justification.style(style), plan.layoutWidth)
                 val raggedGap = largestGap(ragged, text, widths, space)
                 assertEquals("ragged gaps are natural", 1.0, raggedGap, 0.01)
                 val shortfall = shortfall(ragged, text, width) / space
@@ -100,7 +98,6 @@ class JustifiedTranscriptMeasurementsTest {
             var moved = 0
             for (prefix in prefixes) {
                 val plan = Justification.plan(prefix, width, widths, previous = previous.takeIf { keep })!!
-                // Lines above the last two of the previous layout were already read; count any that moved.
                 val settled = previous?.lines.orEmpty().dropLast(2)
                 val changed = settled.indices.count { it >= plan.lines.size || plan.lines[it].end != settled[it].end }
                 if (changed > 0) reflows++
@@ -151,7 +148,6 @@ class JustifiedTranscriptMeasurementsTest {
     private fun laid(text: AnnotatedString, style: TextStyle, width: Int) =
         Paragraph(text.text, style, Constraints(maxWidth = width), density, fonts, text.spanStyles)
 
-    /** The widest rendered gap between words, in natural spaces: one space plus the stretch. */
     private fun largestGap(layout: Paragraph, text: AnnotatedString, widths: TextWidths, space: Double): Double {
         var largest = 0.0
         for (line in 0 until layout.lineCount) {
@@ -176,9 +172,7 @@ class JustifiedTranscriptMeasurementsTest {
     /** Android's inter-word justification adds the same width to every space on a line; its
      * reported positions leave that width out, so the gap is worked out from the line's width. */
     private fun androidJustifiedGap(layout: Paragraph, text: AnnotatedString, width: Int, space: Double): Double =
-        (0 until layout.lineCount).filter { line ->
-            text.text.substring(layout.getLineEnd(line, true)).substringBefore('\n').isNotBlank()
-        }.maxOfOrNull { line ->
+        (0 until layout.lineCount).filterNot { endsSegment(layout, text, it) }.maxOfOrNull { line ->
             val start = layout.getLineStart(line)
             val end = layout.getLineEnd(line, true)
             val spaces = (start until end).count { text[it] == ' ' }
@@ -186,11 +180,11 @@ class JustifiedTranscriptMeasurementsTest {
             if (spaces == 0) 1.0 else 1 + (width - natural) / spaces / space
         } ?: 1.0
 
-    /** How far short of the margin the most ragged line ends, leaving out each paragraph's last line. */
     private fun shortfall(layout: Paragraph, text: AnnotatedString, width: Int): Double =
-        (0 until layout.lineCount).filter { line ->
-            text.text.substring(layout.getLineEnd(line, true)).substringBefore('\n').isNotBlank()
-        }.maxOfOrNull { width - layout.getLineRight(it).toDouble() } ?: 0.0
+        (0 until layout.lineCount).filterNot { endsSegment(layout, text, it) }.maxOfOrNull { width - layout.getLineRight(it).toDouble() } ?: 0.0
+
+    private fun endsSegment(layout: Paragraph, text: AnnotatedString, line: Int) =
+        text.text.substring(layout.getLineEnd(line, visibleEnd = true)).substringBefore('\n').isBlank()
 
     private val paragraph = "**Why:** the session runner reloads projected history before every durable continuation, so a step " +
         "that resumes after a crash sees exactly what the model saw. The first version kept an in-memory tool loop, which " +

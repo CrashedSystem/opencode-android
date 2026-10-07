@@ -18,9 +18,7 @@ type Options = import("../.justice-reference/src/engine").Options;
 type Layout = import("../.justice-reference/src/engine").Layout;
 
 const measures: Record<string, (text: string) => number> = {
-  // engine.test.ts, refinements.test.ts, static.test.ts
   eight: text => Array.from(text).reduce((n, c) => n + (c === " " ? 4 : 8), 0),
-  // hyphenation.test.ts: deliberately non-additive shaping
   shaped: s => [...s].reduce((n, c) => n + (c === " " ? 4 : 8), 0) - (s.match(/a-/g)?.length ?? 0) * 2,
 };
 const opticals: Record<string, (text: string, index: number) => { start: number; end: number }> = {
@@ -79,18 +77,15 @@ function intern(p: Prepared, name?: string) {
   return id;
 }
 
-/** Only what differs from the defaults, so a case reads as its test wrote it. */
 const changes = (policy: Partial<Options>) =>
   Object.fromEntries(Object.entries(policy).filter(([key, value]) => defaults[key as keyof Options] !== value));
 
-/** A case whose input the Kotlin port prepares itself from text, then checks against ours. */
 function fromText(name: string, text: string, width: number | number[], policy: Partial<Options>, measure = "eight", optical?: string) {
   const plain = prepare(text, measures[measure]);
   const p = optical ? withOpticalMargins(plain, opticals[optical]) : plain;
   cases.push({ name, source: "text", text, measure, optical: optical ?? null, prepared: intern(p), width, policy: changes(policy), layout: layout(solve(p, width, policy)) });
 }
 
-/** A case solved from a prepared paragraph the port cannot build (fixture or dictionary breaks). */
 function fromPrepared(name: string, id: string, p: Prepared, width: number | number[], policy: Partial<Options>, extra: object = {}) {
   cases.push({ name, source: "prepared", prepared: intern(p, id), width, policy: changes(policy), ...extra, layout: layout(solve(p, width, policy)) });
 }
@@ -109,7 +104,6 @@ for (const [id, p] of [["mobile", mobile], ["mobile-whole", mobileWhole]] as con
   fromPrepared(`mobile-article/${id}/drop-cap`, id, p, [290, 290, 350], {});
 }
 
-// engine.test.ts
 const counting = "one two three four five six seven eight nine ten eleven twelve";
 fromText("engine/indent", counting, [160, 200], { tracking: 0 });
 fromText("engine/drop-cap", counting, [120, 120, 200], { tracking: 0 });
@@ -134,7 +128,6 @@ fromText("engine/nbsp", "  walk\t10\u00a0km\n today  ", 20, {});
 for (const [width, policy] of [[40, {}], [100, {}], [80, { stretch: 1 }]] as const) fromText(`engine/reuse/${width}`, "one two one two", width, policy);
 fromText("engine/empty", " \n\t", 100, {});
 
-// refinements.test.ts
 const quiet = "A quiet paragraph can become much more comfortable when its lines share a reasonably even rhythm of spaces instead of alternating between very tight and very loose arrangements.";
 fromText("refinements/independent", quiet, 300, { adjacentPenalty: 0 });
 fromText("refinements/adjacent", quiet, 300, {});
@@ -146,7 +139,6 @@ const continuation = withOpticalMargins(withHyphenation(prepare("abcdefghijklmno
   (text: string) => ({ start: text.startsWith("a") ? 1 : 2, end: text === "-" ? 4 : 0 }));
 for (const width of [54, 100, 250]) fromPrepared(`refinements/continuation/${width}`, "continuation", continuation, width, { tracking: 0 });
 
-// hyphenation.test.ts
 const runs = prepare("abcdefghijklmnopqr", measures.shaped);
 const splitRuns = withHyphenation(runs, split, measures.shaped);
 fromPrepared("hyphenation/successive", "successive", splitRuns, 56, { tracking: 0 });
@@ -168,11 +160,9 @@ for (const width of [500, 80, 120, 70]) fromPrepared(`hyphenation/whole-words/${
   }
 }
 
-// static.test.ts paragraph, solved directly
 const typesetting = withOpticalMargins(withHyphenation(prepare("Thus, building responsive paragraphs requires careful typesetting. Keep every source word intact.", measures.eight), (word: string) => word === "typesetting." ? ["type", "set", "ting."] : [word], measures.eight), () => ({ start: 1, end: 2 }));
 for (const width of [90, 120.5, 200, 400]) fromPrepared(`static/${width}`, "typesetting", typesetting, width, {});
 
-// engine.test.ts random oracles, both modes
 {
   const random = seeded(42);
   for (let i = 0; i < 500; i++) {

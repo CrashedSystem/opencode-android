@@ -1,3 +1,27 @@
+// Ported from justice (https://github.com/kitlangton/justice).
+//
+// MIT License
+//
+// Copyright (c) 2026 Kit Langton
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package ai.opencode.mobilecode.system
 
 import java.text.BreakIterator
@@ -7,17 +31,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 
-/**
- * Kit Langton's justice paragraph engine (github.com/kitlangton/justice, `src/engine.ts` at 86dbc6d),
- * ported declaration for declaration so an upstream diff applies line by line. The library's
- * numbers are reproduced to 1e-6 by `JusticeGoldenTests` against `scripts/justice-golden.ts`.
- *
- * Not ported: `withHyphenation` (no hyphenation dictionary ships in the app, and a generated
- * hyphen would put a glyph on screen that is not in the selectable text) and `static.ts`.
- * Added: [prepare] over source ranges, which can measure each whitespace run instead of
- * collapsing it to one space, and count letter-spaced units per word where a renderer does not
- * space every grapheme (Android spaces a ligature once).
- */
+/** The justice paragraph engine (`src/engine.ts` at 86dbc6d), ported declaration for
+ * declaration so an upstream diff applies line by line. */
 object Justice {
     enum class Mode { balanced, strict }
 
@@ -140,13 +155,15 @@ object Justice {
     /** [prepare] over source ranges, for an adapter that measures styled text. Each word,
      * punctuation edge, and hyphen fragment is measured by its range in [text]. With
      * [measureGaps], each whitespace run between words keeps its measured width. [clusters]
-     * counts the units a renderer letter-spaces in a range, or returns null for one per grapheme. */
+     * counts the units a renderer letter-spaces in a range, or returns null for one per grapheme.
+     * Without [breakAfterHyphens], words never break after a hyphen they contain. */
     fun prepare(
         text: String,
         space: Double,
         measure: (start: Int, end: Int) -> Double,
         measureGaps: Boolean,
         clusters: ((start: Int, end: Int) -> Int?)? = null,
+        breakAfterHyphens: Boolean = true,
     ): Prepared {
         if (!space.isFinite() || space < 0) throw IllegalArgumentException("Invalid measured word width")
         if (space <= 0) throw IllegalArgumentException("Space width must be positive")
@@ -177,10 +194,10 @@ object Justice {
                 uniform = uniform && gap == space
                 gapWidths[i] = gapWidths[i - 1] + gap
             }
-            val explicit = explicitHyphens(word)
+            val explicit = if (breakAfterHyphens) explicitHyphens(word) else IntArray(0)
             if (explicit.isNotEmpty()) {
                 if (hyphenation == null) hyphenation = arrayOfNulls(n)
-                hyphenation[i] = fragments(w, intArrayOf(0, *explicit, word.length), explicit.toSet(), widthOf, countOf)
+                hyphenation[i] = sourceHyphenFragments(w, intArrayOf(0, *explicit, word.length), widthOf, countOf)
             }
         }
         return Prepared(words, widths, characters, endHangs, startHangs, space, hyphenation = hyphenation?.toList(), gaps = if (uniform) null else gapWidths)
@@ -319,8 +336,8 @@ object Justice {
     fun wordRanges(text: String): IntArray {
         var from = 0
         var to = text.length
-        while (from < to && isTrimmed(text[from])) from++
-        while (to > from && isTrimmed(text[to - 1])) to--
+        while (from < to && isJavaScriptWhitespace(text[from])) from++
+        while (to > from && isJavaScriptWhitespace(text[to - 1])) to--
         val ranges = ArrayList<Int>()
         var index = from
         while (index < to) {
@@ -334,11 +351,9 @@ object Justice {
         return ranges.toIntArray()
     }
 
-    /** The whitespace that separates words; NBSP and other spaces stay inside a word. */
     fun isSeparator(c: Char) = c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\u000C'
 
-    /** JavaScript's `String.prototype.trim` set, which unlike Kotlin's includes NBSP. */
-    private fun isTrimmed(c: Char) = c in "\t\n\u000B\u000C\r \u00A0\u1680\u2028\u2029\u202F\u205F\u3000\uFEFF" || c in '\u2000'..'\u200A'
+    private fun isJavaScriptWhitespace(c: Char) = c in "\t\n\u000B\u000C\r \u00A0\u1680\u2028\u2029\u202F\u205F\u3000\uFEFF" || c in '\u2000'..'\u200A'
 
     private fun graphemeCount(iterator: BreakIterator, text: String): Int {
         iterator.setText(text)
@@ -359,10 +374,9 @@ object Justice {
         return explicitHyphen.findAll(word).map { it.range.first + 1 }.toList().toIntArray()
     }
 
-    private fun fragments(
+    private fun sourceHyphenFragments(
         wordWidth: Double,
         offsets: IntArray,
-        explicitAt: Set<Int>,
         widthOf: (start: Int, end: Int) -> Double,
         countOf: (start: Int, end: Int) -> Int,
     ): WordFragments {
@@ -370,15 +384,13 @@ object Justice {
         val widths = DoubleArray(n * n)
         val hyphenWidths = DoubleArray(n * n)
         val characters = DoubleArray(n * n)
-        val explicit = BooleanArray(n) { offsets[it] in explicitAt }
         for (from in 0 until n - 1) for (to in from + 1 until n) {
             val cell = from * n + to
             widths[cell] = if (from == 0 && to == n - 1) wordWidth else widthOf(offsets[from], offsets[to])
-            // A generated hyphen only arises from dictionary breaks, which this port does not add.
             if (to < n - 1) hyphenWidths[cell] = widths[cell]
             characters[cell] = countOf(offsets[from], offsets[to]).toDouble()
         }
-        return WordFragments(offsets, widths, hyphenWidths, characters, explicit = if (explicit.any { it }) explicit else null)
+        return WordFragments(offsets, widths, hyphenWidths, characters, explicit = BooleanArray(n) { it in 1 until n - 1 })
     }
 
     private fun validate(measure: List<Double>, o: Options): List<Double> {
@@ -408,7 +420,6 @@ object Justice {
         val endProtrusion: Double?,
     )
 
-    /** The natural width of the gaps between words [start] and [end]. */
     private fun Prepared.spaces(start: Int, end: Int): Double = gaps?.let { it[end - 1] - it[start] } ?: ((end - start - 1) * space)
 
     private fun fit(

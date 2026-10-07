@@ -122,7 +122,6 @@ private fun BlockContent(
                 Modifier
                     .fillMaxWidth()
                     .padding(vertical = TranscriptMetrics.compact.dp)
-                    // Drawn, not measured: justified text cannot report an intrinsic height.
                     .drawBehind { drawRoundRect(bar, size = Size(3.dp.toPx(), size.height), cornerRadius = CornerRadius(2.dp.toPx())) }
                     .padding(start = 12.dp),
                 justified = true,

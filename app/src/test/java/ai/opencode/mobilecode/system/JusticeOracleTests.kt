@@ -15,8 +15,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The library's exhaustive-partition oracles (`test/engine.test.ts`, `test/hyphenation.test.ts`),
- * which enumerate every partition with no pruning, prefix sums, or dynamic programming. */
+// Ported from justice's test/engine.test.ts and test/hyphenation.test.ts. MIT license: see Justice.kt.
 class JusticeOracleTests {
     private val measure = JusticeGolden.measures.getValue("eight")
     private val shaped = JusticeGolden.measures.getValue("shaped")
@@ -183,8 +182,6 @@ class JusticeOracleTests {
 
     private class Break(val end: Int, val next: Int, val hyphen: Boolean)
 
-    /** Partitions over source offsets, independent of the engine's word matrices and
-     * dynamic-programming nodes. Each displayed line is measured directly. */
     private fun exhaustiveHyphenated(text: String, width: Double, o: Justice.Options, emergency: Boolean, optical: ((String, Int) -> Justice.Edges)?): Double {
         val breaks = mutableListOf(Break(0, 0, false))
         for (match in Regex("[^ ]+").findAll(text)) {
@@ -265,7 +262,6 @@ class JusticeOracleTests {
         }
     }
 
-    /** Vitest's `toBeCloseTo(expected, digits)`: equal, or within half a unit of the last digit. */
     private fun assertClose(message: String, expected: Double, actual: Double, digits: Int) {
         if (expected == actual) return
         assertTrue("$message: $actual is not close to $expected", abs(expected - actual) < 10.0.pow(-digits) / 2)
