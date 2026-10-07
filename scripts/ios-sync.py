@@ -33,11 +33,14 @@ def main():
     plan.add_argument("rev", nargs="?", help="upstream revision to plan up to (default: origin/<branch>)")
     advance = commands.add_parser("advance", help="record REV as synced once every changed file is ported or deferred")
     advance.add_argument("rev")
+    mark = commands.add_parser("mark", help="set the @file:PortedFrom commit of ported files to REV")
+    mark.add_argument("rev")
+    mark.add_argument("paths", nargs="*", help="iOS or Kotlin paths (default: every port file REV changed)")
     args = parser.parse_args()
 
     config = json.loads(CONFIG.read_text())
     ensure_upstream(config, fetch=args.command in ("status", "plan"))
-    {"status": status, "check": check, "progress": progress, "plan": plan_worklist, "advance": advance_sync}[args.command](config, args)
+    {"status": status, "check": check, "progress": progress, "plan": plan_worklist, "advance": advance_sync, "mark": mark_ported}[args.command](config, args)
 
 
 def status(config, _args):
@@ -214,6 +217,36 @@ def advance_sync(config, args):
     config["upstream"]["commit"] = target
     CONFIG.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Synced commit is now {describe(target)}.")
+
+
+def mark_ported(config, args):
+    target = resolve(args.rev)
+    claims = marker_claims(config)
+    if args.paths:
+        ios_paths = set()
+        for path in args.paths:
+            if path.endswith(".kt"):
+                android = str((Path.cwd() / path).resolve().relative_to(ROOT))
+                ios_paths.update(ios for ios, ports in claims.items() if any(file == android for file, _, _ in ports))
+            else:
+                ios_paths.add(path)
+    else:
+        ios_paths = {path for path, kind in changed_files(f"{target}~1", target) if kind != "deleted" and classify(path, config) == "port"}
+    for path in sorted(ios_paths):
+        ports = [file for file, _, _ in claims.get(path, []) if file.endswith(".kt")]
+        if not ports:
+            print(f"  skipped {path}: {deferral(path, config) and 'deferred' or 'no Kotlin file claims it'}")
+            continue
+        for file in ports:
+            source = ROOT / file
+            text = source.read_text()
+            updated = MARKER.sub(
+                lambda match: match.group(0).replace(f'"{match.group(2)}"', f'"{target[:7]}"', 1) if match.group(1) == path else match.group(0),
+                text,
+            )
+            if updated != text:
+                source.write_text(updated)
+                print(f"  {file} -> {target[:7]} ({path})")
 
 
 def ensure_upstream(config, fetch):
