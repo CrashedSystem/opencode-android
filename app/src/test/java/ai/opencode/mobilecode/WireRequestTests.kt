@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/WireRequestTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/WireRequestTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -13,6 +13,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Exact request bodies and failure handling for the live HTTP transport,
+/// captured below OkHttp.
 class WireRequestTests {
     @Test
     fun composerPromptPostsFilesAndExplicitDelivery() = runBlocking {
@@ -72,7 +74,7 @@ class WireRequestTests {
             val request = fixture.requests.first()
             assertEquals("GET", request.method)
             assertEquals("/api/shell", request.path)
-            assertEquals(listOf(URLQueryItem("location[directory]", "/a b")), request.queryItems())
+            assertEquals(listOf(URLQueryItem("location[directory]", "/a b")), request.queryItems)
         } finally {
             fixture.close()
         }
@@ -99,7 +101,7 @@ class WireRequestTests {
             OpenCodeClient.liveValue.moveToBackground(fixture.server, "ses_1")
             assertEquals(
                 listOf("GET /api/shell/sh_1", "GET /api/shell/sh_1/output", "DELETE /api/shell/sh_1", "POST /api/session/ses_1/background"),
-                fixture.requests.map { "${it.method} ${it.path}" },
+                fixture.requests.map { it.route },
             )
             assertEquals(
                 listOf(
@@ -107,9 +109,9 @@ class WireRequestTests {
                     URLQueryItem("cursor", "100"),
                     URLQueryItem("limit", "65536"),
                 ),
-                fixture.requests[1].queryItems(),
+                fixture.requests[1].queryItems,
             )
-            assertEquals(listOf(URLQueryItem("location[directory]", "/a b")), fixture.requests[2].queryItems())
+            assertEquals(listOf(URLQueryItem("location[directory]", "/a b")), fixture.requests[2].queryItems)
         } finally {
             fixture.close()
         }

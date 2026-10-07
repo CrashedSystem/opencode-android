@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/ProblemReportTests.swift", "dd71df9")
+@file:PortedFrom("OpenCodeTests/ProblemReportTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -499,34 +499,65 @@ class PhoneReportsDeliveryTests {
     }
 }
 
+private val testReportServer = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
+private val testReportDevice = ProblemReportDevice(appVersion = "0.1.0", build = "37", distribution = "Debug", system = "iOS 26.0", model = "Simulator")
+private val testReportNow = Instant.ofEpochSecond(2_000)
+
+private fun savePendingReport(reports: ProblemReportStore): ProblemReport {
+    val bundle = ProblemReportBuilder.make(
+        id = UUID.randomUUID(), trigger = ProblemReportTrigger.settings, status = ProblemReport.Status.pending, context = ProblemReportContext(), device = testReportDevice,
+        now = testReportNow, events = emptyList(), screenshot = null,
+    )
+    reports.save(bundle)
+    return bundle.report
+}
+
+private fun makeReportStore(
+    fake: FakeServer,
+    reports: ProblemReportStore,
+    projects: List<OpenCodeProject> = emptyList(),
+    delivering: ProblemReportsFeature.State.Delivering? = null,
+    hasDestination: Boolean = true,
+    clock: TestClock = TestClock(),
+    timeline: List<DiagnosticsEvent> = emptyList(),
+    haptics: MutableList<String>? = null,
+): TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action> {
+    val store = TestStore(
+        initialState = {
+            ProblemReportsFeature.State().apply {
+                server = testReportServer
+                this.projects = projects
+                this.delivering = delivering
+            }
+        },
+        withDependencies = {
+            it.problemReportStore = reports
+            it.openCodeClient = fake.client
+            it.uuid = UUIDGenerator.incrementing()
+            it.continuousClock = clock
+            it.date = DateGenerator.constant(testReportNow)
+            it.diagnostics.timeline = { timeline }
+            if (haptics != null) it.haptics = HapticsClient.recording(haptics)
+        },
+    ) { ProblemReportsFeature() }
+    store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+    val key = testReportServer.persistenceID
+    store.state::destinations.withLock {
+        value = if (hasDestination) mapOf(key to PhoneReportsDestination(projectID = "p", projectName = "reports", directory = "/reports")) else emptyMap()
+    }
+    return store
+}
+
 class ProblemReportsFeatureTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    private val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
+    private val server = testReportServer
     private val project = OpenCodeProject(id = "p", name = "reports", directory = "/reports")
     private val now = Instant.ofEpochSecond(2_000)
 
-    private fun makeStore(fake: FakeServer, reports: ProblemReportStore): TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action> {
-        val store = TestStore(
-            initialState = {
-                ProblemReportsFeature.State().apply {
-                    server = this@ProblemReportsFeatureTests.server
-                    projects = listOf(project)
-                }
-            },
-            withDependencies = {
-                it.problemReportStore = reports
-                it.openCodeClient = fake.client
-                it.uuid = UUIDGenerator.incrementing()
-                it.continuousClock = TestClock()
-                it.date = DateGenerator.constant(now)
-                it.diagnostics.timeline = { listOf(event("voice_dropped", kind = DiagnosticsEvent.Kind.voice)) }
-            },
-        ) { ProblemReportsFeature() }
-        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
-        return store
-    }
+    private fun makeStore(fake: FakeServer, reports: ProblemReportStore): TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action> =
+        makeReportStore(fake, reports, projects = listOf(project), timeline = listOf(event("voice_dropped", kind = DiagnosticsEvent.Kind.voice)))
 
     @Test
     fun firstReportAsksForAProjectThenSendsAndClosesTheSheet() {
@@ -821,59 +852,17 @@ class PhoneReportsRetryTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    private val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
-    private val device = ProblemReportDevice(
-        appVersion = "0.1.0",
-        build = "37",
-        distribution = "Debug",
-        system = "iOS 26.0",
-        model = "Simulator",
-    )
-    private val now = Instant.ofEpochSecond(2_000)
+    private val server = testReportServer
 
-    private fun pending(reports: ProblemReportStore): ProblemReport {
-        val bundle = ProblemReportBuilder.make(
-            id = UUID.randomUUID(),
-            trigger = ProblemReportTrigger.settings,
-            status = ProblemReport.Status.pending,
-            context = ProblemReportContext(),
-            device = device,
-            now = now,
-            events = emptyList(),
-            screenshot = null,
-        )
-        reports.save(bundle)
-        return bundle.report
-    }
+    private fun pending(reports: ProblemReportStore): ProblemReport = savePendingReport(reports)
 
     private fun makeStore(
         fake: FakeServer,
         reports: ProblemReportStore,
         delivering: ProblemReportsFeature.State.Delivering? = null,
         clock: TestClock = TestClock(),
-    ): TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action> {
-        val store = TestStore(
-            initialState = {
-                ProblemReportsFeature.State().apply {
-                    server = this@PhoneReportsRetryTests.server
-                    this.delivering = delivering
-                }
-            },
-            withDependencies = {
-                it.problemReportStore = reports
-                it.openCodeClient = fake.client
-                it.uuid = UUIDGenerator.incrementing()
-                it.continuousClock = clock
-                it.date = DateGenerator.constant(now)
-            },
-        ) { ProblemReportsFeature() }
-        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
-        val key = server.persistenceID
-        store.state::destinations.withLock {
-            value = mapOf(key to PhoneReportsDestination(projectID = "p", projectName = "reports", directory = "/reports"))
-        }
-        return store
-    }
+    ): TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action> =
+        makeReportStore(fake, reports, delivering = delivering, clock = clock)
 
     @Test
     fun aSessionMadeBeforeAFailureIsReused() {
@@ -909,8 +898,7 @@ class PhoneReportsRetryTests {
             )
             store.send(ProblemReportsFeature.Action.serverReachable)
             expect(store.state.retryAfterCurrent)
-            val failure = PhoneReportsDelivery.Failure()
-            store.send(ProblemReportsFeature.Action.deliveryFinished(report.id, Result.failure(failure)))
+            store.send(ProblemReportsFeature.Action.deliveryFinished(report.id, Result.failure(PhoneReportsDelivery.Failure())))
             store.receive<ProblemReportsFeature.Action.deliveryFinished>()
             expect(reports.all().isEmpty(), "Not parked until the next reconnect")
             expect(fake.prompts.size == 1)
@@ -1046,28 +1034,11 @@ class ProblemReportOfferExpiryTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    private val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
-    private val device = ProblemReportDevice(
-        appVersion = "0.1.0",
-        build = "37",
-        distribution = "Debug",
-        system = "iOS 26.0",
-        model = "Simulator",
-    )
-    private val now = Instant.ofEpochSecond(2_000)
+    private val device = testReportDevice
+    private val now = testReportNow
 
     private fun makeStore(fake: FakeServer, reports: ProblemReportStore, clock: TestClock) =
-        TestStore(
-            initialState = { ProblemReportsFeature.State().apply { server = this@ProblemReportOfferExpiryTests.server } },
-            withDependencies = {
-                it.problemReportStore = reports
-                it.openCodeClient = fake.client
-                it.uuid = UUIDGenerator.incrementing()
-                it.continuousClock = clock
-                it.date = DateGenerator.constant(now)
-                it.diagnostics.timeline = { emptyList() }
-            },
-        ) { ProblemReportsFeature() }.also { it.exhaustivity = Exhaustivity.off(showSkippedAssertions = false) }
+        makeReportStore(fake, reports, hasDestination = false, clock = clock)
 
     @Test
     fun anOfferExpiresAndTakesItsBundle() {
@@ -1152,37 +1123,10 @@ class ProblemReportNoticeTests {
     @get:Rule
     val dependencies = TestDependencies()
 
-    private val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "")
-    private val device = ProblemReportDevice(
-        appVersion = "0.1.0",
-        build = "37",
-        distribution = "Debug",
-        system = "iOS 26.0",
-        model = "Simulator",
-    )
-    private val now = Instant.ofEpochSecond(2_000)
+    private val server = testReportServer
 
     private fun makeStore(fake: FakeServer, reports: ProblemReportStore, clock: TestClock, haptics: MutableList<String>) =
-        TestStore(
-            initialState = { ProblemReportsFeature.State().apply { server = this@ProblemReportNoticeTests.server } },
-            withDependencies = {
-                it.problemReportStore = reports
-                it.openCodeClient = fake.client
-                it.uuid = UUIDGenerator.incrementing()
-                it.continuousClock = clock
-                it.date = DateGenerator.constant(now)
-                it.diagnostics.timeline = { emptyList() }
-                it.haptics.success = { haptics += "success" }
-                it.haptics.warning = { haptics += "warning" }
-                it.haptics.error = { haptics += "error" }
-            },
-        ) { ProblemReportsFeature() }.also {
-            it.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
-            val key = server.persistenceID
-            it.state::destinations.withLock {
-                value = mapOf(key to PhoneReportsDestination(projectID = "p", projectName = "reports", directory = "/reports"))
-            }
-        }
+        makeReportStore(fake, reports, clock = clock, haptics = haptics)
 
     private fun send(store: TestStore<ProblemReportsFeature.State, ProblemReportsFeature.Action>) {
         store.send(ProblemReportsFeature.Action.reportRequested(ProblemReportTrigger.shake, null))
@@ -1191,20 +1135,7 @@ class ProblemReportNoticeTests {
         store.receive<ProblemReportsFeature.Action.deliveryFinished>()
     }
 
-    private fun pending(reports: ProblemReportStore): ProblemReport {
-        val bundle = ProblemReportBuilder.make(
-            id = UUID.randomUUID(),
-            trigger = ProblemReportTrigger.settings,
-            status = ProblemReport.Status.pending,
-            context = ProblemReportContext(),
-            device = device,
-            now = now,
-            events = emptyList(),
-            screenshot = null,
-        )
-        reports.save(bundle)
-        return bundle.report
-    }
+    private fun pending(reports: ProblemReportStore): ProblemReport = savePendingReport(reports)
 
     @Test
     fun aDeliveredReportSaysSentToPhoneReportsAndOpensIt() {

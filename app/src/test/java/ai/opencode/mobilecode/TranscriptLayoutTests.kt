@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptLayoutTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/TranscriptLayoutTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -54,50 +54,24 @@ class TranscriptLayoutTests {
     /// jump still lands on the measured tail.
     @Test
     fun layoutDuringScrollCommandDoesNotRecursivelyScroll() {
-        val items = (0 until 60).map { OpenCodeTranscriptItem.userText(id = "m$it", text = "Message $it") }
-        val store = Store(initialState = { SessionViewFixture.state(items).apply { visibleLimit = items.size } }) {
-            Reduce<SessionFeature.State, SessionFeature.Action> { _ -> Effect.none }
-        }
-        val bridge = SessionScrollEdgeBridge()
-        var jumpRequest by mutableIntStateOf(0)
-        var inset by mutableFloatStateOf(240f)
-        compose.mainClock.autoAdvance = false
-        compose.setContent {
-            SystemTheme {
-                CompositionLocalProvider(LocalTranscriptClock provides { compose.mainClock.currentTime * 1_000_000 }) {
-                    Box(Modifier.fillMaxSize().background(SystemColors.systemBackground)) {
-                        SessionTranscriptView(
-                            store = store,
-                            scrollEdgeBridge = bridge,
-                            dismissKeyboard = {},
-                            onPreviewImage = {},
-                            onOpenFile = {},
-                            showsJumpButton = Binding({ false }, {}),
-                            jumpRequest = jumpRequest,
-                            composerInset = { inset },
-                            keyboardIsMoving = { false },
-                        )
-                    }
-                }
-            }
-        }
-        compose.mainClock.advanceTimeBy(1_500)
+        val harness = ListHarness(compose)
+        harness.show()
         compose.onNodeWithTag("transcript-list").performScrollToIndex(20)
         compose.mainClock.advanceTimeBy(500)
         compose.runOnUiThread {
-            jumpRequest = 1
+            harness.jumpRequest = 1
             Snapshot.sendApplyNotifications()
         }
         repeat(60) {
             // Model the composer's measurement settling during the jump.
             compose.runOnUiThread {
-                inset -= 1f
+                harness.composerInset -= 1f
                 Snapshot.sendApplyNotifications()
             }
             compose.mainClock.advanceTimeByFrame()
         }
         compose.mainClock.advanceTimeBy(1_500)
-        val info = bridge.scrollView!!.layoutInfo
+        val info = harness.list.layoutInfo
         val last = info.visibleItemsInfo.last()
         assertEquals("The jump lands on the tail", info.totalItemsCount - 1, last.index)
         assertEquals(0, maxOf(0, last.offset + last.size + info.afterContentPadding - info.viewportEndOffset))

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "8fd69ec")
+@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -416,10 +416,9 @@ class OpenCodeClientDecodingTests {
               {"question":"Anything else?","custom":true}
             ]}
         """.trimIndent())
-        val questions = OpenCodeToolCall(
-            callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running,
-            input = input, output = emptyList(), metadata = emptyMap(),
-        ).questions!!
+        val call = OpenCodeToolCall.test(callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running, input = input)
+
+        val questions = call.questions!!
         assertEquals(
             listOf(
                 OpenCodeQuestion(question = "What should ship?", header = "Scope"),
@@ -433,10 +432,8 @@ class OpenCodeClientDecodingTests {
     @Test
     fun malformedQuestionToolInputFallsBackToGenericToolUI() {
         val input = protocolJson.decodeFromString<OpenCodeJSONValue>("""{"questions":[{"header":"Missing question"},{"question":"  "}]}""")
-        val call = OpenCodeToolCall(
-            callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running,
-            input = input, output = emptyList(), metadata = emptyMap(),
-        )
+        val call = OpenCodeToolCall.test(callID = "call_question", name = "question", status = OpenCodeToolCall.Status.running, input = input)
+
         assertNull(call.questions)
     }
 

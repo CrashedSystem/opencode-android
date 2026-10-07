@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -46,9 +46,11 @@ class SessionFeatureTests {
         get() = OpenCodeServer(url = "http://localhost:9", username = "", password = "")
 
     private fun testSession(
-        id: String,
-        title: String,
+        id: String = "ses_1",
+        title: String = "Chat",
+        directory: String = "/project",
         updatedAt: Long = System.currentTimeMillis(),
+        model: OpenCodeModelRef? = null,
         parentID: String? = null,
         idleMilliseconds: Long? = null,
         viewedMilliseconds: Long? = null,
@@ -56,17 +58,29 @@ class SessionFeatureTests {
         id = id,
         title = title,
         projectID = "p",
-        directory = "/project",
+        directory = directory,
         updatedAt = updatedAt,
         idleMilliseconds = idleMilliseconds,
         viewedMilliseconds = viewedMilliseconds,
+        model = model,
         parentID = parentID,
     )
 
     private fun makeState(
-        session: OpenCodeSession,
+        session: OpenCodeSession? = null,
         cachedItems: List<OpenCodeTranscriptItem> = emptyList(),
-    ) = SessionFeature.State(server = testServer, session = session, cachedItems = cachedItems)
+        isRunning: Boolean = false,
+        draft: String = "",
+    ): SessionFeature.State {
+        val state = SessionFeature.State(
+            server = testServer,
+            session = session ?: testSession(),
+            cachedItems = cachedItems,
+            isRunning = isRunning,
+        )
+        state.draft = draft
+        return state
+    }
 
     @Test
     fun workingDescendantsRemainVisibleAfterParentSettles() {
@@ -2260,24 +2274,13 @@ class SessionFeatureTests {
 
     @Test
     fun sendingMessageDeliversPromptAndLoadsReply() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
         val replied = listOf(
             OpenCodeTranscriptItem.userText(id = "msg_00000000000000000000000000000000", text = "hello"),
             OpenCodeTranscriptItem.assistantMarkdown(id = "m2-0", blocks = OpenCodeMarkdownBlock.blocks(from = "hi!")),
         )
 
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "hello"
-
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(draft = "hello") },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
                 it.openCodeClient.sendPrompt = { _, sessionID, text, _, _, messageID, _ ->
@@ -2351,14 +2354,11 @@ class SessionFeatureTests {
 
     @Test
     fun acceptedPromptWithLostResponseReconcilesSameClientID() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(id = "ses_1", title = "Chat", projectID = "proj_1", directory = "/tmp/demo", updatedAt = System.currentTimeMillis())
+        val session = testSession()
         val messageID = "msg_00000000000000000000000000000000"
         val echoed = listOf(OpenCodeTranscriptItem.userText(id = messageID, text = "hello"))
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "hello"
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(session = session, draft = "hello") },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
                 it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ ->
@@ -2385,21 +2385,14 @@ class SessionFeatureTests {
 
     @Test
     fun firstSendInDraftCreatesSessionThenDelivers() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
         val project = OpenCodeProject(id = "proj_1", name = "demo", directory = "/tmp/demo")
-        val created = OpenCodeSession(
-            id = "ses_new",
-            title = "Untitled session",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 2_000_000L,
-        )
+        val created = testSession(id = "ses_new", title = "Untitled session", directory = "/tmp/demo", updatedAt = 2_000_000L)
         val replied = listOf(
             OpenCodeTranscriptItem.userText(id = "msg_00000000000000000000000000000000", text = "hello"),
             OpenCodeTranscriptItem.assistantMarkdown(id = "m2-0", blocks = OpenCodeMarkdownBlock.blocks(from = "hi!")),
         )
 
-        val state = SessionFeature.State(server = server, draftProject = project, projects = listOf(project))
+        val state = SessionFeature.State(server = testServer, draftProject = project, projects = listOf(project))
         state.draft = "hello"
 
         val store = TestStore(
@@ -2446,19 +2439,14 @@ class SessionFeatureTests {
 
     @Test
     fun pickingModelSwitchesSessionModel() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
+        val session = testSession(
             directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
             model = OpenCodeModelRef(id = "ling-3.0-tiny-free", providerID = "opencode"),
         )
         val fast = OpenCodeModel(modelID = "fast-frank", providerID = "opencode", name = "Fast Frank")
 
         val store = TestStore(
-            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            initialState = { makeState(session = session) },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
                 it.openCodeClient.modelCatalog = { _, directory ->
@@ -2492,17 +2480,9 @@ class SessionFeatureTests {
 
     @Test
     fun loadingCatalogShowsDefaultModelForImplicitSessionSelection() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
         val defaultModel = OpenCodeModel(modelID = "example-model", providerID = "example", name = "Example Model")
         val store = TestStore(
-            initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
+            initialState = { makeState(session = testSession(directory = "/tmp/demo")) },
             withDependencies = {
                 it.openCodeClient.modelCatalog = { _, directory ->
                     expect(directory == "/tmp/demo")
@@ -2526,18 +2506,10 @@ class SessionFeatureTests {
 
     @Test
     fun togglingFavoritePinsModel() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
         val fast = OpenCodeModel(modelID = "example-model-fast", providerID = "opencode", name = "Example Model Fast")
         val tiny = OpenCodeModel(modelID = "example-model-tiny", providerID = "opencode", name = "Example Model Tiny")
 
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        val state = makeState()
         state.models = listOf(tiny, fast)
 
         val store = TestStore(initialState = { state }) { SessionFeature() }
@@ -2555,22 +2527,13 @@ class SessionFeatureTests {
 
     @Test
     fun failedSendRestoresFeedback() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
-        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
-        state.draft = "hello"
+        val session = testSession()
 
         val failSend: suspend (OpenCodeServer, String, String, List<OpenCodeOutgoingAttachment>, List<OpenCodeFileReference>, String, OpenCodeDelivery) -> Unit =
             { _, _, _, _, _, _, _ -> throw OpenCodeClientError(message = "Offline") }
 
         val store = TestStore(
-            initialState = { state },
+            initialState = { makeState(session = session, draft = "hello") },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
                 it.continuousClock = ImmediateClock()
@@ -2612,23 +2575,9 @@ class SessionFeatureTests {
 
     @Test
     fun interruptingAnActiveSessionWaitsForServerState() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
+        val session = testSession()
         val store = TestStore(
-            initialState = {
-                SessionFeature.State(
-                    server = server,
-                    session = session,
-                    cachedItems = emptyList(),
-                    isRunning = true,
-                )
-            },
+            initialState = { makeState(session = session, isRunning = true) },
             withDependencies = {
                 it.openCodeClient.interrupt = { _, sessionID ->
                     expect(sessionID == "ses_1")
@@ -2655,24 +2604,9 @@ class SessionFeatureTests {
 
     @Test
     fun interruptFailureKeepsSessionActiveAndShowsFeedback() {
-        val server = OpenCodeServer(url = "http://127.0.0.1:9", username = "opencode", password = "pw")
-        val session = OpenCodeSession(
-            id = "ses_1",
-            title = "Chat",
-            projectID = "proj_1",
-            directory = "/tmp/demo",
-            updatedAt = 1_000_000L,
-        )
         val failInterrupt: suspend (OpenCodeServer, String) -> Unit = { _, _ -> throw OpenCodeClientError(message = "Offline") }
         val store = TestStore(
-            initialState = {
-                SessionFeature.State(
-                    server = server,
-                    session = session,
-                    cachedItems = emptyList(),
-                    isRunning = true,
-                )
-            },
+            initialState = { makeState(isRunning = true) },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
                 it.openCodeClient.interrupt = failInterrupt
@@ -4192,11 +4126,12 @@ class SessionRefreshReviewTests {
 fun OpenCodeToolCall.Companion.test(
     callID: String? = null,
     name: String,
+    status: OpenCodeToolCall.Status = OpenCodeToolCall.Status.completed,
     input: OpenCodeJSONValue = OpenCodeJSONValue.`null`,
 ) = OpenCodeToolCall(
     callID = callID ?: name,
     name = name,
-    status = OpenCodeToolCall.Status.completed,
+    status = status,
     input = input,
     output = emptyList(),
     error = null,

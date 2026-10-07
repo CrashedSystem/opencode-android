@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/HapticsAuditTests.swift", "626fbb8")
 
 package ai.opencode.mobilecode
 
@@ -22,12 +22,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /// Records every haptic by name.
-private fun recording(log: MutableList<String>) = HapticsClient(
+internal fun HapticsClient.Companion.recording(log: MutableList<String>) = HapticsClient(
     selection = { log += "selection" },
     impact = { log += "impact" },
     success = { log += "success" },
     error = { log += "error" },
     attention = { log += "attention" },
+    warning = { log += "warning" },
     voice = { haptic -> log += "voice.${haptic.name}" },
     drawer = { log += "drawer" },
 )
@@ -51,7 +52,7 @@ class HapticsAuditTests {
             initialState = { state ?: SessionFeature.State(server = server, session = session, cachedItems = emptyList()) },
             withDependencies = {
                 it.uuid = UUIDGenerator.incrementing()
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.sendPrompt = { _, _, _, _, _, _, _ -> }
                 it.openCodeClient.waitForIdle = { _, _ -> }
                 it.openCodeClient.transcript = { _, _, _ -> emptyList() }
@@ -163,7 +164,7 @@ class HapticsAuditTests {
         val store = TestStore(
             initialState = { state },
             withDependencies = {
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.deleteSession = { _, _ -> }
             },
         ) { HomeFeature() }
@@ -184,7 +185,7 @@ class HapticsAuditTests {
         val store = TestStore(
             initialState = { SessionSheetFeature.State(server = server, sessionID = session.id) },
             withDependencies = {
-                it.haptics = recording(log)
+                it.haptics = HapticsClient.recording(log)
                 it.openCodeClient.compactSession = { _, _ -> }
             },
         ) { SessionSheetFeature() }
