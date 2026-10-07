@@ -43,8 +43,19 @@ class TranscriptContentScreenshotTest {
     @Test
     fun dark() = capture(dark = true)
 
-    private fun capture(dark: Boolean) {
-        val blocks = TranscriptFixture.withIds(TranscriptFixture.referenceBlocks())
+    @Test
+    @Config(qualifiers = "w320dp-h6400dp-mdpi")
+    fun lightNarrow() = capture(dark = false, width = 320)
+
+    @Test
+    @Config(qualifiers = "w320dp-h6400dp-mdpi")
+    fun darkNarrow() = capture(dark = true, width = 320)
+
+    @Test
+    @Config(qualifiers = "w320dp-h6400dp-mdpi")
+    fun quote() = capture(dark = false, width = 320, blocks = TranscriptFixture.withIds(TranscriptFixture.blocks(TranscriptFixture.quote)))
+
+    private fun capture(dark: Boolean, width: Int = 440, blocks: List<OpenCodeMarkdownBlock> = TranscriptFixture.withIds(TranscriptFixture.referenceBlocks())) {
         val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "pw")
         composeRule.setContent {
             ForcedAppearance(dark) {
@@ -52,7 +63,7 @@ class TranscriptContentScreenshotTest {
                     CompositionLocalProvider(LocalGlassBlurEnabled provides false) {
                         Column(
                             Modifier
-                                .width(440.dp)
+                                .width(width.dp)
                                 .background(SystemColors.systemBackground)
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                         ) {

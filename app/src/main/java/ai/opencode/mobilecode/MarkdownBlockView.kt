@@ -3,6 +3,7 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.AttributedString
+import ai.opencode.mobilecode.system.JustifiedText
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -111,25 +112,19 @@ private fun BlockContent(
     when (val kind = block.kind) {
         is OpenCodeMarkdownBlock.Kind.numberedItem -> ListItem(kind.marker, 0, kind.text, grown)
         is OpenCodeMarkdownBlock.Kind.listItem -> ListItem(kind.marker, kind.level, kind.text, grown)
-        is OpenCodeMarkdownBlock.Kind.blockquote -> Row(
-            Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(vertical = TranscriptMetrics.compact.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
-        ) {
-            Box(
-                Modifier
-                    .width(3.dp)
-                    .fillMaxHeight()
-                    .background(SystemColors.secondaryLabel.copy(alpha = 0.5f), RoundedCornerShape(2.dp)),
-            )
+        is OpenCodeMarkdownBlock.Kind.blockquote -> {
+            val bar = SystemColors.secondaryLabel.copy(alpha = 0.5f)
             ArrivingText(
                 MarkdownStyle.styled(kind.text),
                 grown,
                 SystemColors.secondaryLabel,
                 TextStyles.body.copy(lineHeight = 26.sp),
-                Modifier.weight(1f),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = TranscriptMetrics.compact.dp)
+                    .drawBehind { drawRoundRect(bar, size = Size(3.dp.toPx(), size.height), cornerRadius = CornerRadius(2.dp.toPx())) }
+                    .padding(start = 12.dp),
+                justified = true,
             )
         }
         is OpenCodeMarkdownBlock.Kind.paragraph ->
@@ -139,6 +134,7 @@ private fun BlockContent(
                 SystemColors.label,
                 TextStyles.body.copy(lineHeight = 26.sp),
                 Modifier.fillMaxWidth(),
+                justified = true,
             )
         OpenCodeMarkdownBlock.Kind.divider -> HairlineRule(Modifier.bleedHorizontal(TranscriptMetrics.contentGutter.dp))
         is OpenCodeMarkdownBlock.Kind.pullRequest -> PullRequestCard(kind.title, kind.url)
@@ -196,6 +192,7 @@ private fun ListItem(
             if (done) SystemColors.secondaryLabel else SystemColors.label,
             TextStyles.body.copy(lineHeight = 26.sp),
             Modifier.weight(1f),
+            justified = true,
         )
     }
 }
@@ -420,12 +417,19 @@ private fun ArrivingText(
     color: Color,
     style: androidx.compose.ui.text.TextStyle,
     modifier: Modifier = Modifier,
+    // Not in iOS: the user asked for justified prose that matches kitlangton/justice
+    // (docs/port/deviations.md).
+    justified: Boolean = false,
 ) {
-    Text(annotated(text, color), modifier = modifier, style = style, color = color)
+    if (justified) {
+        JustifiedText(annotated(text, color), style, color, modifier)
+    } else {
+        Text(annotated(text, color), modifier = modifier, style = style, color = color)
+    }
 }
 
 @Composable
-private fun annotated(text: AttributedString, base: Color): AnnotatedString {
+internal fun annotated(text: AttributedString, base: Color): AnnotatedString {
     if (text.runs.isEmpty()) return AnnotatedString(text.characters)
     val points = (listOf(0, text.characters.length) + text.runs.flatMap { listOf(it.start, it.end) })
         .filter { it in 0..text.characters.length }

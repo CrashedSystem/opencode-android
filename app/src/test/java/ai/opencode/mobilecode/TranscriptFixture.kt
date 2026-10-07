@@ -73,6 +73,11 @@ The fix is in `OpenCode/SessionView.swift:12`, and the full output is in `logs/b
 
 A [link](https://example.com) after the divider."""
 
+    const val quote = """> The paragraph is fitted as a whole: every break is chosen together to minimize one cost, rather than greedily line by line.
+> A second quoted line, set as its own hard-broken segment.
+
+- A list item long enough to wrap onto a second line, so its first line is justified and its last stays ragged."""
+
     fun referenceBlocks(): List<OpenCodeMarkdownBlock> =
         blocks(typography) + blocks(files) + blocks(lists)
 
