@@ -21,6 +21,7 @@ import ai.opencode.mobilecode.system.ToolbarItem
 import ai.opencode.mobilecode.system.ToolbarItemPlacement
 import ai.opencode.mobilecode.system.glassEffect
 import ai.opencode.mobilecode.system.medium
+import ai.opencode.mobilecode.system.listRowSeparatorLeading
 import ai.opencode.mobilecode.system.symbolSize
 import ai.opencode.mobilecode.tca.BindingAction
 import ai.opencode.mobilecode.tca.Dependency
@@ -79,6 +80,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,10 +90,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -550,7 +556,10 @@ private fun ReportSwitch(checked: Boolean) {
 
 /// Phone Reports' project, picked once per server.
 @Composable
-fun ReportProjectPicker(store: Store<ProblemReportsFeature.State, ProblemReportsFeature.Action>) {
+fun ReportProjectPicker(
+    store: Store<ProblemReportsFeature.State, ProblemReportsFeature.Action>,
+    onPicked: () -> Unit = {},
+) {
     val projects = store.state.projects
     val filtered = store.state.filteredProjects
     val selected = store.state.destination?.projectID
@@ -581,7 +590,11 @@ fun ReportProjectPicker(store: Store<ProblemReportsFeature.State, ProblemReports
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable { store.send(ProblemReportsFeature.Action.projectPicked(project)) }
+                            .testTag("report-project-${project.id}")
+                            .clickable {
+                                store.send(ProblemReportsFeature.Action.projectPicked(project))
+                                if (store.state.destination?.projectID == project.id) onPicked()
+                            }
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -629,38 +642,111 @@ private fun Unavailable(title: String, symbol: String?, detail: String? = null) 
 @Composable
 fun ProblemReportSettingsRows(store: Store<ProblemReportsFeature.State, ProblemReportsFeature.Action>) {
     val dismiss = LocalDismiss.current
+    var pickingProject by rememberSaveable { mutableStateOf(false) }
+    val destination = store.state.destination
+    val destinationName = destination?.projectName ?: "None"
     Column {
         Text(
             "Report Problem",
             Modifier
                 .fillMaxWidth()
-                .clickable {
+                .clickable(role = Role.Button) {
                     dismiss()
                     ProblemReportRequest.post(ProblemReportTrigger.settings)
                 }
-                .padding(vertical = 11.dp),
+                .padding(vertical = 11.dp)
+                .listRowSeparatorLeading(),
             style = TextStyles.body,
             color = SystemColors.label,
         )
-        Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Send Reports To", Modifier.weight(1f), style = TextStyles.body, color = SystemColors.label)
-            Text(store.state.destination?.projectName ?: "None", style = TextStyles.body, color = SystemColors.secondaryLabel)
+        ReportRowSeparator()
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .testTag("send-reports-to")
+                .clickable(role = Role.Button) { pickingProject = true }
+                .semantics(mergeDescendants = true) { stateDescription = destinationName }
+                .padding(vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Send Reports To",
+                Modifier.weight(1f).listRowSeparatorLeading(),
+                style = TextStyles.body,
+                color = SystemColors.label,
+            )
+            Text(destinationName, style = TextStyles.body, color = SystemColors.secondaryLabel)
+            Spacer(Modifier.width(6.dp))
+            SystemImage(
+                "chevron.right",
+                contentDescription = null,
+                modifier = Modifier.symbolSize(TextStyles.footnote),
+                tint = SystemColors.tertiaryLabel,
+            )
         }
-        if (store.state.destination?.sessionID != null) {
+        if (destination?.sessionID != null) {
+            ReportRowSeparator()
             Text(
                 "Open ${PhoneReportsDelivery.sessionTitle}",
                 Modifier
                     .fillMaxWidth()
                     .testTag("problem-report-open-session")
-                    .clickable {
+                    .clickable(role = Role.Button) {
                         dismiss()
                         ProblemReportRequest.postOpenedPhoneReports()
                         store.send(ProblemReportsFeature.Action.openPhoneReportsTapped)
                     }
-                    .padding(vertical = 11.dp),
+                    .padding(vertical = 11.dp)
+                    .listRowSeparatorLeading(),
                 style = TextStyles.body,
                 color = SystemColors.label,
             )
+        }
+    }
+    if (pickingProject) {
+        ReportProjectDestination(store) { pickingProject = false }
+    }
+}
+
+@Composable
+private fun ReportRowSeparator() {
+    val hairline = with(LocalDensity.current) { 1.toDp() }
+    Box(Modifier.fillMaxWidth().height(hairline).background(SystemColors.separator))
+}
+
+/// Settings pushes the picker. The system layer has no navigation path, and the
+/// settings screen owns its other pushes, so this row covers the sheet itself.
+@Composable
+private fun ReportProjectDestination(
+    store: Store<ProblemReportsFeature.State, ProblemReportsFeature.Action>,
+    onDismiss: () -> Unit,
+) {
+    val dismissPicker = {
+        store.send(ProblemReportsFeature.Action.projectPickerDismissed)
+        onDismiss()
+    }
+    Dialog(
+        onDismissRequest = dismissPicker,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(if (isSystemInDarkTheme()) SystemColors.secondarySystemBackground else SystemColors.systemGroupedBackground),
+        ) {
+            NavigationStack(Modifier.fillMaxWidth().weight(1f)) {
+                Toolbar {
+                    ToolbarItem(placement = ToolbarItemPlacement.topBarLeading) {
+                        SystemImage(
+                            "chevron.left",
+                            contentDescription = "Back",
+                            modifier = Modifier.symbolSize(TextStyles.body).clickable(role = Role.Button, onClick = dismissPicker),
+                            tint = SystemColors.label,
+                        )
+                    }
+                }
+                ReportProjectPicker(store, onPicked = onDismiss)
+            }
         }
     }
 }
