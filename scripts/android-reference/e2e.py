@@ -97,6 +97,13 @@ def connectManually(app):
     app.tap("Enter a Server Manually", timeout=20)
     app.tap(app.field("Server address"))
     app.type_text(f"http://10.0.2.2:{GAUNTLET}")
+    app.tap(app.field("Password"))
+    app.wait_until(app.keyboard_shown, timeout=5, what="the keyboard")
+    time.sleep(0.6)
+    top = app.keyboard_top()
+    check(app.field("Password").y2 <= top and app.wait("Connect").y2 <= top,
+          "the focused password field and Connect stay above the keyboard")
+    app.shot("e2e-01-password-above-keyboard")
     app.tap("Connect")
     open_drawer(app)
     check(app.find("drawer-session-row-ses_gauntlet_01"), "the gauntlet's sessions are listed")

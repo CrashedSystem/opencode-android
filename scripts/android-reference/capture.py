@@ -181,6 +181,10 @@ class App:
     def keyboard_shown(self):
         return bool(self.nodes(keyboard=True))
 
+    def keyboard_top(self):
+        bounds = [w["bounds"] for w in self.windows() if w.get("type") == "INPUT_METHOD"]
+        return int(re.findall(r"\d+", bounds[0])[1]) if bounds else self.height
+
     # MARK: Input
 
     def settled(self, label, timeout=10, containing=False):
