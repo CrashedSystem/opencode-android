@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "32afd1e", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "a1ce7ab", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -2003,6 +2003,9 @@ private class SessionViewState {
                 lift = composerLift,
                 onToggle = ::toggleAttachmentMenu,
                 onChoose = ::chooseAttachment,
+                // Sliding from + to the rows must not open the drawer; while it's
+                // loading or hidden under dictation it takes no touch.
+                modifier = Modifier.excludedFromDrawerPan(isEnabled = !(isImporting || fileImporter.isLoading) && store.state.dictationHold == null),
             )
             if (expanded) {
                 val name = store.state.currentModelName
@@ -2057,8 +2060,9 @@ private class SessionViewState {
         with(HoldToDictateButton) {
             Box(
                 modifier
-                    // Sliding left to cancel must not open the drawer.
-                    .excludedFromDrawerPan()
+                    // Sliding left to cancel must not open the drawer. Once a recording is
+                    // locked hands-free the mic's place is free for swipes again.
+                    .excludedFromDrawerPan(isEnabled = store.state.dictationHold?.isLocked != true)
                     .onGloballyPositioned { dictationMicFrame = it.boundsInRoot() }
                     .holdToDictate(
                         onBegan = { beginDictationHold() },

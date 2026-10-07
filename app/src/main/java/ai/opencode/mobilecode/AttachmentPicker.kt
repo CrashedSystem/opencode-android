@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentPicker.swift", "32afd1e")
+@file:PortedFrom("OpenCode/AttachmentPicker.swift", "a1ce7ab")
 
 package ai.opencode.mobilecode
 
@@ -110,8 +110,6 @@ fun AttachmentPickerButton(
         modifier
             .alpha(opacity)
             .size(44.dp)
-            // Sliding from + to the rows must not open the drawer.
-            .excludedFromDrawerPan()
             .attachmentMenuAnchor(anchors::button, lift)
             // The composer's tap-to-focus must not take the touch: the button
             // consumes it.

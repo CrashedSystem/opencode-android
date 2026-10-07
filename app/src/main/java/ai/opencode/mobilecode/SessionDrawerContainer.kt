@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "a9fd832")
+@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "a1ce7ab")
 
 package ai.opencode.mobilecode
 
@@ -803,11 +803,18 @@ fun Modifier.drawerTouchRegion(region: DrawerTouchRegion): Modifier {
 /// Controls whose touches the drawer's pan never takes, for controls that
 /// track a drag of their own: the + menu's press-and-slide and the held
 /// mic's slide to cancel. The pan arbitrates alongside the controls' own
-/// gestures, so without this a sideways drag would move the card too. The
-/// control marks the touch as it lands, as the drawer regions do.
+/// gestures, so without this a sideways drag would move the card too.
+///
+/// A control marks the touch as it lands, as the drawer regions do, so the
+/// card's translation (the drawer, Catch Up) never leaves a frame stale, and
+/// the pan only counts controls on the front card, so the inert Catch Up
+/// preview behind it never blocks a swipe. The session drawer's pan never
+/// starts on this view while `isEnabled`. Pass false while the control is
+/// hidden or doesn't take the touch.
 @Composable
-fun Modifier.excludedFromDrawerPan(): Modifier {
+fun Modifier.excludedFromDrawerPan(isEnabled: Boolean = true): Modifier {
     val recognizer = LocalDirectionalPanGestureRecognizer.current ?: return this
+    if (!isEnabled) return this
     return pointerInput(recognizer) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -974,7 +981,7 @@ class DirectionalPanGestureRecognizer {
     internal fun resolveOrigin() {
         // Controls that own a sideways drag (the + menu, the held mic) keep it;
         // on the exposed card of an open drawer, every drag closes it.
-        touchBeganOnExcludedControl = !isDrawerPresented() && hitExcludedControl
+        touchBeganOnExcludedControl = !isDrawerPresented() && hitExposedCard && hitExcludedControl
         cardSwipeOrigin = CardSwipeOrigin(
             onCard = hitExposedCard,
             scrollerOwnsRightwardDrag = horizontalScrollerOwnsRightwardDrag,
