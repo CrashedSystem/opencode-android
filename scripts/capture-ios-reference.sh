@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-ios="$root/.upstream/opencode-ios"
+# IOS_CHECKOUT points at a worktree of the commit to capture; the shared
+# checkout may sit on another commit, and other workers read it.
+ios="${IOS_CHECKOUT:-$root/.upstream/opencode-ios}"
 shots="$root/docs/port/reference/ios"
 udid="${CAPTURE_UDID:-}"
 only=""
