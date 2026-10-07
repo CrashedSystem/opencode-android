@@ -1,24 +1,24 @@
 # iOS reference screenshots
 
-68 uncropped PNGs of OpenCode iOS `41099dd` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported 1320 by 2868 for every PNG. The status bar time is 9:41.
+68 uncropped PNGs of OpenCode iOS `d809b1e` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported 1320 by 2868 for every PNG. The status bar time is 9:41.
 
-Recapture from the Android repo root with `scripts/capture-ios-reference.sh`. Pass a test id, then `light` or `dark`, to recapture one file's test. The driver is `scripts/ios-reference/CaptureUITests/CaptureTests.swift`. Fixture setup for each server is in `../fixtures.md`. The drawer shot is taken only after `ses_gauntlet_02` and `ses_gauntlet_03` are pinned and neither Pin nor Unpin is on screen.
+Recapture from the Android repo root with `scripts/capture-ios-reference.sh`, with `IOS_CHECKOUT` set to a worktree of the commit to capture. Pass a test id, then `light` or `dark`, to recapture one file's test. The driver is `scripts/ios-reference/CaptureUITests/CaptureTests.swift`. Fixture setup for each server is in `../fixtures.md`. The drawer shot is taken only after `ses_gauntlet_02` and `ses_gauntlet_03` are pinned and neither Pin nor Unpin is on screen.
 
-`34` is unused. The simulator has no camera, so pairing is `01-first-launch` with **Scan Pairing Code** and no scanner. `35-composer-empty` is the empty composer on `ses_approval_root`, not the new-session draft in `06-draft`.
+`34` is unused. The simulator has no camera to scan with, so pairing is `01-first-launch` with **Scan Pairing Code** and no scanner, though the attachment menu still offers Camera. `35-composer-empty` is the empty composer on `ses_approval_root`, not the new-session draft in `06-draft`.
 
-## Changes since `553a407`
+## Changes since `41099dd`
 
-Thirty-nine files match the previous bytes. That is both appearances of `01` through `03`, `06` through `12`, `14`, `22`, `24` through `26`, `29`, `33`, and `35`, plus `05-drawer-search-light`, `17-composer-text-light`, and `21-question-dark`.
+Twenty-seven files changed bytes but match the previous pixels within 2%: both appearances of `03`, `06`, `09` through `12`, `14`, `22`, `25`, `33`, and `35`, plus `05-drawer-search-light`, `08-transcript-tasks-light`, `20-permission-light`, `21-question-dark`, and `29-catch-up-light`. Nine more match the previous bytes.
 
-Composer pills no longer draw a chevron. That shows on `13-subagent`, `15-running`, and `19-composer-steer-menu`. On `15-running` the transcript also sits higher, so more of the user message is readable under the header. The Working line is still in view.
+`26-attachment-menu` shows the menu that grows out of the composer: one glass panel standing above it with Camera, Photos, Files, and the system's Paste control, and the + turned into a ×.
 
-`27-background-work` opens the panel in place of the capsule. The capsule is not on screen while the panel is open. The shell row's elapsed time is live, so light shows 0:15 and dark shows 0:13.
+`30-whats-new` leads with Hold + to Attach, then Send from Dictation.
 
-What's New leads with Send from Dictation, dated October 7, then Voice Gets Around. Notify When Done is the next card, cut off at the bottom of the sheet.
+`31-settings` is the short list: the server card with its dot field, Connected in green, and Change; then Notifications, Voice, and Diagnostics as tinted rows; then What's New. Android has no Notifications row (`../../deviations.md`).
 
-Settings adds Notifications, set to Off, and Voice Calls above Diagnostics.
+`32-diagnostics` leads with Developer Mode and Voice Calls above Record diagnostics.
 
-A few files differ only by something that was moving when the shot was taken. `04-drawer` differs by the spinner frame on Add cursor-paged history. The two pins, Catch Up at 9, and the absence of a Pin menu are unchanged. `16-streaming` differs by how far Window stream update 008 has faded in. `28-shell-output` shows a later slice of the running log and a later elapsed time. `32-diagnostics` differs in the Last 60 seconds counts. `05-drawer-search-dark`, `17-composer-text-dark`, and `18-composer-attachments` differ by the text caret. `20-permission` and `21-question-light` differ by a few edge pixels on the sheet buttons. `23-session-menu` has the same rows. Its glass shadow does not land on the same pixels.
+The rest differ only by something that was moving: the text caret on `05-drawer-search-dark`, `17-composer-text`, and `18-composer-attachments`; the spinner on `04-drawer`; the activity glyph's frame on `13-subagent`, `19-composer-steer-menu`, and `27-background-work`; the stream on `15-running` and `16-streaming`; the live log on `28-shell-output`; the session menu's glass shadow on `23-session-menu`; and the transcript under the composer's glass on `07-transcript-markdown-dark` and `08-transcript-tasks-dark`.
 
 | File | State | Fixture | Command | Device | Points | Scale |
 | --- | --- | --- | --- | --- | --- | --- |
