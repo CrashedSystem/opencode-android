@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "553a407")
+@file:PortedFrom("OpenCode/SessionDrawerContainer.swift", "ae6c3d3")
 
 package ai.opencode.mobilecode
 

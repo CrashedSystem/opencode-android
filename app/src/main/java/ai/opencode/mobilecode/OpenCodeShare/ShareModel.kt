@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeShare/ShareModel.swift", "553a407")
+@file:PortedFrom("OpenCodeShare/ShareModel.swift", "ae6c3d3")
 
 package ai.opencode.mobilecode
 
@@ -71,7 +71,7 @@ class ShareModel(
                 } else if (provider.registeredTypeIdentifiers.any { SharedItemLoader.isURL(it) }) {
                     val url = SharedItemLoader.url(provider) ?: continue
                     if (url.scheme == "file") {
-                        addFile { SharedItemLoader.file(copying = File(url.path), name = null) }
+                        addFile { runCatching { ComposerFileStaging.stage(File(url.path)) }.getOrNull() }
                     } else {
                         appendText(url.toString())
                     }
@@ -201,9 +201,6 @@ object SharedItemLoader {
         if (type.isEmpty()) return null
         return runCatching { ComposerFileStaging.stage(source, name = name) }.getOrNull()
     }
-
-    fun file(copying: File, name: String?): ComposerStagedFile? =
-        runCatching { ComposerFileStaging.stage(copying, name = name) }.getOrNull()
 
     fun url(provider: NSItemProvider): URI? {
         val raw = provider.data?.toString(Charsets.UTF_8) ?: provider.file?.path ?: return null

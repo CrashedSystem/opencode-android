@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HapticsClient.swift", "553a407", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
+@file:PortedFrom("OpenCode/HapticsClient.swift", "ae6c3d3", partial = "HapticsClient on system Haptics; LiveHaptics scheduler not ported")
 
 package ai.opencode.mobilecode
 
@@ -12,10 +12,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 
 class HapticsClient(
-    var selection: () -> Unit,
-    var impact: () -> Unit,
-    var success: () -> Unit,
-    var error: () -> Unit,
+    var selection: () -> Unit = {},
+    var impact: () -> Unit = {},
+    var success: () -> Unit = {},
+    var error: () -> Unit = {},
     /// A pending request arrived and opened for review.
     var attention: () -> Unit = {},
     var warning: () -> Unit = {},
@@ -25,16 +25,7 @@ class HapticsClient(
     companion object : DependencyKey<HapticsClient> {
         override val liveValue get() = live(OpenCodeApp.instance)
 
-        override val testValue get() = HapticsClient(
-            selection = {},
-            impact = {},
-            success = {},
-            error = {},
-            attention = {},
-            warning = {},
-            voice = {},
-            drawer = {},
-        )
+        override val testValue get() = HapticsClient()
     }
 }
 
