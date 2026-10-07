@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">OpenCode</string>
+    <string name="camera_usage_description">Take photos to attach to messages and scan pairing codes to connect to your server.</string>
 </resources>

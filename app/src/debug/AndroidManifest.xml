@@ -5,5 +5,9 @@
             android:name=".system.SystemCatalogActivity"
             android:exported="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".CameraSurfacesActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
     </application>
 </manifest>
