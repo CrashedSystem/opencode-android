@@ -1,12 +1,14 @@
 # Android reference screenshots
 
-68 uncropped PNGs of the debug build at `8b09b46`, the Android twin of `../ios/MANIFEST.md`, with the same file names and states. The device is the AVD `iphone_size`: Android 16 (API 36, Google APIs, arm64) at 1320 by 2868 pixels and density 480, which is 440 by 956 dp, the same as the iOS captures' 440 by 956 points at scale 3. The status bar is frozen at 9:41 with SystemUI demo mode.
+68 uncropped PNGs of the debug build at `7c2c9a2`, the Android twin of `../ios/MANIFEST.md`, with the same file names and states. The device is the AVD `iphone_size`: Android 16 (API 36, Google APIs, arm64) at 1320 by 2868 pixels and density 480, which is 440 by 956 dp, the same as the iOS captures' 440 by 956 points at scale 3. The status bar is frozen at 9:41 with SystemUI demo mode.
 
 Recapture from the repo root with `scripts/capture-android-reference.sh`. Pass a test name, then `light` or `dark`, to recapture one test's files. The script creates and boots the AVD if it is missing, starts the five fixtures from `.upstream/opencode-ios/scripts` when their ports are free, builds and installs the debug APK, and runs `scripts/android-reference/capture.py`, the twin of `CaptureTests.swift`. The app is launched with the same lab environment and arguments as an `am start` extra each (`../fixtures.md`), and the fixtures are reached at `10.0.2.2`. Appearance comes from `cmd uimode night` plus `-lab-interface-style`.
 
 The driver finds elements by test tag, text, or content description in `android layout`, so it waits for what is on screen rather than for offscreen rows that XCUITest can see. `09-transcript-table` waits for the last line of the reply instead of the heading above it. `03-connect-error` uses the same `http://127.0.0.1:9`, which inside the emulator is the emulator itself and refuses the connection the same way. `16-streaming` streams for 12 seconds instead of 6, because a screencap takes about 2 seconds and a 6-second stream has ended by the time the shot lands. `testConnectScreens` clears the app's data first, because Android storage persists across launches where the iOS lab's does not.
 
-The first full unattended run produced all 68 files. Two light-mode tests passed on their retry: the drawer's search field and the composer's message field moved under an animation when first looked up. The driver now waits for a field to settle for longer.
+One unattended run of the script at `7c2c9a2` produced all 68 files, every test on its first attempt, in about 20 minutes. A failed step keeps its screen under the system temp directory in `android-capture-failures`, and each test gets one retry.
+
+Visible differences from iOS, for the parity review: the drawer button has no blue unread dot in `06`, `17`, `18`, `25`, `26`, and `35`, because the lab session's read receipt has already landed when the driver opens the drawer; the status bar, keyboard, menus, and confirmation dialogs are Android's; sheets have a flat top instead of iOS glass; and the `27-background-work` panel is clear glass, so the transcript's "Drawer Responsive", "Context compacted", and "Used 1 Subagent" read through its rows where the iOS glass blurs them out.
 
 | File | State | Fixture | Command | Device | dp | Density |
 | --- | --- | --- | --- | --- | --- | --- |
