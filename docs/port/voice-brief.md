@@ -27,3 +27,15 @@ The integration step owns `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveA
 ## Verify and report
 
 `./gradlew assembleDebug testDebugUnitTest` passes in your worktree, your upstream tests pass with their Swift literals, and anything you can only check on a device is checked on the emulator the coordinator names in your prompt. Without a named emulator, prove what Robolectric can prove and write the device checks as an instrumented test under `app/src/androidTest` that the integration step runs; never install onto an emulator another worker owns. Never use a real OpenAI key in tests; the integration step places the one live call. Report in at most 15 lines: commits, Swift and Kotlin lines, tests passing and still ignored, device checks, and any contract change.
+
+## Integration checklist
+
+The coordinator merges each group into `voice-integration` (from d021b9f) as it lands, runs the full unit suite, and adds what the group leaves open here.
+
+- Group 1 (merged at `9e044f3`): un-ignore the six `RealtimeProtocolTests` cases that need `VoiceCallClient` once group 3 lands, and switch the `session.update` test from `delegateTool` and `endCallTool` to `VoiceInstructions.tools` once group 4 lands.
+- Group 1: a WebSocket connect failure after a passing preflight ends the call with "The voice connection was lost." iOS shows the system text of the raw `URLError`. Decide whether to match it.
+- Un-ignore `liveInstructionsFollowPromptingGuideTemplate` (group 4) and `hangingUpDuringStalledHandshakeStopsRingsAndAudioPromptly` (group 2).
+- Run group 2's `VoiceAudioOnDeviceTest` and group 5b's instrumented test on a device.
+- Port `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveActivityUITests.swift` as on-device flows.
+- Clear the voice entries from `sync.json` `partial` and move the voice markers in `SessionView.kt`, `SettingsView.kt` and `HapticsClient.kt` once the second sync has merged.
+- Place a demo call on the emulator, then one live call each over Realtime and GPT-Live with the key in `~/.config/opencode-android/openai_api_key`.
