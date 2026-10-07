@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Paragraph
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.LineBreak
@@ -33,7 +34,13 @@ import kotlin.math.roundToInt
  * cover (tabs, scripts other than Latin, Greek, and Cyrillic) is set ragged.
  */
 @Composable
-fun JustifiedText(text: AnnotatedString, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
+fun JustifiedText(
+    text: AnnotatedString,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onTextLayout: (TextLayoutResult) -> Unit = {},
+) {
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val fonts = LocalFontFamilyResolver.current
@@ -47,7 +54,7 @@ fun JustifiedText(text: AnnotatedString, style: TextStyle, color: Color, modifie
             plan
         }
         if (plan == null) {
-            Text(text, Modifier.fillMaxWidth(), style = style, color = color)
+            Text(text, Modifier.fillMaxWidth(), style = style, color = color, onTextLayout = onTextLayout)
         } else {
             Text(
                 plan.text,
@@ -57,6 +64,7 @@ fun JustifiedText(text: AnnotatedString, style: TextStyle, color: Color, modifie
                 },
                 style = justified,
                 color = color,
+                onTextLayout = onTextLayout,
             )
         }
     }
