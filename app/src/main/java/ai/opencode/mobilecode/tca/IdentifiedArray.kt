@@ -35,9 +35,7 @@ class IdentifiedArray<ID, E : Identifiable<ID>>(elements: List<E> = emptyList())
     /** `items[id: id]` */
     operator fun get(id: ID): E? {
         val storage = read()
-        val element = storage.index[id]?.let(storage.elements::get)
-        if (StoreContext.phase.get() == Phase.Reduce && Overlay.current.get() == null) attach(element)
-        return element
+        return storage.index[id]?.let(storage.elements::get)
     }
 
     /** `items[id: id] = element`. Replaces in place, appends when absent, removes on null. */
@@ -87,25 +85,17 @@ class IdentifiedArray<ID, E : Identifiable<ID>>(elements: List<E> = emptyList())
     override fun toString() = "IdentifiedArray$elements"
 
     private fun read(): IdentifiedStorage<ID, E> {
-        if (Overlay.current.get() == null) {
-            when (StoreContext.phase.get()) {
-                Phase.Effect -> check(!attached) { "Read an IdentifiedArray from an effect. Copy the elements into a local before Effect.run." }
-                Phase.Reduce -> attached = true
-                null -> Unit
-            }
+        if (Overlay.current.get() == null && StoreContext.phase.get() == Phase.Effect) {
+            check(!attached) { "Read an IdentifiedArray from an effect. Copy the elements into a local before Effect.run." }
         }
         return cell.read()
     }
 
     private inline fun mutate(change: (IdentifiedStorage<ID, E>) -> List<E>?) {
-        if (Overlay.current.get() == null) {
-            if (StoreContext.phase.get() == Phase.Reduce) {
-                attached = true
-            } else {
-                check(!attached) { "Mutated an IdentifiedArray outside the reducer. Send an action." }
-            }
-        }
+        val owned = Overlay.current.get() == null && attached
+        if (owned) check(StoreContext.phase.get() == Phase.Reduce) { "Mutated an IdentifiedArray outside the reducer. Send an action." }
         val next = change(cell.read()) ?: return
+        if (owned) next.forEach(::attachGraph)
         cell.write(IdentifiedStorage.of(next))
     }
 }

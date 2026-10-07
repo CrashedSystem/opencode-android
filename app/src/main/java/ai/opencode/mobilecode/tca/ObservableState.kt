@@ -22,22 +22,37 @@ import kotlinx.coroutines.ThreadContextElement
 abstract class ObservableState {
     internal var attached = false
 
-    override fun equals(other: Any?): Boolean =
-        this === other ||
-            other is ObservableState &&
-            other.javaClass == javaClass &&
-            StateGraph.normalize(this, Cell<*>::read) == StateGraph.normalize(other, Cell<*>::read)
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ObservableState || other.javaClass != javaClass) return false
+        checkReadable()
+        other.checkReadable()
+        return StateGraph.normalize(this, Cell<*>::read) == StateGraph.normalize(other, Cell<*>::read)
+    }
 
-    override fun hashCode(): Int = StateGraph.normalize(this, Cell<*>::read).hashCode()
+    override fun hashCode(): Int {
+        checkReadable()
+        return StateGraph.normalize(this, Cell<*>::read).hashCode()
+    }
 
-    override fun toString(): String = StateGraph.render(StateGraph.normalize(this, Cell<*>::read)).joinToString("\n")
+    override fun toString(): String {
+        checkReadable()
+        return StateGraph.render(StateGraph.normalize(this, Cell<*>::read)).joinToString("\n")
+    }
+
+    private fun checkReadable() {
+        if (Overlay.current.get() == null && StoreContext.phase.get() == Phase.Effect) {
+            check(!attached) { "Read ${typeName(javaClass)} from an effect. Copy the values into locals before Effect.run." }
+        }
+    }
 }
 
 /**
  * A stored property of a state, `var draft by StoreVar("")`.
  *
- * Only the reducer writes it. A write from a view or an effect to a state the store owns
+ * Once a store owns the state, only the reducer writes it. A write from a view or an effect
  * throws, and so does a read from an effect: copy the value into a local before `Effect.run`.
+ * A state assigned in the reducer joins the store's graph, children included.
  * Compose observes each `StoreVar` on its own, so a token written to one row invalidates
  * only the composables that read that row.
  */
@@ -45,27 +60,18 @@ class StoreVar<T>(initial: T) : ReadWriteProperty<ObservableState, T> {
     internal val cell = Cell(initial)
 
     override fun getValue(thisRef: ObservableState, property: KProperty<*>): T {
-        if (Overlay.current.get() != null) return cell.read()
-        when (StoreContext.phase.get()) {
-            Phase.Effect -> check(!thisRef.attached) { readFromEffect(thisRef, property.name) }
-            Phase.Reduce -> {
-                thisRef.attached = true
-                return cell.read().also(::attach)
-            }
-            null -> Unit
+        if (Overlay.current.get() == null && StoreContext.phase.get() == Phase.Effect) {
+            check(!thisRef.attached) { readFromEffect(thisRef, property.name) }
         }
         return cell.read()
     }
 
     override fun setValue(thisRef: ObservableState, property: KProperty<*>, value: T) {
-        if (Overlay.current.get() == null) {
-            if (StoreContext.phase.get() == Phase.Reduce) {
-                thisRef.attached = true
-            } else {
-                check(!thisRef.attached) {
-                    "Wrote ${typeName(thisRef.javaClass)}.${property.name} outside the reducer. Send an action."
-                }
+        if (Overlay.current.get() == null && thisRef.attached) {
+            check(StoreContext.phase.get() == Phase.Reduce) {
+                "Wrote ${typeName(thisRef.javaClass)}.${property.name} outside the reducer. Send an action."
             }
+            attachGraph(value)
         }
         cell.write(value)
     }
@@ -174,10 +180,21 @@ internal class Overlay(seed: Map<Cell<*>, Any?>) {
     }
 }
 
-internal fun attach(value: Any?) {
+/** Marks a value and every state reachable from it as owned by a store. Views and effects can no longer write them. */
+internal fun attachGraph(value: Any?) {
     when (value) {
-        is ObservableState -> value.attached = true
-        is IdentifiedArray<*, *> -> value.attached = true
+        is ObservableState -> {
+            if (value.attached) return
+            value.attached = true
+            StateGraph.values(value, Cell<*>::live).forEach { (_, field) -> attachGraph(field) }
+        }
+        is IdentifiedArray<*, *> -> {
+            if (value.attached) return
+            value.attached = true
+            value.cell.live.elements.forEach(::attachGraph)
+        }
+        is Collection<*> -> value.forEach(::attachGraph)
+        is Map<*, *> -> value.values.forEach(::attachGraph)
     }
 }
 

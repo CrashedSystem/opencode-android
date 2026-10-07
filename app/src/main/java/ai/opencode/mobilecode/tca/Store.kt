@@ -150,12 +150,12 @@ internal class StoreRuntime private constructor(
     private val cancellables = HashMap<CancelKey, MutableSet<Job>>()
 
     init {
-        if (root is ObservableState) StateGraph.fields(root.javaClass)
-        attach(root)
+        attachGraph(root)
     }
 
+    /** Effects that have not completed, counting ones still cleaning up after cancellation. */
     val inFlightCount: Int
-        get() = synchronized(running) { running.keys.count(Job::isActive) }
+        get() = synchronized(running) { running.size }
 
     fun send(action: Any?): StoreTask {
         check(isStoreThread()) { "Store.send must be called on the main thread. An effect sends through its Send." }
