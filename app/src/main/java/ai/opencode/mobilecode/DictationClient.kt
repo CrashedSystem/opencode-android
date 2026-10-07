@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DictationClient.swift", "553a407")
+@file:PortedFrom("OpenCode/DictationClient.swift", "f7cdc3a")
 
 package ai.opencode.mobilecode
 
@@ -219,14 +219,20 @@ private class LiveDictation {
     private var generation = 0
     private var finalized = ""
 
+    /// Resolved once (by `prepare()` when a session opens) so a press doesn't
+    /// repeat the system lookup.
+    private var isAvailable: Boolean? = null
+
     suspend fun prepare() {
-        if (!available()) return
+        available()
     }
 
+    /// The microphone goes live first, so the press feels immediate; the
+    /// recognizer loads its model alongside. Setup failures arrive as the
+    /// stream's error.
     suspend fun start(): Flow<String> {
         stop()
         val started = ++generation
-        if (!available()) throw DictationError.localeUnsupported
         if (!ensurePermission()) throw DictationError.microphoneDenied
         if (generation != started) throw CancellationException()
         val channel = Channel<String>(Channel.BUFFERED)
@@ -235,6 +241,10 @@ private class LiveDictation {
         withContext(Dispatchers.Main.immediate) {
             if (generation != started) return@withContext
             DictationAudioSession.claim()
+            if (!available()) {
+                channel.close(DictationError.localeUnsupported)
+                return@withContext
+            }
             begin(channel, started)
         }
         if (generation != started) {
@@ -263,8 +273,10 @@ private class LiveDictation {
     }
 
     private fun available(): Boolean {
+        isAvailable?.let { return it }
         val context = appContext ?: return false
         return runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }.getOrDefault(false)
+            .also { isAvailable = it }
     }
 
     private suspend fun ensurePermission(): Boolean {
