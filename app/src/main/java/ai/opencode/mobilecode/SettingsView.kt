@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SettingsView.swift", "553a407")
+@file:PortedFrom("OpenCode/SettingsView.swift", "8f30e6b", partial = "all but the Voice Calls row")
 
 package ai.opencode.mobilecode
 
