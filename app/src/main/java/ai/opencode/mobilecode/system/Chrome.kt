@@ -28,7 +28,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,17 +95,12 @@ fun SystemSheet(
     initialDetent: SheetDetent = SheetDetent.Medium,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    // The sheet's own show() stops at the medium detent whenever one exists.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = initialDetent == SheetDetent.Large)
     val scope = rememberCoroutineScope()
     val currentOnDismissRequest by rememberUpdatedState(onDismissRequest)
     val dismiss = remember(sheetState) {
         DismissAction { scope.launch { sheetState.hide() }.invokeOnCompletion { currentOnDismissRequest() } }
-    }
-    LaunchedEffect(initialDetent) {
-        when (initialDetent) {
-            SheetDetent.Medium -> sheetState.partialExpand()
-            SheetDetent.Large -> sheetState.expand()
-        }
     }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
