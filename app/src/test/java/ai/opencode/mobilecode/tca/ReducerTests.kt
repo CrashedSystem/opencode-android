@@ -130,9 +130,14 @@ class ReducerTests {
         assertEquals(1, child.state.count)
         assertEquals(1, store.state.observed)
         assertEquals(child, store.store.scope(Parent::child, ParentAction.child))
+        store.store.send(ParentAction.replace("a"))
+        assertEquals(0, child.state.count)
+        child.send(ChildAction.increment)
+        child.send(ChildAction.increment)
+        assertEquals(2, child.state.count)
         store.store.send(ParentAction.replace(null))
         assertNull(store.store.scope(Parent::child, ParentAction.child))
-        assertEquals(1, child.state.count)
+        assertEquals(2, child.state.count)
     }
 
     private fun parentStore() = LiveStore(Parent(), ParentFeature())

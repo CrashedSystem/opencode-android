@@ -40,12 +40,22 @@ class Store<S, A> internal constructor(
         return Store(runtime, { state.get(parent.state) }, { parent.embed(action.embed(it)) }, path + listOf(state, action))
     }
 
-    /** `store.scope(state: \.child, action: \.child)` for an optional child. Null while the child is nil. */
+    /**
+     * `store.scope(state: \.child, action: \.child)` for an optional child. Null while the child is nil.
+     * The child store reads the current child, and the last one it saw once the child is gone, so a
+     * dismissal can still draw it.
+     */
     @JvmName("scopeOptional")
     fun <CS : Any, CA> scope(state: KMutableProperty1<S, CS?>, action: Case<A, CA>): Store<CS, CA>? {
         val child = state.get(this.state) ?: return null
         val parent = this
-        return Store(runtime, { child }, { parent.embed(action.embed(it)) }, path + listOf(state, action, Instance(child)))
+        var last = child
+        return Store(
+            runtime,
+            { state.get(parent.state)?.also { last = it } ?: last },
+            { parent.embed(action.embed(it)) },
+            path + listOf(state, action, Instance(child)),
+        )
     }
 
     override fun equals(other: Any?) = other is Store<*, *> && other.runtime === runtime && other.path == path
