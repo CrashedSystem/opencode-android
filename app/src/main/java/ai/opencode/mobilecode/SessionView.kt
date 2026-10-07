@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "494e433", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "f3bda52", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
 
 package ai.opencode.mobilecode
 

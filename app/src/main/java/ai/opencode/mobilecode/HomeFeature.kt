@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "494e433")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "5cfc623", partial = "all but the voice agent's makeDraft(directory:), setPinned, and openDraft (5cfc623)")
 
 package ai.opencode.mobilecode
 
