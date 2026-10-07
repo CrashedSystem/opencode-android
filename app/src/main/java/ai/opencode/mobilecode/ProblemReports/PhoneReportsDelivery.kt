@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ProblemReports/PhoneReportsDelivery.swift", "553a407")
+@file:PortedFrom("OpenCode/ProblemReports/PhoneReportsDelivery.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -37,15 +37,14 @@ object PhoneReportsDelivery {
     /// A delivery that failed, with the session it found or made first, so a
     /// retry reuses it instead of making another.
     class Failure(
-        val error: OpenCodeClientError,
         val sessionID: String? = null,
-    ) : Exception(error.message) {
+    ) : Exception() {
         override fun equals(other: Any?): Boolean {
             val failure = other as? Failure ?: return false
-            return error == failure.error && sessionID == failure.sessionID
+            return sessionID == failure.sessionID
         }
 
-        override fun hashCode(): Int = 31 * error.hashCode() + (sessionID?.hashCode() ?: 0)
+        override fun hashCode(): Int = sessionID?.hashCode() ?: 0
     }
 
     suspend fun deliver(
@@ -60,7 +59,7 @@ object PhoneReportsDelivery {
         val sessionID = try {
             session(destination, server, client)
         } catch (error: OpenCodeClientError) {
-            throw Failure(error)
+            throw Failure()
         }
         // Every report, not just the first: the server's default may be the
         // model that's failing. A failed switch still sends.
@@ -71,7 +70,7 @@ object PhoneReportsDelivery {
         try {
             return send(report, sessionID, store, server, destination.directory, supportsUploads, messageID, client)
         } catch (error: OpenCodeClientError) {
-            throw Failure(error, sessionID)
+            throw Failure(sessionID = sessionID)
         }
     }
 

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DiagnosticsView.swift", "553a407")
+@file:PortedFrom("OpenCode/DiagnosticsView.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -62,8 +62,8 @@ fun DiagnosticsView() {
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(recorder.isEnabled) }
     var includesTranscripts by remember { mutableStateOf(recorder.includesTranscripts) }
-    var events by remember { mutableStateOf(recorder.snapshot()) }
-    var metricsByRequest by remember { mutableStateOf(metricsByRequest(events)) }
+    var events by remember { mutableStateOf(emptyList<DiagnosticsEvent>()) }
+    var metricsByRequest by remember { mutableStateOf(emptyMap<String, DiagnosticsEvent>()) }
     var shareMenu by remember { mutableStateOf(false) }
 
     fun reload() {

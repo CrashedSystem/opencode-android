@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Diagnostics.swift", "553a407")
+@file:PortedFrom("OpenCode/Diagnostics.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -177,7 +177,6 @@ data class DiagnosticsEvent(
     var tlsMilliseconds: Double? = null,
     var firstByteMilliseconds: Double? = null,
     var downloadMilliseconds: Double? = null,
-    var transactionCount: Int? = null,
     /// A short excerpt of what was said, kept only while Include Transcripts is on.
     var excerpt: String? = null,
 ) {
@@ -198,7 +197,7 @@ class DiagnosticsRecorder(
     private val maximumEvents: Int = 2_000,
     private val retentionSeconds: Double = 600.0,
     private val defaults: UserDefaults? = UserDefaults.standard,
-    private val defaultEnabled: Boolean = false,
+    defaultEnabled: Boolean = false,
     private val journal: DiagnosticsJournal? = null,
     private val monotonicNow: () -> Double = { systemUptimeSeconds() },
     private val wallNow: () -> Instant = { Instant.now() },
@@ -435,7 +434,6 @@ class DiagnosticsRecorder(
                 tlsMilliseconds = totalDuration(transactions, { it.secureConnectionStartDate }, { it.secureConnectionEndDate }),
                 firstByteMilliseconds = totalDuration(transactions, { it.requestEndDate }, { it.responseStartDate }),
                 downloadMilliseconds = totalDuration(transactions, { it.responseStartDate }, { it.responseEndDate }),
-                transactionCount = transactions.size,
             )
         }
     }

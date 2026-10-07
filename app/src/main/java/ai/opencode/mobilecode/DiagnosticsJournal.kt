@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/DiagnosticsJournal.swift", "553a407")
+@file:PortedFrom("OpenCode/DiagnosticsJournal.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -9,7 +9,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import java.io.File
 import java.io.FileOutputStream
-import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,12 +16,11 @@ import java.util.concurrent.atomic.AtomicReference
 /// Debug and TestFlight builds: diagnostics record by default and problem
 /// reports are available. App Store builds are unchanged.
 object InternalBuild {
+    val isDebug: Boolean = BuildConfig.DEBUG
+
     /// Synchronous, unlike StoreKit's `AppTransaction`, so launch can decide.
-    val receiptURL: File? = null
-
-    val isEnabled: Boolean = detect(isDebug = BuildConfig.DEBUG, receiptURL = receiptURL)
-
-    val isTestFlight: Boolean get() = detect(isDebug = false, receiptURL = receiptURL)
+    val isTestFlight: Boolean = detect(isDebug = false, receiptURL = null)
+    val isEnabled: Boolean = isDebug || isTestFlight
 
     /// TestFlight installs carry a sandbox receipt; the App Store's is `receipt`.
     fun detect(isDebug: Boolean, receiptURL: File?): Boolean =
@@ -41,22 +39,11 @@ class DiagnosticsJournal(
     /// "version (build)", written into the foreground marker.
     val build: String = currentBuild,
 ) {
-    class PreviousRun(
+    data class PreviousRun(
         /// The run ended in the foreground without backgrounding first: a crash,
         /// a watchdog kill, or a debugger stop.
         var endedUnexpectedly: Boolean,
-        var lastEventAt: Instant?,
-        /// The build that was in the foreground; an update replaces the process
-        /// without backgrounding it, which is not this build's crash.
-        var build: String?,
-    ) {
-        override fun equals(other: Any?): Boolean {
-            val run = other as? PreviousRun ?: return false
-            return endedUnexpectedly == run.endedUnexpectedly && lastEventAt == run.lastEventAt && build == run.build
-        }
-
-        override fun hashCode(): Int = endedUnexpectedly.hashCode()
-    }
+    )
 
     private val queue = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "opencode.diagnostics.journal").apply { isDaemon = true }
@@ -84,21 +71,15 @@ class DiagnosticsJournal(
         val markedBuild = marker.takeIf { it.isFile }?.readBytes()?.toString(Charsets.UTF_8)
         marker.delete()
         val segments = listOf(older, current)
-        val lastEventAt = segments.mapNotNull { file ->
-            file.takeIf { it.isFile }?.let { Instant.ofEpochMilli(it.lastModified()) }
-        }.maxOrNull()
-        if (segments.any { it.exists() }) {
+        val hadEvents = segments.any { it.exists() }
+        if (hadEvents) {
             for ((source, destination) in segments.zip(previous)) {
                 destination.delete()
                 if (source.exists()) source.renameTo(destination)
             }
         }
         isRecording = recording
-        PreviousRun(
-            endedUnexpectedly = markedBuild == build && lastEventAt != null,
-            lastEventAt = lastEventAt,
-            build = markedBuild,
-        )
+        PreviousRun(endedUnexpectedly = markedBuild == build && hadEvents)
     }
 
     fun append(event: DiagnosticsEvent) {

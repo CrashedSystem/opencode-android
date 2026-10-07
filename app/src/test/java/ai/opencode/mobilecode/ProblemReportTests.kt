@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/ProblemReportTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/ProblemReportTests.swift", "dd71df9")
 
 package ai.opencode.mobilecode
 
@@ -779,7 +779,6 @@ class CrashReportTests {
             old.flush()
             val updated = DiagnosticsJournal(directory = directory, build = "0.1.0 (37)").open(recording = true)
             expect(updated.endedUnexpectedly == false)
-            expect(updated.build == "0.1.0 (36)")
         } finally {
             directory.deleteRecursively()
         }
@@ -910,7 +909,7 @@ class PhoneReportsRetryTests {
             )
             store.send(ProblemReportsFeature.Action.serverReachable)
             expect(store.state.retryAfterCurrent)
-            val failure = PhoneReportsDelivery.Failure(OpenCodeClientError(message = "Couldn’t reach the OpenCode server"))
+            val failure = PhoneReportsDelivery.Failure()
             store.send(ProblemReportsFeature.Action.deliveryFinished(report.id, Result.failure(failure)))
             store.receive<ProblemReportsFeature.Action.deliveryFinished>()
             expect(reports.all().isEmpty(), "Not parked until the next reconnect")
