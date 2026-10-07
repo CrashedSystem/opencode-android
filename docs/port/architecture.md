@@ -175,6 +175,7 @@ Composition keeps TCA's order, and the order in `body` is behavior:
 | `try await Task.sleep(for: .seconds(2))` | `wallClock.sleep(2.seconds)` with `private val wallClock by Dependency(DependencyValues::wallClock)` |
 | `let sessionID = state.session.id` or `[sessionID = state.session.id]` | `val sessionID = state.session.id`, before `Effect.run` |
 | `Task.isCancelled` | `!currentCoroutineContext().isActive` |
+| a `.run` that never sends, followed by `.cancellable` | `Effect.run<Action> { _ -> … }.cancellable(…)`, naming the action type Kotlin cannot infer |
 
 The runtime rules:
 
@@ -250,7 +251,7 @@ val SharedKey.Companion.whatsNewButtonEnabled: SharedKey<Boolean>
 
 ## The store, threading, and lifetime
 
-- `OpenCodeApp` owns the root store for the life of the process, as `OpenCodeApp.store` does on iOS. The AppFeature porter adds `val store by lazy { Store(initialState = AppFeature.State()) { AppFeature() } }` to its companion object. A configuration change never rebuilds the store or cancels its effects.
+- `OpenCodeApp` owns the root store for the life of the process, as `OpenCodeApp.store` does on iOS. The AppFeature porter adds `val store by lazy { Store(initialState = { AppFeature.State() }) { AppFeature() } }` to its companion object. A configuration change never rebuilds the store or cancels its effects.
 - Process death drops the store and its effects. The next launch builds state from `Shared` before the first frame, as `AppFeature.State.init` does.
 - `store.send` runs on the main thread. Effects send through their `Send`, which returns to the main thread.
 - SSE decoding and the `EventBatcher` stay in the client, off the main thread. A Home effect collects the batched flow and sends one action per batch.
