@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "553a407", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "54b72c1", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
 
 package ai.opencode.mobilecode
 
@@ -28,10 +28,12 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
         val role: Role,
         val text: String,
         val version: Int = 1,
-        /// The version most recently delivered to the session.
+        /// The version most recently delivered to the session, and its text.
         val sent: Int = 0,
-        /// The version captured for an admission that has not yet been accepted.
+        val sentText: String? = null,
+        /// The version captured for an admission that has not yet been accepted, and its text.
         val reserved: Int? = null,
+        val reservedText: String? = null,
     )
 
     enum class RecordOutcome {
@@ -44,29 +46,16 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
 
     data class Capture(
         val lines: List<String>,
-        /// Captured version by entry key.
+        /// Captured version and text by entry key.
         internal val versions: Map<Int, Int>,
-        /// Provider utterance IDs included in this capture, so late updates to a
-        /// captured utterance can be matched without swallowing newer turns.
-        val providerIDs: Set<String> = emptySet(),
+        internal val texts: Map<Int, String> = emptyMap(),
+        /// What the user said since the previous delegation, in order: new
+        /// utterances whole, and only the words an utterance gained since it was
+        /// delivered (a revision that rewrote it travels whole).
+        val userWords: List<String> = emptyList(),
     ) {
-        fun contains(providerID: String): Boolean = providerIDs.contains(providerID)
-
-        /// The user's spoken words in this capture, in order, for client
-        /// delegations that carry no separate tool instruction.
-        val userText: String
-            get() = lines.mapNotNull { line ->
-                if (line.startsWith("user (updated utterance): ")) {
-                    return@mapNotNull line.drop("user (updated utterance): ".length)
-                }
-                if (line.startsWith("user: ")) {
-                    return@mapNotNull line.drop("user: ".length)
-                }
-                null
-            }
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .joinToString(" ")
+        /// The user's own words since the previous delegation: the request.
+        val userText: String get() = userWords.joinToString(" ")
     }
 
     private var entries by StoreVar<List<Entry>>(emptyList())
@@ -76,10 +65,11 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
     init {
         entries = lines.mapIndexed { key, line ->
             if (line.startsWith("assistant: ")) {
-                return@mapIndexed Entry(key = key, role = Role.assistant, text = line.drop("assistant: ".length), sent = 1)
+                val text = line.drop("assistant: ".length)
+                return@mapIndexed Entry(key = key, role = Role.assistant, text = text, sent = 1, sentText = text)
             }
             val text = if (line.startsWith("user: ")) line.drop("user: ".length) else line
-            Entry(key = key, role = Role.user, text = text, sent = 1)
+            Entry(key = key, role = Role.user, text = text, sent = 1, sentText = text)
         }
         nextKey = entries.size
     }
@@ -109,7 +99,8 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
     fun capture(): Capture {
         val lines = mutableListOf<String>()
         val versions = mutableMapOf<Int, Int>()
-        val providerIDs = mutableSetOf<String>()
+        val texts = mutableMapOf<Int, String>()
+        val userWords = mutableListOf<String>()
         val reserved = entries.toMutableList()
         for (index in entries.indices) {
             val entry = entries[index]
@@ -118,27 +109,35 @@ class VoiceTranscriptTail(lines: List<String> = emptyList()) : ObservableState()
             val label = if (entry.sent > 0) "${entry.role.rawValue} (updated utterance)" else entry.role.rawValue
             lines += "$label: ${entry.text}"
             versions[entry.key] = entry.version
-            entry.providerID?.let { providerIDs += it }
-            reserved[index] = entry.copy(reserved = entry.version)
+            texts[entry.key] = entry.text
+            if (entry.role == Role.user) {
+                var words = entry.text
+                val previous = entry.reservedText ?: entry.sentText
+                if (previous != null && entry.text.startsWith(previous)) {
+                    words = entry.text.drop(previous.length).trim()
+                }
+                if (words.isNotEmpty()) userWords += words
+            }
+            reserved[index] = entry.copy(reserved = entry.version, reservedText = entry.text)
         }
         entries = reserved
-        return Capture(lines = lines.toList(), versions = versions.toMap(), providerIDs = providerIDs.toSet())
+        return Capture(lines = lines.toList(), versions = versions.toMap(), texts = texts.toMap(), userWords = userWords.toList())
     }
 
     fun accept(capture: Capture) {
         entries = entries.map { entry ->
             val version = capture.versions[entry.key] ?: return@map entry
-            entry.copy(
-                sent = maxOf(entry.sent, version),
-                reserved = if (entry.reserved == version) null else entry.reserved,
-            )
+            var updated = entry
+            if (version > updated.sent) updated = updated.copy(sent = version, sentText = capture.texts[entry.key])
+            if (updated.reserved == version) updated = updated.copy(reserved = null, reservedText = null)
+            updated
         }
     }
 
     fun release(capture: Capture) {
         entries = entries.map { entry ->
             val version = capture.versions[entry.key] ?: return@map entry
-            if (entry.reserved == version) entry.copy(reserved = null) else entry
+            if (entry.reserved == version) entry.copy(reserved = null, reservedText = null) else entry
         }
     }
 

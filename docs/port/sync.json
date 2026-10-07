@@ -47,7 +47,8 @@
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",
-    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView wait for voice calls; ProblemReportOfferPill is not wired into the pill row yet"
+    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView wait for voice calls; ProblemReportOfferPill is not wired into the pill row yet",
+    "OpenCode/Voice/VoiceTranscript.swift": "VoiceHandoff renders voice delegations in the transcript, so this file is tracked though voice calls are deferred; its call-only parts (the VoiceInstructions builders) wait for voice calls"
   },
   "assets": {
     "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {

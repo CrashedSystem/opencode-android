@@ -284,6 +284,9 @@ def classify(path, config):
 
 
 def deferral(path, config):
+    """Why a file is not tracked. A `partial` entry tracks a file a deferred folder would otherwise cover."""
+    if remainder(path, config):
+        return None
     return next((reason for pattern, reason in config["deferred"].items() if PurePosixPath(path).full_match(pattern)), None)
 
 
