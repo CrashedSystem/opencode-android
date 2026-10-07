@@ -9,8 +9,12 @@ import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
 import ai.opencode.mobilecode.system.bold
 import ai.opencode.mobilecode.system.semibold
+import ai.opencode.mobilecode.system.symbolSize
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +25,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -38,7 +41,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,13 +55,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -65,6 +77,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontFamily
@@ -115,17 +128,18 @@ private fun BlockContent(
         is OpenCodeMarkdownBlock.Kind.numberedItem -> ListItem(kind.marker, 0, kind.text, grown)
         is OpenCodeMarkdownBlock.Kind.listItem -> ListItem(kind.marker, kind.level, kind.text, grown)
         is OpenCodeMarkdownBlock.Kind.blockquote -> {
-            val bar = SystemColors.secondaryLabel.copy(alpha = 0.5f)
+            val secondary = SystemColors.secondaryLabel
+            val bar = secondary.copy(alpha = secondary.alpha * 0.5f)
             ArrivingText(
                 MarkdownStyle.styled(kind.text),
                 grown,
-                SystemColors.secondaryLabel,
-                TextStyles.body.copy(lineHeight = 26.sp),
+                secondary,
+                MarkdownStyle.bodyFont,
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = TranscriptMetrics.compact.dp)
                     .drawBehind { drawRoundRect(bar, size = Size(3.dp.toPx(), size.height), cornerRadius = CornerRadius(2.dp.toPx())) }
-                    .padding(start = 12.dp),
+                    .padding(vertical = TranscriptMetrics.compact.dp)
+                    .padding(start = TranscriptMetrics.standard.dp),
                 justified = true,
             )
         }
@@ -134,7 +148,7 @@ private fun BlockContent(
                 MarkdownStyle.styled(kind.text),
                 grown,
                 SystemColors.label,
-                TextStyles.body.copy(lineHeight = 26.sp),
+                MarkdownStyle.bodyFont,
                 Modifier.fillMaxWidth(),
                 justified = true,
             )
@@ -165,19 +179,25 @@ private fun ListItem(
 ) {
     val done = marker == OpenCodeMarkdownBlock.doneTask
     val isTask = done || marker == OpenCodeMarkdownBlock.openTask
+    // An SF Symbol sits on the text baseline centred on the cap height.
+    val symbolCenter = with(LocalDensity.current) { (TextStyles.body.fontSize * capHeight / 2).roundToPx() }
     Row(
         Modifier
             .fillMaxWidth()
             .padding(start = (level * MarkdownStyle.listIndent).dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.width(20.dp), contentAlignment = Alignment.CenterEnd) {
+        Box(
+            Modifier
+                .widthIn(min = 20.dp)
+                .then(if (isTask) Modifier.alignBy { it.measuredHeight / 2 + symbolCenter } else Modifier.alignByBaseline()),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
             if (isTask) {
                 SystemImage(
                     if (done) "checkmark.square.fill" else "square",
                     if (done) "Done" else "Not done",
-                    Modifier.size(18.dp),
+                    Modifier.symbolSize(TextStyles.body),
                     tint = SystemColors.secondaryLabel,
                 )
             } else {
@@ -192,12 +212,17 @@ private fun ListItem(
             MarkdownStyle.styled(text, secondary = done),
             grown,
             if (done) SystemColors.secondaryLabel else SystemColors.label,
-            TextStyles.body.copy(lineHeight = 26.sp),
-            Modifier.weight(1f),
+            MarkdownStyle.bodyFont,
+            Modifier
+                .weight(1f)
+                .alignByBaseline(),
             justified = true,
         )
     }
 }
+
+/// Roboto's cap height, in ems.
+private const val capHeight = 0.711f
 
 @Composable
 private fun PullRequestCard(title: String, url: String) {
@@ -236,6 +261,8 @@ private fun ImageBlock(
 
 object MarkdownStyle {
     const val lineSpacing = 4
+    /// `.font(.body).lineSpacing(lineSpacing)`.
+    val bodyFont = TextStyles.body.copy(lineHeight = (TranscriptMetrics.bodyLine + lineSpacing).sp)
     val paragraphGap = TranscriptMetrics.flowHalf * 2
     val listGap = TranscriptMetrics.clustered
     const val headingAbove = 24
@@ -409,13 +436,35 @@ private fun ArrivalFade(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    var shown by remember { mutableStateOf(!arriving) }
-    LaunchedEffect(arriving, at) {
-        if (!shown) shown = true
-    }
-    Box(modifier) { content() }
+    val shown = arrivalOpacity(arriving, at)
+    // Modulated rather than composited offscreen: an offscreen layer would
+    // clip a band that bleeds to the screen edges while it fades.
+    Box(
+        modifier.graphicsLayer {
+            alpha = shown.value
+            compositingStrategy = CompositingStrategy.ModulateAlpha
+        },
+    ) { content() }
 }
 
+/// Clear at first, then eased in over what is left of the arrival's fade.
+/// A block made when nothing is arriving is shown at once.
+@Composable
+private fun arrivalOpacity(arriving: Boolean, at: Double): State<Float> {
+    val opacity = remember { Animatable(if (arriving) 0f else 1f) }
+    LaunchedEffect(opacity) {
+        if (opacity.value == 1f) return@LaunchedEffect
+        val remaining = TranscriptTextReveal.duration - (TranscriptTextReveal.clock() - at)
+        if (remaining > 0.02) opacity.animateTo(1f, tween((remaining * 1000).roundToInt(), easing = EaseOut)) else opacity.snapTo(1f)
+    }
+    return opacity.asState()
+}
+
+/// Text whose newest characters fade in. The text is laid out once as it
+/// is: the characters still arriving are clipped out of it, and each
+/// arrival's characters are drawn again inside their own lines at that
+/// arrival's opacity, so no glyph moves. Once every fade has run it is plain
+/// text again.
 @Composable
 private fun ArrivingText(
     text: AttributedString,
@@ -427,10 +476,36 @@ private fun ArrivingText(
     // (docs/port/deviations.md).
     justified: Boolean = false,
 ) {
+    val now = TranscriptTextReveal.clock()
+    val layers = arrivals
+        .filter { now - it.time < TranscriptTextReveal.duration }
+        .sortedBy { it.offset }
+        .map { arrival -> key(arrival.time) { arrival.offset to arrivalOpacity(arriving = true, at = arrival.time) } }
+    var laid by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val fade = if (layers.isEmpty()) Modifier else Modifier.drawWithContent { drawArrivals(laid, layers) }
     if (justified) {
-        JustifiedText(annotated(text, color), style, color, modifier)
+        JustifiedText(annotated(text, color), style, color, modifier.then(fade), onTextLayout = { laid = it })
     } else {
-        Text(annotated(text, color), modifier = modifier, style = style, color = color)
+        Text(annotated(text, color), modifier = modifier.then(fade), style = style, color = color, onTextLayout = { laid = it })
+    }
+}
+
+/// Each arrival shows its characters up to the next arrival's.
+private fun ContentDrawScope.drawArrivals(layout: TextLayoutResult?, layers: List<Pair<Int, State<Float>>>) {
+    val length = layout?.layoutInput?.text?.length ?: 0
+    val fading = layers.mapIndexedNotNull { index, (start, opacity) ->
+        val end = layers.getOrNull(index + 1)?.first ?: length
+        if (layout == null || opacity.value >= 1f || start >= end || end > length) null else layout.getPathForRange(start, end) to opacity.value
+    }
+    if (fading.isEmpty()) return drawContent()
+    val arriving = Path().apply { fading.forEach { addPath(it.first) } }
+    clipPath(arriving, ClipOp.Difference) { this@drawArrivals.drawContent() }
+    for ((path, alpha) in fading) {
+        clipPath(path) {
+            drawContext.canvas.saveLayer(path.getBounds(), Paint().apply { this.alpha = alpha })
+            this@drawArrivals.drawContent()
+            drawContext.canvas.restore()
+        }
     }
 }
 
@@ -551,8 +626,8 @@ private fun MarkdownBand(content: @Composable () -> Unit) {
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(scroll)
                         .horizontalOverflowFade(scroll, 32.dp)
+                        .horizontalScroll(scroll)
                         .padding(horizontal = TranscriptMetrics.contentGutter.dp),
                 ) { content() }
             }
@@ -562,17 +637,6 @@ private fun MarkdownBand(content: @Composable () -> Unit) {
                         .offset { IntOffset(0, (y - bandTop).roundToInt()) }
                         .graphicsAlpha(if (index == 0) 1f else 0.6f),
                 )
-            }
-            if (scroll.maxValue - scroll.value > 1) {
-                Box(Modifier.matchParentSize()) {
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .width(32.dp)
-                            .fillMaxHeight()
-                            .background(Brush.horizontalGradient(listOf(Color.Transparent, SystemColors.systemBackground))),
-                    )
-                }
             }
         }
         HairlineRule()

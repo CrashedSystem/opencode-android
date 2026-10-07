@@ -129,6 +129,11 @@ object TranscriptMetrics {
     const val maximumUserBubbleFraction = 0.78f
     const val headerBand = 60
 
+    /// Not in iOS: SwiftUI sets `.body` text on SF's 20.3 pt line, and
+    /// `lineSpacing` adds to it. A line height of this plus the spacing keeps
+    /// the iOS pitch in Roboto.
+    const val bodyLine = 20.3f
+
     /// Rows meet at the sum of their halves, measured between line boxes:
     /// every row's frame is its content, with no hidden padding, and a larger
     /// hit target extends into the row's own halves (`rowHitTarget`).
