@@ -95,6 +95,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import kotlin.math.PI
@@ -649,12 +650,7 @@ object TranscriptEntryView {
                 }
             }
             if (child != null) {
-                SystemImage(
-                    "chevron.right",
-                    null,
-                    Modifier.symbolSize(TextStyles.caption).align(Alignment.CenterVertically),
-                    tint = SystemColors.tertiaryLabel,
-                )
+                SystemImage("chevron.right", null, Modifier.symbolSize(TextStyles.caption), tint = SystemColors.tertiaryLabel)
             }
         }
     }
@@ -1059,8 +1055,13 @@ fun MarkdownImage(
             bitmap = loaded,
             contentDescription = "Open ${alt.ifEmpty { "image" }}",
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 360.dp)
+                // `.resizable().scaledToFit()` in a full-width frame at most 360 tall.
+                .layout { measurable, constraints ->
+                    val width = constraints.maxWidth
+                    val height = minOf(width * loaded.height / loaded.width, 360.dp.roundToPx())
+                    val placeable = measurable.measure(Constraints.fixed(width, height))
+                    layout(width, height) { placeable.place(0, 0) }
+                }
                 .clip(shape)
                 .background(SystemColors.secondarySystemBackground, shape)
                 .clickable(role = Role.Button) {
