@@ -940,6 +940,7 @@ internal fun AttachmentMenuSurface(
                     isOpen = phase != AttachmentMenuPhase.closed,
                     anchors = anchors,
                     press = press,
+                    rows = anchors.rows,
                     onToggle = {},
                     onChoose = {},
                 )

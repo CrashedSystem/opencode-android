@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AttachmentMenuPressTests.swift", "2529231")
+@file:PortedFrom("OpenCodeTests/AttachmentMenuPressTests.swift", "32afd1e")
 
 package ai.opencode.mobilecode
 
@@ -131,6 +131,20 @@ class AttachmentMenuPressTests {
         press.moved(to = point(AttachmentMenuItem.photos), button = button, rows = rows)
         expect(press.ended(at = point(AttachmentMenuItem.photos), button = button, rows = rows) == AttachmentMenuPress.Outcome.choose(AttachmentMenuItem.photos))
         expect(log == listOf("selection", "impact"))
+    }
+
+    /// With the photo card up, the button passes no rows: sliding from the ×
+    /// across the card ticks nothing and chooses nothing.
+    @Test
+    fun withoutRowsSlidingPlaysAndChoosesNothing() {
+        val log = mutableListOf<String>()
+        val press = press(log)
+        press.began(isOpen = true)
+        press.moved(to = point(AttachmentMenuItem.photos), button = button, rows = emptyMap())
+        press.moved(to = point(AttachmentMenuItem.camera), button = button, rows = emptyMap())
+        expect(press.highlighted == null)
+        expect(press.ended(at = point(AttachmentMenuItem.camera), button = button, rows = emptyMap()) == AttachmentMenuPress.Outcome.none)
+        expect(log.isEmpty())
     }
 
     @Test

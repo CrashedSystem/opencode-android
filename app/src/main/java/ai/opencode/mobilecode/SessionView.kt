@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "a9fd832", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
+@file:PortedFrom("OpenCode/SessionView.swift", "32afd1e", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded) and the dictation bar's DotScopeView")
 
 package ai.opencode.mobilecode
 
@@ -1999,6 +1999,7 @@ private class SessionViewState {
                 isOpen = attachmentMenu != AttachmentMenuPhase.closed,
                 anchors = attachmentMenuAnchors,
                 press = attachmentMenuPress,
+                rows = if (attachmentMenu == AttachmentMenuPhase.menu) attachmentMenuAnchors.rows else emptyMap(),
                 lift = composerLift,
                 onToggle = ::toggleAttachmentMenu,
                 onChoose = ::chooseAttachment,
@@ -2456,6 +2457,13 @@ private class SessionViewState {
         LaunchedEffect(pending) {
             // A pending request banner takes the composer's place.
             if (pending) attachmentMenu = AttachmentMenuPhase.closed
+        }
+        val dictating = store.state.isPreparingDictation || store.state.isDictating || store.state.dictationHold != null
+        LaunchedEffect(dictating) {
+            // Dictation takes the composer: the menu (or card) gets out of its way.
+            if (!dictating || attachmentMenu == AttachmentMenuPhase.closed) return@LaunchedEffect
+            attachmentMenuRestoresFocus = false
+            closeAttachmentMenu()
         }
         val present = composerAttachmentIDs
         LaunchedEffect(present) {

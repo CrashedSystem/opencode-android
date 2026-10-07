@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentPicker.swift", "a9fd832")
+@file:PortedFrom("OpenCode/AttachmentPicker.swift", "32afd1e")
 
 package ai.opencode.mobilecode
 
@@ -64,6 +64,9 @@ fun AttachmentPickerButton(
     isOpen: Boolean,
     anchors: AttachmentMenuAnchors,
     press: AttachmentMenuPress,
+    /// The rows a slide can reach: none unless the menu itself is up (not
+    /// while the photo card has taken its place).
+    rows: Map<AttachmentMenuItem, Rect>,
     lift: Float = 0f,
     onToggle: () -> Unit,
     onChoose: (AttachmentMenuItem) -> Unit,
@@ -78,6 +81,7 @@ fun AttachmentPickerButton(
     val toggle by rememberUpdatedState(onToggle)
     val choose by rememberUpdatedState(onChoose)
     val currentLift by rememberUpdatedState(lift)
+    val reachable by rememberUpdatedState(rows)
     val opacity by animateFloatAsState(if (isTouching && !isOpen) 0.55f else 1f, tween(150), label = "touch")
 
     /// The button where it is now: `anchors` keeps its resting frame while
@@ -129,7 +133,7 @@ fun AttachmentPickerButton(
                                     openByHold()
                                 }
                             }
-                            press.moved(to = location(down.position), button = liveButton(), rows = anchors.rows)
+                            press.moved(to = location(down.position), button = liveButton(), rows = reachable)
                             while (true) {
                                 val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
                                 // Resets however the touch ends, so a press the system takes (the
@@ -142,7 +146,7 @@ fun AttachmentPickerButton(
                                 if (!change.pressed) {
                                     if (!isTouching) return@awaitEachGesture
                                     finishTouch()
-                                    when (val outcome = press.ended(at = location(change.position), button = liveButton(), rows = anchors.rows)) {
+                                    when (val outcome = press.ended(at = location(change.position), button = liveButton(), rows = reachable)) {
                                         AttachmentMenuPress.Outcome.none -> Unit
                                         AttachmentMenuPress.Outcome.toggle, AttachmentMenuPress.Outcome.close -> toggle()
                                         is AttachmentMenuPress.Outcome.choose -> choose(outcome.item)
@@ -152,7 +156,7 @@ fun AttachmentPickerButton(
                                 if ((change.position - down.position).getDistance() / density > AttachmentPickerButton.dragDistance) {
                                     openByHold()
                                 }
-                                press.moved(to = location(change.position), button = liveButton(), rows = anchors.rows)
+                                press.moved(to = location(change.position), button = liveButton(), rows = reachable)
                             }
                         }
                     }
