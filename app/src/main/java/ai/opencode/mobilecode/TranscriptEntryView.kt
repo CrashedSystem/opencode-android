@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "553a407")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "9f4d56c")
 
 package ai.opencode.mobilecode
 

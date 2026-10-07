@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeFeature.swift", "553a407")
+@file:PortedFrom("OpenCode/HomeFeature.swift", "9f4d56c")
 
 package ai.opencode.mobilecode
 
@@ -230,13 +230,10 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
                 inheritedModel = lastUsedModel,
                 navigationID = if (activeVoice != null) (sessionDetail?.navigationID ?: nextDetailID()) else nextDetailID(),
             )
-            val directory = draft.draftProject?.directory ?: sessionDetail?.session?.directory ?: activeVoice?.target?.directory
-            if (activeVoice != null && directory != null) {
+            if (activeVoice != null) {
+                val directory = draft.draftProject?.directory ?: sessionDetail?.session?.directory ?: activeVoice.target.directory
                 activeVoice.retargetToDraft(directory = directory, model = draft.currentModel)
                 draft.voice = activeVoice
-            } else if (activeVoice != null) {
-                // No folder to move the call to: a new identity ends it cleanly.
-                draft.navigationID = nextDetailID()
             }
             draft.isVisible = sessionDetail?.isVisible ?: false
             return draft
