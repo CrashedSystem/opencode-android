@@ -56,19 +56,24 @@ final class CaptureTests: XCTestCase {
       "OPENCODE_LAB_DISABLE_TRANSCRIPT_DISK_CACHE": "1",
     ])
     try await openDrawer()
+    // Pins persist on the simulator. Long-pressing an already-pinned row opens
+    // Unpin, and XCTest then waits out a context-menu animation that never completes.
     for id in ["ses_gauntlet_02", "ses_gauntlet_03"] {
       let row = app.buttons["drawer-session-row-\(id)"]
+      XCTAssertTrue(row.waitForExistence(timeout: 8))
+      if (row.value as? String)?.contains("Pinned") == true { continue }
       row.press(forDuration: 0.8)
       let pin = app.buttons["Pin"]
-      if pin.waitForExistence(timeout: 3) {
-        pin.tap()
-        try await Task.sleep(for: .milliseconds(500))
+      XCTAssertTrue(pin.waitForExistence(timeout: 3))
+      pin.tap()
+      try await waitUntil(timeout: 4) {
+        (row.value as? String)?.contains("Pinned") == true
+          && !self.app.buttons["Pin"].exists
+          && !self.app.buttons["Unpin"].exists
       }
     }
-    if app.buttons["Unpin"].exists || app.buttons["Pin"].exists {
-      app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.08)).tap()
-      try await Task.sleep(for: .milliseconds(400))
-    }
+    XCTAssertFalse(app.buttons["Unpin"].exists)
+    XCTAssertFalse(app.buttons["Pin"].exists)
     XCTAssertTrue(app.buttons["drawer-catch-up"].waitForExistence(timeout: 8))
     XCTAssertTrue(app.buttons["drawer-whats-new"].waitForExistence(timeout: 8))
     try await settle()

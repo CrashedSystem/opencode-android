@@ -38,7 +38,13 @@
     "**/Contents.json",
     "AppIcon.icon/icon.json"
   ],
-  "deferred": {},
+  "deferred": {
+    "OpenCode/Voice/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
+    "OpenCode/LiveActivity/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
+    "OpenCodeWidgets/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
+    "OpenCodeTests/Voice*Tests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
+    "OpenCodeTests/DotScopeSimulationTests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access"
+  },
   "assets": {
     "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {
       "android": "app/src/main/res/drawable-nodpi/opencode_wordmark_dark.png",

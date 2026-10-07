@@ -1,10 +1,16 @@
 # iOS reference screenshots
 
-68 uncropped PNGs of OpenCode iOS `4fb5e0e` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported that size for `01-first-launch-light.png` and `08-transcript-tasks-light.png`. The status bar time is 9:41.
+68 uncropped PNGs of OpenCode iOS `553a407` on simulator `OpenCode Android Port Lab` (`8E4837B1-36AB-4F52-9799-E5EEDD1968A0`), an iPhone 17 Pro Max running iOS 27.0. Each file is 440 by 956 points at scale 3, which is 1320 by 2868 pixels. `sips` reported that size for `01-first-launch-light.png` and `08-transcript-tasks-light.png`. The status bar time is 9:41.
 
-Recapture from the Android repo root with `scripts/capture-ios-reference.sh`. Pass a test id, then `light` or `dark`, to recapture one file's test. The driver is `scripts/ios-reference/CaptureUITests/CaptureTests.swift`. Fixture setup for each server is in `../fixtures.md`. A rerun of the drawer test can leave an Unpin button up if the pin menu does not dismiss. The saved `04-drawer-light.png` is the clean capture.
+Recapture from the Android repo root with `scripts/capture-ios-reference.sh`. Pass a test id, then `light` or `dark`, to recapture one file's test. The driver is `scripts/ios-reference/CaptureUITests/CaptureTests.swift`. Fixture setup for each server is in `../fixtures.md`. The drawer shot is taken only after `ses_gauntlet_02` and `ses_gauntlet_03` are pinned and neither Pin nor Unpin is on screen.
 
 `34` is unused. The simulator has no camera, so pairing is `01-first-launch` with **Scan Pairing Code** and no scanner. `35-composer-empty` is the empty composer on `ses_approval_root`, not the new-session draft in `06-draft`.
+
+## Changes since `4fb5e0e`
+
+`01-first-launch`, `02-server-manual`, and `06-draft` match the previous bytes in both appearances. `03-connect-error-light` matches too. The other files differ.
+
+Transcript rows sit closer together. In `07-transcript-markdown` the heading starts under the header blur, and the code block is in view. `12-tools-expanded` shows the shell command on one line, not a tall output block. Catch Up's card title is a button that opens the session. What's New leads with Catch Up Shortcuts, dated October 6. The dark drawer scrim covers more of the session card. The light drawer still shows the two pins, Catch Up at 9, and no Pin menu.
 
 | File | State | Fixture | Command | Device | Points | Scale |
 | --- | --- | --- | --- | --- | --- | --- |
