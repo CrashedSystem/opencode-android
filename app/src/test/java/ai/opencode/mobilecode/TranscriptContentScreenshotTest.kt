@@ -51,8 +51,11 @@ class TranscriptContentScreenshotTest {
     @Config(qualifiers = "w320dp-h6400dp-mdpi")
     fun darkNarrow() = capture(dark = true, width = 320)
 
-    private fun capture(dark: Boolean, width: Int = 440) {
-        val blocks = TranscriptFixture.withIds(TranscriptFixture.referenceBlocks())
+    @Test
+    @Config(qualifiers = "w320dp-h6400dp-mdpi")
+    fun quote() = capture(dark = false, width = 320, blocks = TranscriptFixture.withIds(TranscriptFixture.blocks(TranscriptFixture.quote)))
+
+    private fun capture(dark: Boolean, width: Int = 440, blocks: List<OpenCodeMarkdownBlock> = TranscriptFixture.withIds(TranscriptFixture.referenceBlocks())) {
         val server = OpenCodeServer(url = "http://127.0.0.1:4096", username = "opencode", password = "pw")
         composeRule.setContent {
             ForcedAppearance(dark) {
