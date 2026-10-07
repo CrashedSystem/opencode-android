@@ -32,9 +32,10 @@ The integration step owns `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveA
 
 The coordinator merges each group into `voice-integration` (from d021b9f) as it lands, runs the full unit suite, and adds what the group leaves open here.
 
-- Group 1 (merged at `9e044f3`): un-ignore the six `RealtimeProtocolTests` cases that need `VoiceCallClient` once group 3 lands, and switch the `session.update` test from `delegateTool` and `endCallTool` to `VoiceInstructions.tools` once group 4 lands.
+- Group 1 (merged at `9e044f3`): un-ignore the six `RealtimeProtocolTests` cases that need `VoiceCallClient` once group 3 lands. Done at integration: `session.update` now uses `VoiceInstructions.tools`, and `liveInstructionsFollowPromptingGuideTemplate` is ported and passing.
 - Group 1: a WebSocket connect failure after a passing preflight ends the call with "The voice connection was lost." iOS shows the system text of the raw `URLError`. Decide whether to match it.
-- Un-ignore `liveInstructionsFollowPromptingGuideTemplate` (group 4) and `hangingUpDuringStalledHandshakeStopsRingsAndAudioPromptly` (group 2).
+- Group 4 (merged at `0737c2c`): un-ignore `abandoningDelegationOnSessionSwitchClearsOpenDelegationBeforeReconnectSeed` once group 3's coordinator harness lands. Group 4 added `VoiceKeyFingerprint` to `SettingsView.kt`; if group 5a adds it too, keep one. Done at integration: the kit's `ImmediateClock` now yields like swift-clocks, so `hangingUpAbandonsVoiceWorkButNotTheServersRun` asserts Swift's order again.
+- Un-ignore `hangingUpDuringStalledHandshakeStopsRingsAndAudioPromptly` (group 2).
 - Run group 2's `VoiceAudioOnDeviceTest` and group 5b's instrumented test on a device.
 - Port `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveActivityUITests.swift` as on-device flows.
 - Clear the voice entries from `sync.json` `partial` and move the voice markers in `SessionView.kt`, `SettingsView.kt` and `HapticsClient.kt` once the second sync has merged.
