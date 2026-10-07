@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SettingsView.swift", "494e433", partial = "all but the Voice page's dot scope preview and the Notifications row")
+@file:PortedFrom("OpenCode/SettingsView.swift", "d809b1e", partial = "all but the Voice page's dot scope preview (494e433), Raise to Talk (2e313a1), VoiceKeyFingerprint (f3bda52), and the Notifications row")
 
 package ai.opencode.mobilecode
 
@@ -15,6 +15,7 @@ import ai.opencode.mobilecode.system.SystemMenu
 import ai.opencode.mobilecode.system.SystemMenuItem
 import ai.opencode.mobilecode.system.SystemMenuSection
 import ai.opencode.mobilecode.system.TextStyles
+import ai.opencode.mobilecode.system.bold
 import ai.opencode.mobilecode.system.TitleDisplayMode
 import ai.opencode.mobilecode.system.Toolbar
 import ai.opencode.mobilecode.system.ToolbarItem
@@ -77,6 +78,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -261,31 +263,28 @@ fun SettingsServerHeader(
         }
     }
     val time = settingsAuraTime(paused = phase == 0f)
+    /// The machine's name: a host name's first label ("basebook" of
+    /// basebook.tail1234.ts.net:4443), or the whole address for an IP.
+    val name = machineName(host)
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
             .settingsAura(time = time, tint = tint, phase = phase, dark = dark)
             .padding(horizontal = 18.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            Modifier.semantics(mergeDescendants = true) {},
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(8.dp).background(tint, CircleShape))
-            Text(statusText, style = TextStyles.subheadline.medium, color = SystemColors.secondaryLabel)
-        }
+        // Status and actions share the top row, so the name below gets the
+        // card's full width instead of being cut to fit beside a button.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                host,
-                Modifier.weight(1f, fill = false).alignByBaseline().semantics { contentDescription = "Server $host" },
-                style = TextStyles.title3.semibold,
-                color = SystemColors.label,
-                maxLines = 1,
-                overflow = TextOverflow.MiddleEllipsis,
-            )
+            Row(
+                Modifier.semantics(mergeDescendants = true) {},
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(8.dp).background(tint, CircleShape))
+                Text(statusText, style = TextStyles.subheadline.semibold, color = tint)
+            }
             Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
             if (status != HomeFeature.State.ConnectionStatus.connected) {
                 GlassButton("Retry", enabled = error == null, action = onRetry)
@@ -293,12 +292,50 @@ fun SettingsServerHeader(
             }
             GlassButton("Change", accessibilityLabel = "Change Server", action = onChange)
         }
+        Column(
+            Modifier.clearAndSetSemantics { contentDescription = "Server $host" },
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            ScaledLine(name, style = TextStyles.title2.bold, minimumScaleFactor = 0.7f)
+            if (name != host) {
+                Text(
+                    host,
+                    style = TextStyles.footnote.copy(fontFamily = FontFamily.Monospace),
+                    color = SystemColors.secondaryLabel,
+                    maxLines = 2,
+                    overflow = TextOverflow.MiddleEllipsis,
+                )
+            }
+        }
         if (error != null && status != HomeFeature.State.ConnectionStatus.connected) {
             SelectionContainer {
                 Text(error, style = TextStyles.footnote, color = SystemColors.secondaryLabel, maxLines = 3)
             }
         }
     }
+}
+
+fun machineName(host: String): String {
+    val address = host.split(":", limit = 2).first()
+    val labels = address.split(".").filter { it.isNotEmpty() }
+    if (labels.size <= 1 || address.all { it.isDigit() || it == '.' }) return host
+    return labels.first()
+}
+
+/// One line that shrinks to `minimumScaleFactor` before it truncates in the middle.
+@Composable
+private fun ScaledLine(text: String, style: TextStyle, minimumScaleFactor: Float) {
+    var scale by remember(text) { mutableStateOf(1f) }
+    Text(
+        text,
+        style = style.copy(fontSize = style.fontSize * scale, lineHeight = style.lineHeight * scale),
+        color = SystemColors.label,
+        maxLines = 1,
+        overflow = if (scale <= minimumScaleFactor) TextOverflow.MiddleEllipsis else TextOverflow.Clip,
+        onTextLayout = { layout ->
+            if (layout.hasVisualOverflow && scale > minimumScaleFactor) scale = maxOf(minimumScaleFactor, scale - 0.05f)
+        },
+    )
 }
 
 /// `.buttonStyle(.glass)`.

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SettingsShaders.metal", "494e433")
+@file:PortedFrom("OpenCode/SettingsShaders.metal", "d809b1e")
 
 package ai.opencode.mobilecode
 
@@ -50,6 +50,7 @@ fun Modifier.settingsAura(time: Float, tint: Color, phase: Float, dark: Boolean)
     val glowField = ImageBitmap(columns, rows)
     val pixels = IntArray(columns * rows)
     val glows = FloatArray(columns * rows)
+    val quiets = FloatArray(columns * rows)
     val base = if (dark) Color(0.06f, 0.06f, 0.07f) else Color(0.97f, 0.97f, 0.98f)
     val amount = if (dark) 0.9f else 0.75f
     onDrawBehind {
@@ -62,8 +63,13 @@ fun Modifier.settingsAura(time: Float, tint: Color, phase: Float, dark: Boolean)
                 val a = 0.5f + 0.5f * sin(u * 3.1f + t * 1.7f + sin(v * 2.3f - t))
                 val b = 0.5f + 0.5f * sin(v * 4.0f - t * 1.3f + cos(u * 1.7f + t * 0.6f))
                 val glow = smoothstep(0.15f, 1f, a * 0.6f + b * 0.55f) * (1f - v * 0.55f)
+                // Quiet under the text (leading and lower part), lively toward the
+                // trailing top corner, so the name always reads against it.
+                val lively = max(smoothstep(0.35f, 1f, u) * (1f - smoothstep(0.35f, 1f, v)), smoothstep(0.75f, 1f, u))
+                val quiet = mix(0.3f, 1f, lively)
                 glows[row * columns + column] = glow
-                pixels[row * columns + column] = base.mix(tint, 0.10f * glow * amount).toArgb()
+                quiets[row * columns + column] = quiet
+                pixels[row * columns + column] = base.mix(tint, 0.10f * glow * quiet * amount).toArgb()
             }
         }
         glowField.asAndroidBitmap().setPixels(pixels, 0, columns, 0, 0, columns, rows)
@@ -80,7 +86,7 @@ fun Modifier.settingsAura(time: Float, tint: Color, phase: Float, dark: Boolean)
                     tint,
                     radius = mix(0.7f, 2.3f, glow) * scale,
                     center = Offset((column + 0.5f) * cellSize * scale, (row + 0.5f) * cellSize * scale),
-                    alpha = ((0.10f + 0.55f * glow) * amount).coerceIn(0f, 1f),
+                    alpha = ((0.10f + 0.55f * glow) * quiets[row * columns + column] * amount).coerceIn(0f, 1f),
                 )
             }
         }
