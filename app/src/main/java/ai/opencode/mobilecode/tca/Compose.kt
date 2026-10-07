@@ -11,6 +11,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -86,7 +87,10 @@ fun sheet(isPresented: Binding<Boolean>, content: @Composable () -> Unit) {
     SystemSheet(onDismissRequest = { isPresented.wrappedValue = false }) { content() }
 }
 
-/** `.sheet(item: $store.scope(\.child, action: \.child)) { childStore in … }` for a `@Presents` child. */
+/**
+ * `.sheet(item: $store.scope(\.child, action: \.child)) { childStore in … }` for a `@Presents` child.
+ * A child with another identity gets a new sheet, so its remembered state and tasks start fresh.
+ */
 @Composable
 fun <S, A, CS : Any, CA> Store<S, A>.presented(
     state: KMutableProperty1<S, CS?>,
@@ -94,7 +98,9 @@ fun <S, A, CS : Any, CA> Store<S, A>.presented(
     content: @Composable (Store<CS, CA>) -> Unit,
 ) {
     val child = scope(state, action.presented) ?: return
-    SystemSheet(onDismissRequest = { send(action.embed(PresentationAction.dismiss)) }) { content(child) }
+    key(identityOf(child.state)) {
+        SystemSheet(onDismissRequest = { send(action.embed(PresentationAction.dismiss)) }) { content(child) }
+    }
 }
 
 /** A button of an `alert`, `Button("Delete", role: .destructive) { … }`. */
