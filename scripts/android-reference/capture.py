@@ -14,6 +14,7 @@ emulator reaches at 10.0.2.2.
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -73,8 +74,9 @@ class App:
                    "--es", "-lab-interface-style", self.appearance]
         if server:
             command += ["--es", "OPENCODE_LAB_SERVER_URL", f"http://10.0.2.2:{server}"]
+        # adb joins its arguments into one device shell command line.
         for key, value in (extra or {}).items():
-            command += ["--es", key, value]
+            command += ["--es", key, shlex.quote(value)]
         for argument in arguments:
             command += ["--ez", argument, "true"]
         adb(*command)
@@ -85,7 +87,7 @@ class App:
     # MARK: Elements
 
     def windows(self):
-        for _ in range(5):
+        for attempt in range(6):
             raw = subprocess.run(["android", "layout", f"--device={SERIAL}", "--no-metrics", "--flat", "--full"],
                                  capture_output=True, text=True).stdout
             try:
@@ -94,6 +96,9 @@ class App:
                 windows = None
             if isinstance(windows, list):
                 return windows
+            if attempt == 2:
+                # The layout helper on the device can wedge; the next call starts a fresh one.
+                adb("shell", "am", "force-stop", "com.android.cli.interact.instrumentation")
             time.sleep(0.5)
         raise CaptureError("android layout returned no JSON")
 
@@ -559,7 +564,8 @@ SESSION_READY = ["session-menu", "request-review-close", "Allow Once", "Use nati
 
 
 def open_drawer(app):
-    app.wait("Open sessions", timeout=20)
+    app.wait_until(lambda: app.find_prefix("drawer-session-row-") or app.find("Open sessions"), timeout=20,
+                   what="the drawer or its button")
     if not app.find_prefix("drawer-session-row-"):
         app.tap("Open sessions")
     app.wait_until(lambda: app.find_prefix("drawer-session-row-"), timeout=12, what="the drawer rows")
