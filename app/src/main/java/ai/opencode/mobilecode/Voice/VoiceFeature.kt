@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark, compactions, and compactionObserved from 0bda024)")
+@file:PortedFrom("OpenCode/Voice/VoiceFeature.swift", "553a407", partial = "State, Action, Delegate, CancelID as placeholders for SessionFeature and HomeFeature, plus the members they reach for after 553a407 (CompactionMark, compactions, and compactionObserved from 0bda024; Delegate.openSession from 7a54834)")
 
 package ai.opencode.mobilecode
 
@@ -351,6 +351,9 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         data object checkAPIKey : Delegate
 
         data class sessionCreated(val session: OpenCodeSession) : Delegate
+
+        /// The delegator put a session on the user's screen.
+        data class openSession(val session: OpenCodeSession) : Delegate
 
         data object ended : Delegate
     }

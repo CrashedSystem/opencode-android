@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "6d491ac")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "7a54834")
 
 package ai.opencode.mobilecode
 
@@ -43,6 +43,14 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "voice-manages-sessions",
+                    day = "2026-10-07",
+                    title = "Voice Gets Around",
+                    summary = "On a call, ask for any session: Voice opens it, starts or steers work there, and tells you when it’s done. Switching sessions no longer cuts Voice off mid-sentence.",
+                    example = "On a call, say “open my upload fixes session and check the tests”",
+                    illustration = Illustration.voiceMessage,
+                ),
                 WhatsNewEntry(
                     id = "voice-messages",
                     day = "2026-10-06",

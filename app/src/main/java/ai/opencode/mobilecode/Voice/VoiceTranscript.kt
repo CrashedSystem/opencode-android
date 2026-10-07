@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "a858da2", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
+@file:PortedFrom("OpenCode/Voice/VoiceTranscript.swift", "7a54834", partial = "VoiceTranscriptTail, VoiceHandoff format and parse, VoiceTranscriptRecord, VoiceInstructions.Context")
 
 package ai.opencode.mobilecode
 
@@ -315,5 +315,8 @@ object VoiceInstructions {
         val previousEndedAt: Instant? = null,
         /// A new session's draft: nothing exists until the first delegation.
         val isNewSession: Boolean = false,
+        /// GPT-Live delegates to the delegator, which manages every session,
+        /// rather than straight into the one on screen.
+        val managesSessions: Boolean = false,
     )
 }

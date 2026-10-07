@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "ba012e9")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "7a54834")
 
 package ai.opencode.mobilecode
 
@@ -1093,6 +1093,12 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         // The call's first request on this draft created its session.
                         if (state.session != null) return@Reduce Effect.none
                         Effect.send(Action.sessionCreated((action.voiceDelegate as VoiceFeature.Delegate.sessionCreated).session))
+                    }
+
+                    is Action.voice if action.voiceDelegate is VoiceFeature.Delegate.openSession -> {
+                        // The delegator moved the screen; Home switches sessions, and the
+                        // call follows.
+                        Effect.send(Action.delegate(Delegate.openSession((action.voiceDelegate as VoiceFeature.Delegate.openSession).session)))
                     }
 
                     is Action.voice if action.voiceDelegate == VoiceFeature.Delegate.ended -> {
