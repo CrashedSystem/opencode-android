@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "27556a1", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
+@file:PortedFrom("OpenCode/SessionView.swift", "a2460c7", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, and ProblemReportOfferPill, whose Swift homes are not ported")
 
 package ai.opencode.mobilecode
 
@@ -897,27 +897,39 @@ private fun rememberDictationSwell(swells: Boolean): Float {
 
 /// A glass pill above the composer: background work or pending messages.
 @Composable
-private fun ComposerPillLabel(
+fun ComposerPillLabel(
     title: String,
     trailingSystemImage: String? = null,
     leading: @Composable () -> Unit,
 ) {
+    // Slim glass, full 44 pt target.
     Box(Modifier.padding(vertical = 5.dp)) {
-        Row(
-            Modifier
-                .heightIn(min = 34.dp)
-                .openCodeGlass(CircleShape, interactive = true)
-                .padding(horizontal = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.width(18.dp).semantics { hideFromAccessibility() }, contentAlignment = Alignment.Center) {
-                CompositionLocalProvider(LocalContentColor provides SystemColors.label) { leading() }
-            }
-            Text(title, style = TextStyles.subheadline.medium, color = SystemColors.label, maxLines = 1)
-            if (trailingSystemImage != null) {
-                SystemImage(trailingSystemImage, null, Modifier.symbolSize(TextStyles.caption.semibold), tint = SystemColors.secondaryLabel)
-            }
+        ComposerPillContent(title, trailingSystemImage, Modifier.openCodeGlass(CircleShape, interactive = true), leading)
+    }
+}
+
+/// A composer pill's glyph, title, and chevron, without its glass.
+@Composable
+fun ComposerPillContent(
+    title: String,
+    trailingSystemImage: String? = null,
+    modifier: Modifier = Modifier,
+    leading: @Composable () -> Unit,
+) {
+    Row(
+        Modifier
+            .heightIn(min = 34.dp)
+            .then(modifier)
+            .padding(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(18.dp).semantics { hideFromAccessibility() }, contentAlignment = Alignment.Center) {
+            CompositionLocalProvider(LocalContentColor provides SystemColors.label) { leading() }
+        }
+        Text(title, style = TextStyles.subheadline.medium, color = SystemColors.label, maxLines = 1)
+        if (trailingSystemImage != null) {
+            SystemImage(trailingSystemImage, null, Modifier.symbolSize(TextStyles.caption.semibold), tint = SystemColors.secondaryLabel)
         }
     }
 }
@@ -1665,12 +1677,9 @@ private class SessionViewState {
 
     @Composable
     fun BackgroundActivity() {
-        val agents = store.observe { activeSubagents.size }
-        val shells = store.observe { backgroundShells.size }
-        val summary = listOfNotNull(
-            if (agents == 0) null else if (agents == 1) "1 subagent" else "$agents subagents",
-            if (shells == 0) null else if (shells == 1) "1 shell" else "$shells shells",
-        ).joinToString(" · ")
+        val agents = store.observe { activeSubagents }
+        val shells = store.observe { backgroundShells }
+        val summary = BackgroundWorkPanel.summary(agents, shells)
         Box(
             Modifier
                 .backgroundActivityAnchor()
@@ -1684,9 +1693,7 @@ private class SessionViewState {
                     stateDescription = if (showsBackgroundWork) "Expanded" else "Collapsed"
                 },
         ) {
-            ComposerPillLabel(title = summary, trailingSystemImage = if (showsBackgroundWork) "chevron.down" else "chevron.up") {
-                AgentActivityGlyph()
-            }
+            BackgroundWorkCapsuleLabel(summary = summary)
         }
     }
 

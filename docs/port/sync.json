@@ -44,7 +44,8 @@
     "OpenCodeWidgets/**": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
     "OpenCodeTests/Voice*Tests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
     "OpenCodeTests/DotScopeSimulationTests.swift": "Voice calls deferred by the user on 2026-10-07 until the core app works end to end; testing needs an OpenAI key with GPT-Live or Realtime access",
-    "OpenCode/SessionNotifications.swift": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay"
+    "OpenCode/SessionNotifications.swift": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay",
+    "OpenCode/GlassMorphTrace.swift": "Lab instrumentation for the iOS UI tests that walks Liquid Glass's CASDFElementLayer layers; Compose draws the morphing glass from its own animated frame, and no Android lab test reads a glass trace yet"
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",
