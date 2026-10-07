@@ -6,6 +6,11 @@
             android:exported="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <activity
+            android:name=".SessionLabActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
             android:name=".CameraSurfacesActivity"
             android:exported="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />

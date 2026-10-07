@@ -81,21 +81,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 
-object TranscriptMetrics {
-    const val compact = 4
-    const val clustered = 8
-    const val bubbleVertical = 10
-    const val standard = 12
-    const val contentGutter = 16
-    const val turn = 20
-    const val cardCornerRadius = 14
-    const val flowHalf = clustered
-    val codeFont @Composable get() = TextStyles.code
-    val toolFont @Composable get() = TextStyles.tool
-}
-
-data class TranscriptImagePreview(val id: String, val label: String)
-
 val LocalTranscriptTextReveal = staticCompositionLocalOf<TranscriptTextReveal?> { null }
 
 @Composable
@@ -200,7 +185,7 @@ private fun ListItem(
             } else {
                 Text(
                     marker,
-                    style = if (marker == "•") TextStyles.body else TextStyles.footnote.copy(fontFamily = FontFamily.Monospace),
+                    style = if (marker == "•") TextStyles.body else TextStyles.footnote.copy(fontFeatureSettings = "tnum"),
                     color = SystemColors.secondaryLabel,
                 )
             }
@@ -461,14 +446,16 @@ private fun annotated(text: AttributedString, base: Color): AnnotatedString {
             else -> Color.Unspecified
         }
         val code = active.any { it.codeBackground }
+        // Inline code stays monospaced when it is also a file link.
+        val monospaced = code || active.any { AttributedString.Intent.code in it.inlinePresentationIntent }
         val span = SpanStyle(
             color = color,
             background = if (code) SystemColors.tertiarySystemFill else Color.Unspecified,
             fontWeight = if (active.any { AttributedString.Intent.stronglyEmphasized in it.inlinePresentationIntent }) FontWeight.Bold else null,
             fontStyle = if (active.any { AttributedString.Intent.emphasized in it.inlinePresentationIntent }) FontStyle.Italic else null,
             textDecoration = if (active.any { AttributedString.Intent.strikethrough in it.inlinePresentationIntent }) TextDecoration.LineThrough else null,
-            fontFamily = if (code) FontFamily.Monospace else null,
-            fontSize = if (code) 15.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+            fontFamily = if (monospaced) FontFamily.Monospace else null,
+            fontSize = if (monospaced) 15.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         )
         builder.pushStyle(span)
         builder.append(text.characters.substring(start, end))
@@ -658,64 +645,4 @@ private fun TableRow(cells: List<AttributedString>, header: Boolean, widths: Lis
             )
         }
     }
-}
-
-@Composable
-fun MarkdownImage(
-    source: String,
-    alt: String,
-    server: OpenCodeServer,
-    directory: String?,
-    onPreview: (TranscriptImagePreview) -> Unit,
-) {
-    val cacheKey = "${server.persistenceID}|${directory ?: ""}|$source"
-    var image by remember(cacheKey) { mutableStateOf<ImageBitmap?>(null) }
-    var failed by remember(cacheKey) { mutableStateOf(false) }
-    LaunchedEffect(cacheKey) {
-        image = decodeDataImage(source)
-        if (image == null && !source.startsWith("data:image/")) failed = server.imageRequest(source, directory) == null
-    }
-    val loaded = image
-    val shape = RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp)
-    when {
-        loaded != null -> androidx.compose.foundation.Image(
-            bitmap = loaded,
-            contentDescription = "Open ${alt.ifEmpty { "image" }}",
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 360.dp)
-                .clip(shape)
-                .clickable { onPreview(TranscriptImagePreview(cacheKey, alt.ifEmpty { "Image" })) },
-            contentScale = ContentScale.Fit,
-        )
-        failed -> Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .clip(shape)
-                .background(SystemColors.secondarySystemBackground)
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SystemImage("photo.badge.exclamationmark", null, Modifier.size(16.dp), tint = SystemColors.secondaryLabel)
-            Text(alt.ifEmpty { "Image unavailable" }, style = TextStyles.footnote, color = SystemColors.secondaryLabel)
-        }
-        else -> Box(
-            Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .clip(shape)
-                .background(SystemColors.secondarySystemBackground),
-            contentAlignment = Alignment.Center,
-        ) { CircularProgressIndicator(Modifier.size(20.dp), color = SystemColors.secondaryLabel) }
-    }
-}
-
-private fun decodeDataImage(source: String): ImageBitmap? {
-    if (!source.startsWith("data:image/")) return null
-    val comma = source.indexOf(',')
-    if (comma < 0 || !source.substring(0, comma).contains(";base64")) return null
-    val bytes = runCatching { Base64.decode(source.substring(comma + 1), Base64.DEFAULT) }.getOrNull() ?: return null
-    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
 }
