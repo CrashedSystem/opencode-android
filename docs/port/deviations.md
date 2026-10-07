@@ -16,7 +16,7 @@ The rendering differs from the library in these ways:
 - Lines break only between words. Android's line breaker never breaks right after a hyphen in mid-line, so the library's breaks after source hyphens ("well-known") are not used. The engine keeps them, and the golden test covers them. No hyphenation dictionary ships, so `withHyphenation` is not ported.
 - A line that would need gaps wider than 3.5 spaces keeps its break but is set ragged. That is the library's own test bound for whole-word mobile layouts. It applies before a word too long to share a line, such as an inline path in a narrow list item.
 - While a reply streams in, lines above the last two keep their breaks, so new tokens do not move text the user is reading. A paragraph that is drawn again later solves from scratch and can break differently.
-- An opening quote hangs about half as far as the library places it, because Compose letter spacing cannot move one glyph left of the line start. The rest of the line starts where the engine put it.
+- An opening quote hangs about half as far as the library places it on Android 14 and earlier, and not at all on Android 15 and later, which draw only the half of a line's first letter spacing that falls inside the line. Compose letter spacing cannot move one glyph left of the line start. From the line's first gap on, the text sits where the engine put it.
 
 ## Features not on Android yet
 

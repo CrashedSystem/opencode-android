@@ -4,6 +4,7 @@ package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.SystemMenu
@@ -360,7 +361,7 @@ private class RequestReview(
         multiple: Boolean = false,
         action: () -> Unit,
     ) {
-        val shape = iosContinuousCorner(TranscriptMetrics.controlCornerRadius.dp)
+        val shape = RoundedRectangle(TranscriptMetrics.controlCornerRadius.dp)
         Row(
             Modifier
                 .fillMaxWidth()
@@ -404,7 +405,7 @@ private class RequestReview(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
-                .background(elevatedSecondarySystemBackground(), iosContinuousCorner(TranscriptMetrics.controlCornerRadius.dp))
+                .background(elevatedSecondarySystemBackground(), RoundedRectangle(TranscriptMetrics.controlCornerRadius.dp))
                 .padding(12.dp),
             contentAlignment = Alignment.CenterStart,
         ) {

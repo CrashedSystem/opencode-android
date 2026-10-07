@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.TextStyles
 import androidx.compose.foundation.background
@@ -288,10 +289,10 @@ fun SendFlightOverlay(transition: ComposerSendTransition, modifier: Modifier = M
                         scaleY = if (landing.size.height > 0f) frame.height / landing.size.height else 1f
                         alpha = transition.progress
                     }
-                    .background(SystemColors.secondarySystemBackground, RoundedCornerShape(TranscriptMetrics.bubbleCornerRadius.dp))
+                    .background(SystemColors.secondarySystemBackground, RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp))
                     .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
             ) {
-                Text(landing.text, style = TextStyles.body.copy(lineHeight = 24.sp), color = SystemColors.label)
+                Text(landing.text, style = TextStyles.body.copy(lineHeight = (TranscriptMetrics.bodyLine + 2).sp), color = SystemColors.label)
             }
         }
         val width = with(density) { source.frame.width.toDp() }

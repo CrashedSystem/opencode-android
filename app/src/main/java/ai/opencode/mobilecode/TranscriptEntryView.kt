@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
@@ -617,7 +618,7 @@ object TranscriptEntryView {
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
-                .clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))
+                .clip(RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))
                 .background(SystemColors.secondarySystemBackground)
                 .clickable(enabled = child != null, role = Role.Button) {
                     if (childID != null) store.send(SessionFeature.Action.familyPicked(childID))
@@ -988,7 +989,7 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>) {
 @Composable
 private fun ToolImageMosaic(images: List<OpenCodeImageAttachment>, onPreview: (String) -> Unit) {
     Box(Modifier.fillMaxWidth().semantics { testTag = "tool-image-mosaic" }) {
-        Box(Modifier.clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))) {
+        Box(Modifier.clip(RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))) {
             when {
                 images.size == 1 -> MosaicTile(images, 0, 300, 210, onPreview)
                 images.size == 2 -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

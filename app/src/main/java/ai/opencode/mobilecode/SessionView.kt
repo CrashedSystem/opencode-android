@@ -6,6 +6,7 @@ import ai.opencode.mobilecode.system.ContentUnavailableView
 import ai.opencode.mobilecode.system.GlassBackdrop
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.SystemMenu
@@ -131,9 +132,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -157,9 +155,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -169,14 +164,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
 import java.util.UUID
 import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import kotlinx.coroutines.delay
 
 /// Three stable children: input, leading controls, trailing control. Only their
@@ -2226,7 +2217,7 @@ private class SessionViewState {
                 width = ComposerFileChip.width,
                 height = ComposerFileChip.height,
                 modifier = Modifier
-                    .background(SystemColors.secondarySystemFill, ContinuousRoundedCornerShape(22.dp))
+                    .background(SystemColors.secondarySystemFill, RoundedRectangle(22.dp))
                     .semantics(mergeDescendants = true) {
                         contentDescription = "File attachment $name"
                         testTag = "pending-file-$name"
@@ -2249,7 +2240,7 @@ private class SessionViewState {
                 attachment.data,
                 Modifier
                     .size(76.dp)
-                    .clip(ContinuousRoundedCornerShape(22.dp))
+                    .clip(RoundedRectangle(22.dp))
                     .semantics {
                         contentDescription = "Image attachment ${index + 1}"
                         testTag = "pending-attachment-$index"
@@ -2866,48 +2857,4 @@ private fun DrawerGlyph() {
         drawRoundRect(color, topLeft = Offset(0f, top), size = Size(long, stroke), cornerRadius = CornerRadius(stroke / 2))
         drawRoundRect(color, topLeft = Offset(0f, top + stroke + gap), size = Size(short, stroke), cornerRadius = CornerRadius(stroke / 2))
     }
-}
-
-private class ContinuousRoundedCornerShape(private val radius: Dp) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val limit = min(size.width, size.height) / 2f
-        val r = with(density) { radius.toPx() }.coerceAtMost(limit)
-        return Outline.Generic(continuousRoundRect(size.width, size.height, r))
-    }
-}
-
-private fun continuousRoundRect(width: Float, height: Float, radius: Float): Path {
-    val path = Path()
-    if (radius <= 0f) {
-        path.addRect(Rect(0f, 0f, width, height))
-        return path
-    }
-    path.moveTo(radius, 0f)
-    path.lineTo(width - radius, 0f)
-    appendCorner(path, width - radius, radius, -90.0, 90.0, radius)
-    path.lineTo(width, height - radius)
-    appendCorner(path, width - radius, height - radius, 0.0, 90.0, radius)
-    path.lineTo(radius, height)
-    appendCorner(path, radius, height - radius, 90.0, 90.0, radius)
-    path.lineTo(0f, radius)
-    appendCorner(path, radius, radius, 180.0, 90.0, radius)
-    path.close()
-    return path
-}
-
-private fun appendCorner(path: Path, cx: Float, cy: Float, startDeg: Double, sweepDeg: Double, radius: Float) {
-    val steps = 16
-    val exponent = ContinuousCornerExponent
-    for (step in 1..steps) {
-        val theta = Math.toRadians(startDeg + sweepDeg * step / steps)
-        path.lineTo(cx + radius * signedPow(cos(theta), exponent), cy + radius * signedPow(sin(theta), exponent))
-    }
-}
-
-private const val ContinuousCornerExponent = 0.82
-
-private fun signedPow(value: Double, exponent: Double): Float {
-    if (value == 0.0) return 0f
-    val sign = if (value < 0.0) -1f else 1f
-    return sign * abs(value).pow(exponent).toFloat()
 }

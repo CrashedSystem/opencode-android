@@ -2,6 +2,7 @@
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemContextMenu
 import ai.opencode.mobilecode.system.SystemImage
@@ -298,7 +299,7 @@ private fun TranscriptUserBubble(
 
 @Composable
 private fun Bubble(text: String, dimming: Float, itemID: String?) {
-    val shape = RoundedCornerShape(TranscriptMetrics.bubbleCornerRadius.dp)
+    val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
     Box(
         Modifier
             .then(if (itemID != null) Modifier.sendLandingProbe(itemID) else Modifier)
@@ -350,7 +351,7 @@ enum class VoiceMessageStyle {
 
 @Composable
 private fun Modifier.voiceMessageBackground(style: VoiceMessageStyle, dimming: Float): Modifier {
-    val shape = RoundedCornerShape(TranscriptMetrics.bubbleCornerRadius.dp)
+    val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
     return when (style) {
         // Matches `TranscriptUserBubble`, pending dimming included.
         VoiceMessageStyle.standard -> background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)

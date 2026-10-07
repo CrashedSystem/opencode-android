@@ -3,6 +3,7 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.ContentUnavailableView
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
@@ -146,7 +147,7 @@ private fun SetupRow(
     modifier: Modifier = Modifier,
     action: () -> Unit,
 ) {
-    val shape = iosContinuousCorner(TranscriptMetrics.cardCornerRadius.dp)
+    val shape = RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp)
     Row(
         modifier
             .fillMaxWidth()
