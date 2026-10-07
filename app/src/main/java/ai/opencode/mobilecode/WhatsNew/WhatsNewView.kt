@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "ebb011d")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "9ed3520")
 
 package ai.opencode.mobilecode
 
@@ -269,6 +269,26 @@ private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 Column(Modifier.width(36.dp), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.End) {
                     SystemImage("waveform", contentDescription = null, modifier = Modifier.symbolSize(7), tint = SystemColors.secondaryLabel)
                     Box(Modifier.size(width = 30.dp, height = 14.dp).background(SystemColors.label.copy(alpha = 0.12f), RoundedCornerShape(6.dp)))
+                }
+            WhatsNewEntry.Illustration.dictationBar ->
+                Row(
+                    Modifier
+                        .height(13.dp)
+                        .background(SystemColors.label.copy(alpha = 0.08f), CircleShape)
+                        .padding(horizontal = 3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(8.dp).background(SystemColors.label.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("xmark", contentDescription = null, modifier = Modifier.symbolSize(4), tint = SystemColors.label)
+                    }
+                    DotBraid(warm = warm, cool = warm, columns = 7, rows = 3, modifier = Modifier.size(width = 12.dp, height = 5.dp))
+                    Box(Modifier.size(8.dp).background(SystemColors.label.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("stop.fill", contentDescription = null, modifier = Modifier.symbolSize(3), tint = SystemColors.label)
+                    }
+                    Box(Modifier.size(8.dp).background(SystemColors.label, CircleShape), contentAlignment = Alignment.Center) {
+                        SystemImage("arrow.up", contentDescription = null, modifier = Modifier.symbolSize(4), tint = SystemColors.systemBackground)
+                    }
                 }
             WhatsNewEntry.Illustration.talkOver ->
                 Box(contentAlignment = Alignment.BottomEnd) {

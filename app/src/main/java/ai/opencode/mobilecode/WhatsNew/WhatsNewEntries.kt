@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "7a54834")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "9ed3520")
 
 package ai.opencode.mobilecode
 
@@ -28,6 +28,7 @@ data class WhatsNewEntry(
         callButton,
         catchUp,
         voiceMessage,
+        dictationBar,
     }
 
     constructor(id: String, day: String, title: String, summary: String, example: String, illustration: Illustration) : this(
@@ -43,6 +44,14 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "dictation-send",
+                    day = "2026-10-07",
+                    title = "Send from Dictation",
+                    summary = "Tap the mic and the recording bar can send what you said straight away, or Stop puts it in your message to review. Holding the mic, slide up to lock or left to cancel, then let go.",
+                    example = "Tap the mic, say a sentence, and tap Send",
+                    illustration = Illustration.dictationBar,
+                ),
                 WhatsNewEntry(
                     id = "voice-manages-sessions",
                     day = "2026-10-07",
