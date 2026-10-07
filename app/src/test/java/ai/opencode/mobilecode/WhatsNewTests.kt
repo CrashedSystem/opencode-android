@@ -3,13 +3,13 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.WhatsNewFeature.Action
+import ai.opencode.mobilecode.tca.Exhaustivity
 import ai.opencode.mobilecode.tca.Shared
 import ai.opencode.mobilecode.tca.SharedKey
 import ai.opencode.mobilecode.tca.TestDependencies
 import ai.opencode.mobilecode.tca.TestStore
 import ai.opencode.mobilecode.tca.expect
 import ai.opencode.mobilecode.tca.withLock
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -91,9 +91,17 @@ class WhatsNewTests {
         expect(updated.showsButton)
     }
 
-    @Ignore("Drives HomeFeature. The port of OpenCode/HomeFeature.swift writes this test's body.")
     @Test
     fun homeOpensWhatsNewFromItsButton() {
+        val server = OpenCodeServer(url = "http://localhost:9", username = "", password = "")
+        val home = HomeFeature.State(server = server, snapshot = OpenCodeHomeSnapshot(projects = emptyList(), sessions = emptyList(), activeSessionIDs = emptySet()))
+        home.whatsNew = WhatsNewFeature.State(entries = listOf(entry("a")))
+        val store = TestStore(initialState = { home }) { HomeFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+
+        store.send(HomeFeature.Action.whatsNew(Action.buttonTapped))
+        expect(store.state.whatsNew.isPresented)
+        expect(!store.state.whatsNew.showsButton)
     }
 
     @Test

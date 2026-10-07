@@ -1,8 +1,12 @@
-@file:PortedFrom("OpenCodeTests/ShareHandoffTests.swift", "553a407", partial = "store and image encoder; HomeFeature and AppFeature share routing waits for those features")
+@file:PortedFrom("OpenCodeTests/ShareHandoffTests.swift", "553a407", partial = "store, image encoder, and Home share routing; AppFeature share routing waits for AppFeature")
 
 package ai.opencode.mobilecode
 
+import ai.opencode.mobilecode.tca.Exhaustivity
+import ai.opencode.mobilecode.tca.TestDependencies
+import ai.opencode.mobilecode.tca.TestStore
 import ai.opencode.mobilecode.tca.expect
+import ai.opencode.mobilecode.tca.withLock
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.ExifInterface
@@ -12,6 +16,7 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -201,26 +206,140 @@ class ShareModelTests {
     }
 }
 
+// Robolectric gives the reducers' LabMarks a working android.util.Log.
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class ShareInboxFeatureTests {
-    @Test
-    @Ignore("OpenCode/HomeFeature.kt will port shareOpensItsSessionWithTheItemsInTheComposer")
-    fun shareOpensItsSessionWithTheItemsInTheComposer() {}
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    private val server = OpenCodeServer(url = "http://localhost:4096", username = "kit", password = "secret")
+    private val project = OpenCodeProject(id = "proj", name = "Work", directory = "/work")
+    private val other = OpenCodeProject(id = "proj_other", name = "Other", directory = "/other")
+    private val current = OpenCodeSession(id = "ses_current", title = "Current", projectID = "proj", directory = "/work", updatedAt = 30_000)
+    private val target = OpenCodeSession(id = "ses_target", title = "Target", projectID = "proj_other", directory = "/other", updatedAt = 20_000)
+    private val screenshot = ReceivedShare.Image(id = UUID(0, 1), data = byteArrayOf(0xFF.toByte(), 0xD8.toByte()), mime = "image/jpeg")
+
+    private fun share(
+        target: ShareHandoff.Target,
+        text: String,
+        images: List<ReceivedShare.Image> = emptyList(),
+        at: Long,
+    ): ReceivedShare = ReceivedShare(
+        handoff = ShareHandoff(
+            id = UUID.randomUUID(),
+            createdAt = Instant.ofEpochSecond(at),
+            serverID = server.persistenceID,
+            target = target,
+            text = text,
+            images = images.map { ShareHandoff.Image(id = it.id, fileName = "x.jpg", mime = it.mime) },
+        ),
+        images = images,
+    )
+
+    private fun home(): HomeFeature.State {
+        val state = HomeFeature.State(
+            server = server,
+            snapshot = OpenCodeHomeSnapshot(projects = listOf(project, other), sessions = listOf(current, target), activeSessionIDs = emptySet()),
+        )
+        state.transcriptCache = mapOf(current.id to emptyList(), target.id to emptyList())
+        state.sessionDetail = state.makeDetail(current, cachedItems = emptyList())
+        state.sessionDetail?.draft = "Typed already"
+        return state
+    }
+
+    private fun makeStore(state: HomeFeature.State): TestStore<HomeFeature.State, HomeFeature.Action> {
+        val store = TestStore(
+            initialState = { state },
+            withDependencies = { it.openCodeClient.viewSession = { _, _, _ -> } },
+        ) {
+            HomeFeature()
+        }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        return store
+    }
 
     @Test
-    @Ignore("OpenCode/HomeFeature.kt will port shareForTheOpenSessionKeepsWhatWasTyped")
-    fun shareForTheOpenSessionKeepsWhatWasTyped() {}
+    fun shareOpensItsSessionWithTheItemsInTheComposer() {
+        val store = makeStore(home())
+        store.send(
+            HomeFeature.Action.sharesReceived(
+                listOf(share(ShareHandoff.Target.session(id = target.id, projectID = other.id), text = "What’s wrong here?", images = listOf(screenshot), at = 100)),
+            ),
+        )
+        store.receive<HomeFeature.Action.sessionTapped>()
+        expect(store.state.sessionDetail?.session?.id == target.id)
+        expect(store.state.sessionDetail?.draft == "What’s wrong here?")
+        expect(
+            store.state.sessionDetail?.pendingAttachments == listOf(
+                OpenCodeOutgoingAttachment(id = screenshot.id.toString(), data = screenshot.data, mime = "image/jpeg"),
+            ),
+        )
+        expect(store.state.sharedDrafts.isEmpty())
+        store.finish()
+    }
 
     @Test
-    @Ignore("OpenCode/HomeFeature.kt will port multipleSharesOpenTheNewestAndHoldTheRestForTheirSessions")
-    fun multipleSharesOpenTheNewestAndHoldTheRestForTheirSessions() {}
+    fun shareForTheOpenSessionKeepsWhatWasTyped() {
+        val store = makeStore(home())
+        val navigationID = store.state.sessionDetail?.navigationID
+        store.send(HomeFeature.Action.sharesReceived(listOf(share(ShareHandoff.Target.session(id = current.id, projectID = project.id), text = "https://example.com", at = 100))))
+        store.receive<HomeFeature.Action.sessionTapped>()
+        expect(store.state.sessionDetail?.navigationID == navigationID)
+        expect(store.state.sessionDetail?.draft == "Typed already\n\nhttps://example.com")
+        store.finish()
+    }
 
     @Test
-    @Ignore("OpenCode/HomeFeature.kt will port shareForADeletedSessionStartsANewSessionInItsProject")
-    fun shareForADeletedSessionStartsANewSessionInItsProject() {}
+    fun multipleSharesOpenTheNewestAndHoldTheRestForTheirSessions() {
+        val store = makeStore(home())
+        store.send(
+            HomeFeature.Action.sharesReceived(
+                listOf(
+                    share(ShareHandoff.Target.session(id = target.id, projectID = other.id), text = "first", images = listOf(screenshot), at = 100),
+                    share(ShareHandoff.Target.newSession(projectID = other.id), text = "second", at = 110),
+                    share(ShareHandoff.Target.newSession(projectID = other.id), text = "third", at = 120),
+                ),
+            ),
+        )
+        expect(store.state.sessionDetail?.isDraft == true)
+        expect(store.state.sessionDetail?.draftProject == other)
+        expect(store.state.sessionDetail?.draft == "second\n\nthird")
+        expect(store.state.sharedDrafts.keys.toList() == listOf(SharedDraftTarget.session(target.id)))
+
+        store.send(HomeFeature.Action.sessionTapped(target.id))
+        expect(store.state.sessionDetail?.draft == "first")
+        expect(store.state.sessionDetail?.pendingAttachments?.map { it.id } == listOf(screenshot.id.toString()))
+        expect(store.state.sharedDrafts.isEmpty())
+        store.finish()
+    }
 
     @Test
-    @Ignore("OpenCode/HomeFeature.kt will port publishedTargetsFollowTheDrawerWithoutSecrets")
-    fun publishedTargetsFollowTheDrawerWithoutSecrets() {}
+    fun shareForADeletedSessionStartsANewSessionInItsProject() {
+        val store = makeStore(home())
+        store.send(HomeFeature.Action.sharesReceived(listOf(share(ShareHandoff.Target.session(id = "ses_gone", projectID = other.id), text = "still useful", at = 100))))
+        expect(store.state.sessionDetail?.isDraft == true)
+        expect(store.state.sessionDetail?.draftProject == other)
+        expect(store.state.sessionDetail?.draft == "still useful")
+        store.finish()
+    }
+
+    @Test
+    fun publishedTargetsFollowTheDrawerWithoutSecrets() {
+        val state = home()
+        state::pinnedSessionKeys.withLock { value = listOf(state.sessionKey(target.id)) }
+        state.search = "no match"
+        val targets = state.shareTargets
+        expect(targets.serverID == server.persistenceID)
+        expect(targets.serverName == "localhost:4096")
+        expect(targets.lastViewedSessionID == current.id)
+        expect(targets.pinned.map { it.id } == listOf(target.id))
+        expect(targets.pinned.firstOrNull()?.projectName == "Other")
+        expect(targets.recents.map { it.id } == listOf(current.id))
+        expect(targets.newSessionProject == ShareTargets.Project(id = project.id, name = "Work"))
+        val encoded = shareJson.encodeToString(ShareTargets.serializer(), targets)
+        expect(!encoded.contains(server.password))
+    }
 
     @Test
     @Ignore("OpenCode/AppFeature.kt will port appConsumesSharesOnActivationAndRoutesThemToTheOpenServer")
