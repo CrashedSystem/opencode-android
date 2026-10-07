@@ -662,7 +662,8 @@ private class SessionViewState {
     var jumpRequest by mutableIntStateOf(0)
     val imageImporter = ComposerImageImporter()
     val fileImporter = ComposerFileImporter()
-    var importing by mutableIntStateOf(0)
+    /// `imageImporter.isLoading`, observable: SwiftUI's importer is `@Observable`.
+    var isImporting by mutableStateOf(false)
     var imagePreview by mutableStateOf<TranscriptImagePreview?>(null)
     var openFile by mutableStateOf<AgentFileReference?>(null)
     var largeUpload by mutableStateOf<LargeUpload?>(null)
@@ -1442,7 +1443,7 @@ private class SessionViewState {
     fun ComposerLeadingControls(expanded: Boolean, secondaryMic: ComposerControls.MicPlacement) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AttachmentPickerButton(
-                isLoading = importing > 0 || fileImporter.isLoading,
+                isLoading = isImporting || fileImporter.isLoading,
                 anchors = attachmentMenuAnchors,
                 lift = composerLift,
                 action = { toggleAttachmentMenu() },
@@ -1520,7 +1521,7 @@ private class SessionViewState {
                 background = control.background,
             )
         }
-        val enabled = !(state.isSubmittingPrompt || (importing > 0 && control == ComposerTrailingControl.send(enabled = true)) || disablesTrailingButton(control))
+        val enabled = !(state.isSubmittingPrompt || (isImporting && control == ComposerTrailingControl.send(enabled = true)) || disablesTrailingButton(control))
         val description = when {
             state.isWaitingForUploads -> "Sending after uploads finish"
             state.isSubmittingPrompt -> "Sending message"
@@ -1606,7 +1607,7 @@ private class SessionViewState {
             }
             Box(
                 Modifier
-                    .clickable(enabled = !controls.isFinishing && canSend && importing == 0, interactionSource = null, indication = null, role = Role.Button) {
+                    .clickable(enabled = !controls.isFinishing && canSend && !isImporting, interactionSource = null, indication = null, role = Role.Button) {
                         messageFieldFocused = true
                         store.send(SessionFeature.Action.dictationSendTapped)
                     }
@@ -1723,14 +1724,14 @@ private class SessionViewState {
     fun startImageImport(sources: List<ComposerImageSource>, onAdded: (() -> Unit)? = null) {
         val sessionID = store.state.session?.id
         attachmentError = null
-        importing += 1
+        isImporting = true
         imageImporter.start(
             sources,
             onAttachment = { attachment ->
                 if (store.state.session?.id == sessionID) store.send(SessionFeature.Action.attachmentAdded(attachment))
             },
             onCompletion = { result ->
-                importing = max(0, importing - 1)
+                isImporting = false
                 if (store.state.session?.id != sessionID) return@start
                 if (result.addedCount > 0) {
                     onAdded?.invoke()
@@ -1906,7 +1907,7 @@ private class SessionViewState {
 
     fun cancelImageImport() {
         imageImporter.cancel()
-        importing = 0
+        isImporting = false
         attachmentError = null
     }
 
