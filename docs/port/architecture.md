@@ -39,7 +39,7 @@ Every product file declares `package ai.opencode.mobilecode`, whatever folder it
 
 ### Files that are not ported yet
 
-- When a ported file needs a type whose Swift home is not ported, port only that type into its home's Kotlin file, at its Swift position, without a marker. `DrawerShortcutLabel` lives in `HomeView.kt` for this reason. The porter of `HomeView.swift` completes the file and adds the marker.
+- When a ported file needs a type whose Swift home is not ported, port only that type into its home's Kotlin file, at its Swift position, with a partial marker: `@file:PortedFrom("OpenCode/HomeView.swift", "553a407", partial = "DrawerShortcutLabel")`. The porter of `HomeView.swift` completes the file and drops `partial`.
 - A test that drives an unported feature stays in its file as `@Ignore("…")` with an empty body that names the file that will port it, like `homeOpensWhatsNewFromItsButton`. The test report lists it as skipped until then.
 
 ## The PortedFrom marker
@@ -52,7 +52,7 @@ A ported Kotlin file starts with the marker, before `package`:
 package ai.opencode.mobilecode
 ```
 
-The path is the iOS file. The commit is the upstream revision that file was last synced against. `scripts/ios-sync.py` reads the markers: `progress` lists ported files, `check` fails on unported, stale, or missing claims, and `plan` and `advance` drive a sync. When you port an upstream change to a file, set its commit to that revision. A file without a marker counts as missing, which is how a partial file like `HomeView.kt` stays visible.
+The path is the iOS file. The commit is the upstream revision that file was last synced against. `scripts/ios-sync.py` reads the markers: `progress` lists ported files, `check` fails on unported, stale, or missing claims, and `plan` and `advance` drive a sync. When you port an upstream change to a file, set its commit to that revision. A marker with `partial = "<what is ported>"` keeps the iOS file counted as unported in `progress` and `check` while still mapping it for `plan`. Never claim a file in full that you ported in part.
 
 ## State
 

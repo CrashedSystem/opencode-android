@@ -1,3 +1,5 @@
+@file:PortedFrom("OpenCode/HomeView.swift", "553a407", partial = "DrawerShortcutLabel")
+
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.SystemColors
