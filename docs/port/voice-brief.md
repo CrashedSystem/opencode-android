@@ -30,18 +30,28 @@ The integration step owns `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveA
 
 ## Integration checklist
 
-The coordinator merges each group into `voice-integration` (from d021b9f) as it lands, runs the full unit suite, and adds what the group leaves open here.
+`voice-integration` holds main's second sync and voice groups 1, 2, 3, 4 and 5b plus the voice wiring (998cb16 without the call bar, Developer Mode call log uploads). It passes 1087 tests with 17 ignored, and `ios-sync check` lists only the voice UI port's files. What is left, in order:
 
-- Group 1 (merged at `9e044f3`): un-ignore the six `RealtimeProtocolTests` cases that need `VoiceCallClient` once group 3 lands. Done at integration: `session.update` now uses `VoiceInstructions.tools`, and `liveInstructionsFollowPromptingGuideTemplate` is ported and passing.
-- Group 1: a WebSocket connect failure after a passing preflight ends the call with "The voice connection was lost." iOS shows the system text of the raw `URLError`. Decide whether to match it.
-- Group 4 (merged at `0737c2c`): un-ignore `abandoningDelegationOnSessionSwitchClearsOpenDelegationBeforeReconnectSeed` once group 3's coordinator harness lands. Group 4 added `VoiceKeyFingerprint` to `SettingsView.kt`; if group 5a adds it too, keep one. Done at integration: the kit's `ImmediateClock` now yields like swift-clocks, so `hangingUpAbandonsVoiceWorkButNotTheServersRun` asserts Swift's order again.
-- Group 5b (merged at `09ff62b`): run `VoiceCallNotificationDeviceTest` on a device, and check there that a denied notification permission hides the notification without blocking the call. Done at integration: its three reducer-dependent `VoiceLiveActivityTests` run and pass, `sync.json` tracks the Dynamic Island as the unported rest, and `deviations.md` has a Voice calls section.
-- Group 3 (merged at `546f141`): port the six empty `RealtimeProtocolTests` stubs that wait for `VoiceCallClient` (`aDelegateResultNeverStartsAReplyWhileTheUserIsTalking`, `aResultThatArrivesMidReplyIsQueuedBehindIt`, `bargeInAfterGenerationEndedStillTruncatesWhatWasHeard`, `bargeInFlushesTruncatesCancelsAndDropsLateAudio`, `bargeInRacesStaySilent`, `abandonedEventStreamHangsUpTheCall`), the empty `abandoningDelegationOnSessionSwitchClearsOpenDelegationBeforeReconnectSeed`, and `TraceTests.marksEachTurnOfACall`. Group 2 must give the lab call its `VoiceCallSounds` call clock, and must not end `start()` inside a `withContext`, or a cancelled caller loses the engine it just started.
-- The second sync (merged into `voice-integration` at `87fa6fe`) left these voice hunks, each a `partial` entry in `sync.json`: the Voice settings page's dot scope preview (494e433), Raise to Talk's toggle and footer (2e313a1) and its detector task in `SessionView`, the GPT-Live socket warmer in `SessionView` and `VoiceKeyFingerprint` in Settings (f3bda52, and group 4 already added one `VoiceKeyFingerprint`), the Diagnostics Voice Calls row and saved-call uploads plus `DeveloperMode.upload(VoiceCallLog)` (494e433, which also renamed `voiceCallUploads` to `developerMode` and `voiceCallUploadOwner` to `developerModeOwner` with the same storage keys), and `HomeFeature`'s handling of the `setPinned` and `openDraft` delegates (5cfc623), which group 4 ported only on the `SessionFeature` side.
-- Upstream moved past d809b1e. Voice commits `998cb16` (weak-connection warning, network log, why calls move) and `e001892` (haptics keep playing while dictation or a call records) must be ported before voice merges into main. Non-voice commits `083cd94`, `8adf650`, `637c1fa`, `4482259`, `f79782d` and `a411d3d` go in the third sync. Vogel's pending fix for GPT-Live answering its own delegations must be ported once it lands.
-- Group 2 (merged at `82b1d04`): `VoiceAudioEngine.start()` returns from inside `withContext(actor)`, so a caller cancelled while the engine starts gets a `CancellationException` and the started engine keeps the microphone and the communication mode with no owner. Swift hands the session back and the coordinator stops it. Stop the engine in `start()` when its result is discarded, and prove it with a test. Barge-in does not flush the `AudioTrack`, so up to its buffer (at least 40 ms) of the reply still plays after the user speaks over it; measure that on a device and flush if it is audible. `bloomArrivalsMatchTheScannersFronts` and `hangUpLandsAsTheSweepReachesEnd` wait for group 5a's `Scan` init. Done at integration: `hangingUpDuringStalledHandshakeStopsRingsAndAudioPromptly` runs and passes, and `HapticsClient.swift` left `sync.json` `partial`.
-- Keep the iOS voice problems in `docs/port/voice-ios-issues.md` out of Android. `voice-audio-fixes` covers the audio side (hang-up during start, pre-roll, barge-in, echo-canceller logging). Integration covers the rest after `voice-wiring` merges. In `VoiceFeature.kt`, fail a delegation that has no new user words instead of making up a request, and keep delegator step notes in the call log instead of sending them to GPT-Live. In `RaiseToEar.kt`, move to the earpiece only after `isHeldUp` and the 350 ms wait. Add each change to the Voice calls section of `deviations.md`, and test each one.
-- Run group 2's `VoiceAudioOnDeviceTest` and group 5b's instrumented test on a device.
-- Port `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveActivityUITests.swift` as on-device flows.
-- Clear the voice entries from `sync.json` `partial` and move the voice markers in `SessionView.kt`, `SettingsView.kt` and `HapticsClient.kt` once the second sync has merged.
-- Place a demo call on the emulator, then one live call each over Realtime and GPT-Live with the key in `~/.config/opencode-android/openai_api_key`.
+1. Merge `voice-ui` (group 5a). Expect conflicts in `SessionView.kt`, which the second sync also changed.
+2. Port onto the redesigned Settings and Diagnostics:
+   - the Voice page's dot scope preview (494e433)
+   - Raise to Talk's toggle and footer (2e313a1)
+   - `VoiceKeyFingerprint` (f3bda52; group 4 already added one in `SettingsView.kt`, so keep one)
+   - the Diagnostics Voice Calls row opening `VoiceCallLogList` (494e433)
+3. Port into `SessionView.kt`: Raise to Talk's detector task (2e313a1), the GPT-Live socket warmer (f3bda52), and 998cb16's weak-connection warning on the call bar (its `VoiceView.swift` hunk).
+4. Enable `CaptionRevealTests` (7 cases) and `VoiceHapticTests`' `bloomArrivalsMatchTheScannersFronts` and `hangUpLandsAsTheSweepReachesEnd`.
+5. Merge `voice-audio-fixes`: hang-up during start, pre-roll, barge-in, and echo-canceller logging. Add its deviations.
+6. Keep the rest of `docs/port/voice-ios-issues.md` out, with a test for each change:
+   - In `VoiceFeature.kt`, fail a delegation that has no new user words instead of making up a request.
+   - Keep delegator step notes in the call log instead of sending them to GPT-Live.
+   - In `RaiseToEar.kt`, move to the earpiece only after `isHeldUp` and the 350 ms wait.
+   - Add each change to the Voice calls section of `deviations.md`.
+7. Port upstream `e001892` (haptics keep playing while dictation or a call records) with `AudioSessionHapticsTests`.
+8. Decide group 1's connect-failure text. A socket that fails to open after a passing preflight ends the call with "The voice connection was lost.", where iOS shows the raw `URLError` text.
+9. On a device:
+   - Run `VoiceAudioOnDeviceTest`, `VoiceCallNotificationDeviceTest` and `VoiceCallLogNetworkOnDeviceTest`.
+   - Check that a denied notification permission hides the notification without blocking the call.
+   - Measure the leftover reply audio after a barge-in.
+   - Port `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveActivityUITests.swift` as on-device flows.
+10. Place the lab demo call (`OPENCODE_LAB_VOICE_DEMO`). Then make one live call each over Realtime and GPT-Live with the key in `~/.config/opencode-android/openai_api_key`, including a delegation. Throttle the network with `adb emu network speed gsm` and check that "Weak connection" shows.
+11. Clear the voice entries from `sync.json` `partial`. `ios-sync check` must pass. Then merge `voice-integration` into main.
