@@ -67,7 +67,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -605,13 +604,11 @@ private fun PushedScreen(onBack: () -> Unit, trailing: (@Composable () -> Unit)?
 /// The leading toolbar slot's back button, over a screen that draws its own bar.
 @Composable
 private fun BackButton(modifier: Modifier, onBack: () -> Unit) {
-    val dark = isSystemInDarkTheme()
     Box(modifier, contentAlignment = Alignment.CenterStart) {
         Box(
             Modifier
                 .heightIn(min = 44.dp)
-                .then(if (dark) Modifier else Modifier.shadow(1.dp, GlassSurface.Capsule))
-                .glassEffect(GlassSurface.Capsule, interactive = true, tint = if (dark) Color.Unspecified else SystemColors.systemBackground)
+                .glassEffect(GlassSurface.Capsule, interactive = true)
                 .clickable(role = Role.Button, onClick = onBack)
                 .padding(horizontal = 16.dp)
                 .semantics { contentDescription = "Back" },

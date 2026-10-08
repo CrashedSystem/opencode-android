@@ -82,7 +82,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -657,7 +656,7 @@ private fun DrawerControls(
         Row(
             Modifier
                 .heightIn(min = 50.dp)
-                .drawerGlass(GlassSurface.Capsule)
+                .glassEffect(GlassSurface.Capsule, interactive = true)
                 .clickable(enabled = !isDisconnected && !searchFocused, role = Role.Button, onClick = onNewSession)
                 .semantics { contentDescription = "New Session" }
                 .padding(horizontal = 18.dp),
@@ -674,7 +673,7 @@ private fun DrawerControls(
         Box(
             Modifier
                 .size(50.dp)
-                .drawerGlass(GlassSurface.Circle)
+                .glassEffect(GlassSurface.Circle, interactive = true)
                 .clickable(enabled = !searchFocused, role = Role.Button, onClick = onSettings)
                 .semantics { contentDescription = "Settings" },
             contentAlignment = Alignment.Center,
@@ -682,15 +681,6 @@ private fun DrawerControls(
             SystemImage("gearshape.fill", contentDescription = null, modifier = Modifier.symbolSize(TextStyles.body), tint = SystemColors.label)
         }
     }
-}
-
-/// `.openCodeGlass(in:interactive: true)` over the drawer: a raised surface
-/// in light, where the white glass would otherwise vanish into the white list.
-@Composable
-private fun Modifier.drawerGlass(shape: androidx.compose.ui.graphics.Shape): Modifier {
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    return then(if (dark) Modifier else Modifier.shadow(1.dp, shape))
-        .glassEffect(shape, interactive = true, tint = if (dark) Color.Unspecified else SystemColors.systemBackground)
 }
 
 /// `ContentUnavailableView("No Sessions", …)` and `.search(text:)`, until the
@@ -1096,8 +1086,7 @@ private fun CatchUpChrome(
                 Text("You’re all caught up", style = TextStyles.title3.semibold, color = SystemColors.label)
                 Box(
                     Modifier
-                        .heightIn(min = 50.dp)
-                        .glassEffect(GlassSurface.rounded(14.dp), interactive = true, tint = SystemColors.tint)
+                        .openCodePrimaryButton()
                         .clickable(role = Role.Button, onClick = onExit)
                         .padding(horizontal = 24.dp)
                         .testTag("catch-up-finished-done"),

@@ -1,7 +1,9 @@
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.LocalGlassBlurEnabled
+import ai.opencode.mobilecode.system.ProcessInfo
 import ai.opencode.mobilecode.system.SystemTheme
+import ai.opencode.mobilecode.system.glassLens
 import ai.opencode.mobilecode.tca.Effect
 import ai.opencode.mobilecode.tca.Reduce
 import ai.opencode.mobilecode.tca.Store
@@ -35,6 +37,9 @@ class SessionLabActivity : ComponentActivity() {
         val batchMs = intent.getIntExtra("batch-ms", 50).toLong()
         val tokensPerBatch = intent.getIntExtra("tokens-per-batch", 3)
         val glassBlur = intent.getBooleanExtra("glass-blur", true)
+        val glassMode = intent.getStringExtra("glass-mode") ?: "baseline"
+        ProcessInfo.processInfo = ProcessInfo(arguments = listOf("-lab-glass", glassMode))
+        Log.i("GlassPerf", "mode=$glassMode lens=$glassLens")
         val base = conversation()
         val store = Store(initialState = { state(base + reply("")) }) {
             // Stands in for the reducer's stream projection: the transcript it accepted.

@@ -32,9 +32,10 @@ fun Modifier.openCodeGlass(
 
 /// Native prominent glass. Keeping this here prevents custom blue rectangles
 /// from drifting away from the platform's interaction and accessibility states.
+/// Disabled, it stays the same glass capsule in gray, like `.glassProminent`.
 @Composable
-fun Modifier.openCodePrimaryButton(): Modifier =
-    heightIn(min = 50.dp).glassEffect(GlassSurface.Capsule, interactive = true, tint = SystemColors.tint)
+fun Modifier.openCodePrimaryButton(enabled: Boolean = true): Modifier =
+    heightIn(min = 50.dp).glassEffect(GlassSurface.Capsule, interactive = true, tint = if (enabled) SystemColors.tint else SystemColors.systemGray)
 
 /// Neutral companion to the primary action.
 @Composable
@@ -53,7 +54,7 @@ fun OpenCodeButton(
 ) {
     Box(
         modifier
-            .then(if (prominent) Modifier.openCodePrimaryButton() else Modifier.openCodeSecondaryButton())
+            .then(if (prominent) Modifier.openCodePrimaryButton(enabled) else Modifier.openCodeSecondaryButton())
             .clickable(enabled = enabled, role = Role.Button, onClick = action)
             .padding(horizontal = 20.dp)
             .widthIn(min = 44.dp),

@@ -12,6 +12,7 @@ junit = "4.13.2"
 robolectric = "4.17"
 turbine = "1.2.1"
 haze = "2.0.1"
+backdrop = "2.0.1"
 roborazzi = "1.76.0"
 camerax = "1.6.2"
 mlkitBarcode = "17.3.0"
@@ -45,6 +46,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
+backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
