@@ -68,7 +68,11 @@
     "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",
     "6eff60f": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the relay URL and the Notify When Done What's New entry wait for it",
     "f2afbb8": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; Settings \u2192 Notifications and its notify plugin check wait for it",
-    "d4cd513": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; notification tap handling lives in the deferred SessionNotifications.swift"
+    "d4cd513": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; notification tap handling lives in the deferred SessionNotifications.swift",
+    "f114a61": "Lab-only tooling: scripts/devbox-test.sh builds and tests the iOS app on the remote Xcode devbox; Android builds with Gradle",
+    "8e88336": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground",
+    "2d19c3a": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground",
+    "e41b067": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground or simulator stream"
   },
   "assets": {
     "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {
