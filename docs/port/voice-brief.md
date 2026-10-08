@@ -40,14 +40,10 @@ The integration step owns `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveA
    - the Diagnostics Voice Calls row opening `VoiceCallLogList` (494e433)
 3. Port into `SessionView.kt`: Raise to Talk's detector task (2e313a1), the GPT-Live socket warmer (f3bda52), and 998cb16's weak-connection warning on the call bar (its `VoiceView.swift` hunk).
 4. Enable `CaptionRevealTests` (7 cases) and `VoiceHapticTests`' `bloomArrivalsMatchTheScannersFronts` and `hangUpLandsAsTheSweepReachesEnd`.
-5. Merge `voice-audio-fixes`: hang-up during start, pre-roll, barge-in, and echo-canceller logging. Add its deviations.
-6. Keep the rest of `docs/port/voice-ios-issues.md` out, with a test for each change:
-   - In `VoiceFeature.kt`, fail a delegation that has no new user words instead of making up a request.
-   - Keep delegator step notes in the call log instead of sending them to GPT-Live.
-   - In `RaiseToEar.kt`, move to the earpiece only after `isHeldUp` and the 350 ms wait.
-   - Add each change to the Voice calls section of `deviations.md`.
-7. Port upstream `e001892` (haptics keep playing while dictation or a call records) with `AudioSessionHapticsTests`.
-8. Decide group 1's connect-failure text. A socket that fails to open after a passing preflight ends the call with "The voice connection was lost.", where iOS shows the raw `URLError` text.
+5. Done: `voice-audio-fixes` merged at `f298db1` with its deviations. Check the reply pacing in the live GPT-Live call's log: on a strict 100 ms pace the pre-roll trades several short cuts for one longer one.
+6. Keep the rest of `docs/port/voice-ios-issues.md` out, with a test for each change. On `voice-delegation`: fail a delegation that has no new user words instead of making up a request, and keep delegator step notes in the call log instead of sending them to GPT-Live. After `voice-ui`: in `RaiseToEar.kt`, move to the earpiece only after `isHeldUp` and the 350 ms wait. Add each change to the Voice calls section of `deviations.md`.
+7. On `voice-delegation`: upstream `e001892` (haptics keep playing while dictation or a call records) with `AudioSessionHapticsTests`.
+8. Done: the connect-failure text stays "The voice connection was lost.", recorded in `deviations.md`.
 9. On a device:
    - Run `VoiceAudioOnDeviceTest`, `VoiceCallNotificationDeviceTest` and `VoiceCallLogNetworkOnDeviceTest`.
    - Check that a denied notification permission hides the notification without blocking the call.
