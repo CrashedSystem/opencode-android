@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "339260d")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.Role
@@ -81,6 +82,7 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -215,24 +217,47 @@ fun TranscriptRule(
     }
 }
 
-/// The tool summary's counts roll like a counter as a live turn grows.
+/// The collapsed Used N row: one line whose counts roll like a counter as a
+/// live turn grows. The tool list truncates before a failure, so "Failed"
+/// stays in view; accessibility sizes wrap it as prose instead.
 @Composable
-private fun ToolUsageSummary(text: String, style: TextStyle, color: Color) {
+private fun ToolGroupLabel(text: String, failed: Boolean, modifier: Modifier = Modifier) {
+    val failure = buildAnnotatedString {
+        append(" · ")
+        withStyle(SpanStyle(color = SystemColors.systemRed)) { append("Failed") }
+    }
+    // iOS's accessibility sizes start past xxxLarge, about 1.35×.
+    if (LocalDensity.current.fontScale > 1.35f) {
+        ToolGroupCounting(if (failed) AnnotatedString(text) + failure else AnnotatedString(text), modifier)
+        return
+    }
+    Row(modifier) {
+        ToolGroupCounting(AnnotatedString(text), Modifier.weight(1f, fill = false).alignByBaseline(), maxLines = 1)
+        if (failed) Text(failure, Modifier.alignByBaseline(), style = TextStyles.body, color = SystemColors.secondaryLabel, maxLines = 1, softWrap = false)
+    }
+}
+
+@Composable
+private fun ToolGroupCounting(label: AnnotatedString, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
     val reducedMotion = LocalReduceMotion.current
-    val digits = style.copy(fontFeatureSettings = "tnum")
+    val digits = TextStyles.body.copy(fontFeatureSettings = "tnum")
+    @Composable
+    fun line(value: AnnotatedString) =
+        Text(value, style = digits, color = SystemColors.secondaryLabel, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
     if (reducedMotion) {
-        Text(text, style = digits, color = color)
+        Box(modifier) { line(label) }
         return
     }
     AnimatedContent(
-        targetState = text,
+        targetState = label,
+        modifier = modifier,
         transitionSpec = {
             (slideInVertically(tween(250)) { it / 2 } + fadeIn(tween(250))) togetherWith
                 (slideOutVertically(tween(250)) { -it / 2 } + fadeOut(tween(250))) using SizeTransform(clip = false)
         },
         label = "tool-usage",
     ) { value ->
-        Text(value, style = digits, color = color)
+        line(value)
     }
 }
 
@@ -340,14 +365,13 @@ object TranscriptEntryView {
         val images = entry.toolImageAttachments
         val summary = toolGroupSummary(tools)
         val label = if (summary.isEmpty()) "Updates" else "Used $summary"
-        val failed = tools.any { item ->
-            (item is OpenCodeTranscriptItem.tool && item.call.status == OpenCodeToolCall.Status.error) ||
-                (item is OpenCodeTranscriptItem.notice && item.isError)
-        }
+        val failed = toolGroupFailed(tools)
         val reducedMotion = LocalReduceMotion.current
         Column(verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp)) {
             // Body size like the prose around it, quieter in grey.
-            Row(
+            ToolGroupLabel(
+                label,
+                failed,
                 Modifier
                     // Laid out as a line of prose; the target takes the row's halves.
                     .rowHitTarget { disclosure.toggle(TranscriptDisclosureState::toolGroups, id, entry.id) }
@@ -355,16 +379,7 @@ object TranscriptEntryView {
                         contentDescription = label
                         stateDescription = (if (isExpanded) "Expanded" else "Collapsed") + (if (failed) ", Failed" else "")
                     },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (summary.isEmpty()) {
-                    Text("Updates", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                } else {
-                    Text("Used", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                    ToolUsageSummary(summary, TextStyles.body, SystemColors.secondaryLabel)
-                }
-                if (failed) Text("Failed", style = TextStyles.body, color = SystemColors.systemRed)
-            }
+            )
 
             if (images.isNotEmpty()) {
                 ToolImageMosaic(images) { selectedID ->
@@ -495,8 +510,16 @@ object TranscriptEntryView {
             counts[call.displayName] = (counts[call.displayName] ?: 0) + 1
         }
         val parts = order.take(3).map { "${counts[it] ?: 0} $it" }
-        return parts.joinToString(", ") + (if (order.size > 3) ", …" else "")
+        return parts.joinToString(", ") + (if (order.size > 3) "…" else "")
     }
+
+    /// Whether any tool or delivered notice in the group failed, which the
+    /// collapsed row keeps in view.
+    fun toolGroupFailed(tools: List<OpenCodeTranscriptItem>): Boolean =
+        tools.any { item ->
+            (item is OpenCodeTranscriptItem.tool && item.call.status == OpenCodeToolCall.Status.error) ||
+                (item is OpenCodeTranscriptItem.notice && item.isError)
+        }
 
     @Composable
     private fun ItemView(

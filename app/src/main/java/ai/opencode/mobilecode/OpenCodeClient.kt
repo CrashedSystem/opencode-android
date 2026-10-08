@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "7fa8e81")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -526,7 +526,8 @@ data class OpenCodeToolCall(
     companion object {
         fun displayName(name: String): String {
             if (name == "bash") return "Shell"
-            val words = name.replace("_", " ").replace("-", " ")
+            val bare = if (name.startsWith("opencode_") && name.length > 9) name.drop(9) else name
+            val words = bare.replace("_", " ").replace("-", " ")
             return words.replaceFirstChar { it.uppercase() }
         }
 

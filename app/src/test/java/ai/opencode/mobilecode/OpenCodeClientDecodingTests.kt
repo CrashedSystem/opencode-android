@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "566a995")
+@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -351,7 +351,7 @@ class OpenCodeClientDecodingTests {
         assertEquals("Edit File?", request("edit", listOf("a.swift")).title)
         assertEquals("Edit 2 Files?", request("edit", listOf("a.swift", "b.swift")).title)
         assertEquals("Access a Folder Outside the Project?", request("external_directory", listOf("/tmp")).title)
-        assertEquals("Allow Opencode read mcp resource?", request("opencode_read_mcp_resource", emptyList()).title)
+        assertEquals("Allow Read mcp resource?", request("opencode_read_mcp_resource", emptyList()).title)
     }
 
     @Test
