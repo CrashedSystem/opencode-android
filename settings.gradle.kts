@@ -31,3 +31,5 @@ plugins {
 
 rootProject.name = "OpenCode"
 include(":app")
+include(":webrtc-loopback")
+project(":webrtc-loopback").projectDir = file("spike/webrtc-loopback")

@@ -1,0 +1,197 @@
+# LiveKit io.github.webrtc-sdk:android:150.7871.01, small_phone (API 36, arm64), 2026-10-08T05:08Z
+
+== udp
+callee connection CONNECTING
+caller connection CONNECTING
+callee connection CONNECTED
+caller connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: UDP and TCP candidates, WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 105 ms after the app delivered it
+tone steady (101 × 40 ms chunks): 440 Hz share 1.0000, level -15.04 dBFS, spread 0.12 dB
+pull: 628 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 102.0/s over the last 3 s; 157 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.25/s; NetEq: concealedSamples 2280 (silent 240), concealmentEvents 2, insertedForDeceleration 698, removedForAcceleration 0, totalSamplesReceived 290880, mean jitter buffer delay 82 ms
+app's own AudioTrack (24 kHz, volume 0): 149856 frames written, head at 145792, underruns 0, short writes 3
+WebRTC's own AudioTrack: 627 buffers written, peak |sample| 0 (muted)
+capture: 61 app chunks of 100 ms delivered, 610 × 10 ms frames taken from the app FIFO; WebRTC started recording 275 ms before the first chunk; stalls 1 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 3.3 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) true, candidates udp 2 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 true, candidates udp 4 tcp 0
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx udp 10.0.2.…:33390 → remote host udp 10.0.2.…:50268
+callee link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=306.0, packetsLost=0.0, samplesReceived=290880.0, samplesConcealed=2280.0, jitter=0.029, outboundLoss=null)
+caller link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp true
+PASS
+caller connection CLOSED
+callee connection CLOSED
+DONE
+== tcp
+callee connection CONNECTING
+caller connection CONNECTING
+caller connection CONNECTED
+callee connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: ICE-TCP only (UDP candidates stripped), WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 40 ms after the app delivered it
+tone steady (102 × 40 ms chunks): 440 Hz share 1.0000, level -15.04 dBFS, spread 0.10 dB
+pull: 631 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 101.9/s over the last 3 s; 157 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.52/s; NetEq: concealedSamples 2280 (silent 0), concealmentEvents 3, insertedForDeceleration 556, removedForAcceleration 0, totalSamplesReceived 290400, mean jitter buffer delay 80 ms
+app's own AudioTrack (24 kHz, volume 0): 149824 frames written, head at 146336, underruns 0, short writes 3
+WebRTC's own AudioTrack: 630 buffers written, peak |sample| 0 (muted)
+capture: 61 app chunks of 100 ms delivered, 610 × 10 ms frames taken from the app FIFO; WebRTC started recording 290 ms before the first chunk; stalls 1 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 3.2 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) true, candidates udp 0 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 true, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx tcp/passive 10.0.2.…:50433 → remote host tcp/passive 10.0.2.…:48409
+callee link: LinkSample(path=tcp, roundTrip=0.0, packetsReceived=306.0, packetsLost=0.0, samplesReceived=290400.0, samplesConcealed=2280.0, jitter=0.029, outboundLoss=null)
+caller link: LinkSample(path=tcp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp true
+PASS
+caller connection CLOSED
+callee connection CLOSED
+DONE
+== apm
+callee connection CONNECTING
+caller connection CONNECTING
+caller connection CONNECTED
+callee connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: UDP and TCP candidates, WebRTC audio processing ON
+tone: sent -15.1 dBFS; first heard 79 ms after the app delivered it
+tone steady (101 × 40 ms chunks): 440 Hz share 0.9999, level -23.46 dBFS, spread 2.71 dB
+pull: 628 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 102.0/s over the last 3 s; 157 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.40/s; NetEq: concealedSamples 1440 (silent 0), concealmentEvents 2, insertedForDeceleration 436, removedForAcceleration 0, totalSamplesReceived 288480, mean jitter buffer delay 80 ms
+app's own AudioTrack (24 kHz, volume 0): 149856 frames written, head at 146336, underruns 0, short writes 3
+WebRTC's own AudioTrack: 627 buffers written, peak |sample| 0 (muted)
+capture: 61 app chunks of 100 ms delivered, 610 × 10 ms frames taken from the app FIFO; WebRTC started recording 187 ms before the first chunk; stalls 0 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 5.5 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) true, candidates udp 0 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 true, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx udp 10.0.2.…:39101 → remote host udp 10.0.2.…:57301
+callee link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=306.0, packetsLost=0.0, samplesReceived=288480.0, samplesConcealed=1440.0, jitter=0.029, outboundLoss=null)
+caller link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone false, pull true, capture true, channel true, path true, warp true
+FAIL
+caller connection CLOSED
+callee connection CLOSED
+DONE
+== chunk20
+callee connection CONNECTING
+caller connection CONNECTING
+caller connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+callee connection CONNECTED
+mode: UDP and TCP candidates, WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 107 ms after the app delivered it
+tone steady (99 × 40 ms chunks): 440 Hz share 1.0000, level -15.04 dBFS, spread 0.09 dB
+pull: 622 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 101.9/s over the last 3 s; 155 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.49/s; NetEq: concealedSamples 1800 (silent 0), concealmentEvents 2, insertedForDeceleration 1080, removedForAcceleration 0, totalSamplesReceived 290880, mean jitter buffer delay 48 ms
+app's own AudioTrack (24 kHz, volume 0): 147936 frames written, head at 143616, underruns 0, short writes 3
+WebRTC's own AudioTrack: 621 buffers written, peak |sample| 0 (muted)
+capture: 301 app chunks of 20 ms delivered, 602 × 10 ms frames taken from the app FIFO; WebRTC started recording 171 ms before the first chunk; stalls 0 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 5.0 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) true, candidates udp 0 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 true, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx udp 10.0.2.…:35298 → remote host udp 10.0.2.…:42420
+callee link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=304.0, packetsLost=0.0, samplesReceived=290880.0, samplesConcealed=1800.0, jitter=0.002, outboundLoss=null)
+caller link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp true
+PASS
+caller connection CLOSED
+callee connection CLOSED
+DONE
+
+# LiveKit, 30 s
+
+== udp
+callee connection CONNECTING
+callee connection CONNECTED
+caller connection CONNECTING
+caller connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: UDP and TCP candidates, WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 98 ms after the app delivered it
+tone steady (701 × 40 ms chunks): 440 Hz share 0.9998, level -15.11 dBFS, spread 0.17 dB
+pull: 3029 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 102.1/s over the last 3 s; 757 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 100.26/s; NetEq: concealedSamples 2934 (silent 240), concealmentEvents 3, insertedForDeceleration 600, removedForAcceleration 0, totalSamplesReceived 1442880, mean jitter buffer delay 87 ms
+app's own AudioTrack (24 kHz, volume 0): 725856 frames written, head at 722432, underruns 0, short writes 3
+WebRTC's own AudioTrack: 3028 buffers written, peak |sample| 0 (muted)
+capture: 301 app chunks of 100 ms delivered, 3010 × 10 ms frames taken from the app FIFO; WebRTC started recording 183 ms before the first chunk; stalls 0 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 1.8 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) true, candidates udp 0 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 true, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx udp 10.0.2.…:59285 → remote host udp 10.0.2.…:56675
+callee link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=1510.0, packetsLost=0.0, samplesReceived=1442880.0, samplesConcealed=2934.0, jitter=0.03, outboundLoss=null)
+caller link: LinkSample(path=udp, roundTrip=0.001, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp true
+PASS
+caller connection CLOSED
+callee connection CLOSED
+DONE
+
+# Stream io.getstream:stream-video-webrtc-android:146.7.0
+
+== udp
+callee connection CONNECTING
+caller connection CONNECTING
+caller connection CONNECTED
+callee connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: UDP and TCP candidates, WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 91 ms after the app delivered it
+tone steady (100 × 40 ms chunks): 440 Hz share 1.0000, level -15.04 dBFS, spread 0.09 dB
+pull: 626 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 102.0/s over the last 3 s; 156 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.11/s; NetEq: concealedSamples 2454 (silent 0), concealmentEvents 4, insertedForDeceleration 120, removedForAcceleration 0, totalSamplesReceived 289440, mean jitter buffer delay 82 ms
+app's own AudioTrack (24 kHz, volume 0): 148864 frames written, head at 145792, underruns 0, short writes 4
+WebRTC's own AudioTrack: 625 buffers written, peak |sample| 0 (muted)
+capture: 61 app chunks of 100 ms delivered, 610 × 10 ms frames taken from the app FIFO; WebRTC started recording 2 ms before the first chunk; stalls 0 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 11.9 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) false, candidates udp 0 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 false, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx udp 10.0.2.…:57574 → remote host udp 10.0.2.…:46687
+callee link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=306.0, packetsLost=0.0, samplesReceived=289440.0, samplesConcealed=2454.0, jitter=0.029, outboundLoss=null)
+caller link: LinkSample(path=udp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp false
+FAIL
+caller connection CLOSED
+callee connection CLOSED
+DONE
+== tcp
+callee connection CONNECTING
+caller connection CONNECTING
+caller connection CONNECTED
+callee connection CONNECTED
+event channel open: caller id 4 'oai-events', callee id 4
+mode: ICE-TCP only (UDP candidates stripped), WebRTC audio processing off
+tone: sent -15.1 dBFS; first heard 101 ms after the app delivered it
+tone steady (101 × 40 ms chunks): 440 Hz share 0.9999, level -15.04 dBFS, spread 0.11 dB
+pull: 628 sink frames of [480] frames ([10] ms), [16-bit 48000 Hz 1ch], 101.9/s over the last 3 s; 157 chunks of 40 ms at 24 kHz handed on
+pull rate over the whole call 101.26/s; NetEq: concealedSamples 2280 (silent 240), concealmentEvents 2, insertedForDeceleration 600, removedForAcceleration 0, totalSamplesReceived 290880, mean jitter buffer delay 82 ms
+app's own AudioTrack (24 kHz, volume 0): 149856 frames written, head at 145792, underruns 0, short writes 3
+WebRTC's own AudioTrack: 627 buffers written, peak |sample| 0 (muted)
+capture: 61 app chunks of 100 ms delivered, 610 × 10 ms frames taken from the app FIFO; WebRTC started recording 3 ms before the first chunk; stalls 0 (while the app was delivering 0); 0 samples dropped; record starts 1, record errors []; active AudioRecord configurations during the call: 0
+event channel: caller→callee {"type":"session.update","session":{"instructions":"loopback"}}; callee→caller {"type":"session.started"}; round trip 2.3 ms
+offer (phone): sctp-init (SNAP) true, goog-sped-v1 (SPED) false, candidates udp 2 tcp 0, opus true
+phone's TCP candidates: []
+answer (service): sctp-init true, goog-sped-v1 false, candidates udp 4 tcp 4
+transport: tlsVersion FEFC dtlsCipher TLS_AES_128_GCM_SHA256 srtpCipher AES_CM_128_HMAC_SHA1_80 dtlsState connected
+phone's selected pair: local prflx tcp/passive 10.0.2.…:55995 → remote host tcp/passive 10.0.2.…:51641
+callee link: LinkSample(path=tcp, roundTrip=0.0, packetsReceived=306.0, packetsLost=0.0, samplesReceived=290880.0, samplesConcealed=2280.0, jitter=0.029, outboundLoss=null)
+caller link: LinkSample(path=tcp, roundTrip=0.0, packetsReceived=0.0, packetsLost=0.0, samplesReceived=0.0, samplesConcealed=0.0, jitter=null, outboundLoss=0.0)
+checks: tone true, pull true, capture true, channel true, path true, warp false
+FAIL
+caller connection CLOSED
+callee connection CLOSED
+DONE
