@@ -1,0 +1,46 @@
+trace: /private/var/folders/fm/46zkyn094pn2cmkjq62skpxr0000gn/T/opencode/glass-perf/session-lab-blur-on.pftrace
+main Choreographer#doFrame: n=907 median=3.6 p90=16.8 p99=21.1 ms
+  depth 0 Choreographer#doFrame                                        total   6552.0 ms  n=902
+  depth 1 traversal                                                    total   5431.9 ms  n=901
+  depth 2 draw-VRI[SessionLabActivity]                                 total   5408.7 ms  n=901
+  depth 3 postAndWait                                                  total   4683.9 ms  n=901
+  depth 1 animation                                                    total   1106.5 ms  n=902
+  depth 3 Record View#draw()                                           total    704.2 ms  n=901
+  depth 2 Recomposer:animation                                         total    613.6 ms  n=902
+  depth 3 AndroidOwner:measureAndLayout                                total    523.7 ms  n=789
+  depth 4 AndroidOwner:draw                                            total    492.8 ms  n=901
+  depth 2 Recomposer:recompose                                         total    462.3 ms  n=902
+  depth 3 Compose:recompose                                            total    345.6 ms  n=1611
+  depth 5 TextAnnotatedStringNode:measure                              total     88.9 ms  n=185
+RenderThread DrawFrames: n=901 median=16.4 p90=18.1 p99=23.4 ms
+  depth 0 DrawFrames                                                   total  14658.1 ms  n=901
+  depth 1 Drawing  0.00  0.00 1080.00 2400.                            total  14558.1 ms  n=901
+  depth 2 eglSwapBuffersWithDamageKHR                                  total  12604.1 ms  n=901
+  depth 3 dequeueBuffer - VRI[SessionLabActivity]#0(BLAST Consumer)    total  10983.6 ms  n=901
+  depth 4 dequeueBuffer                                                total  10972.3 ms  n=901
+  depth 2 flush commands                                               total   1148.5 ms  n=901
+  depth 3 auto skgpu::ganesh::OpsTask::onPrepare(GrOpFlushState *)::(a total    597.8 ms  n=23430
+  depth 4 AtlasTextOp                                                  total    505.1 ms  n=22134
+  depth 3 queueBuffer                                                  total    396.8 ms  n=1802
+  depth 2 flush layers                                                 total    343.2 ms  n=901
+  depth 3 auto skgpu::ganesh::OpsTask::onExecute(GrOpFlushState *)::(a total    342.8 ms  n=23430
+  depth 4 FillRectOp                                                   total    264.9 ms  n=84642
+state RenderThread R        210.7 ms
+state RenderThread R+        49.0 ms
+state RenderThread Running    3641.9 ms
+state RenderThread S      11235.1 ms
+state main         D          0.2 ms
+state main         R        246.7 ms
+state main         R+        10.4 ms
+state main         Running    2258.0 ms
+state main         S      12620.9 ms
+frametimeline Prediction Error, Buffer Stuffing: 896
+frametimeline None: 8
+frametimeline Buffer Stuffing: 6
+frametimeline SurfaceFlinger Scheduling, Buffer Stuffing: 4
+frametimeline SurfaceFlinger CPU Deadline Missed, Buffer Stuffing: 3
+frametimeline Prediction Error, App Deadline Missed, Buffer Stuffing: 2
+frametimeline App Deadline Missed, Buffer Stuffing: 1
+framestats UI thread (SyncQueued - HandleInputStart): n=120 median=3.3 p90=7.0 p99=10.3 ms
+framestats RenderThread (FrameCompleted - SyncStart): n=120 median=15.9 p90=18.6 p99=26.4 ms
+framestats GPU (GpuCompleted - SwapBuffers): n=120 median=4.1 p90=8.5 p99=16.1 ms
