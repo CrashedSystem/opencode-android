@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "8d94632")
+@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "d50ae98")
 
 package ai.opencode.mobilecode
 
@@ -61,8 +61,10 @@ class TranscriptScrollBehavior {
                     viewport = viewport.copy(trailingSpace = positionFloor)
                     commands += Command.setTrailingSpace(positionFloor)
                 }
-                val travelled = dragStartOffsetY?.let { it - viewport.offsetY } ?: 0f
-                if (mode == Mode.following && maxOf(distanceFromBottom(viewport), travelled) > leaveDistance) {
+                // Under a following finger only its own travel leaves: rows arriving
+                // or a follower still gliding put the end farther off, not the reader.
+                val leaving = dragStartOffsetY?.let { it - viewport.offsetY } ?: distanceFromBottom(viewport)
+                if (mode == Mode.following && leaving > leaveDistance) {
                     mode = Mode.browsing
                     commands += Command.showJumpButton(true)
                 }

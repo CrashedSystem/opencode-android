@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "8d94632", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "d50ae98", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -816,7 +816,9 @@ class TranscriptListViewController(
 
     /// Held space lets go when a turn ends: the reader glides down onto the end.
     private fun releaseHeldSpace() {
-        if (trailingSpace <= 0f || behavior.mode != TranscriptScrollBehavior.Mode.following || !hasLaidOutContent) return
+        // Under a finger, letting go would clamp the list beneath it; the drag
+        // settling releases it instead (`settleUserScroll`).
+        if (trailingSpace <= 0f || behavior.mode != TranscriptScrollBehavior.Mode.following || !hasLaidOutContent || isUserScrolling) return
         val held = trailingSpace
         val atEnd = remainingScroll()?.let { it <= 0.5f * density } == true
         execute(listOf(TranscriptScrollBehavior.Command.setTrailingSpace(0f)))

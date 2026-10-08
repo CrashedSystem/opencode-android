@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "8d94632")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "d50ae98")
 
 package ai.opencode.mobilecode
 
@@ -287,6 +287,36 @@ class TranscriptScrollBehaviorTests {
         val resting = viewport(1_040f, 1_560f, 600f, 80f, false)
         assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, true)).isEmpty())
         assertEquals(TranscriptScrollBehavior.Mode.browsing, behavior.mode)
+    }
+
+    @Test
+    fun rowsArrivingUnderAFollowingFingerDoNotLeaveTheBottom() {
+        val behavior = TranscriptScrollBehavior()
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_180f, 1_500f, 320f)))
+        // More than the leave distance arrives below while the finger barely
+        // moves: the reader stays following, and no jump button flashes.
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userScrolled(viewport(1_170f, 1_640f, 320f))).isEmpty())
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
+        val resting = viewport(1_150f, 1_640f, 600f, 110f, false)
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.scrollToBottom(false)),
+            behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, true)),
+        )
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
+    }
+
+    @Test
+    fun aFollowerFarBehindAStreamIsNotLeftByALandingFinger() {
+        val behavior = TranscriptScrollBehavior()
+        // The finger lands while the end is 300 pt ahead of the follower.
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_200f, 2_000f, 500f)))
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userScrolled(viewport(1_195f, 2_000f, 500f))).isEmpty())
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
+        // Carried 150 pt up by the finger itself, it leaves.
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.showJumpButton(true)),
+            behavior.handle(TranscriptScrollBehavior.Event.userScrolled(viewport(1_050f, 2_000f, 500f))),
+        )
     }
 
     @Test
