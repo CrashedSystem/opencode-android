@@ -1,6 +1,5 @@
 package ai.opencode.mobilecode.system
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,8 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -165,12 +162,10 @@ private fun NavigationBar(bar: NavigationBarState) {
 private fun ToolbarSlot(item: ToolbarEntry) {
     val style = if (item.placement == ToolbarItemPlacement.confirmationAction) TextStyles.headline else TextStyles.body
     CompositionLocalProvider(LocalContentColor provides SystemColors.label, LocalTextStyle provides style) {
-        val dark = isSystemInDarkTheme()
         Box(
             Modifier
                 .heightIn(min = 44.dp)
-                .then(if (dark) Modifier else Modifier.shadow(1.dp, GlassSurface.Capsule))
-                .glassEffect(GlassSurface.Capsule, interactive = true, tint = if (dark) Color.Unspecified else SystemColors.systemBackground)
+                .glassEffect(GlassSurface.Capsule, interactive = true)
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
