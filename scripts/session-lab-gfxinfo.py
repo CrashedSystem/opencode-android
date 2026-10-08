@@ -63,7 +63,7 @@ def wait_for(device, pattern, timeout):
     raise SystemExit(f"timed out waiting for {pattern!r}")
 
 
-def run(device, stream_ms, start_delay_ms, glass_blur=True, scroll_trace=False):
+def run(device, stream_ms, start_delay_ms, glass_blur=True, scroll_trace=False, glass_mode="baseline"):
     adb(device, "shell", "am", "force-stop", PACKAGE)
     adb(device, "logcat", "-c")
     adb(
@@ -72,6 +72,7 @@ def run(device, stream_ms, start_delay_ms, glass_blur=True, scroll_trace=False):
         "--ei", "start-delay-ms", str(start_delay_ms),
         "--ez", "lab-scroll-trace", "true" if scroll_trace else "false",
         "--ez", "glass-blur", "true" if glass_blur else "false",
+        "--es", "glass-mode", glass_mode,
     )
     # Let the first frames settle, then measure only the stream.
     time.sleep(max(0, start_delay_ms / 1000 - 1.5))
@@ -91,6 +92,7 @@ def run(device, stream_ms, start_delay_ms, glass_blur=True, scroll_trace=False):
         "characters": int(finished.group(4)),
         "trace": finished.group(5).strip(),
         "errors": crashes.count("FATAL EXCEPTION") + (0 if alive else 1),
+        "glass_mode_log": adb(device, "logcat", "-d", "-s", "GlassPerf:I").strip(),
     }
 
 
@@ -101,17 +103,37 @@ def main():
     parser.add_argument("--stream-ms", type=int, default=20_000)
     parser.add_argument("--start-delay-ms", type=int, default=5_000)
     parser.add_argument("--compare-glass-blur", action="store_true", help="alternate runs with and without the glass blur")
+    parser.add_argument("--mode", default="baseline", help="glass-mode extra: baseline, scale, tight, backdrop, shared, shared50, sharedhold")
+    parser.add_argument("--compare-mode", action="store_true", help="alternate --mode with baseline, both with blur on")
     parser.add_argument("--scroll-trace", action="store_true", help="check the follower on device; adds per-frame work, so do not report its timings")
     args = parser.parse_args()
+    sides = 2 if args.compare_glass_blur or args.compare_mode else 1
     results = []
-    for index in range(args.runs * (2 if args.compare_glass_blur else 1)):
+    for index in range(args.runs * sides):
         blur = not (args.compare_glass_blur and index % 2 == 1)
-        result = run(args.device, args.stream_ms, args.start_delay_ms, glass_blur=blur, scroll_trace=args.scroll_trace)
+        mode = args.mode
+        if args.compare_mode and index % 2 == 1:
+            mode = "baseline"
+        result = run(
+            args.device, args.stream_ms, args.start_delay_ms,
+            glass_blur=blur, scroll_trace=args.scroll_trace, glass_mode=mode,
+        )
         result["glass_blur"] = blur
+        result["glass_mode"] = mode
+        if f"mode={mode} " not in result["glass_mode_log"]:
+            result["errors"] += 1
         results.append(result)
         print(json.dumps({"run": index + 1, **result}), flush=True)
-    for blur in (True, False) if args.compare_glass_blur else (True,):
-        print(json.dumps({"glass_blur": blur, **summarize([r for r in results if r["glass_blur"] == blur])}))
+    groups = []
+    if args.compare_glass_blur:
+        groups = [(True, args.mode), (False, args.mode)]
+    elif args.compare_mode:
+        groups = [(True, args.mode), (True, "baseline")]
+    else:
+        groups = [(True, args.mode)]
+    for blur, mode in groups:
+        matched = [r for r in results if r["glass_blur"] == blur and r["glass_mode"] == mode]
+        print(json.dumps({"glass_blur": blur, "glass_mode": mode, **summarize(matched)}))
 
 
 def summarize(results):

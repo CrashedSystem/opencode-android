@@ -1,0 +1,4 @@
+-keep class ai.opencode.mobilecode.SessionLabActivity { *; }
+-keep class ai.opencode.mobilecode.system.SystemCatalogActivity { *; }
+-keep class ai.opencode.mobilecode.HomeLabActivity { *; }
+-keep class ai.opencode.mobilecode.CameraSurfacesActivity { *; }
