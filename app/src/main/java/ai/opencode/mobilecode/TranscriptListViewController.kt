@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "d50ae98", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "db181ef", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -627,6 +627,12 @@ class TranscriptListViewController(
             oldItems = oldItems,
             isLive = !isInitial && previousConfiguration != null && hasLaidOutContent && now() >= arrivalsGlideAfter,
         )
+        // Many rows at once at the end (a refresh after time away, a reconnect,
+        // a remembered session's snapshot catching up) are a catch-up, not
+        // arrivals: a following reader lands on the new end instead of gliding
+        // through rows that self-size as they pass.
+        val insertedMessages = newItemSet.count { it is ItemID.message && !oldItems.contains(it) }
+        if (!isInitial && appendedEntry && insertedMessages > RowEntrance.maximumRows) landArrivals()
         val promoted = !reduceMotion && identityPlan.promotedEntryIDs.isNotEmpty()
         // Rows that join the end of a transcript already on screen fade in: after
         // the last entry the reader already had (Working and pending messages
@@ -710,6 +716,13 @@ class TranscriptListViewController(
             rows = rows,
             inserted = ids.filter { !previousIDs.contains(it) },
         )
+    }
+
+    /// Arrivals land rather than glide for the opening settle's length, so the
+    /// tail's self-sizing after a catch-up lands too.
+    private fun landArrivals() {
+        if (springActive && (springKind == SpringKind.arrival || springKind == SpringKind.settle)) stopBottomSpring()
+        arrivalsGlideAfter = max(arrivalsGlideAfter, now() + (BottomSpring.openingSettle * 1e9).toLong())
     }
 
     /// The browsing row to hold in place, captured before the rows change.
