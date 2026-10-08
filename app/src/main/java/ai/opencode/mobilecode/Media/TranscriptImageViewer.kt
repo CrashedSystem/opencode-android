@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Media/TranscriptImageViewer.swift", "8adf650")
+@file:PortedFrom("OpenCode/Media/TranscriptImageViewer.swift", "74bd186")
 
 package ai.opencode.mobilecode
 
@@ -42,15 +42,19 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.launch
 
 /// Transcript images, full screen: swipe between them, pinch or double-tap
@@ -75,7 +79,9 @@ fun TranscriptImageViewer(preview: TranscriptImagePreview, viewer: MediaViewerSt
                     image = page.image,
                     label = page.label,
                     isSelected = selectedID == page.id,
+                    isHidden = viewer.mediaHidden && selectedID == page.id,
                     onZoomChange = { zoomed -> if (selectedID == page.id) viewer.isZoomed = zoomed },
+                    onFrame = { viewer.mediaFrames[page.id] = it },
                 )
             }
             if (preview.pages.size > 1) {
@@ -116,15 +122,19 @@ fun TranscriptImageViewer(preview: TranscriptImagePreview, viewer: MediaViewerSt
     }
 }
 
-/// One image filling the screen. Pinch or double-tap zooms; a zoomed image
-/// pans with a drag.
+/// One image fitted to its page, reporting where so the viewer's flight
+/// lands on it. Pinch or double-tap zooms; a zoomed image pans with a drag.
 @Composable
 fun ZoomableImagePage(
     image: androidx.compose.ui.graphics.ImageBitmap,
     label: String,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
+    /// The flight above draws it for now.
+    isHidden: Boolean = false,
     onZoomChange: (Boolean) -> Unit = {},
+    /// Where the fitted image sits, unzoomed, in the viewer's coordinates.
+    onFrame: (Rect) -> Unit = {},
 ) {
     val reducedMotion = LocalReduceMotion.current
     val scope = rememberCoroutineScope()
@@ -142,6 +152,10 @@ fun ZoomableImagePage(
     Box(
         modifier
             .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                val frame = Rect(coordinates.positionInRoot(), coordinates.size.toSize())
+                onFrame(MediaViewerController.fitted(image.width.toFloat(), image.height.toFloat(), frame))
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -185,6 +199,7 @@ fun ZoomableImagePage(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
+                    alpha = if (isHidden) 0f else 1f
                     scaleX = scale.value
                     scaleY = scale.value
                     translationX = offset.value.x

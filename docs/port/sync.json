@@ -47,7 +47,8 @@
   },
   "deferred": {
     "OpenCode/SessionNotifications.swift": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay",
-    "OpenCode/GlassMorphTrace.swift": "Lab instrumentation for the iOS UI tests that walks Liquid Glass's CASDFElementLayer layers; Compose draws the morphing glass from its own animated frame, and no Android lab test reads a glass trace yet"
+    "OpenCode/GlassMorphTrace.swift": "Lab instrumentation for the iOS UI tests that walks Liquid Glass's CASDFElementLayer layers; Compose draws the morphing glass from its own animated frame, and no Android lab test reads a glass trace yet",
+    "OpenCode/Media/MediaTransitionTrace.swift": "Lab instrumentation for the iOS UI tests (-lab-media-trace publishes each flight phase's frames, radius, backdrop, and thumbnail visibility as the media-trace element's value); no Android lab test reads a media trace yet"
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",

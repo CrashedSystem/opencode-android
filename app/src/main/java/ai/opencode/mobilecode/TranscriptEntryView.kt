@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "8adf650")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "74bd186")
 
 package ai.opencode.mobilecode
 
@@ -1010,13 +1010,33 @@ private fun MosaicTile(images: List<OpenCodeImageAttachment>, index: Int, width:
         // The last tile also stands in for the images behind its “+N”.
         val ids = if (index == 2) images.drop(2).map { it.id } else listOf(attachment.id)
         CachedImage.decoded(attachment.id, attachment.data)?.let { image ->
-            MediaThumbnail(image = image, ids = ids, modifier = Modifier.size(width.dp, height.dp))
+            MediaThumbnail(
+                image = image,
+                ids = ids,
+                modifier = Modifier.size(width.dp, height.dp),
+                cornerRadius = TranscriptMetrics.cardCornerRadius.dp,
+                corners = mosaicCorners(images.size, index),
+            )
         }
-        if (index == 2 && images.size > 3) {
+        if (index == 2 && images.size > 3 && !MediaZoomSources.shared.isHidden(ids)) {
             Box(Modifier.size(width.dp, height.dp).background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
                 Text("+${images.size - 3}", style = TextStyles.title2.semibold, color = Color.White)
             }
         }
+    }
+}
+
+/// A tile rounds only the collage's own corners, so a flight from it
+/// starts and lands on the shape it has in the collage.
+private fun mosaicCorners(count: Int, index: Int): Set<CACornerMask> {
+    val leading = setOf(CACornerMask.layerMinXMinYCorner, CACornerMask.layerMinXMaxYCorner)
+    return when {
+        count == 1 -> CACornerMask.all
+        count == 2 && index == 0 -> leading
+        count == 2 -> setOf(CACornerMask.layerMaxXMinYCorner, CACornerMask.layerMaxXMaxYCorner)
+        index == 0 -> leading
+        index == 1 -> setOf(CACornerMask.layerMaxXMinYCorner)
+        else -> setOf(CACornerMask.layerMaxXMaxYCorner)
     }
 }
 
@@ -1056,7 +1076,7 @@ fun MarkdownImage(
                 .semantics { contentDescription = "Open ${alt.ifEmpty { "image" }}" },
             contentAlignment = Alignment.Center,
         ) {
-            MediaThumbnail(image = loaded, ids = listOf(cacheKey), fits = true, maxHeight = 360.dp)
+            MediaThumbnail(image = loaded, ids = listOf(cacheKey), fits = true, maxHeight = 360.dp, cornerRadius = TranscriptMetrics.cardCornerRadius.dp)
         }
         failed -> Row(
             Modifier

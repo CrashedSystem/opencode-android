@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "4482259", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "74bd186", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
 
 package ai.opencode.mobilecode
 
@@ -1237,7 +1237,11 @@ private class SessionViewState {
                     store = store,
                     scrollEdgeBridge = scrollEdgeBridge,
                     dismissKeyboard = { messageFieldFocused = false },
-                    onPreviewImage = ::presentImage,
+                    onPreviewImage = { preview ->
+                        // The keyboard would stay up over the image.
+                        messageFieldFocused = false
+                        presentImage(preview)
+                    },
                     onOpenFile = { file ->
                         messageFieldFocused = false
                         presentFile(file)

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AgentFiles/AgentFileViewer.swift", "8adf650")
+@file:PortedFrom("OpenCode/AgentFiles/AgentFileViewer.swift", "74bd186")
 
 package ai.opencode.mobilecode
 
@@ -395,7 +395,9 @@ private fun AgentFileBody(
                     label = reference.name,
                     isSelected = true,
                     modifier = modifier.semantics { testTag = "agent-file-image" },
+                    isHidden = isRoot && viewer?.mediaHidden == true,
                     onZoomChange = { viewer?.isZoomed = it },
+                    onFrame = { frame -> if (isRoot) viewer?.mediaFrames?.set(reference.zoomSourceID, frame) },
                 )
                 DisposableEffect(content.image) {
                     if (isRoot) viewer?.show(sourceID = reference.zoomSourceID, image = content.image)

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/MediaDismissDragTests.swift", "8adf650")
+@file:PortedFrom("OpenCodeTests/MediaDismissDragTests.swift", "74bd186")
 
 package ai.opencode.mobilecode
 
@@ -21,6 +21,20 @@ class MediaDismissDragTests {
         expect(drag.scale(at = 2000.0) == MediaDismissDrag.minimumScale)
         expect(drag.scale(at = -100.0) == 1.0)
         expect(drag.backdropAlpha(at = -100.0) == 1.0)
+    }
+
+    @Test
+    fun roundsTowardTheThumbnailWithTheScale() {
+        expect(drag.cornerRadius(at = 0.0, toward = 14.0) == 0.0)
+        expect(drag.cornerRadius(at = 225.0, toward = 14.0) == 7.0)
+        expect(drag.cornerRadius(at = 450.0, toward = 14.0) == 14.0)
+        expect(drag.cornerRadius(at = 2000.0, toward = 14.0) == 14.0)
+        expect(drag.cornerRadius(at = -50.0, toward = 14.0) == 0.0)
+        // The radius follows the scale, so where the image is, its shape is too.
+        for (distance in listOf(0.0, 60.0, 180.0, 300.0, 450.0)) {
+            val shrunk = (1 - drag.scale(at = distance)) / (1 - MediaDismissDrag.minimumScale)
+            expect(abs(drag.cornerRadius(at = distance, toward = 20.0) - 20 * shrunk) < 0.0001)
+        }
     }
 
     @Test

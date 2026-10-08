@@ -66,11 +66,11 @@ class MediaPresentationTests {
     fun theThumbnailLeavesTheTranscriptWhileItsImageIsUp() {
         present()
         expect(MediaPresenter.presented != null)
-        expect(thumbnail?.alpha == 0f)
+        expect(thumbnail?.isHidden == true)
         compose.onNodeWithContentDescription("Close image").performClick()
         compose.waitForIdle()
         expect(MediaPresenter.presented == null)
-        expect(thumbnail?.alpha == 1f)
+        expect(thumbnail?.isHidden == false)
     }
 
     @Test
