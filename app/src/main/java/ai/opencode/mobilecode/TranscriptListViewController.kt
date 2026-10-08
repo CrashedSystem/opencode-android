@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "db181ef", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "3804368", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -445,11 +445,12 @@ class TranscriptListViewController(
         dismissKeyboard()
     }
 
-    /// The reader's scroll came to rest. Back at the bottom with nothing
-    /// running, space held under their drag lets go.
+    /// The reader's scroll came to rest. Back at the bottom, space held under
+    /// their drag (the keyboard leaving) lets go, even mid-run: blank space
+    /// under the end would otherwise wait for the reply to fill it.
     private fun settleUserScroll(contentArrived: Boolean) {
         handleBehavior(TranscriptScrollBehavior.Event.userSettled(viewport(), contentArrived = contentArrived))
-        if (behavior.mode == TranscriptScrollBehavior.Mode.following && !configuration.isRunning) releaseHeldSpace()
+        if (behavior.mode == TranscriptScrollBehavior.Mode.following) releaseHeldSpace()
     }
 
     /// Every layout pass the list completes: the reader's scrolls (drags,
@@ -721,7 +722,7 @@ class TranscriptListViewController(
     /// Arrivals land rather than glide for the opening settle's length, so the
     /// tail's self-sizing after a catch-up lands too.
     private fun landArrivals() {
-        if (springActive && (springKind == SpringKind.arrival || springKind == SpringKind.settle)) stopBottomSpring()
+        if (springActive && springKind != SpringKind.keyboard && springKind != SpringKind.jump) stopBottomSpring()
         arrivalsGlideAfter = max(arrivalsGlideAfter, now() + (BottomSpring.openingSettle * 1e9).toLong())
     }
 
@@ -784,6 +785,13 @@ class TranscriptListViewController(
     /// After the layout that follows an update: the reader's scroll mode
     /// answers what changed, and the follower moves only a following reader.
     private fun finishApply(change: PendingApply, becameLayoutReady: Boolean) {
+        // More than a screen at once (one turn's long reply after time away)
+        // lands like many rows do.
+        if (change.appended && hasLaidOutContent && !becameLayoutReady &&
+            estimatedContentHeight() - change.contentHeightBefore > listState.layoutInfo.viewportSize.height
+        ) {
+            landArrivals()
+        }
         val grew = estimatedContentHeight() > change.contentHeightBefore + 0.5f * density
         if (isUserScrolling && (change.appended || grew)) contentArrivedDuringDrag = true
         // A following reader is moved by the follower alone.
@@ -817,6 +825,13 @@ class TranscriptListViewController(
         if (behavior.mode != TranscriptScrollBehavior.Mode.following || offsetPastEnd() <= 0.5f * density) return
         if (springActive && (springKind == SpringKind.keyboard || springKind == SpringKind.jump)) return
         val keyboardMoving = keyboardIsMoving() || pinnedGeometry?.let { it.height != currentPinGeometry.height } == true
+        if (!keyboardMoving && now() < arrivalsGlideAfter) {
+            // Opening or catching up: the rows are settling, so land.
+            stopBottomSpring()
+            landAtEnd()
+            pinnedGeometry = currentPinGeometry
+            return
+        }
         if (configuration.isRunning && !keyboardMoving) {
             handleBehavior(TranscriptScrollBehavior.Event.endShrank(viewport()))
         } else if (!reduceMotion) {

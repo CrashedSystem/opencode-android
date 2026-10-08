@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "d50ae98")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "3804368")
 
 package ai.opencode.mobilecode
 
@@ -385,6 +385,55 @@ class TranscriptScrollBehaviorTests {
             behavior.handle(TranscriptScrollBehavior.Event.contentChanged(800f, false, top, true)),
         )
         assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userScrolled(top)).contains(TranscriptScrollBehavior.Command.requestEarlierHistory))
+    }
+
+    @Test
+    fun rowsArrivingBelowABrowsingReaderNeitherMoveThemNorRearmPaging() {
+        val behavior = TranscriptScrollBehavior()
+        behavior.handle(TranscriptScrollBehavior.Event.userLeftBottom)
+        val top = viewport(300f, 2_000f, 500f)
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userScrolled(top)).contains(TranscriptScrollBehavior.Command.requestEarlierHistory))
+        // A catch-up lands below; the reader's row did not move (the list
+        // passes only the anchor's own delta, not UIKit's offset shift).
+        val grown = viewport(300f, 4_000f, 500f)
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.contentChanged(0f, true, grown, true)).isEmpty())
+        assertFalse(
+            "One request per approach",
+            behavior.handle(TranscriptScrollBehavior.Event.userScrolled(grown)).contains(TranscriptScrollBehavior.Command.requestEarlierHistory),
+        )
+    }
+
+    @Test
+    fun anAssistiveScrollJustAboveTheBottomLeavesIt() {
+        val behavior = TranscriptScrollBehavior()
+        // VoiceOver scrolls 80 pt up: no drag, so no drag start.
+        val up = viewport(1_420f, 2_000f, 500f, canRequestEarlierHistory = false)
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userScrolled(up)).isEmpty())
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.showJumpButton(true)),
+            behavior.handle(TranscriptScrollBehavior.Event.userSettled(up, false)),
+        )
+        assertEquals(TranscriptScrollBehavior.Mode.browsing, behavior.mode)
+    }
+
+    @Test
+    fun aFollowingReaderResolvesHeldKeyboardSpaceMidRun() {
+        val behavior = TranscriptScrollBehavior()
+        // The drag that dismisses the keyboard holds 280 pt under the reader; it
+        // rests at the end of that space, still following, so the list lets
+        // the space go (running or not) and the end comes back up.
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_180f, 1_500f, 320f)))
+        val grown = viewport(1_182f, 1_500f, 600f, canRequestEarlierHistory = false).copy(isUserScrolling = true)
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.setTrailingSpace(282f)),
+            behavior.handle(TranscriptScrollBehavior.Event.layoutChanged(grown)),
+        )
+        val resting = viewport(1_182f, 1_500f, 600f, 282f, false)
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.scrollToBottom(false)),
+            behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, false)),
+        )
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
     }
 
     @Test

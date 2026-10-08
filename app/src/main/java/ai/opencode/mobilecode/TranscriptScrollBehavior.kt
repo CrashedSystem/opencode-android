@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "d50ae98")
+@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "3804368")
 
 package ai.opencode.mobilecode
 

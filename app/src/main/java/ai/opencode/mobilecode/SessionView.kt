@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "8d94632", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
+@file:PortedFrom("OpenCode/SessionView.swift", "3804368", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
 
 package ai.opencode.mobilecode
 
@@ -1670,11 +1670,38 @@ private class SessionViewState {
             if (hasActivity || hasQueued) {
                 ViewThatFits(
                     {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (hasActivity) BackgroundActivity()
-                            Spacer(Modifier.weight(1f))
-                            if (hasQueued) QueuedActivity()
-                            if (showsJumpButton) JumpToLatestButton()
+                        // Measured with the jump button's slot always taken, so its
+                        // coming and going never switches the layout (and the insets).
+                        Box {
+                            Row(
+                                Modifier.alpha(0f).clearAndSetSemantics {},
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (hasActivity) {
+                                    BackgroundWorkCapsuleLabel(
+                                        summary = BackgroundWorkPanel.summary(store.observe { activeSubagents }, store.observe { backgroundShells }),
+                                        activity = AgentActivitySource.summary(
+                                            agents = store.state.activeSubagents,
+                                            shells = store.state.backgroundShells,
+                                            waiting = store.state.waitingSessionIDs,
+                                        ),
+                                    )
+                                }
+                                Spacer(Modifier.weight(1f))
+                                if (hasQueued) {
+                                    ComposerPillLabel(title = "${queuedMessages().size} queued") {
+                                        SystemImage("text.bubble", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.label)
+                                    }
+                                }
+                                Spacer(Modifier.size(44.dp))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (hasActivity) BackgroundActivity()
+                                Spacer(Modifier.weight(1f))
+                                if (hasQueued) QueuedActivity()
+                                if (showsJumpButton) JumpToLatestButton()
+                            }
                         }
                     },
                     {
