@@ -18,6 +18,14 @@ The rendering differs from the library in these ways:
 - While a reply streams in, lines above the last two keep their breaks, so new tokens do not move text the user is reading. A paragraph that is drawn again later solves from scratch and can break differently.
 - An opening quote hangs about half as far as the library places it on Android 14 and earlier, and not at all on Android 15 and later, which draw only the half of a line's first letter spacing that falls inside the line. Compose letter spacing cannot move one glyph left of the line start. From the line's first gap on, the text sits where the engine put it.
 
+## Shared locations
+
+The + menu's Location (upstream 083cd94) sends the same `<shared-location>` block as iOS, so either app reads a location the other sent.
+
+- The card draws no map. iOS renders a MapKit snapshot. Android has no system map renderer, and a map SDK needs an API key the app does not have, so the card keeps the placeholder iOS shows until its snapshot loads: the fill and the red pin.
+- A tap opens the phone's maps app through a `geo:` link, and the Apple Maps link only when nothing handles `geo:`. The block's `Map:` line stays the Apple Maps link.
+- The address comes from Android's `Geocoder` without the country, and `Address.featureName` stands in for MapKit's place name. A phone without a geocoder shares the coordinates alone.
+
 ## Features not on Android yet
 
 - **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at d809b1e shows that row; the parity review should expect its absence.

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "494e433")
+@file:PortedFrom("OpenCodeTests/SessionFeatureTests.swift", "083cd94")
 
 package ai.opencode.mobilecode
 
@@ -19,6 +19,7 @@ import ai.opencode.mobilecode.tca.withLock
 import android.graphics.Bitmap
 import java.io.ByteArrayOutputStream
 import java.time.Instant
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -4386,3 +4387,77 @@ fun OpenCodeToolCall.Companion.test(
     error = null,
     metadata = emptyMap(),
 )
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class SharedLocationTests {
+    @get:Rule
+    val dependencies = TestDependencies()
+
+    private val spot = SharedLocation(
+        latitude = 37.3349, longitude = -122.00902, accuracy = 12.4,
+        place = "Apple Park", address = "1 Apple Park Way, Cupertino, CA 95014",
+        capturedAt = Instant.ofEpochSecond(1_800_000_000),
+    )
+
+    @Test
+    fun theBlockReadsPlainlyAndParsesBack() {
+        val prompt = spot.prompt(with = "Find me coffee nearby")
+        expect(prompt.startsWith("<shared-location>\nPlace: Apple Park\nAddress: 1 Apple Park Way, Cupertino, CA 95014\nCoordinates: 37.334900, -122.009020\nAccuracy: ±12 m"))
+        expect(prompt.contains("Map: https://maps.apple.com/?ll=37.334900,-122.009020"))
+        val parsed = requireNotNull(SharedLocation.parse(prompt))
+        expect(parsed.remainder == "Find me coffee nearby")
+        expect(parsed.location.place == "Apple Park")
+        expect(parsed.location.address == spot.address)
+        expect(abs(parsed.location.latitude - 37.3349) < 1e-6)
+        expect(parsed.location.capturedAt == spot.capturedAt)
+        expect(SharedLocation.parse("Coordinates: 1, 2") == null)
+    }
+
+    @Test
+    fun theTranscriptShowsTheCardAndOnlyTheTypedText() {
+        val message = TranscriptUserMessage(id = "msg_1", text = spot.prompt(with = "Here"), images = emptyList(), files = emptyList(), pending = null)
+        expect(message.location?.place == "Apple Park")
+        expect(message.displayText == "Here")
+    }
+
+    @Test
+    fun locationAttachesThenSendsAtTheTopOfThePrompt() {
+        val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
+        val session = OpenCodeSession(id = "ses_loc", title = "Loc", projectID = "p", directory = "/tmp", updatedAt = distantPast)
+        val state = SessionFeature.State(server = server, session = session, cachedItems = emptyList())
+        state.draft = "Where am I?"
+        val sent = mutableListOf<String>()
+        val spot = spot
+        val store = TestStore(initialState = { state }, withDependencies = {
+            it.uuid = UUIDGenerator.incrementing()
+            it.location.current = { spot }
+            it.openCodeClient.sendPrompt = { _, _, text, _, _, _, _ -> sent += text }
+        }) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(Action.locationTapped) { it.isLocating = true }
+        store.receive<Action.locationResponse> {
+            it.isLocating = false
+            it.pendingLocation = spot
+        }
+        expect(store.state.canSendPrompt)
+        store.send(Action.sendTapped)
+        store.skipInFlightEffects()
+        expect(store.state.pendingLocation == null)
+        expect(sent == listOf(spot.prompt(with = "Where am I?")))
+    }
+
+    @Test
+    fun deniedLocationExplainsItself() {
+        val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
+        val session = OpenCodeSession(id = "ses_denied", title = "Denied", projectID = "p", directory = "/tmp", updatedAt = distantPast)
+        val store = TestStore(initialState = { SessionFeature.State(server = server, session = session, cachedItems = emptyList()) }, withDependencies = {
+            it.location.current = { throw LocationClientError.denied }
+        }) { SessionFeature() }
+        store.exhaustivity = Exhaustivity.off(showSkippedAssertions = false)
+        store.send(Action.locationTapped)
+        store.receive<Action.locationResponse>()
+        expect(store.state.pendingLocation == null)
+        expect(store.state.locationError == LocationClientError.denied.message)
+    }
+}

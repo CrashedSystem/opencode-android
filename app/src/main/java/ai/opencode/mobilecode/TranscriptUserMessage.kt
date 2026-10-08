@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "ebb011d")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "083cd94")
 
 package ai.opencode.mobilecode
 
@@ -76,6 +76,10 @@ data class TranscriptUserMessage(
     /// The voice agent sent it on the user's behalf: a Voice message, with the
     /// prompt one long press away.
     var voiceDelegation: VoiceHandoff.Delegation? = VoiceHandoff.parse(text),
+    /// A location shared from the + menu, drawn as a card above the text.
+    var location: SharedLocation? = SharedLocation.parse(text)?.location,
+    /// The text to show: the prompt without its location block.
+    var displayText: String = SharedLocation.parse(text)?.remainder ?: text,
 ) {
     companion object {
         /// A user group made of exactly one prompt's text, images, and files.
@@ -170,9 +174,13 @@ private fun UserMessage(
                 TranscriptFileChips(files = message.files, onOpen = if (isPending) null else onOpenFile)
             }
         }
-        if (message.text.isNotEmpty()) {
+        val location = message.location
+        if (location != null) {
+            SharedLocationCard(location = location, isPending = isPending)
+        }
+        if (message.displayText.isNotEmpty()) {
             TranscriptUserBubble(
-                text = message.text,
+                text = message.displayText,
                 dimming = dimming,
                 itemID = if (isPending) null else message.id,
             )

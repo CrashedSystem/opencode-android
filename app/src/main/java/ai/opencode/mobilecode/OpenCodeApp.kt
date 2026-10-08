@@ -32,6 +32,7 @@ class OpenCodeApp : Application() {
         SharedMemory.installLive(this)
         KeychainStorage.install(this)
         DictationClient.install(this)
+        LocationClient.install(this)
         installDiagnosticsStorage(this)
         if (BuildConfig.DEBUG) verifyKeychainRoundTrip(this)
         processScope.launch { VoiceLiveActivityClient.liveValue.endAll() }

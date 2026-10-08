@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "f3bda52", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "083cd94", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
 
 package ai.opencode.mobilecode
 
@@ -32,6 +32,7 @@ import ai.opencode.mobilecode.tca.task
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,6 +40,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.Settings
 import android.text.format.Formatter
 import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
@@ -1358,6 +1360,24 @@ private class SessionViewState {
             attachmentMenu = AttachmentMenuPhase.closed
             photoSelection = InlinePhotoSelection()
         }
+        val locationError = store.state.locationError
+        val context = LocalContext.current
+        alert(
+            "Couldn’t Share Location",
+            isPresented = Binding({ store.state.locationError != null }, { if (!it) store.send(SessionFeature.Action.locationErrorDismissed) }),
+            message = locationError ?: "",
+            buttons = buildList {
+                if (locationError == LocationClientError.denied.message) {
+                    add(
+                        AlertButton("Open Settings") {
+                            store.send(SessionFeature.Action.locationErrorDismissed)
+                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                        },
+                    )
+                }
+                add(AlertButton("OK", ai.opencode.mobilecode.system.ButtonRole.cancel) { store.send(SessionFeature.Action.locationErrorDismissed) })
+            },
+        )
         alert(
             "Couldn’t Add Image",
             isPresented = Binding({ attachmentError != null }, { if (!it) attachmentError = null }),
@@ -1796,7 +1816,8 @@ private class SessionViewState {
         get() = !store.state.isSubmittingPrompt && store.state.hasPromptContent && !store.state.pendingFiles.any { it.isFailed }
 
     val hasComposerAttachments: Boolean
-        get() = store.state.pendingAttachments.isNotEmpty() || store.state.pendingFiles.isNotEmpty()
+        get() = store.state.pendingAttachments.isNotEmpty() || store.state.pendingFiles.isNotEmpty() ||
+            store.state.pendingLocation != null || store.state.isLocating
 
     data class ComposerPresentation(val expanded: Boolean, val controls: ComposerControls)
 
@@ -2196,7 +2217,13 @@ private class SessionViewState {
 
     @Composable
     fun PendingAttachmentsRow() {
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                // Room for the remove buttons, which sit over the top trailing corner.
+                .padding(top = 8.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             store.state.pendingAttachments.forEachIndexed { index, attachment ->
                 androidx.compose.runtime.key(attachment.id) {
                     if (attachment.isImage) AttachmentThumbnail(attachment, index) else InlineFileChip(attachment, index)
@@ -2204,6 +2231,34 @@ private class SessionViewState {
             }
             for (file in store.state.pendingFiles) {
                 androidx.compose.runtime.key(file.id) { PendingFileChip(file) }
+            }
+            val location = store.state.pendingLocation
+            if (location != null) {
+                RemovableAttachment(
+                    label = "Remove location",
+                    identifier = "remove-pending-location",
+                    onRemove = { store.send(SessionFeature.Action.locationRemoved) },
+                ) {
+                    SharedLocationCard(location = location, compact = true)
+                }
+            } else if (store.state.isLocating) {
+                RemovableAttachment(
+                    label = "Cancel location",
+                    identifier = "cancel-pending-location",
+                    onRemove = { store.send(SessionFeature.Action.locationRemoved) },
+                ) {
+                    Row(
+                        Modifier
+                            .height(56.dp)
+                            .background(SystemColors.secondarySystemBackground, RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = SystemColors.secondaryLabel)
+                        Text("Finding Location…", style = TextStyles.subheadline, color = SystemColors.secondaryLabel)
+                    }
+                }
             }
         }
     }
@@ -2485,12 +2540,13 @@ private class SessionViewState {
         get() = store.state.pendingAttachments.mapNotNull { runCatching { UUID.fromString(it.id) }.getOrNull() }.toSet() +
             store.state.pendingFiles.map { it.id }
 
-    /// Camera, Photos, Files (when the server takes uploads), and Paste (when
+    /// Camera, Photos, Files (when the server takes uploads), Location (one at a time), and Paste (when
     /// the pasteboard has an image).
     fun attachmentMenuItems(context: Context): List<AttachmentMenuItem> = buildList {
         if (cameraAvailable(context)) add(AttachmentMenuItem.camera)
         add(AttachmentMenuItem.photos)
         if (store.state.supportsFileUploads) add(AttachmentMenuItem.files)
+        if (store.state.pendingLocation == null) add(AttachmentMenuItem.location)
         if (clipboardHasImage(context)) add(AttachmentMenuItem.paste)
     }
 
@@ -2537,6 +2593,11 @@ private class SessionViewState {
                     if (attachmentMenu != AttachmentMenuPhase.menu) return@post
                     attachmentMenu = AttachmentMenuPhase.photos
                 }
+            }
+            AttachmentMenuItem.location -> {
+                attachmentMenuRestoresFocus = true
+                store.send(SessionFeature.Action.locationTapped)
+                closeAttachmentMenu()
             }
             AttachmentMenuItem.paste -> Unit
         }

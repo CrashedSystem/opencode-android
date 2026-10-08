@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentPicker.swift", "a1ce7ab")
+@file:PortedFrom("OpenCode/AttachmentPicker.swift", "083cd94")
 
 package ai.opencode.mobilecode
 
@@ -203,6 +203,7 @@ enum class AttachmentMenuItem {
     camera,
     photos,
     files,
+    location,
     paste,
     ;
 
@@ -211,6 +212,7 @@ enum class AttachmentMenuItem {
             camera -> "Camera"
             photos -> "Photos"
             files -> "Files"
+            location -> "Location"
             paste -> "Paste"
         }
 
@@ -219,6 +221,7 @@ enum class AttachmentMenuItem {
             camera -> "camera"
             photos -> "photo.on.rectangle"
             files -> "folder"
+            location -> "location"
             paste -> "doc.on.clipboard"
         }
 

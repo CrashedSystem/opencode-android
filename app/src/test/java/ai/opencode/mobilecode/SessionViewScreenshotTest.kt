@@ -31,6 +31,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import java.time.Instant
 import java.util.Locale
 import org.junit.Before
 import org.junit.Rule
@@ -148,6 +149,11 @@ class SessionViewScreenshotTest {
     @Test @Config(qualifiers = "+night")
     fun errorBannerDark() = errorBanner("dark")
 
+    @Test fun sharedLocationLight() = sharedLocation("light")
+
+    @Test @Config(qualifiers = "+night")
+    fun sharedLocationDark() = sharedLocation("dark")
+
     @Test fun composerEmptyLight() = composerEmpty("light")
 
     @Test @Config(qualifiers = "+night")
@@ -219,6 +225,18 @@ class SessionViewScreenshotTest {
     private fun composerAttachments(appearance: String) = capture("18-composer-attachments", appearance) {
         SessionViewFixture.state(SessionViewFixture.intro).apply {
             pendingAttachments = listOf(OpenCodeOutgoingAttachment(id = "00000000-0000-0000-0000-000000000001", data = SessionViewFixture.pastedImage, mime = "image/png"))
+        }
+    }
+
+    /// A sent location above its typed text, and another waiting in the composer.
+    private fun sharedLocation(appearance: String) = capture("36-shared-location", appearance) {
+        val spot = SharedLocation(
+            latitude = 37.3349, longitude = -122.00902, accuracy = 12.4,
+            place = "Apple Park", address = "1 Apple Park Way, Cupertino, CA 95014",
+            capturedAt = Instant.ofEpochSecond(1_800_000_000),
+        )
+        SessionViewFixture.state(SessionViewFixture.intro + SessionViewFixture.user(id = "msg_lab_location", text = spot.prompt(with = "Find me coffee nearby"))).apply {
+            pendingLocation = spot.copy(place = null, address = "10600 N Tantau Ave, Cupertino, CA 95014")
         }
     }
 
