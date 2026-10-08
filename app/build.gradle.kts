@@ -25,6 +25,20 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }
+        // Release code and resources with the debug lab screens, for frame-time measurements.
+        create("benchmark") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            proguardFile("proguard-benchmark.pro")
+        }
+    }
+
+    sourceSets {
+        getByName("benchmark") {
+            kotlin.directories.add("src/debug/java")
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+        }
     }
 
     compileOptions {
