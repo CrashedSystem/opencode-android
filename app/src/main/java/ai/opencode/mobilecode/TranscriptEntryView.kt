@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "ebb011d")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "8adf650")
 
 package ai.opencode.mobilecode
 
@@ -35,8 +35,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,12 +48,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -66,7 +60,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,13 +67,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -96,7 +86,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import kotlin.math.PI
@@ -1018,7 +1007,11 @@ private fun MosaicTile(images: List<OpenCodeImageAttachment>, index: Int, width:
             .semantics { contentDescription = "Open tool image ${index + 1} of ${images.size}" },
         contentAlignment = Alignment.Center,
     ) {
-        CachedImage(attachment.id, attachment.data, Modifier.size(width.dp, height.dp))
+        // The last tile also stands in for the images behind its “+N”.
+        val ids = if (index == 2) images.drop(2).map { it.id } else listOf(attachment.id)
+        CachedImage.decoded(attachment.id, attachment.data)?.let { image ->
+            MediaThumbnail(image = image, ids = ids, modifier = Modifier.size(width.dp, height.dp))
+        }
         if (index == 2 && images.size > 3) {
             Box(Modifier.size(width.dp, height.dp).background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
                 Text("+${images.size - 3}", style = TextStyles.title2.semibold, color = Color.White)
@@ -1052,24 +1045,19 @@ fun MarkdownImage(
     val shape = RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp)
     val loaded = image
     when {
-        loaded != null -> Image(
-            bitmap = loaded,
-            contentDescription = "Open ${alt.ifEmpty { "image" }}",
-            modifier = Modifier
-                // `.resizable().scaledToFit()` in a full-width frame at most 360 tall.
-                .layout { measurable, constraints ->
-                    val width = constraints.maxWidth
-                    val height = minOf(width * loaded.height / loaded.width, 360.dp.roundToPx())
-                    val placeable = measurable.measure(Constraints.fixed(width, height))
-                    layout(width, height) { placeable.place(0, 0) }
-                }
-                .clip(shape)
+        loaded != null -> Box(
+            Modifier
+                .fillMaxWidth()
                 .background(SystemColors.secondarySystemBackground, shape)
+                .clip(shape)
                 .clickable(role = Role.Button) {
                     onPreview(TranscriptImagePreview(id = cacheKey, image = loaded, label = alt.ifEmpty { "Image" }))
-                },
-            contentScale = ContentScale.Fit,
-        )
+                }
+                .semantics { contentDescription = "Open ${alt.ifEmpty { "image" }}" },
+            contentAlignment = Alignment.Center,
+        ) {
+            MediaThumbnail(image = loaded, ids = listOf(cacheKey), fits = true, maxHeight = 360.dp)
+        }
         failed -> Row(
             Modifier
                 .fillMaxWidth()
@@ -1116,87 +1104,6 @@ private suspend fun loadMarkdownImage(source: String, server: OpenCodeServer, di
 private object MarkdownImageCache {
     val shared = LruCache<String, ImageBitmap>(64)
     val client = OkHttpClient()
-}
-
-@Composable
-fun TranscriptImageViewer(preview: TranscriptImagePreview, onDismiss: () -> Unit) {
-    val initial = preview.pages.indexOfFirst { it.id == preview.id }.coerceAtLeast(0)
-    val pager = rememberPagerState(initialPage = initial) { preview.pages.size }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        HorizontalPager(pager, Modifier.fillMaxSize().semantics { testTag = "image-gallery" }) { index ->
-            ZoomableGalleryPage(preview.pages[index], isSelected = pager.currentPage == index)
-        }
-        if (preview.pages.size > 1) {
-            Text(
-                "${pager.currentPage + 1} of ${preview.pages.size}",
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 24.dp)
-                    .background(Color.White.copy(alpha = 0.18f), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .semantics { testTag = "image-gallery-position" },
-                style = TextStyles.footnote.copy(fontFeatureSettings = "tnum"),
-                color = Color.White,
-            )
-        }
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(16.dp)
-                .size(44.dp)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape)
-                .clickable(role = Role.Button, onClick = onDismiss)
-                .semantics { contentDescription = "Close image" },
-            contentAlignment = Alignment.Center,
-        ) {
-            SystemImage("xmark", null, Modifier.symbolSize(TextStyles.body), tint = Color.White)
-        }
-    }
-}
-
-@Composable
-private fun ZoomableGalleryPage(page: TranscriptImagePreview.Page, isSelected: Boolean) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    LaunchedEffect(isSelected) {
-        if (!isSelected) {
-            scale = 1f
-            offset = Offset.Zero
-        }
-    }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    offset = if (scale > 1f) offset + pan else Offset.Zero
-                }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = {
-                    scale = if (scale > 1f) 1f else 2f
-                    if (scale == 1f) offset = Offset.Zero
-                })
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            bitmap = page.image,
-            contentDescription = page.label,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
-                },
-            contentScale = ContentScale.Fit,
-        )
-    }
 }
 
 /// Under a finished reply: copy the whole reply as Markdown.

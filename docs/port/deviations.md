@@ -26,6 +26,10 @@ The + menu's Location (upstream 083cd94) sends the same `<shared-location>` bloc
 - A tap opens the phone's maps app through a `geo:` link, and the Apple Maps link only when nothing handles `geo:`. The block's `Map:` line stays the Apple Maps link.
 - The address comes from Android's `Geocoder` without the country, and `Address.featureName` stands in for MapKit's place name. A phone without a geocoder shares the coordinates alone.
 
+## Full-screen documents
+
+iOS opens documents (Quick Look, code, Markdown) with the system zoom transition, which also gives them a swipe down to close (upstream 8adf650). Android has no system zoom transition, so `MediaViewerController`'s `zoom` style grows the document out of its card and shrinks it back on Done or Back, and a swipe down does not close it. Media keeps the drag.
+
 ## Features not on Android yet
 
 - **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at d809b1e shows that row; the parity review should expect its absence.

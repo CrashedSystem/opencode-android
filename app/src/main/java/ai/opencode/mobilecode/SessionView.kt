@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "083cd94", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "8adf650", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
 
 package ai.opencode.mobilecode
 
@@ -74,6 +74,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -166,8 +167,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
@@ -1118,6 +1117,7 @@ fun SessionView(
     view.onCatchUpOpen = onCatchUpOpen
     view.listContext = listContext
     view.reducedMotion = LocalReduceMotion.current
+    view.colorSchemeDark = isSystemInDarkTheme()
     remember(store.state.session?.id) {
         LabMarks.markOnce("session_view_init", store.state.session?.id)
     }
@@ -1133,6 +1133,7 @@ private class SessionViewState {
     var onCatchUpOpen: (() -> Unit)? = null
     var listContext by mutableStateOf(SessionListContext())
     var reducedMotion = false
+    var colorSchemeDark = false
     var attachmentError by mutableStateOf<String?>(null)
     var showsQueuedMessages by mutableStateOf(false)
     var showsBackgroundWork by mutableStateOf(false)
@@ -1142,8 +1143,6 @@ private class SessionViewState {
     val fileImporter = ComposerFileImporter()
     /// `imageImporter.isLoading`, observable: SwiftUI's importer is `@Observable`.
     var isImporting by mutableStateOf(false)
-    var imagePreview by mutableStateOf<TranscriptImagePreview?>(null)
-    var openFile by mutableStateOf<AgentFileReference?>(null)
     var largeUpload by mutableStateOf<LargeUpload?>(null)
     var messageFieldFocused by mutableStateOf(false)
     /// The held mic's finger travel, for the recording bar to follow.
@@ -1245,10 +1244,10 @@ private class SessionViewState {
                     store = store,
                     scrollEdgeBridge = scrollEdgeBridge,
                     dismissKeyboard = { messageFieldFocused = false },
-                    onPreviewImage = { imagePreview = it },
+                    onPreviewImage = ::presentImage,
                     onOpenFile = { file ->
                         messageFieldFocused = false
-                        openFile = file
+                        presentFile(file)
                     },
                     showsJumpButton = Binding({ showsJumpButton }, { showsJumpButton = it }),
                     jumpRequest = jumpRequest,
@@ -1403,15 +1402,24 @@ private class SessionViewState {
                 },
             ),
         )
-        imagePreview?.let { preview ->
-            FullScreenCover(onDismiss = { imagePreview = null }) {
-                TranscriptImageViewer(preview, onDismiss = { imagePreview = null })
-            }
+    }
+
+    fun presentImage(preview: TranscriptImagePreview) {
+        MediaPresenter.present(sourceID = preview.id, isMedia = true, reducesMotion = reducedMotion, darkColorScheme = true) { viewer ->
+            TranscriptImageViewer(preview = preview, viewer = viewer)
         }
-        openFile?.let { file ->
-            FullScreenCover(onDismiss = { openFile = null }) {
-                AgentFileViewer(reference = file, server = store.state.server, directory = store.state.session?.directory, onDismiss = { openFile = null })
-            }
+    }
+
+    fun presentFile(file: AgentFileReference) {
+        val server = store.state.server
+        val directory = store.state.session?.directory
+        MediaPresenter.present(
+            sourceID = file.zoomSourceID,
+            isMedia = file.kind.isMedia,
+            reducesMotion = reducedMotion,
+            darkColorScheme = file.kind.isMedia || colorSchemeDark,
+        ) {
+            AgentFileViewer(reference = file, server = server, directory = directory, onDismiss = {})
         }
     }
 
@@ -2849,16 +2857,6 @@ private fun PlainListRow(onClick: () -> Unit, content: @Composable androidx.comp
             content = content,
         )
         Box(Modifier.padding(start = 16.dp)) { HairlineRule() }
-    }
-}
-
-@Composable
-private fun FullScreenCover(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        Box(Modifier.fillMaxSize()) { content() }
     }
 }
 

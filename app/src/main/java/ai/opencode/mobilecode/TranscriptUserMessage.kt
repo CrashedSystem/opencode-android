@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "083cd94")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "8adf650")
 
 package ai.opencode.mobilecode
 
@@ -206,9 +206,7 @@ private fun UserImages(
         horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp, Alignment.End),
     ) {
         images.forEachIndexed { index, attachment ->
-            CachedImage(
-                attachment.id,
-                attachment.data,
+            Box(
                 Modifier
                     .size(side)
                     .clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))
@@ -219,7 +217,16 @@ private fun UserImages(
                     .semantics {
                         contentDescription = if (images.size == 1) "Open attached image" else "Open attached image ${index + 1} of ${images.size}"
                     },
-            )
+            ) {
+                CachedImage.decoded(attachment.id, attachment.data)?.let { image ->
+                    MediaThumbnail(
+                        image = image,
+                        ids = listOf(attachment.id),
+                        modifier = Modifier.size(side),
+                        cornerRadius = TranscriptMetrics.cardCornerRadius.dp,
+                    )
+                }
+            }
         }
     }
 }

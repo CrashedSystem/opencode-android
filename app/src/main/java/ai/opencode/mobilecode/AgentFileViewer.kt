@@ -1,7 +1,14 @@
-@file:PortedFrom("OpenCode/AgentFiles/AgentFileViewer.swift", "553a407")
+@file:PortedFrom("OpenCode/AgentFiles/AgentFileViewer.swift", "8adf650")
 
 package ai.opencode.mobilecode
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import android.view.LayoutInflater
+import ai.opencode.mobilecode.system.ForcedAppearance
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemImage
 import ai.opencode.mobilecode.system.TextStyles
@@ -91,6 +98,9 @@ class AgentFileViewerModel(
 ) {
     sealed class Content {
         data class player(val url: String, val headers: Map<String, String>, val isAudio: Boolean, val isStreaming: Boolean) : Content()
+
+        /// Shown like a transcript image: zoomable, dragged down to dismiss.
+        data class image(val image: ImageBitmap) : Content()
         data class quickLook(val url: File) : Content()
         data class text(val document: AgentTextDocument) : Content()
         data class markdown(val blocks: List<OpenCodeMarkdownBlock>, val source: AgentTextDocument) : Content()
@@ -218,10 +228,19 @@ class AgentFileViewerModel(
                     Phase.ready(content, url)
                 }
             }
-            AgentFileReference.Kind.image, AgentFileReference.Kind.pdf, AgentFileReference.Kind.document ->
+            AgentFileReference.Kind.image -> {
+                // Formats Android can't decode (SVG, say) still open in Quick Look.
+                val image = loadImage(url)
+                phase = Phase.ready(image?.let { Content.image(it) } ?: Content.quickLook(url), url)
+            }
+            AgentFileReference.Kind.pdf, AgentFileReference.Kind.document ->
                 phase = Phase.ready(Content.quickLook(url), url)
         }
     }
+}
+
+private suspend fun loadImage(url: File): ImageBitmap? = withContext(Dispatchers.IO) {
+    runCatching { BitmapFactory.decodeFile(url.path)?.asImageBitmap()?.apply { prepareToDraw() } }.getOrNull()
 }
 
 data class AgentFileDestination(
@@ -272,9 +291,31 @@ fun AgentFilePage(
         if (initial == null) model.open()
         onDispose { model.stop() }
     }
-    Column(modifier.fillMaxSize().background(if (reference.kind.isTimeBased) Color.Black else SystemColors.systemBackground)) {
-        AgentFileTitle(reference.name, model.locationLabel, isRoot, model.phase, onDismiss)
-        AgentFileBody(model, onOpen, Modifier.weight(1f))
+    val viewer = LocalMediaViewer.current
+    // Media's dark room is the viewer's own, which lifts as it's dragged away.
+    val background = when {
+        !reference.kind.isMedia -> null
+        isRoot && viewer != null -> Color.Transparent
+        else -> Color.Black
+    }
+    val chrome by animateFloatAsState(
+        if (viewer?.chromeHidden == true) 0f else 1f,
+        tween(if (viewer?.chromeHidden == true) 150 else 200),
+        label = "chrome",
+    )
+    // Media plays in a dark room, like Photos.
+    ForcedAppearance(dark = reference.kind.isMedia || isSystemInDarkTheme()) {
+        Column(modifier.fillMaxSize().background(background ?: SystemColors.systemBackground)) {
+            AgentFileTitle(
+                reference.name,
+                model.locationLabel,
+                isRoot,
+                model.phase,
+                onDismiss = { viewer?.dismiss() ?: onDismiss() },
+                modifier = Modifier.graphicsLayer { alpha = chrome },
+            )
+            AgentFileBody(model, onOpen, isRoot, isClear = background == Color.Transparent, Modifier.weight(1f))
+        }
     }
 }
 
@@ -285,8 +326,9 @@ private fun AgentFileTitle(
     isRoot: Boolean,
     phase: AgentFileViewerModel.Phase,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (isRoot) {
             TextButton(onClick = onDismiss, modifier = Modifier.semantics { testTag = "agent-file-done" }) {
                 Text("Done", color = SystemColors.tint, style = TextStyles.body)
@@ -311,8 +353,11 @@ private fun AgentFileTitle(
 private fun AgentFileBody(
     model: AgentFileViewerModel,
     onOpen: (AgentFileDestination) -> Unit,
+    isRoot: Boolean,
+    isClear: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val viewer = LocalMediaViewer.current
     when (val phase = model.phase) {
         AgentFileViewerModel.Phase.opening -> AgentFileStatus(model.reference, "Opening…", null, modifier)
         is AgentFileViewerModel.Phase.downloading -> AgentFileStatus(
@@ -343,12 +388,27 @@ private fun AgentFileBody(
             TextButton(onClick = { model.open() }) { Text("Try Again") }
         }
         is AgentFileViewerModel.Phase.ready -> when (val content = phase.content) {
+            is AgentFileViewerModel.Content.image -> {
+                val reference = model.reference
+                ZoomableImagePage(
+                    image = content.image,
+                    label = reference.name,
+                    isSelected = true,
+                    modifier = modifier.semantics { testTag = "agent-file-image" },
+                    onZoomChange = { viewer?.isZoomed = it },
+                )
+                DisposableEffect(content.image) {
+                    if (isRoot) viewer?.show(sourceID = reference.zoomSourceID, image = content.image)
+                    onDispose {}
+                }
+            }
             is AgentFileViewerModel.Content.player -> AgentFilePlayer(
                 content.url,
                 content.headers,
                 content.isAudio,
                 model.reference.name,
                 content.isStreaming,
+                isClear,
                 modifier,
             )
             is AgentFileViewerModel.Content.quickLook -> AgentQuickLook(content.url, modifier)
@@ -436,6 +496,8 @@ private fun AgentFilePlayer(
     isAudio: Boolean,
     name: String,
     isStreaming: Boolean,
+    /// Letterboxing shows the dark room behind, so it lifts with a drag.
+    isClear: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -453,13 +515,23 @@ private fun AgentFilePlayer(
         }
     }
     DisposableEffect(player) { onDispose { player.release() } }
+    val clear = isClear && !isAudio
     Box(
         modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(if (clear) Color.Transparent else Color.Black)
             .semantics { testTag = if (isStreaming) "agent-file-player-streaming" else "agent-file-player" },
     ) {
-        AndroidView(factory = { PlayerView(it).apply { this.player = player } }, modifier = Modifier.fillMaxSize())
+        AndroidView(
+            factory = {
+                // A TextureView, so the video scales and fades with a drag.
+                (LayoutInflater.from(it).inflate(R.layout.agent_file_player, null) as PlayerView).apply {
+                    this.player = player
+                    if (clear) setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
         if (isAudio) {
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                 SystemImage("waveform", contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.height(72.dp))
