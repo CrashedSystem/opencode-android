@@ -1086,8 +1086,7 @@ private fun CatchUpChrome(
                 Text("You’re all caught up", style = TextStyles.title3.semibold, color = SystemColors.label)
                 Box(
                     Modifier
-                        .heightIn(min = 50.dp)
-                        .glassEffect(GlassSurface.rounded(14.dp), interactive = true, tint = SystemColors.tint)
+                        .openCodePrimaryButton()
                         .clickable(role = Role.Button, onClick = onExit)
                         .padding(horizontal = 24.dp)
                         .testTag("catch-up-finished-done"),

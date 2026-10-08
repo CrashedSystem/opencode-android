@@ -4,7 +4,6 @@ package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.system.AttributedString
 import ai.opencode.mobilecode.system.FontFamilies
-import ai.opencode.mobilecode.system.GlassSurface
 import ai.opencode.mobilecode.system.NavigationBarHidden
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
@@ -440,8 +439,6 @@ private fun ConnectionErrorCard(
         }
         Row(
             Modifier
-                .shadow(1.dp, GlassSurface.rounded(14.dp))
-                .background(SystemColors.secondarySystemGroupedBackground, GlassSurface.rounded(14.dp))
                 .openCodeSecondaryButton()
                 .clickable {
                     val report = store.state.errorReport(version, build, Instant.now()) ?: return@clickable
@@ -684,7 +681,7 @@ private fun CredentialForm(store: Store<AppFeature.State, AppFeature.Action>) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .then(if (disabled) Modifier.heightIn(min = 50.dp).clip(GlassSurface.Capsule).background(SystemColors.systemGray3) else Modifier.openCodePrimaryButton())
+                .openCodePrimaryButton(enabled = !disabled)
                 .clickable(enabled = !disabled) { store.send(AppFeature.Action.connectButtonTapped) }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
