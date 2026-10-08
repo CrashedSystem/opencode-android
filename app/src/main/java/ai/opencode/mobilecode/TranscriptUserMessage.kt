@@ -1,30 +1,15 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "5480d82")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
-import android.graphics.BlurMaskFilter
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.PaintingStyle
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.platform.LocalDensity
-import kotlin.math.pow
 import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemContextMenu
@@ -99,6 +84,8 @@ data class TranscriptUserMessage(
     /// The voice agent sent it on the user's behalf: a Voice message, with the
     /// prompt one long press away.
     var voiceDelegation: VoiceHandoff.Delegation? = VoiceHandoff.parse(text),
+    /// Another session's agent or the parent agent sent it.
+    var source: OpenCodePromptSource? = null,
     /// A location shared from the + menu, drawn as a card above the text.
     var location: SharedLocation? = SharedLocation.parse(text)?.location,
     /// The text to show: the prompt without its location block.
@@ -112,16 +99,20 @@ data class TranscriptUserMessage(
             var text = ""
             var images = emptyList<OpenCodeImageAttachment>()
             var files = emptyList<OpenCodeTranscriptFile>()
+            var source: OpenCodePromptSource? = null
             for (item in group.items) {
                 if (TranscriptEntry.promptID(forItem = item) != id) return null
                 when (item) {
-                    is OpenCodeTranscriptItem.userText -> text = item.text
+                    is OpenCodeTranscriptItem.userText -> {
+                        text = item.text
+                        source = item.source
+                    }
                     is OpenCodeTranscriptItem.userImages -> images = item.images
                     is OpenCodeTranscriptItem.userFiles -> files = item.files
                     else -> return null
                 }
             }
-            return TranscriptUserMessage(id = id, text = text, images = images, files = files, pending = null)
+            return TranscriptUserMessage(id = id, text = text, images = images, files = files, pending = null, source = source)
         }
 
         /// A plain pending message; compaction and notices keep their own rows.
@@ -135,9 +126,15 @@ data class TranscriptUserMessage(
                     OpenCodeTranscriptFile(id = "${queued.id}-file-$index", name = file.name, mime = file.mime, path = file.path)
                 },
                 pending = queued.delivery,
+                source = queued.input.source,
             )
         }
     }
+
+    /// An agent sent it: Voice and the delegator, another session, or a parent
+    /// spawning a subagent. Only these reveal on arrival
+    /// (`AgentMessageReveal`); what's typed or dictated here never does.
+    val isFromAgent: Boolean get() = voiceDelegation != null || source != null
 }
 
 @Composable
@@ -145,14 +142,16 @@ fun TranscriptUserMessageView(
     message: TranscriptUserMessage,
     onPreviewImage: (TranscriptImagePreview) -> Unit = {},
     onOpenFile: ((AgentFileReference) -> Unit)? = null,
-    /// When a Voice message arrived (`TranscriptVoiceReveal`), to reveal it.
-    voiceArrival: Long? = null,
+    /// When an agent's message arrived (`TranscriptAgentMessageReveal`), to reveal it.
+    revealArrival: Long? = null,
 ) {
     val delegation = message.voiceDelegation
     if (delegation != null) {
-        TranscriptVoiceMessageView(delegation = delegation, prompt = message.text, pending = message.pending, arrival = voiceArrival)
+        TranscriptVoiceMessageView(delegation = delegation, prompt = message.text, pending = message.pending, arrival = revealArrival)
     } else {
-        UserMessage(message, onPreviewImage, onOpenFile)
+        AgentMessageRevealClock(arrival = if (message.isFromAgent) revealArrival else null) { reveal ->
+            UserMessage(message, onPreviewImage, onOpenFile, reveal)
+        }
     }
 }
 
@@ -161,6 +160,7 @@ private fun UserMessage(
     message: TranscriptUserMessage,
     onPreviewImage: (TranscriptImagePreview) -> Unit,
     onOpenFile: ((AgentFileReference) -> Unit)?,
+    reveal: AgentMessageReveal.Frame,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val isPending = message.pending != null
@@ -187,6 +187,7 @@ private fun UserMessage(
                 TranscriptPendingLabel(
                     pending,
                     Modifier
+                        .graphicsLayer { alpha = reveal.body.toFloat() }
                         // Its text lines up with the bubble's.
                         .padding(end = TranscriptMetrics.contentGutter.dp)
                         .trimBottom(2),
@@ -208,6 +209,7 @@ private fun UserMessage(
                 text = message.displayText,
                 dimming = dimming,
                 itemID = if (isPending) null else message.id,
+                reveal = reveal,
             )
         }
     }
@@ -266,7 +268,7 @@ fun TranscriptMessageRow(
     onPreviewImage: (TranscriptImagePreview) -> Unit,
     onOpenFile: (AgentFileReference) -> Unit,
     disclosure: TranscriptDisclosureState,
-    voiceArrival: Long? = null,
+    revealArrival: Long? = null,
 ) {
     val userMessage = if (entry != null) TranscriptUserMessage(entry) else queued?.let { TranscriptUserMessage(it) }
     val insets = entry?.rowInsets ?: queued?.rowInsets ?: TranscriptRowInsets(TranscriptMetrics.turnHalf, TranscriptMetrics.turnHalf)
@@ -278,7 +280,7 @@ fun TranscriptMessageRow(
                         message = userMessage,
                         onPreviewImage = onPreviewImage,
                         onOpenFile = onOpenFile,
-                        voiceArrival = voiceArrival,
+                        revealArrival = revealArrival,
                     )
                 entry != null ->
                     TranscriptEntryView(
@@ -337,22 +339,22 @@ private fun TranscriptUserBubble(
     /// Dimmed while the message waits in the inbox: 1 pending, 0 delivered.
     dimming: Float = 0f,
     itemID: String? = null,
+    reveal: AgentMessageReveal.Frame = AgentMessageReveal.Frame.rest,
 ) {
     TrailingFractionLayout(TranscriptMetrics.maximumUserBubbleFraction) {
-        SelectionContainer { Bubble(text, dimming, itemID) }
+        SelectionContainer { Bubble(text, dimming, itemID, reveal) }
     }
 }
 
 @Composable
-private fun Bubble(text: String, dimming: Float, itemID: String?) {
-    val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
+private fun Bubble(text: String, dimming: Float, itemID: String?, reveal: AgentMessageReveal.Frame) {
     Box(
         Modifier
             .then(if (itemID != null) Modifier.sendLandingProbe(itemID) else Modifier)
-            .background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)
+            .voiceMessageBackground(VoiceMessageStyle.standard, dimming, reveal)
             .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
     ) {
-        BubbleText(text, Modifier.alpha(1f - 0.4f * dimming))
+        BubbleText(text, Modifier.alpha((1f - 0.4f * dimming) * reveal.text.toFloat()))
     }
 }
 
@@ -378,7 +380,8 @@ private fun BubbleText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/// A Voice message's bubble. The Voice indicator above it is what sets it
+/// A Voice message's bubble, and every user bubble's fill: an agent's reveal
+/// (`AgentMessageReveal`) lights it on arrival. The Voice indicator above it is what sets it
 /// apart; backgrounds that also differ were compared
 /// (`prototypes/voice-delegation-display/#voice-message-variants`) and set
 /// aside, so the treatment stays in this one place.
@@ -399,7 +402,7 @@ enum class VoiceMessageStyle {
 private fun Modifier.voiceMessageBackground(
     style: VoiceMessageStyle,
     dimming: Float,
-    reveal: VoiceMessageReveal.Frame = VoiceMessageReveal.Frame.rest,
+    reveal: AgentMessageReveal.Frame = AgentMessageReveal.Frame.rest,
 ): Modifier {
     val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
     val fill = SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming)
@@ -408,7 +411,7 @@ private fun Modifier.voiceMessageBackground(
     val density = LocalDensity.current.density
     return when (style) {
         // Matches `TranscriptUserBubble`, pending dimming included.
-        VoiceMessageStyle.standard -> if (reveal == VoiceMessageReveal.Frame.rest) {
+        VoiceMessageStyle.standard -> if (reveal == AgentMessageReveal.Frame.rest) {
             background(fill, shape)
         } else {
             // One layer, so the body's fade-in doesn't let the fill show through the light.
@@ -417,140 +420,15 @@ private fun Modifier.voiceMessageBackground(
                 layer.alpha = reveal.body.toFloat()
                 layer.record {
                     drawOutline(shape.createOutline(size, layoutDirection, this), fill)
-                    drawRevealLight(reveal.light.toFloat(), dark, density)
+                    drawAgentMessageRevealLight(reveal.light.toFloat(), dark, density)
                 }
                 onDrawBehind { drawLayer(layer) }
             }
         }
         VoiceMessageStyle.outlined -> drawBehind {
-            if (reveal != VoiceMessageReveal.Frame.rest) drawRevealLight(reveal.light.toFloat(), dark, density, alpha = reveal.body.toFloat())
+            if (reveal != AgentMessageReveal.Frame.rest) drawAgentMessageRevealLight(reveal.light.toFloat(), dark, density, alpha = reveal.body.toFloat())
         }.border(1.dp, outline.copy(alpha = outline.alpha * reveal.body.toFloat()), shape)
     }
-}
-
-/// A Voice message arriving bright and settling (`prototypes/ios-kit/phosphor-reveal`,
-/// K4 Inner glow): the bubble fades in while a luminous edge inside it and a
-/// slight lift of its fill rise in 70 ms, then decay like phosphor, fast and
-/// then a slower tail, to exactly the plain bubble. Opacity only, no scale,
-/// so Reduce Motion keeps it.
-object VoiceMessageReveal {
-    data class Frame(
-        /// The light envelope, 0...1.
-        val light: Double = 0.0,
-        /// The bubble's fill and the Voice indicator.
-        val body: Double = 1.0,
-        val text: Double = 1.0,
-    ) {
-        companion object {
-            val rest = Frame()
-        }
-    }
-
-    const val rise = 0.07
-    const val halfLife = 0.18
-    const val slowHalfLife = 0.32
-    const val slowShare = 0.22
-    const val innerGlow = 0.7
-    const val fillLift = 0.08
-    const val fadeIn = 0.14
-    const val textStart = 0.06
-    const val textDuration = 0.2
-
-    /// About 1.39 s: the light below 2% of its peak, then a final ease to zero.
-    val duration: Double = run {
-        var end = rise
-        while (end < 4 && envelope(end) > 0.02) end += 0.005
-        ceil((maxOf(end + 0.04, fadeIn, textStart + textDuration) + 0.01) * 1000) / 1000
-    }
-
-    /// 0 → 1 at `rise`, then the two-half-life decay.
-    fun envelope(t: Double): Double {
-        if (t <= 0) return 0.0
-        if (t < rise) return cubic(t / rise)
-        val x = t - rise
-        return (1 - slowShare) * 2.0.pow(-x / halfLife) + slowShare * 2.0.pow(-x / slowHalfLife)
-    }
-
-    /// `-lab-voice-reveal-slowmo 20` plays it 20 times slower, to capture frames.
-    val timeScale: Double =
-        if (BuildConfig.DEBUG) maxOf(1.0, UserDefaults.standard.string(forKey = "lab-voice-reveal-slowmo")?.toDoubleOrNull() ?: 0.0) else 1.0
-
-    fun frame(at: Double): Frame {
-        if (at >= duration) return Frame.rest
-        val light = envelope(at) * (1 - smootherstep(duration - 0.22, duration, at))
-        return Frame(light = light, body = cubic(at / fadeIn), text = cubic((at - textStart) / textDuration))
-    }
-
-    data class Colors(val lift: Color, val glow: Color)
-
-    /// The colour the fill lifts toward and the inner edge's light: the voice
-    /// scope's cool pearl, a cool light (not a grey shade) in light mode.
-    fun colors(dark: Boolean): Colors =
-        if (dark) Colors(Color(0.30f, 0.33f, 0.39f), Color(0.72f, 0.80f, 0.98f)) else Colors(Color(0.90f, 0.93f, 1.0f), Color(0.748f, 0.822f, 1.0f))
-
-    private fun cubic(x: Double): Double = 1 - (1 - x.coerceIn(0.0, 1.0)).pow(3)
-
-    private fun smootherstep(a: Double, b: Double, x: Double): Double {
-        val t = ((x - a) / (b - a)).coerceIn(0.0, 1.0)
-        return t * t * t * (t * (6 * t - 15) + 10)
-    }
-}
-
-/// The light inside the bubble: its fill lifted, and an edge glowing inward
-/// (the prototype's exp(-depth / 7 pt) falloff, from two blurred strokes).
-private fun DrawScope.drawRevealLight(light: Float, dark: Boolean, density: Float, alpha: Float = 1f) {
-    if (light <= 0f) return
-    val colors = VoiceMessageReveal.colors(dark)
-    val radius = TranscriptMetrics.bubbleCornerRadius * density
-    val bubble = Path().apply { addRoundRect(RoundRect(Rect(Offset.Zero, size), CornerRadius(radius))) }
-    clipPath(bubble) {
-        drawRoundRect(colors.lift, cornerRadius = CornerRadius(radius), alpha = (VoiceMessageReveal.fillLift * light).toFloat() * alpha)
-        val glow = (VoiceMessageReveal.innerGlow * light).toFloat() * alpha
-        for ((width, blur, opacity) in listOf(Triple(8f, 2.5f, 0.7f), Triple(16f, 9.5f, 0.6f))) {
-            drawIntoCanvas { canvas ->
-                val paint = Paint().apply {
-                    color = colors.glow.copy(alpha = opacity * glow)
-                    style = PaintingStyle.Stroke
-                    strokeWidth = width * density
-                    asFrameworkPaint().maskFilter = BlurMaskFilter(blur * density, BlurMaskFilter.Blur.NORMAL)
-                }
-                canvas.drawRoundRect(0f, 0f, size.width, size.height, radius, radius, paint)
-            }
-        }
-    }
-}
-
-/// When each Voice message arrived, so its reveal plays once, on arrival. The
-/// list owns it, like `TranscriptTextReveal`, and hands each row its arrival
-/// as a value: a reused, reconfigured, or reloaded cell reads the same clock,
-/// and a message it never saw arrive (opening a session, a page of history)
-/// has no reveal. Times are `System.nanoTime`, the frame clock's base.
-class TranscriptVoiceReveal {
-    private val arrivals = mutableMapOf<String, Long>()
-
-    /// Records `messageID` arriving now; false if it was already seen.
-    fun arrive(messageID: String, at: Long): Boolean {
-        if (arrivals[messageID] != null) return false
-        arrivals[messageID] = at
-        return true
-    }
-
-    fun arrival(of: String): Long? = arrivals[of]
-}
-
-/// Samples the reveal each frame while it runs, then rests: a finished or
-/// absent reveal draws `.rest`, which is the plain bubble.
-@Composable
-private fun VoiceMessageRevealClock(arrival: Long?, content: @Composable (VoiceMessageReveal.Frame) -> Unit) {
-    val scale = VoiceMessageReveal.timeScale
-    val ends = arrival?.let { it + (VoiceMessageReveal.duration * scale * 1e9).toLong() }
-    var now by remember { mutableLongStateOf(System.nanoTime()) }
-    LaunchedEffect(arrival) {
-        if (ends == null) return@LaunchedEffect
-        while (now < ends) withFrameNanos { now = it }
-    }
-    val active = ends != null && now < ends
-    content(if (active && arrival != null) VoiceMessageReveal.frame(at = (now - arrival) / 1e9 / scale) else VoiceMessageReveal.Frame.rest)
 }
 
 /// The voice agent prompting the session on the user's behalf, in its own
@@ -567,7 +445,7 @@ fun TranscriptVoiceMessageView(
     arrival: Long? = null,
     style: VoiceMessageStyle = VoiceMessageStyle.current,
 ) {
-    VoiceMessageRevealClock(arrival) { reveal ->
+    AgentMessageRevealClock(arrival) { reveal ->
         VoiceMessage(delegation, prompt, pending, style, reveal)
     }
 }
@@ -578,7 +456,7 @@ private fun VoiceMessage(
     prompt: String,
     pending: OpenCodeDelivery?,
     style: VoiceMessageStyle,
-    reveal: VoiceMessageReveal.Frame,
+    reveal: AgentMessageReveal.Frame,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val context = LocalContext.current

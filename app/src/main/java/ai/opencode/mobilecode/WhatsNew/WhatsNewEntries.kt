@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "a9bc920")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
@@ -32,6 +32,7 @@ data class WhatsNewEntry(
         dictationBar,
         attachmentMenu,
         mediaDismiss,
+        statusOrb,
     }
 
     constructor(id: String, day: String, title: String, summary: String, example: String, illustration: Illustration) : this(
@@ -47,6 +48,14 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "status-orb-and-arrival-glow",
+                    day = "2026-10-08",
+                    title = "Status Orb",
+                    summary = "A subagent’s card and the background-work capsule show a small orb that changes with what it’s doing: thinking, running tools, writing, waiting for you, done, or failed. Messages an agent sends you light up as they arrive.",
+                    example = "Ask the agent to start a subagent and watch its card",
+                    illustration = Illustration.statusOrb,
+                ),
                 WhatsNewEntry(
                     id = "media-drag-to-dismiss",
                     day = "2026-10-07",

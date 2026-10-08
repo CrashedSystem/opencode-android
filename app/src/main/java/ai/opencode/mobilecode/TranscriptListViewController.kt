@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "339260d", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "7fa8e81", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -128,7 +128,7 @@ class TranscriptListViewController(
     var disclosure = TranscriptDisclosureState()
         private set
     private var textReveal = TranscriptTextReveal()
-    private var voiceReveal = TranscriptVoiceReveal()
+    private var agentReveal = TranscriptAgentMessageReveal()
     /// A disclosure's motion is running; its layout reports itself.
     private var isAnimatingDisclosure = false
     private var disclosureMotion = 0
@@ -364,7 +364,7 @@ class TranscriptListViewController(
             queuedStableIDs = emptyMap()
             disclosure = TranscriptDisclosureState()
             textReveal = TranscriptTextReveal()
-            voiceReveal = TranscriptVoiceReveal()
+            agentReveal = TranscriptAgentMessageReveal()
             installDisclosureMotion()
             itemSizes.clear()
         }
@@ -529,7 +529,7 @@ class TranscriptListViewController(
                 onPreviewImage = onPreviewImage,
                 onOpenFile = onOpenFile,
                 disclosure = disclosure,
-                voiceArrival = (entry?.userMessageID ?: queued?.id)?.let { voiceReveal.arrival(of = it) },
+                revealArrival = (entry?.userMessageID ?: queued?.id)?.let { agentReveal.arrival(of = it) },
             )
         }
     }
@@ -620,7 +620,7 @@ class TranscriptListViewController(
             entry.itemIDs.any { !oldItemIDs.contains(it) }
         }
         val appendedQueued = queuedItems.any { !oldItems.contains(it) }
-        val voiceArrivals = recordVoiceArrivals(
+        val agentArrivals = recordAgentArrivals(
             items = newItems,
             inserted = newItemSet.filter { !oldItems.contains(it) }.toSet(),
             oldItems = oldItems,
@@ -643,8 +643,8 @@ class TranscriptListViewController(
             if (tail.size != inserted.size || tail.size > RowEntrance.maximumRows || tail.any { it == ItemID.history || it == ItemID.empty }) {
                 return@run emptyList()
             }
-            // A Voice message fades in with its own reveal instead.
-            tail.filter { !voiceArrivals.contains(it) }
+            // An agent's message fades in with its own reveal instead.
+            tail.filter { !agentArrivals.contains(it) }
         }
         holdRemovedTail(oldItems, newItemSet, configuration)
         val prepended = anchorFirstMessage(newItems)
@@ -660,10 +660,10 @@ class TranscriptListViewController(
         beginEntrances(entrances)
     }
 
-    /// Voice messages joining the end of a transcript already on screen: each
+    /// Agents' messages joining the end of a transcript already on screen: each
     /// records its arrival once, which starts its reveal. Any other first
     /// sighting (a session opening, a page of history) has no reveal.
-    private fun recordVoiceArrivals(items: List<ItemID>, inserted: Set<ItemID>, oldItems: Set<ItemID>, isLive: Boolean): Set<ItemID> {
+    private fun recordAgentArrivals(items: List<ItemID>, inserted: Set<ItemID>, oldItems: Set<ItemID>, isLive: Boolean): Set<ItemID> {
         if (!isLive || inserted.isEmpty()) return emptySet()
         val lastKept = items.indexOfLast { item ->
             item is ItemID.message && oldItems.contains(item) && messageRowsByStableID[item.stableID] is MessageRow.entry
@@ -673,7 +673,7 @@ class TranscriptListViewController(
         items.forEachIndexed { index, item ->
             if (!inserted.contains(item) || index <= lastKept) return@forEachIndexed
             val message = (item as? ItemID.message)?.let { messageRowsByStableID[it.stableID] }?.let(::userMessage) ?: return@forEachIndexed
-            if (message.voiceDelegation == null || !voiceReveal.arrive(message.id, at = time)) return@forEachIndexed
+            if (!message.isFromAgent || !agentReveal.arrive(message.id, at = time)) return@forEachIndexed
             arrivals += item
         }
         return arrivals

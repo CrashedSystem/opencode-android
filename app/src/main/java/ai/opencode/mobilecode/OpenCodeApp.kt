@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeApp.swift", "553a407")
+@file:PortedFrom("OpenCode/OpenCodeApp.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
@@ -92,9 +92,14 @@ class OpenCodeApp : Application() {
                 }
             }
 
-        /// `-lab-reduce-motion YES`: UI tests can't switch the system setting.
         val labReducesMotion: Boolean
-            get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_SERVER_URL"] != null &&
-                UserDefaults.standard.bool(forKey = "lab-reduce-motion")
+            get() = OpenCodeLab.reducesMotion
     }
+}
+
+object OpenCodeLab {
+    /// `-lab-reduce-motion YES`: UI tests can't switch the system setting.
+    val reducesMotion: Boolean
+        get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_SERVER_URL"] != null &&
+            UserDefaults.standard.bool(forKey = "lab-reduce-motion")
 }

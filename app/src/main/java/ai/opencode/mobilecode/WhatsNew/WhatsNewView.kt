@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "a9bc920")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
@@ -295,6 +295,8 @@ private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 SystemImage("camera.aperture", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.attachmentMenu ->
                 SystemImage("plus.circle", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
+            WhatsNewEntry.Illustration.statusOrb ->
+                AgentActivityGlyph(source = AgentActivitySource.running, size = 26.dp)
             WhatsNewEntry.Illustration.mediaDismiss ->
                 SystemImage("photo.on.rectangle.angled", contentDescription = null, modifier = Modifier.symbolSize(19), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.voiceMessage ->

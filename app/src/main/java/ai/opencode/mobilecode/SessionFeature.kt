@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "339260d", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "7fa8e81", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
 
 package ai.opencode.mobilecode
 
