@@ -61,7 +61,8 @@
     "OpenCode/DiagnosticsView.swift": "the Voice Calls row (VoiceCallLogList) and uploading the saved calls when Developer Mode turns on (VoiceCallLogRecorder), both 494e433, wait for the voice port",
     "OpenCode/Traces/DeveloperMode.swift": "upload(_ log: VoiceCallLog) waits for the voice port's VoiceCallLog",
     "OpenCode/HomeFeature.swift": "the voice agent's draft in a project (makeDraft(directory:), the openDraft delegate) and its setPinned delegate (5cfc623) arrive with the voice port",
-    "OpenCode/SessionFeature.swift": "the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1) need VoiceFeature's actions and arrive with the voice port"
+    "OpenCode/SessionFeature.swift": "the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1) need VoiceFeature's actions and arrive with the voice port",
+    "OpenCode/WhatsNew/WhatsNewEntries.swift": "the Steadier Voice Calls entry (9e1aad3) announces calls carried over WebRTC, which arrive with the voice port"
   },
   "skipped": {
     "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",

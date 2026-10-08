@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "7fa8e81")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "16b40f7", partial = "all but the Steadier Voice Calls entry (9e1aad3)")
 
 package ai.opencode.mobilecode
 
@@ -48,6 +48,14 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "tool-images-whole",
+                    day = "2026-10-08",
+                    title = "Whole Images Inline",
+                    summary = "Images the agent reads now show whole in the session, in rows that fill the width, so charts and screenshots read without opening them. Nothing is cropped or hidden behind a +N.",
+                    example = "Ask the agent to read a few screenshots",
+                    illustration = Illustration.mediaDismiss,
+                ),
                 WhatsNewEntry(
                     id = "status-orb-and-arrival-glow",
                     day = "2026-10-08",

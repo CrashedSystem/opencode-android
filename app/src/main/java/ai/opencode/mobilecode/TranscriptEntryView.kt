@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "3dd2dc7")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "16b40f7")
 
 package ai.opencode.mobilecode
 
@@ -60,6 +60,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -88,9 +90,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import kotlin.math.PI
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.reflect.KMutableProperty1
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1007,71 +1013,154 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>) {
     }
 }
 
-/// Inline, cropped previews keep the tool row scannable; tapping any tile
-/// opens all images in the same native gallery. The third tile shows how
-/// many more images are behind it, like an iMessage attachment cluster.
+/// Every image a tool read, whole and in order, so it can be read without
+/// opening it: justified rows (`JustifiedImageRows`) where each row's images
+/// share a height and together fill the width, nothing cropped or hidden.
+/// Tapping one opens them all in the native gallery.
 @Composable
 private fun ToolImageMosaic(images: List<OpenCodeImageAttachment>, onPreview: (String) -> Unit) {
-    Box(Modifier.fillMaxWidth().semantics { testTag = "tool-image-mosaic" }) {
-        Box(Modifier.clip(RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))) {
-            when {
-                images.size == 1 -> MosaicTile(images, 0, 300, 210, onPreview)
-                images.size == 2 -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MosaicTile(images, 0, 148, 160, onPreview)
-                    MosaicTile(images, 1, 148, 160, onPreview)
-                }
-                else -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MosaicTile(images, 0, 148, 204, onPreview)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        MosaicTile(images, 1, 148, 100, onPreview)
-                        MosaicTile(images, 2, 148, 100, onPreview)
+    val decoded = images.map { CachedImage.decoded(it.id, it.data) }
+    JustifiedImagesLayout(
+        aspects = decoded.map { image ->
+            if (image == null || image.width <= 0 || image.height <= 0) 1.0 else image.width.toDouble() / image.height
+        },
+        modifier = Modifier.semantics { testTag = "tool-image-mosaic" },
+    ) {
+        images.forEachIndexed { index, attachment ->
+            key(attachment.id) { ToolImageTile(attachment, decoded[index], index, images.size, onPreview) }
+        }
+    }
+}
+
+@Composable
+private fun ToolImageTile(attachment: OpenCodeImageAttachment, image: ImageBitmap?, index: Int, count: Int, onPreview: (String) -> Unit) {
+    val shape = RoundedRectangle(JustifiedImageRows.cornerRadius.dp)
+    Box(
+        Modifier
+            .clickable(role = Role.Button) { onPreview(attachment.id) }
+            .semantics { contentDescription = "Open tool image ${index + 1} of $count" }
+            .clip(shape)
+            // Behind transparent images, and while one decodes.
+            .background(SystemColors.secondarySystemBackground)
+            // Keeps a white image's edge visible on a white transcript.
+            .border(0.5.dp, SystemColors.separator.copy(alpha = 0.6f), shape),
+    ) {
+        if (image != null) {
+            MediaThumbnail(
+                image = image,
+                ids = listOf(attachment.id),
+                modifier = Modifier.fillMaxSize(),
+                fits = true,
+                cornerRadius = JustifiedImageRows.cornerRadius.dp,
+            )
+        }
+    }
+}
+
+/// Lays out images by `JustifiedImageRows`, each at its exact frame.
+@Composable
+fun JustifiedImagesLayout(aspects: List<Double>, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth / density.toDouble() else 360.0
+        val rows = JustifiedImageRows(aspects, width)
+        fun px(points: Double) = (points * density).roundToInt()
+        val placeables = measurables.zip(rows.frames) { measurable, frame ->
+            measurable.measure(Constraints.fixed(px(frame.maxX) - px(frame.minX), px(frame.maxY) - px(frame.minY)))
+        }
+        layout(px(width), px(rows.height)) {
+            placeables.forEachIndexed { index, placeable ->
+                placeable.place(px(rows.frames[index].minX), px(rows.frames[index].minY))
+            }
+        }
+    }
+}
+
+/// Justified rows: images keep their shapes, a row's images share one
+/// height and fill the width, and the breaks between rows are chosen (in
+/// order) to keep every row near a comfortable height. A wide panorama
+/// gets a row to itself; a tall screenshot pairs with something square.
+/// A row that can't fill the width without growing past the cap (a lone
+/// tall screenshot) stays at the cap, leading-aligned.
+class JustifiedImageRows(raw: List<Double>, width: Double) {
+    data class Frame(val minX: Double, val minY: Double, val width: Double, val height: Double) {
+        val maxX: Double get() = minX + width
+        val maxY: Double get() = minY + height
+    }
+
+    val frames: List<Frame>
+    val height: Double
+
+    init {
+        val aspects = raw.map { if (it.isFinite() && it > 0) min(max(it, 0.2), 8.0) else 1.0 }
+        if (aspects.isEmpty() || width <= 0) {
+            frames = emptyList()
+            height = 0.0
+        } else if (aspects.size == 1) {
+            val h = min(width / aspects[0], singleMaxHeight)
+            frames = listOf(Frame(0.0, 0.0, min(width, h * aspects[0]), h))
+            height = h
+        } else {
+            val target = width * 0.6
+            val maxHeight = width * 0.9
+
+            /// A row's height when it fills the width, and its cost: how far it is
+            /// from the target, and a steep price for a row that can't fill.
+            fun rowHeight(range: IntRange): Double {
+                val gaps = spacing * (range.count() - 1)
+                return (width - gaps) / range.sumOf { aspects[it] }
+            }
+            fun cost(range: IntRange): Double {
+                val h = rowHeight(range)
+                var c = (h - target) * (h - target)
+                if (h > maxHeight) c += (h - maxHeight) * (h - maxHeight) * 20
+                if (range.count() > 4) c += 1e9
+                return c
+            }
+            // Best breaks for the first i images, then walk back.
+            val n = aspects.size
+            val best = DoubleArray(n + 1) { Double.POSITIVE_INFINITY }
+            val from = IntArray(n + 1)
+            best[0] = 0.0
+            for (end in 1..n) {
+                for (start in max(0, end - 4) until end) {
+                    if (best[start] == Double.POSITIVE_INFINITY) continue
+                    val total = best[start] + cost(start until end)
+                    if (total < best[end]) {
+                        best[end] = total
+                        from[end] = start
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun MosaicTile(images: List<OpenCodeImageAttachment>, index: Int, width: Int, height: Int, onPreview: (String) -> Unit) {
-    val attachment = images[index]
-    Box(
-        Modifier
-            .size(width.dp, height.dp)
-            .clickable(role = Role.Button) { onPreview(attachment.id) }
-            .semantics { contentDescription = "Open tool image ${index + 1} of ${images.size}" },
-        contentAlignment = Alignment.Center,
-    ) {
-        // The last tile also stands in for the images behind its “+N”.
-        val ids = if (index == 2) images.drop(2).map { it.id } else listOf(attachment.id)
-        CachedImage.decoded(attachment.id, attachment.data)?.let { image ->
-            MediaThumbnail(
-                image = image,
-                ids = ids,
-                modifier = Modifier.size(width.dp, height.dp),
-                cornerRadius = TranscriptMetrics.cardCornerRadius.dp,
-                corners = mosaicCorners(images.size, index),
-            )
-        }
-        if (index == 2 && images.size > 3 && !MediaZoomSources.shared.isHidden(ids)) {
-            Box(Modifier.size(width.dp, height.dp).background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
-                Text("+${images.size - 3}", style = TextStyles.title2.semibold, color = Color.White)
+            val ranges = ArrayDeque<IntRange>()
+            var end = n
+            while (end > 0) {
+                ranges.addFirst(from[end] until end)
+                end = from[end]
             }
+            val laidOut = mutableListOf<Frame>()
+            var y = 0.0
+            for (range in ranges) {
+                val h = min(rowHeight(range), maxHeight)
+                var x = 0.0
+                for (index in range) {
+                    val w = h * aspects[index]
+                    laidOut += Frame(x, y, w, h)
+                    x += w + spacing
+                }
+                y += h + spacing
+            }
+            frames = laidOut
+            height = max(0.0, y - spacing)
         }
     }
-}
 
-/// A tile rounds only the collage's own corners, so a flight from it
-/// starts and lands on the shape it has in the collage.
-private fun mosaicCorners(count: Int, index: Int): Set<CACornerMask> {
-    val leading = setOf(CACornerMask.layerMinXMinYCorner, CACornerMask.layerMinXMaxYCorner)
-    return when {
-        count == 1 -> CACornerMask.all
-        count == 2 && index == 0 -> leading
-        count == 2 -> setOf(CACornerMask.layerMaxXMinYCorner, CACornerMask.layerMaxXMaxYCorner)
-        index == 0 -> leading
-        index == 1 -> setOf(CACornerMask.layerMaxXMinYCorner)
-        else -> setOf(CACornerMask.layerMaxXMaxYCorner)
+    companion object {
+        const val spacing = 4.0
+        const val cornerRadius = 14f
+
+        /// A lone image may stand this tall (a phone screenshot would otherwise
+        /// run to two screens).
+        const val singleMaxHeight = 520.0
     }
 }
 
