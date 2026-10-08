@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "ba012e9")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -526,7 +526,8 @@ data class OpenCodeToolCall(
     companion object {
         fun displayName(name: String): String {
             if (name == "bash") return "Shell"
-            val words = name.replace("_", " ").replace("-", " ")
+            val bare = if (name.startsWith("opencode_") && name.length > 9) name.drop(9) else name
+            val words = bare.replace("_", " ").replace("-", " ")
             return words.replaceFirstChar { it.uppercase() }
         }
 
@@ -1066,10 +1067,35 @@ data class OpenCodePendingRequests(
     var forms: List<OpenCodeFormRequest> = emptyList(),
 )
 
+/// Who sent a user-role message when an agent did rather than the person
+/// at a keyboard: another session's agent (the internal plugin's cross-session
+/// prompts carry `metadata["anomaly.session"].originSessionID`) or the parent
+/// session's agent spawning a subagent. Voice delegations are told by their
+/// text (`VoiceHandoff.parse`).
+sealed interface OpenCodePromptSource {
+    data class session(val id: String) : OpenCodePromptSource
+
+    data object parentAgent : OpenCodePromptSource
+
+    companion object {
+        /// How the server opens a new subagent's first prompt.
+        const val subagentPreamble = "You are a subagent spawned by another session."
+
+        operator fun invoke(text: String?, metadata: Map<String, OpenCodeJSONValue>?): OpenCodePromptSource? {
+            val origin = metadata?.get("anomaly.session")?.`object`?.get("originSessionID")?.string
+            if (origin != null) return session(id = origin)
+            if (text?.startsWith(subagentPreamble) == true) return parentAgent
+            return null
+        }
+    }
+}
+
 @Serializable(with = OpenCodeTranscriptItem.Serializer::class)
 sealed class OpenCodeTranscriptItem {
     abstract val id: String
-    data class userText(override val id: String, val text: String) : OpenCodeTranscriptItem()
+
+    /// `source` is set when an agent sent it; optional so older snapshots still load.
+    data class userText(override val id: String, val text: String, val source: OpenCodePromptSource? = null) : OpenCodeTranscriptItem()
     data class userImages(override val id: String, val images: List<OpenCodeImageAttachment>) : OpenCodeTranscriptItem()
     data class userFiles(override val id: String, val files: List<OpenCodeTranscriptFile>) : OpenCodeTranscriptItem()
     data class assistantMarkdown(override val id: String, val blocks: List<OpenCodeMarkdownBlock>) : OpenCodeTranscriptItem()
@@ -1124,6 +1150,8 @@ data class OpenCodePendingInput(
     var notice: String? = null,
     var delivery: OpenCodeDelivery = OpenCodeDelivery.steer,
     var files: List<OpenCodeFileReference> = emptyList(),
+    /// Set when an agent sent it.
+    var source: OpenCodePromptSource? = null,
 )
 
 data class OpenCodeQueuedInput(
@@ -1221,6 +1249,7 @@ private class EventBatcher(private val emit: suspend (OpenCodeServerEvent) -> Un
     private var flushJob: Job? = null
 
     suspend fun receive(event: OpenCodeServerEvent) {
+        AgentActivityLedger.shared.record(event)
         val outgoing = mutex.withLock {
             val batch = event as? OpenCodeServerEvent.contentBatch
             if (batch == null) {
@@ -2059,7 +2088,7 @@ class OpenCodeClient(
             } + inline
             if (files.isNotEmpty()) items += OpenCodeTranscriptItem.userFiles("${message.id}-files", files)
             val text = OpenCodePromptPresentation.displayText(message.text ?: "", references).trim().nonEmpty
-            if (text != null) items += OpenCodeTranscriptItem.userText(message.id, text)
+            if (text != null) items += OpenCodeTranscriptItem.userText(message.id, text, source = OpenCodePromptSource(text = message.text, metadata = message.metadata))
             return items
         }
 
@@ -2161,6 +2190,7 @@ class OpenCodeClient(
                 isCompaction = item.type == "compaction",
                 delivery = item.delivery?.let { runCatching { OpenCodeDelivery.valueOf(it) }.getOrNull() } ?: OpenCodeDelivery.steer,
                 files = files,
+                source = OpenCodePromptSource(text = item.payload?.text, metadata = item.payload?.metadata),
             )
         }
 

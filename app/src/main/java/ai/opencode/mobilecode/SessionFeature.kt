@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "2e313a1", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "7fa8e81", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
 
 package ai.opencode.mobilecode
 
@@ -69,6 +69,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             val text: String = "",
             val attachments: List<OpenCodeOutgoingAttachment> = emptyList(),
             val files: List<ComposerFileAttachment> = emptyList(),
+            /// A shared location from the + menu, sent at the top of the prompt.
+            val location: SharedLocation? = null,
         )
 
         var server by StoreVar(server)
@@ -263,6 +265,15 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
         /// Non-image files: uploading, uploaded (sent as path references), or failed.
         var pendingFiles by StoreVar<List<ComposerFileAttachment>>(emptyList())
+
+        /// A location from the + menu, waiting to go with the next message.
+        var pendingLocation by StoreVar<SharedLocation?>(null)
+
+        /// The + menu's Location is finding the phone.
+        var isLocating by StoreVar(false)
+
+        /// Why the last Location couldn't be shared, until dismissed.
+        var locationError by StoreVar<String?>(null)
 
         /// Send was tapped while files were still uploading; the message goes
         /// with this delivery once they land.
@@ -556,15 +567,17 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
         /// Something to send: text, inline media, or files.
         val hasPromptContent: Boolean
-            get() = draft.trim().isNotEmpty() || pendingAttachments.isNotEmpty() || pendingFiles.isNotEmpty()
+            get() = draft.trim().isNotEmpty() ||
+                pendingAttachments.isNotEmpty() || pendingFiles.isNotEmpty() || pendingLocation != null
 
         /// The composer's text, inline media, and files, saved while elsewhere.
         var draftState: DraftState
-            get() = DraftState(text = draft, attachments = pendingAttachments, files = pendingFiles)
+            get() = DraftState(text = draft, attachments = pendingAttachments, files = pendingFiles, location = pendingLocation)
             set(newValue) {
                 draft = newValue.text
                 pendingAttachments = newValue.attachments
                 pendingFiles = newValue.files
+                pendingLocation = newValue.location
             }
 
         /// Restores a saved composer. An upload still in flight when it was saved
@@ -572,6 +585,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         fun restoreDraft(saved: DraftState) {
             draft = saved.text
             pendingAttachments = saved.attachments
+            pendingLocation = saved.location
             pendingFiles = saved.files.map { file ->
                 if (!file.isUploading) return@map file
                 file.copy(status = ComposerFileAttachment.Status.failed("Couldn’t upload"))
@@ -623,6 +637,9 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             get() = permissionRequests.isNotEmpty() || formRequests.isNotEmpty()
 
         val reviewRequestIDs: List<String> get() = formRequests.map { it.id } + permissionRequests.map { it.id }
+
+        /// Sessions a pending request waits on: their activity glyphs show Waiting for Input.
+        val waitingSessionIDs: Set<String> get() = (formRequests.map { it.sessionID } + permissionRequests.map { it.sessionID }).toSet()
 
         /// Transient request failures stay quiet while connectivity is already
         /// explaining the outage. A failure becomes actionable only after the
@@ -858,6 +875,15 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
         data class fileRemoved(val id: UUID) : Action
 
+        /// The + menu's Location: find the phone and attach it to the composer.
+        data object locationTapped : Action
+
+        data class locationResponse(val result: Result<SharedLocation>) : Action
+
+        data object locationRemoved : Action
+
+        data object locationErrorDismissed : Action
+
         /// Starts uploads for shared files absorbed into the composer.
         data object queuedUploadsStarted : Action
 
@@ -1023,6 +1049,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
     private val uuid by Dependency(DependencyValues::uuid)
     private val undeliveredPrompts by Dependency(DependencyValues::undeliveredPrompts)
     private val haptics by Dependency(DependencyValues::haptics)
+    private val location by Dependency(DependencyValues::location)
     private val dictation by Dependency(DependencyValues::dictation)
     private val date by Dependency(DependencyValues::date)
     private val wallClock by Dependency(DependencyValues::wallClock)
@@ -1057,6 +1084,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data object moveToBackground : CancelID
 
         data object dictation : CancelID
+
+        data object location : CancelID
 
         data object viewReceipt : CancelID
 
@@ -1714,7 +1743,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         LabMarks.mark("send_tap", sessionID = state.session?.id)
                         // Both delivery modes are admitted to the inbox. Steering promotes at
                         // the next step; an explicit queue waits until the response completes.
-                        val text = state.draft.trim()
+                        val typed = state.draft.trim()
+                        // A shared location rides at the top of the text, where the agent
+                        // reads it and the transcript turns it into a card.
+                        val text = state.pendingLocation?.prompt(with = typed) ?: typed
                         val attachments = state.pendingAttachments
                         val files = state.pendingFiles
                         val wasRunning = state.isRunning
@@ -2045,7 +2077,14 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         if (state.lastSentItemID?.let(pending.optimisticIDs::contains) == true) {
                             state.lastSentItemID = null
                         }
-                        state.draft = SharedComposerDraft.joined(pending.text, state.draft)
+                        // A shared location comes back as its card, not as the raw block.
+                        val shared = SharedLocation.parse(pending.text)
+                        if (shared != null) {
+                            state.pendingLocation = state.pendingLocation ?: shared.location
+                            state.draft = SharedComposerDraft.joined(shared.remainder, state.draft)
+                        } else {
+                            state.draft = SharedComposerDraft.joined(pending.text, state.draft)
+                        }
                         state.pendingAttachments = pending.attachments + state.pendingAttachments
                         state.pendingFiles = pending.files + state.pendingFiles
                         val infoID = "info-send-${pending.messageID}"
@@ -2477,6 +2516,51 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
                         val file = state.pendingFiles.firstOrNull { it.id == id }
                         if (!state.supportsFileUploads || file == null || !file.isFailed) return@Reduce Effect.none
                         upload(id, state)
+                    }
+
+                    Action.locationTapped -> {
+                        if (state.isLocating) return@Reduce Effect.none
+                        state.isLocating = true
+                        state.locationError = null
+                        Effect.run { send ->
+                            try {
+                                send(Action.locationResponse(Result.success(location.current())))
+                            } catch (error: LocationClientError) {
+                                send(Action.locationResponse(Result.failure(error)))
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (error: Exception) {
+                                send(Action.locationResponse(Result.failure(LocationClientError.unavailable)))
+                            }
+                        }
+                            .cancellable(CancelID.location, cancelInFlight = true)
+                    }
+
+                    is Action.locationResponse -> {
+                        if (!state.isLocating) return@Reduce Effect.none
+                        state.isLocating = false
+                        action.result.fold(
+                            onSuccess = { found ->
+                                state.pendingLocation = found
+                                haptics.success()
+                            },
+                            onFailure = { error ->
+                                state.locationError = error.message
+                                haptics.error()
+                            },
+                        )
+                        Effect.none
+                    }
+
+                    Action.locationRemoved -> {
+                        state.isLocating = false
+                        state.pendingLocation = null
+                        Effect.cancel(CancelID.location)
+                    }
+
+                    Action.locationErrorDismissed -> {
+                        state.locationError = null
+                        Effect.none
                     }
 
                     is Action.fileRemoved -> {

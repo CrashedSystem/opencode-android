@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "f3bda52", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "e2ea70b", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
 
 package ai.opencode.mobilecode
 
@@ -32,20 +32,19 @@ import ai.opencode.mobilecode.tca.task
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.Settings
 import android.text.format.Formatter
 import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
@@ -72,6 +71,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -164,8 +164,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
@@ -1116,6 +1114,7 @@ fun SessionView(
     view.onCatchUpOpen = onCatchUpOpen
     view.listContext = listContext
     view.reducedMotion = LocalReduceMotion.current
+    view.colorSchemeDark = isSystemInDarkTheme()
     remember(store.state.session?.id) {
         LabMarks.markOnce("session_view_init", store.state.session?.id)
     }
@@ -1131,6 +1130,7 @@ private class SessionViewState {
     var onCatchUpOpen: (() -> Unit)? = null
     var listContext by mutableStateOf(SessionListContext())
     var reducedMotion = false
+    var colorSchemeDark = false
     var attachmentError by mutableStateOf<String?>(null)
     var showsQueuedMessages by mutableStateOf(false)
     var showsBackgroundWork by mutableStateOf(false)
@@ -1140,8 +1140,6 @@ private class SessionViewState {
     val fileImporter = ComposerFileImporter()
     /// `imageImporter.isLoading`, observable: SwiftUI's importer is `@Observable`.
     var isImporting by mutableStateOf(false)
-    var imagePreview by mutableStateOf<TranscriptImagePreview?>(null)
-    var openFile by mutableStateOf<AgentFileReference?>(null)
     var largeUpload by mutableStateOf<LargeUpload?>(null)
     var messageFieldFocused by mutableStateOf(false)
     /// The held mic's finger travel, for the recording bar to follow.
@@ -1151,12 +1149,8 @@ private class SessionViewState {
     var dictationHoldVisuals by mutableStateOf(DictationHoldVisuals())
     var attachmentMenu by mutableStateOf(AttachmentMenuPhase.closed)
     var photoSelection = InlinePhotoSelection()
-    /// In points, like the menu's anchors.
-    var pickerReservation by mutableFloatStateOf(0f)
     val attachmentMenuAnchors = AttachmentMenuAnchors()
     val attachmentMenuPress = AttachmentMenuPress()
-    /// The photo-picker card holds the menu's glass (see `AttachmentMenuOverlay`).
-    var attachmentCardOwnsGlass by mutableStateOf(false)
     var showsFileImporter by mutableStateOf(false)
     var showsAttachmentCamera by mutableStateOf(false)
     /// Photos without an inline picker: the system picker opens instead.
@@ -1243,10 +1237,14 @@ private class SessionViewState {
                     store = store,
                     scrollEdgeBridge = scrollEdgeBridge,
                     dismissKeyboard = { messageFieldFocused = false },
-                    onPreviewImage = { imagePreview = it },
+                    onPreviewImage = { preview ->
+                        // The keyboard would stay up over the image.
+                        messageFieldFocused = false
+                        presentImage(preview)
+                    },
                     onOpenFile = { file ->
                         messageFieldFocused = false
-                        openFile = file
+                        presentFile(file)
                     },
                     showsJumpButton = Binding({ showsJumpButton }, { showsJumpButton = it }),
                     jumpRequest = jumpRequest,
@@ -1358,6 +1356,24 @@ private class SessionViewState {
             attachmentMenu = AttachmentMenuPhase.closed
             photoSelection = InlinePhotoSelection()
         }
+        val locationError = store.state.locationError
+        val context = LocalContext.current
+        alert(
+            "Couldn’t Share Location",
+            isPresented = Binding({ store.state.locationError != null }, { if (!it) store.send(SessionFeature.Action.locationErrorDismissed) }),
+            message = locationError ?: "",
+            buttons = buildList {
+                if (locationError == LocationClientError.denied.message) {
+                    add(
+                        AlertButton("Open Settings") {
+                            store.send(SessionFeature.Action.locationErrorDismissed)
+                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                        },
+                    )
+                }
+                add(AlertButton("OK", ai.opencode.mobilecode.system.ButtonRole.cancel) { store.send(SessionFeature.Action.locationErrorDismissed) })
+            },
+        )
         alert(
             "Couldn’t Add Image",
             isPresented = Binding({ attachmentError != null }, { if (!it) attachmentError = null }),
@@ -1383,15 +1399,24 @@ private class SessionViewState {
                 },
             ),
         )
-        imagePreview?.let { preview ->
-            FullScreenCover(onDismiss = { imagePreview = null }) {
-                TranscriptImageViewer(preview, onDismiss = { imagePreview = null })
-            }
+    }
+
+    fun presentImage(preview: TranscriptImagePreview) {
+        MediaPresenter.present(sourceID = preview.id, isMedia = true, reducesMotion = reducedMotion, darkColorScheme = true) { viewer ->
+            TranscriptImageViewer(preview = preview, viewer = viewer)
         }
-        openFile?.let { file ->
-            FullScreenCover(onDismiss = { openFile = null }) {
-                AgentFileViewer(reference = file, server = store.state.server, directory = store.state.session?.directory, onDismiss = { openFile = null })
-            }
+    }
+
+    fun presentFile(file: AgentFileReference) {
+        val server = store.state.server
+        val directory = store.state.session?.directory
+        MediaPresenter.present(
+            sourceID = file.zoomSourceID,
+            isMedia = file.kind.isMedia,
+            reducesMotion = reducedMotion,
+            darkColorScheme = file.kind.isMedia || colorSchemeDark,
+        ) {
+            AgentFileViewer(reference = file, server = server, directory = directory, onDismiss = {})
         }
     }
 
@@ -1560,9 +1585,7 @@ private class SessionViewState {
                 // `windowInsetsPadding` supplies the navigation bar clearance when
                 // the keyboard is hidden; with the keyboard up the pill needs its own
                 // breathing room so it doesn't sit flush against the keys.
-                .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp)
-                // The composer rides on top of the inline photo picker.
-                .padding(bottom = shownComposerLift.value.dp),
+                .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp),
         ) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // A new session's project and model sit right above where you type.
@@ -1635,15 +1658,45 @@ private class SessionViewState {
         val hasQueued = queuedMessages().isNotEmpty()
         if (!(hasActivity || canMove || hasQueued)) return
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (canMove) MoveToBackground()
-            if (hasActivity || hasQueued || showsJumpButton) {
+            if (canMove) {
+                // Without a row below, the jump button joins this one: showing
+                // it never adds a row to the transcript's insets.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    MoveToBackground()
+                    Spacer(Modifier.weight(1f))
+                    if (showsJumpButton && !hasActivity && !hasQueued) JumpToLatestButton()
+                }
+            }
+            if (hasActivity || hasQueued) {
                 ViewThatFits(
                     {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (hasActivity) BackgroundActivity()
-                            Spacer(Modifier.weight(1f))
-                            if (hasQueued) QueuedActivity()
-                            if (showsJumpButton) JumpToLatestButton()
+                        // Measured with the jump button's slot always taken, so its
+                        // coming and going never switches the layout (and the insets).
+                        Box {
+                            Row(
+                                Modifier.alpha(0f).clearAndSetSemantics {},
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (hasActivity) {
+                                    ComposerPillLabel(title = BackgroundWorkPanel.summary(store.observe { activeSubagents }, store.observe { backgroundShells })) {
+                                        Spacer(Modifier.size(18.dp))
+                                    }
+                                }
+                                Spacer(Modifier.weight(1f))
+                                if (hasQueued) {
+                                    ComposerPillLabel(title = "${queuedMessages().size} queued") {
+                                        SystemImage("text.bubble", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.label)
+                                    }
+                                }
+                                Spacer(Modifier.size(44.dp))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (hasActivity) BackgroundActivity()
+                                Spacer(Modifier.weight(1f))
+                                if (hasQueued) QueuedActivity()
+                                if (showsJumpButton) JumpToLatestButton()
+                            }
                         }
                     },
                     {
@@ -1698,7 +1751,14 @@ private class SessionViewState {
                     stateDescription = if (showsBackgroundWork) "Expanded" else "Collapsed"
                 },
         ) {
-            BackgroundWorkCapsuleLabel(summary = summary)
+            BackgroundWorkCapsuleLabel(
+                summary = summary,
+                activity = AgentActivitySource.summary(
+                    agents = store.state.activeSubagents,
+                    shells = store.state.backgroundShells,
+                    waiting = store.state.waitingSessionIDs,
+                ),
+            )
         }
     }
 
@@ -1796,7 +1856,8 @@ private class SessionViewState {
         get() = !store.state.isSubmittingPrompt && store.state.hasPromptContent && !store.state.pendingFiles.any { it.isFailed }
 
     val hasComposerAttachments: Boolean
-        get() = store.state.pendingAttachments.isNotEmpty() || store.state.pendingFiles.isNotEmpty()
+        get() = store.state.pendingAttachments.isNotEmpty() || store.state.pendingFiles.isNotEmpty() ||
+            store.state.pendingLocation != null || store.state.isLocating
 
     data class ComposerPresentation(val expanded: Boolean, val controls: ComposerControls)
 
@@ -1829,8 +1890,8 @@ private class SessionViewState {
     fun ComposerCapsule() {
         Box(Modifier.fillMaxWidth()) {
             // Behind the composer, so its × stays reachable: a tap anywhere else
-            // or a downward drag dismisses the menu.
-            if (attachmentMenu == AttachmentMenuPhase.menu) {
+            // or a downward drag dismisses the menu or the photo card.
+            if (attachmentMenu != AttachmentMenuPhase.closed) {
                 AttachmentMenuDismissArea(
                     onDismiss = ::closeAttachmentMenu,
                     modifier = Modifier.matchParentSize().wrapContentSize(unbounded = true),
@@ -1839,20 +1900,6 @@ private class SessionViewState {
             }
             Box(Modifier.fillMaxWidth().openCodeGlass(RoundedCornerShape(28.dp))) {
                 Composer()
-            }
-            if (store.state.voice == null) {
-                AttachmentMenuPanel(
-                    isOpen = attachmentMenu == AttachmentMenuPhase.menu && !attachmentCardOwnsGlass,
-                    items = attachmentMenuItems(LocalContext.current),
-                    anchors = attachmentMenuAnchors,
-                    press = attachmentMenuPress,
-                    handedOff = attachmentCardOwnsGlass,
-                    lift = shownComposerLift.value,
-                    onChoose = ::chooseAttachment,
-                    onPaste = ::pasteAttachments,
-                    onDismiss = ::closeAttachmentMenu,
-                    modifier = Modifier.matchParentSize(),
-                )
             }
         }
         // The inline photo picker can't stay under a call's transcript.
@@ -1874,7 +1921,7 @@ private class SessionViewState {
             Modifier
                 .fillMaxWidth()
                 .animateContentSize(if (reducedMotion) snap() else spring(dampingRatio = 1f, stiffness = 630f))
-                .attachmentMenuAnchor(attachmentMenuAnchors::composer, shownComposerLift.value)
+                .attachmentMenuAnchor(attachmentMenuAnchors::composer)
                 .clickable(interactionSource = null, indication = null) { messageFieldFocused = true }
                 .padding(horizontal = 6.dp)
                 .padding(bottom = 6.dp, top = if (composerExpanded) 0.dp else 6.dp)
@@ -1986,7 +2033,6 @@ private class SessionViewState {
                 anchors = attachmentMenuAnchors,
                 press = attachmentMenuPress,
                 rows = if (attachmentMenu == AttachmentMenuPhase.menu) attachmentMenuAnchors.rows else emptyMap(),
-                lift = shownComposerLift.value,
                 onToggle = ::toggleAttachmentMenu,
                 onChoose = ::chooseAttachment,
                 // Sliding from + to the rows must not open the drawer; while it's
@@ -2196,7 +2242,13 @@ private class SessionViewState {
 
     @Composable
     fun PendingAttachmentsRow() {
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                // Room for the remove buttons, which sit over the top trailing corner.
+                .padding(top = 8.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             store.state.pendingAttachments.forEachIndexed { index, attachment ->
                 androidx.compose.runtime.key(attachment.id) {
                     if (attachment.isImage) AttachmentThumbnail(attachment, index) else InlineFileChip(attachment, index)
@@ -2204,6 +2256,34 @@ private class SessionViewState {
             }
             for (file in store.state.pendingFiles) {
                 androidx.compose.runtime.key(file.id) { PendingFileChip(file) }
+            }
+            val location = store.state.pendingLocation
+            if (location != null) {
+                RemovableAttachment(
+                    label = "Remove location",
+                    identifier = "remove-pending-location",
+                    onRemove = { store.send(SessionFeature.Action.locationRemoved) },
+                ) {
+                    SharedLocationCard(location = location, compact = true)
+                }
+            } else if (store.state.isLocating) {
+                RemovableAttachment(
+                    label = "Cancel location",
+                    identifier = "cancel-pending-location",
+                    onRemove = { store.send(SessionFeature.Action.locationRemoved) },
+                ) {
+                    Row(
+                        Modifier
+                            .height(56.dp)
+                            .background(SystemColors.secondarySystemBackground, RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = SystemColors.secondaryLabel)
+                        Text("Finding Location…", style = TextStyles.subheadline, color = SystemColors.secondaryLabel)
+                    }
+                }
             }
         }
     }
@@ -2382,15 +2462,15 @@ private class SessionViewState {
     @Composable
     fun AttachmentMenuOverlayHost() {
         val context = LocalContext.current
-        ComposerLiftMotion()
         AttachmentMenuOverlay(
             phase = Binding({ attachmentMenu }, { attachmentMenu = it }),
-            cardOwnsGlass = Binding({ attachmentCardOwnsGlass }, { attachmentCardOwnsGlass = it }),
             anchors = attachmentMenuAnchors,
+            press = attachmentMenuPress,
             selection = photoSelection,
             items = attachmentMenuItems(context),
             includesVideos = store.state.supportsFileUploads,
-            pickerReservation = Binding({ pickerReservation }, { pickerReservation = it }),
+            onChoose = ::chooseAttachment,
+            onPaste = ::pasteAttachments,
             onPhotos = { items ->
                 photoSelection.items = items
                 syncPickedPhotos()
@@ -2462,35 +2542,17 @@ private class SessionViewState {
         }
     }
 
-    /// How far the picker card raises the composer.
-    val composerLift: Float get() = if (attachmentMenu == AttachmentMenuPhase.photos) pickerReservation else 0f
-
-    /// The lift as drawn: SwiftUI animates the padding with the card's morph,
-    /// and the menu's anchors add back what is drawn to find where they rest.
-    val shownComposerLift = Animatable(0f)
-
-    @Composable
-    fun ComposerLiftMotion() {
-        val target = composerLift
-        val closing = attachmentMenu == AttachmentMenuPhase.closed
-        LaunchedEffect(target) {
-            shownComposerLift.animateTo(
-                target,
-                if (closing) AttachmentMenuMotion.close(reducedMotion) else AttachmentMenuMotion.morph(reducedMotion),
-            )
-        }
-    }
-
     val composerAttachmentIDs: Set<UUID>
         get() = store.state.pendingAttachments.mapNotNull { runCatching { UUID.fromString(it.id) }.getOrNull() }.toSet() +
             store.state.pendingFiles.map { it.id }
 
-    /// Camera, Photos, Files (when the server takes uploads), and Paste (when
+    /// Camera, Photos, Files (when the server takes uploads), Location (one at a time), and Paste (when
     /// the pasteboard has an image).
     fun attachmentMenuItems(context: Context): List<AttachmentMenuItem> = buildList {
         if (cameraAvailable(context)) add(AttachmentMenuItem.camera)
         add(AttachmentMenuItem.photos)
         if (store.state.supportsFileUploads) add(AttachmentMenuItem.files)
+        if (store.state.pendingLocation == null) add(AttachmentMenuItem.location)
         if (clipboardHasImage(context)) add(AttachmentMenuItem.paste)
     }
 
@@ -2531,12 +2593,12 @@ private class SessionViewState {
                     closeAttachmentMenu()
                     return
                 }
-                // The card takes the glass over in place, then morphs it into itself.
-                attachmentCardOwnsGlass = true
-                Handler(Looper.getMainLooper()).post {
-                    if (attachmentMenu != AttachmentMenuPhase.menu) return@post
-                    attachmentMenu = AttachmentMenuPhase.photos
-                }
+                attachmentMenu = AttachmentMenuPhase.photos
+            }
+            AttachmentMenuItem.location -> {
+                attachmentMenuRestoresFocus = true
+                store.send(SessionFeature.Action.locationTapped)
+                closeAttachmentMenu()
             }
             AttachmentMenuItem.paste -> Unit
         }
@@ -2788,16 +2850,6 @@ private fun PlainListRow(onClick: () -> Unit, content: @Composable androidx.comp
             content = content,
         )
         Box(Modifier.padding(start = 16.dp)) { HairlineRule() }
-    }
-}
-
-@Composable
-private fun FullScreenCover(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        Box(Modifier.fillMaxSize()) { content() }
     }
 }
 

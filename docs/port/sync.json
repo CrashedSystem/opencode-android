@@ -47,11 +47,12 @@
   },
   "deferred": {
     "OpenCode/SessionNotifications.swift": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay",
-    "OpenCode/GlassMorphTrace.swift": "Lab instrumentation for the iOS UI tests that walks Liquid Glass's CASDFElementLayer layers; Compose draws the morphing glass from its own animated frame, and no Android lab test reads a glass trace yet"
+    "OpenCode/GlassMorphTrace.swift": "Lab instrumentation for the iOS UI tests that walks Liquid Glass's CASDFElementLayer layers; Compose draws the morphing glass from its own animated frame, and no Android lab test reads a glass trace yet",
+    "OpenCode/Media/MediaTransitionTrace.swift": "Lab instrumentation for the iOS UI tests (-lab-media-trace publishes each flight phase's frames, radius, backdrop, and thumbnail visibility as the media-trace element's value); no Android lab test reads a media trace yet"
   },
   "partial": {
     "OpenCode/HapticsClient.swift": "LiveHaptics's voice call scheduling (VoiceHapticEngine, VoiceCallSounds) waits for voice calls; its feedback generators are system/Haptics.kt",
-    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, the DEBUG VoiceLabTriggers, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52) arrive with the voice port",
+    "OpenCode/SessionView.swift": "the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, the DEBUG VoiceLabTriggers, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41) arrive with the voice port",
     "OpenCode/Voice/VoiceTranscript.swift": "VoiceHandoff renders voice delegations in the transcript, so this file is tracked though voice calls are deferred; its call-only parts (the VoiceInstructions builders) wait for voice calls",
     "OpenCodeTests/VoiceHandoffParseTests.swift": "the read-back cases are tracked with VoiceTranscript.swift; the cases that need the voice call (VoiceWorkClient.formatRecentMessages, VoiceInstructions.build) stay ignored until voice calls",
     "OpenCode/Transcript/TranscriptListViewController.swift": "the lab scroll trace's follow measurements (c00f453, c3a6c9a) track absolute content ends, which the Compose list does not expose; the Android lab reads frame stats through scripts/session-lab-gfxinfo.py instead",
@@ -60,13 +61,18 @@
     "OpenCode/DiagnosticsView.swift": "the Voice Calls row (VoiceCallLogList) and uploading the saved calls when Developer Mode turns on (VoiceCallLogRecorder), both 494e433, wait for the voice port",
     "OpenCode/Traces/DeveloperMode.swift": "upload(_ log: VoiceCallLog) waits for the voice port's VoiceCallLog",
     "OpenCode/HomeFeature.swift": "the voice agent's draft in a project (makeDraft(directory:), the openDraft delegate) and its setPinned delegate (5cfc623) arrive with the voice port",
-    "OpenCode/SessionFeature.swift": "the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1) need VoiceFeature's actions and arrive with the voice port"
+    "OpenCode/SessionFeature.swift": "the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1) need VoiceFeature's actions and arrive with the voice port",
+    "OpenCode/WhatsNew/WhatsNewEntries.swift": "the Steadier Voice Calls entry (9e1aad3) announces calls carried over WebRTC, which arrive with the voice port"
   },
   "skipped": {
     "d0ed2a9": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the notify plumbing (prompt callback metadata, the Settings row, the setup sheet, the first-send offer, tap routing) waits for it",
     "6eff60f": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; the relay URL and the Notify When Done What's New entry wait for it",
     "f2afbb8": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; Settings \u2192 Notifications and its notify plugin check wait for it",
-    "d4cd513": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; notification tap handling lives in the deferred SessionNotifications.swift"
+    "d4cd513": "Push notifications need an Android delivery path the server side does not have yet: the notify relay only speaks APNs and there is no FCM relay; notification tap handling lives in the deferred SessionNotifications.swift",
+    "f114a61": "Lab-only tooling: scripts/devbox-test.sh builds and tests the iOS app on the remote Xcode devbox; Android builds with Gradle",
+    "8e88336": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground",
+    "2d19c3a": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground",
+    "e41b067": "Lab-only tooling: the timeline playground drives the iOS session lab in the Simulator, and the Android lab has no playground or simulator stream"
   },
   "assets": {
     "OpenCode/Assets.xcassets/OpenCodeWordmark.imageset/opencode-wordmark-dark.png": {

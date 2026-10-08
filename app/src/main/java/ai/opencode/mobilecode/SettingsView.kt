@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SettingsView.swift", "d809b1e", partial = "all but the Voice page's dot scope preview (494e433), Raise to Talk (2e313a1), VoiceKeyFingerprint (f3bda52), and the Notifications row")
+@file:PortedFrom("OpenCode/SettingsView.swift", "a9bc920", partial = "all but the Voice page's dot scope preview (494e433), Raise to Talk (2e313a1), VoiceKeyFingerprint (f3bda52), and the Notifications row")
 
 package ai.opencode.mobilecode
 
@@ -74,6 +74,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -161,7 +162,10 @@ fun SessionSettingsView(
 
                     Section {
                         ForEach(listOf("whats-new"), { it }) {
-                            NavigationLinkRow(push = { pushed = SettingsDestination.whatsNew }) {
+                            NavigationLinkRow(
+                                push = { pushed = SettingsDestination.whatsNew },
+                                modifier = Modifier.testTag("settings-whats-new"),
+                            ) {
                                 SettingsRow("What’s New", symbol = "sparkles", color = SystemColors.systemOrange)
                             }
                         }
@@ -544,9 +548,9 @@ private fun keyFingerprint(key: String, model: String): String =
 
 /// `NavigationLink { … } label: { … }`: the label and a disclosure chevron.
 @Composable
-private fun NavigationLinkRow(push: () -> Unit, label: @Composable () -> Unit) {
+private fun NavigationLinkRow(push: () -> Unit, modifier: Modifier = Modifier, label: @Composable () -> Unit) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = push),
         verticalAlignment = Alignment.CenterVertically,

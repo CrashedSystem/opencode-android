@@ -354,6 +354,12 @@ private fun encodeItem(item: OpenCodeTranscriptItem, json: Json): JsonObject {
         is OpenCodeTranscriptItem.userText -> "userText" to buildJsonObject {
             put("id", item.id)
             put("text", item.text)
+            // Swift's synthesized Codable shape: `{"session":{"id":…}}` or `{"parentAgent":{}}`.
+            when (val source = item.source) {
+                is OpenCodePromptSource.session -> put("source", buildJsonObject { put("session", buildJsonObject { put("id", source.id) }) })
+                OpenCodePromptSource.parentAgent -> put("source", buildJsonObject { put("parentAgent", buildJsonObject {}) })
+                null -> Unit
+            }
         }
         is OpenCodeTranscriptItem.userImages -> "userImages" to buildJsonObject {
             put("id", item.id)
@@ -392,12 +398,19 @@ private fun encodeItem(item: OpenCodeTranscriptItem, json: Json): JsonObject {
     return JsonObject(mapOf(key to body))
 }
 
+private fun decodePromptSource(element: JsonElement?): OpenCodePromptSource? {
+    val source = element as? JsonObject ?: return null
+    source["session"]?.let { session -> return OpenCodePromptSource.session(id = (session as JsonObject).getValue("id").jsonPrimitive.content) }
+    if (source.containsKey("parentAgent")) return OpenCodePromptSource.parentAgent
+    return null
+}
+
 private fun decodeItem(element: JsonElement, json: Json): OpenCodeTranscriptItem {
     val (key, value) = element.jsonObject.entries.first()
     val body = value.jsonObject
     val id = body.getValue("id").jsonPrimitive.content
     return when (key) {
-        "userText" -> OpenCodeTranscriptItem.userText(id, body.getValue("text").jsonPrimitive.content)
+        "userText" -> OpenCodeTranscriptItem.userText(id, body.getValue("text").jsonPrimitive.content, source = decodePromptSource(body["source"]))
         "userImages" -> OpenCodeTranscriptItem.userImages(
             id,
             json.decodeFromJsonElement(ListSerializer(OpenCodeImageAttachment.serializer()), body.getValue("images")),

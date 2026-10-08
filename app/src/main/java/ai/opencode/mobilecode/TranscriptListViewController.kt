@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "c3a6c9a", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "3804368", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -43,6 +43,7 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -128,6 +129,7 @@ class TranscriptListViewController(
     var disclosure = TranscriptDisclosureState()
         private set
     private var textReveal = TranscriptTextReveal()
+    private var agentReveal = TranscriptAgentMessageReveal()
     /// A disclosure's motion is running; its layout reports itself.
     private var isAnimatingDisclosure = false
     private var disclosureMotion = 0
@@ -363,6 +365,7 @@ class TranscriptListViewController(
             queuedStableIDs = emptyMap()
             disclosure = TranscriptDisclosureState()
             textReveal = TranscriptTextReveal()
+            agentReveal = TranscriptAgentMessageReveal()
             installDisclosureMotion()
             itemSizes.clear()
         }
@@ -442,11 +445,12 @@ class TranscriptListViewController(
         dismissKeyboard()
     }
 
-    /// The reader's scroll came to rest. Back at the bottom with nothing
-    /// running, space held under their drag lets go.
+    /// The reader's scroll came to rest. Back at the bottom, space held under
+    /// their drag (the keyboard leaving) lets go, even mid-run: blank space
+    /// under the end would otherwise wait for the reply to fill it.
     private fun settleUserScroll(contentArrived: Boolean) {
         handleBehavior(TranscriptScrollBehavior.Event.userSettled(viewport(), contentArrived = contentArrived))
-        if (behavior.mode == TranscriptScrollBehavior.Mode.following && !configuration.isRunning) releaseHeldSpace()
+        if (behavior.mode == TranscriptScrollBehavior.Mode.following) releaseHeldSpace()
     }
 
     /// Every layout pass the list completes: the reader's scrolls (drags,
@@ -517,14 +521,17 @@ class TranscriptListViewController(
         disclosure: TranscriptDisclosureState,
         modifier: Modifier,
     ) {
+        val entry = (row as? MessageRow.entry)?.value
+        val queued = (row as? MessageRow.queued)?.value
         androidx.compose.foundation.layout.Box(modifier) {
             TranscriptMessageRow(
-                entry = (row as? MessageRow.entry)?.value,
-                queued = (row as? MessageRow.queued)?.value,
+                entry = entry,
+                queued = queued,
                 store = store,
                 onPreviewImage = onPreviewImage,
                 onOpenFile = onOpenFile,
                 disclosure = disclosure,
+                revealArrival = (entry?.userMessageID ?: queued?.id)?.let { agentReveal.arrival(of = it) },
             )
         }
     }
@@ -615,6 +622,18 @@ class TranscriptListViewController(
             entry.itemIDs.any { !oldItemIDs.contains(it) }
         }
         val appendedQueued = queuedItems.any { !oldItems.contains(it) }
+        val agentArrivals = recordAgentArrivals(
+            items = newItems,
+            inserted = newItemSet.filter { !oldItems.contains(it) }.toSet(),
+            oldItems = oldItems,
+            isLive = !isInitial && previousConfiguration != null && hasLaidOutContent && now() >= arrivalsGlideAfter,
+        )
+        // Many rows at once at the end (a refresh after time away, a reconnect,
+        // a remembered session's snapshot catching up) are a catch-up, not
+        // arrivals: a following reader lands on the new end instead of gliding
+        // through rows that self-size as they pass.
+        val insertedMessages = newItemSet.count { it is ItemID.message && !oldItems.contains(it) }
+        if (!isInitial && appendedEntry && insertedMessages > RowEntrance.maximumRows) landArrivals()
         val promoted = !reduceMotion && identityPlan.promotedEntryIDs.isNotEmpty()
         // Rows that join the end of a transcript already on screen fade in: after
         // the last entry the reader already had (Working and pending messages
@@ -632,7 +651,8 @@ class TranscriptListViewController(
             if (tail.size != inserted.size || tail.size > RowEntrance.maximumRows || tail.any { it == ItemID.history || it == ItemID.empty }) {
                 return@run emptyList()
             }
-            tail
+            // An agent's message fades in with its own reveal instead.
+            tail.filter { !agentArrivals.contains(it) }
         }
         holdRemovedTail(oldItems, newItemSet, configuration)
         val prepended = anchorFirstMessage(newItems)
@@ -646,6 +666,30 @@ class TranscriptListViewController(
             )
         }
         beginEntrances(entrances)
+    }
+
+    /// Agents' messages joining the end of a transcript already on screen: each
+    /// records its arrival once, which starts its reveal. Any other first
+    /// sighting (a session opening, a page of history) has no reveal.
+    private fun recordAgentArrivals(items: List<ItemID>, inserted: Set<ItemID>, oldItems: Set<ItemID>, isLive: Boolean): Set<ItemID> {
+        if (!isLive || inserted.isEmpty()) return emptySet()
+        val lastKept = items.indexOfLast { item ->
+            item is ItemID.message && oldItems.contains(item) && messageRowsByStableID[item.stableID] is MessageRow.entry
+        }
+        val time = now()
+        val arrivals = mutableSetOf<ItemID>()
+        items.forEachIndexed { index, item ->
+            if (!inserted.contains(item) || index <= lastKept) return@forEachIndexed
+            val message = (item as? ItemID.message)?.let { messageRowsByStableID[it.stableID] }?.let(::userMessage) ?: return@forEachIndexed
+            if (!message.isFromAgent || !agentReveal.arrive(message.id, at = time)) return@forEachIndexed
+            arrivals += item
+        }
+        return arrivals
+    }
+
+    private fun userMessage(row: MessageRow): TranscriptUserMessage? = when (row) {
+        is MessageRow.entry -> TranscriptUserMessage(row.value)
+        is MessageRow.queued -> TranscriptUserMessage(row.value)
     }
 
     private fun traceSnapshot(newItems: List<ItemID>) {
@@ -673,6 +717,13 @@ class TranscriptListViewController(
             rows = rows,
             inserted = ids.filter { !previousIDs.contains(it) },
         )
+    }
+
+    /// Arrivals land rather than glide for the opening settle's length, so the
+    /// tail's self-sizing after a catch-up lands too.
+    private fun landArrivals() {
+        if (springActive && springKind != SpringKind.keyboard && springKind != SpringKind.jump) stopBottomSpring()
+        arrivalsGlideAfter = max(arrivalsGlideAfter, now() + (BottomSpring.openingSettle * 1e9).toLong())
     }
 
     /// The browsing row to hold in place, captured before the rows change.
@@ -734,6 +785,13 @@ class TranscriptListViewController(
     /// After the layout that follows an update: the reader's scroll mode
     /// answers what changed, and the follower moves only a following reader.
     private fun finishApply(change: PendingApply, becameLayoutReady: Boolean) {
+        // More than a screen at once (one turn's long reply after time away)
+        // lands like many rows do.
+        if (change.appended && hasLaidOutContent && !becameLayoutReady &&
+            estimatedContentHeight() - change.contentHeightBefore > listState.layoutInfo.viewportSize.height
+        ) {
+            landArrivals()
+        }
         val grew = estimatedContentHeight() > change.contentHeightBefore + 0.5f * density
         if (isUserScrolling && (change.appended || grew)) contentArrivedDuringDrag = true
         // A following reader is moved by the follower alone.
@@ -767,6 +825,13 @@ class TranscriptListViewController(
         if (behavior.mode != TranscriptScrollBehavior.Mode.following || offsetPastEnd() <= 0.5f * density) return
         if (springActive && (springKind == SpringKind.keyboard || springKind == SpringKind.jump)) return
         val keyboardMoving = keyboardIsMoving() || pinnedGeometry?.let { it.height != currentPinGeometry.height } == true
+        if (!keyboardMoving && now() < arrivalsGlideAfter) {
+            // Opening or catching up: the rows are settling, so land.
+            stopBottomSpring()
+            landAtEnd()
+            pinnedGeometry = currentPinGeometry
+            return
+        }
         if (configuration.isRunning && !keyboardMoving) {
             handleBehavior(TranscriptScrollBehavior.Event.endShrank(viewport()))
         } else if (!reduceMotion) {
@@ -779,7 +844,9 @@ class TranscriptListViewController(
 
     /// Held space lets go when a turn ends: the reader glides down onto the end.
     private fun releaseHeldSpace() {
-        if (trailingSpace <= 0f || behavior.mode != TranscriptScrollBehavior.Mode.following || !hasLaidOutContent) return
+        // Under a finger, letting go would clamp the list beneath it; the drag
+        // settling releases it instead (`settleUserScroll`).
+        if (trailingSpace <= 0f || behavior.mode != TranscriptScrollBehavior.Mode.following || !hasLaidOutContent || isUserScrolling) return
         val held = trailingSpace
         val atEnd = remainingScroll()?.let { it <= 0.5f * density } == true
         execute(listOf(TranscriptScrollBehavior.Command.setTrailingSpace(0f)))
@@ -1357,6 +1424,7 @@ class TranscriptListViewController(
                 minY = { key -> listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.offset?.toFloat() },
                 isFollowing = behavior.mode == TranscriptScrollBehavior.Mode.following,
                 trailingSpace = trailingSpace / density,
+                composerInset = composerPart / density,
                 isExempt = reduceMotion || !hasLaidOutContent || now() < arrivalsGlideAfter || keyboardIsMoving() ||
                     springActive && (springKind == SpringKind.jump || springKind == SpringKind.keyboard),
                 isUserScrolling = isUserScrolling,
@@ -1443,6 +1511,7 @@ internal class TranscriptScrollTrace(private val controller: TranscriptListViewC
         val minY: (String) -> Float?,
         val isFollowing: Boolean,
         val trailingSpace: Float,
+        val composerInset: Float,
         val isExempt: Boolean,
         val isUserScrolling: Boolean,
         val density: Float,
@@ -1510,7 +1579,7 @@ internal class TranscriptScrollTrace(private val controller: TranscriptListViewC
         } else {
             lastAnchor = null
         }
-        val value = "Trailing space: ${probe.trailingSpace.toInt()} pt; $summary"
+        val value = "Trailing space: ${probe.trailingSpace.toInt()} pt; composer inset ${probe.composerInset.roundToInt()} pt; $summary"
         if (value != published.value) {
             published.value = value
             latest = value

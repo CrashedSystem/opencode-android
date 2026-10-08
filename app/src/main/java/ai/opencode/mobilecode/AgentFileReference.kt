@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AgentFiles/AgentFileReference.swift", "553a407")
+@file:PortedFrom("OpenCode/AgentFiles/AgentFileReference.swift", "8adf650")
 
 package ai.opencode.mobilecode
 
@@ -12,6 +12,9 @@ data class AgentFileReference(
     var line: Int? = null,
 ) {
     val id: String get() = path
+
+    /// The card the viewer zooms out of and back into.
+    val zoomSourceID: String get() = "file:" + path
 
     val name: String get() = path.split("/").lastOrNull() ?: path
 
@@ -84,6 +87,9 @@ data class AgentFileReference(
 
         val showsCard: Boolean get() = this != text
         val isTimeBased: Boolean get() = this == video || this == audio
+
+        /// Shown in a dark room and dragged down to dismiss, like Photos.
+        val isMedia: Boolean get() = this == image || isTimeBased
 
         companion object {
             operator fun invoke(fileName: String): Kind {

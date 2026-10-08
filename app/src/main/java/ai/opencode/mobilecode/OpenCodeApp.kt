@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeApp.swift", "553a407")
+@file:PortedFrom("OpenCode/OpenCodeApp.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
@@ -32,6 +32,7 @@ class OpenCodeApp : Application() {
         SharedMemory.installLive(this)
         KeychainStorage.install(this)
         DictationClient.install(this)
+        LocationClient.install(this)
         installDiagnosticsStorage(this)
         if (BuildConfig.DEBUG) verifyKeychainRoundTrip(this)
         processScope.launch { VoiceLiveActivityClient.liveValue.endAll() }
@@ -91,9 +92,14 @@ class OpenCodeApp : Application() {
                 }
             }
 
-        /// `-lab-reduce-motion YES`: UI tests can't switch the system setting.
         val labReducesMotion: Boolean
-            get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_SERVER_URL"] != null &&
-                UserDefaults.standard.bool(forKey = "lab-reduce-motion")
+            get() = OpenCodeLab.reducesMotion
     }
+}
+
+object OpenCodeLab {
+    /// `-lab-reduce-motion YES`: UI tests can't switch the system setting.
+    val reducesMotion: Boolean
+        get() = ProcessInfo.processInfo.environment["OPENCODE_LAB_SERVER_URL"] != null &&
+            UserDefaults.standard.bool(forKey = "lab-reduce-motion")
 }

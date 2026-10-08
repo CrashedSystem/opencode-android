@@ -1,9 +1,10 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "166a26d")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "16b40f7", partial = "all but the Steadier Voice Calls entry (9e1aad3)")
 
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.tca.Identifiable
 import java.time.LocalDate
+import java.util.Locale
 
 /// One change in What’s New. IDs are permanent: a seen ID never shows as new
 /// again, so reword an entry freely but give a new feature a new ID.
@@ -30,6 +31,8 @@ data class WhatsNewEntry(
         voiceMessage,
         dictationBar,
         attachmentMenu,
+        mediaDismiss,
+        statusOrb,
     }
 
     constructor(id: String, day: String, title: String, summary: String, example: String, illustration: Illustration) : this(
@@ -45,6 +48,30 @@ data class WhatsNewEntry(
         /// Newest first. Add an entry for each user-facing feature you ship.
         val all: List<WhatsNewEntry> =
             listOf(
+                WhatsNewEntry(
+                    id = "tool-images-whole",
+                    day = "2026-10-08",
+                    title = "Whole Images Inline",
+                    summary = "Images the agent reads now show whole in the session, in rows that fill the width, so charts and screenshots read without opening them. Nothing is cropped or hidden behind a +N.",
+                    example = "Ask the agent to read a few screenshots",
+                    illustration = Illustration.mediaDismiss,
+                ),
+                WhatsNewEntry(
+                    id = "status-orb-and-arrival-glow",
+                    day = "2026-10-08",
+                    title = "Status Orb",
+                    summary = "A subagent’s card and the background-work capsule show a small orb that changes with what it’s doing: thinking, running tools, writing, waiting for you, done, or failed. Messages an agent sends you light up as they arrive.",
+                    example = "Ask the agent to start a subagent and watch its card",
+                    illustration = Illustration.statusOrb,
+                ),
+                WhatsNewEntry(
+                    id = "media-drag-to-dismiss",
+                    day = "2026-10-07",
+                    title = "Drag Down to Close",
+                    summary = "Images and videos open out of the transcript and follow your finger when you drag them down, shrinking back into place like in Photos.",
+                    example = "Open an image the agent read, then drag it down",
+                    illustration = Illustration.mediaDismiss,
+                ),
                 WhatsNewEntry(
                     id = "attachment-menu-hold",
                     day = "2026-10-07",
@@ -142,5 +169,32 @@ data class WhatsNewEntry(
                     illustration = Illustration.callButton,
                 ),
             )
+    }
+}
+
+/// The entries that shipped on one day: one card in the list.
+data class WhatsNewDay(
+    val day: LocalDate,
+    val entries: List<WhatsNewEntry>,
+) : Identifiable<String> {
+    /// `yyyy-MM-dd`, unique per day.
+    override val id: String
+        get() = String.format(Locale.ROOT, "%04d-%02d-%02d", day.year, day.monthValue, day.dayOfMonth)
+
+    companion object {
+        /// Groups entries by day in the order each day first appears, so a day
+        /// never yields two cards even if its entries aren’t adjacent.
+        fun group(entries: List<WhatsNewEntry>): List<WhatsNewDay> {
+            val days = mutableListOf<WhatsNewDay>()
+            for (entry in entries) {
+                val index = days.indexOfFirst { it.day == entry.day }
+                if (index >= 0) {
+                    days[index] = days[index].copy(entries = days[index].entries + entry)
+                } else {
+                    days += WhatsNewDay(day = entry.day, entries = listOf(entry))
+                }
+            }
+            return days
+        }
     }
 }

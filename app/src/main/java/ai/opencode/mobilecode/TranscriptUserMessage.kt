@@ -1,7 +1,15 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "ebb011d")
+@file:PortedFrom("OpenCode/Transcript/TranscriptUserMessage.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.platform.LocalDensity
 import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemContextMenu
@@ -76,6 +84,12 @@ data class TranscriptUserMessage(
     /// The voice agent sent it on the user's behalf: a Voice message, with the
     /// prompt one long press away.
     var voiceDelegation: VoiceHandoff.Delegation? = VoiceHandoff.parse(text),
+    /// Another session's agent or the parent agent sent it.
+    var source: OpenCodePromptSource? = null,
+    /// A location shared from the + menu, drawn as a card above the text.
+    var location: SharedLocation? = SharedLocation.parse(text)?.location,
+    /// The text to show: the prompt without its location block.
+    var displayText: String = SharedLocation.parse(text)?.remainder ?: text,
 ) {
     companion object {
         /// A user group made of exactly one prompt's text, images, and files.
@@ -85,16 +99,20 @@ data class TranscriptUserMessage(
             var text = ""
             var images = emptyList<OpenCodeImageAttachment>()
             var files = emptyList<OpenCodeTranscriptFile>()
+            var source: OpenCodePromptSource? = null
             for (item in group.items) {
                 if (TranscriptEntry.promptID(forItem = item) != id) return null
                 when (item) {
-                    is OpenCodeTranscriptItem.userText -> text = item.text
+                    is OpenCodeTranscriptItem.userText -> {
+                        text = item.text
+                        source = item.source
+                    }
                     is OpenCodeTranscriptItem.userImages -> images = item.images
                     is OpenCodeTranscriptItem.userFiles -> files = item.files
                     else -> return null
                 }
             }
-            return TranscriptUserMessage(id = id, text = text, images = images, files = files, pending = null)
+            return TranscriptUserMessage(id = id, text = text, images = images, files = files, pending = null, source = source)
         }
 
         /// A plain pending message; compaction and notices keep their own rows.
@@ -108,9 +126,15 @@ data class TranscriptUserMessage(
                     OpenCodeTranscriptFile(id = "${queued.id}-file-$index", name = file.name, mime = file.mime, path = file.path)
                 },
                 pending = queued.delivery,
+                source = queued.input.source,
             )
         }
     }
+
+    /// An agent sent it: Voice and the delegator, another session, or a parent
+    /// spawning a subagent. Only these reveal on arrival
+    /// (`AgentMessageReveal`); what's typed or dictated here never does.
+    val isFromAgent: Boolean get() = voiceDelegation != null || source != null
 }
 
 @Composable
@@ -118,12 +142,16 @@ fun TranscriptUserMessageView(
     message: TranscriptUserMessage,
     onPreviewImage: (TranscriptImagePreview) -> Unit = {},
     onOpenFile: ((AgentFileReference) -> Unit)? = null,
+    /// When an agent's message arrived (`TranscriptAgentMessageReveal`), to reveal it.
+    revealArrival: Long? = null,
 ) {
     val delegation = message.voiceDelegation
     if (delegation != null) {
-        TranscriptVoiceMessageView(delegation = delegation, prompt = message.text, pending = message.pending)
+        TranscriptVoiceMessageView(delegation = delegation, prompt = message.text, pending = message.pending, arrival = revealArrival)
     } else {
-        UserMessage(message, onPreviewImage, onOpenFile)
+        AgentMessageRevealClock(arrival = if (message.isFromAgent) revealArrival else null) { reveal ->
+            UserMessage(message, onPreviewImage, onOpenFile, reveal)
+        }
     }
 }
 
@@ -132,6 +160,7 @@ private fun UserMessage(
     message: TranscriptUserMessage,
     onPreviewImage: (TranscriptImagePreview) -> Unit,
     onOpenFile: ((AgentFileReference) -> Unit)?,
+    reveal: AgentMessageReveal.Frame,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val isPending = message.pending != null
@@ -158,6 +187,7 @@ private fun UserMessage(
                 TranscriptPendingLabel(
                     pending,
                     Modifier
+                        .graphicsLayer { alpha = reveal.body.toFloat() }
                         // Its text lines up with the bubble's.
                         .padding(end = TranscriptMetrics.contentGutter.dp)
                         .trimBottom(2),
@@ -170,11 +200,16 @@ private fun UserMessage(
                 TranscriptFileChips(files = message.files, onOpen = if (isPending) null else onOpenFile)
             }
         }
-        if (message.text.isNotEmpty()) {
+        val location = message.location
+        if (location != null) {
+            SharedLocationCard(location = location, isPending = isPending)
+        }
+        if (message.displayText.isNotEmpty()) {
             TranscriptUserBubble(
-                text = message.text,
+                text = message.displayText,
                 dimming = dimming,
                 itemID = if (isPending) null else message.id,
+                reveal = reveal,
             )
         }
     }
@@ -198,9 +233,7 @@ private fun UserImages(
         horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp, Alignment.End),
     ) {
         images.forEachIndexed { index, attachment ->
-            CachedImage(
-                attachment.id,
-                attachment.data,
+            Box(
                 Modifier
                     .size(side)
                     .clip(RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp))
@@ -211,7 +244,16 @@ private fun UserImages(
                     .semantics {
                         contentDescription = if (images.size == 1) "Open attached image" else "Open attached image ${index + 1} of ${images.size}"
                     },
-            )
+            ) {
+                CachedImage.decoded(attachment.id, attachment.data)?.let { image ->
+                    MediaThumbnail(
+                        image = image,
+                        ids = listOf(attachment.id),
+                        modifier = Modifier.size(side),
+                        cornerRadius = TranscriptMetrics.cardCornerRadius.dp,
+                    )
+                }
+            }
         }
     }
 }
@@ -226,6 +268,7 @@ fun TranscriptMessageRow(
     onPreviewImage: (TranscriptImagePreview) -> Unit,
     onOpenFile: (AgentFileReference) -> Unit,
     disclosure: TranscriptDisclosureState,
+    revealArrival: Long? = null,
 ) {
     val userMessage = if (entry != null) TranscriptUserMessage(entry) else queued?.let { TranscriptUserMessage(it) }
     val insets = entry?.rowInsets ?: queued?.rowInsets ?: TranscriptRowInsets(TranscriptMetrics.turnHalf, TranscriptMetrics.turnHalf)
@@ -233,7 +276,12 @@ fun TranscriptMessageRow(
         Box(Modifier.padding(top = insets.top.dp, bottom = insets.bottom.dp)) {
             when {
                 userMessage != null ->
-                    TranscriptUserMessageView(message = userMessage, onPreviewImage = onPreviewImage, onOpenFile = onOpenFile)
+                    TranscriptUserMessageView(
+                        message = userMessage,
+                        onPreviewImage = onPreviewImage,
+                        onOpenFile = onOpenFile,
+                        revealArrival = revealArrival,
+                    )
                 entry != null ->
                     TranscriptEntryView(
                         entry = entry,
@@ -291,22 +339,22 @@ private fun TranscriptUserBubble(
     /// Dimmed while the message waits in the inbox: 1 pending, 0 delivered.
     dimming: Float = 0f,
     itemID: String? = null,
+    reveal: AgentMessageReveal.Frame = AgentMessageReveal.Frame.rest,
 ) {
     TrailingFractionLayout(TranscriptMetrics.maximumUserBubbleFraction) {
-        SelectionContainer { Bubble(text, dimming, itemID) }
+        SelectionContainer { Bubble(text, dimming, itemID, reveal) }
     }
 }
 
 @Composable
-private fun Bubble(text: String, dimming: Float, itemID: String?) {
-    val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
+private fun Bubble(text: String, dimming: Float, itemID: String?, reveal: AgentMessageReveal.Frame) {
     Box(
         Modifier
             .then(if (itemID != null) Modifier.sendLandingProbe(itemID) else Modifier)
-            .background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)
+            .voiceMessageBackground(VoiceMessageStyle.standard, dimming, reveal)
             .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
     ) {
-        BubbleText(text, Modifier.alpha(1f - 0.4f * dimming))
+        BubbleText(text, Modifier.alpha((1f - 0.4f * dimming) * reveal.text.toFloat()))
     }
 }
 
@@ -332,7 +380,8 @@ private fun BubbleText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/// A Voice message's bubble. The Voice indicator above it is what sets it
+/// A Voice message's bubble, and every user bubble's fill: an agent's reveal
+/// (`AgentMessageReveal`) lights it on arrival. The Voice indicator above it is what sets it
 /// apart; backgrounds that also differ were compared
 /// (`prototypes/voice-delegation-display/#voice-message-variants`) and set
 /// aside, so the treatment stays in this one place.
@@ -350,12 +399,35 @@ enum class VoiceMessageStyle {
 }
 
 @Composable
-private fun Modifier.voiceMessageBackground(style: VoiceMessageStyle, dimming: Float): Modifier {
+private fun Modifier.voiceMessageBackground(
+    style: VoiceMessageStyle,
+    dimming: Float,
+    reveal: AgentMessageReveal.Frame = AgentMessageReveal.Frame.rest,
+): Modifier {
     val shape = RoundedRectangle(TranscriptMetrics.bubbleCornerRadius.dp)
+    val fill = SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming)
+    val outline = SystemColors.separator.copy(alpha = 1f - 0.45f * dimming)
+    val dark = isSystemInDarkTheme()
+    val density = LocalDensity.current.density
     return when (style) {
         // Matches `TranscriptUserBubble`, pending dimming included.
-        VoiceMessageStyle.standard -> background(SystemColors.secondarySystemBackground.copy(alpha = 1f - 0.45f * dimming), shape)
-        VoiceMessageStyle.outlined -> border(1.dp, SystemColors.separator.copy(alpha = 1f - 0.45f * dimming), shape)
+        VoiceMessageStyle.standard -> if (reveal == AgentMessageReveal.Frame.rest) {
+            background(fill, shape)
+        } else {
+            // One layer, so the body's fade-in doesn't let the fill show through the light.
+            drawWithCache {
+                val layer = obtainGraphicsLayer()
+                layer.alpha = reveal.body.toFloat()
+                layer.record {
+                    drawOutline(shape.createOutline(size, layoutDirection, this), fill)
+                    drawAgentMessageRevealLight(reveal.light.toFloat(), dark, density)
+                }
+                onDrawBehind { drawLayer(layer) }
+            }
+        }
+        VoiceMessageStyle.outlined -> drawBehind {
+            if (reveal != AgentMessageReveal.Frame.rest) drawAgentMessageRevealLight(reveal.light.toFloat(), dark, density, alpha = reveal.body.toFloat())
+        }.border(1.dp, outline.copy(alpha = outline.alpha * reveal.body.toFloat()), shape)
     }
 }
 
@@ -369,7 +441,22 @@ fun TranscriptVoiceMessageView(
     /// The full prompt as the session received it.
     prompt: String,
     pending: OpenCodeDelivery? = null,
+    /// When it arrived, if the list saw it arrive: its reveal runs from then.
+    arrival: Long? = null,
     style: VoiceMessageStyle = VoiceMessageStyle.current,
+) {
+    AgentMessageRevealClock(arrival) { reveal ->
+        VoiceMessage(delegation, prompt, pending, style, reveal)
+    }
+}
+
+@Composable
+private fun VoiceMessage(
+    delegation: VoiceHandoff.Delegation,
+    prompt: String,
+    pending: OpenCodeDelivery?,
+    style: VoiceMessageStyle,
+    reveal: AgentMessageReveal.Frame,
 ) {
     val reducedMotion = LocalReduceMotion.current
     val context = LocalContext.current
@@ -394,7 +481,9 @@ fun TranscriptVoiceMessageView(
         horizontalAlignment = Alignment.End,
     ) {
         Row(
-            Modifier.padding(end = TranscriptMetrics.contentGutter.dp),
+            Modifier
+                .graphicsLayer { alpha = reveal.body.toFloat() }
+                .padding(end = TranscriptMetrics.contentGutter.dp),
             horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -421,10 +510,10 @@ fun TranscriptVoiceMessageView(
             ) {
                 Box(
                     Modifier
-                        .voiceMessageBackground(style, dimming)
+                        .voiceMessageBackground(style, dimming, reveal)
                         .padding(horizontal = TranscriptMetrics.contentGutter.dp, vertical = TranscriptMetrics.bubbleVertical.dp),
                 ) {
-                    BubbleText(delegation.displayText, Modifier.alpha(1f - 0.4f * dimming))
+                    BubbleText(delegation.displayText, Modifier.alpha((1f - 0.4f * dimming) * reveal.text.toFloat()))
                 }
             }
         }

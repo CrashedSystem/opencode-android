@@ -84,6 +84,13 @@
     "match": "good"
   },
   {
+    "sf": "bell.badge.fill",
+    "material": "notifications_unread",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
     "sf": "bolt.badge.automatic.fill",
     "material": "flash_auto",
     "filled": true,
@@ -448,6 +455,20 @@
     "match": "good"
   },
   {
+    "sf": "location",
+    "material": "near_me",
+    "filled": false,
+    "mirror": false,
+    "match": "good"
+  },
+  {
+    "sf": "location.fill",
+    "material": "near_me",
+    "filled": true,
+    "mirror": false,
+    "match": "good"
+  },
+  {
     "sf": "lock.fill",
     "material": "lock",
     "filled": true,
@@ -467,6 +488,13 @@
     "filled": false,
     "mirror": false,
     "match": "good"
+  },
+  {
+    "sf": "mappin.circle.fill",
+    "material": "location_on",
+    "filled": true,
+    "mirror": false,
+    "match": "close"
   },
   {
     "sf": "mic",
@@ -551,6 +579,13 @@
     "filled": false,
     "mirror": false,
     "match": "good"
+  },
+  {
+    "sf": "photo.on.rectangle.angled",
+    "material": "collections",
+    "filled": false,
+    "mirror": false,
+    "match": "close"
   },
   {
     "sf": "pin",

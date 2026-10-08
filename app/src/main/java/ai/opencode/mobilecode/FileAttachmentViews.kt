@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/FileAttachmentViews.swift", "553a407")
+@file:PortedFrom("OpenCode/FileAttachmentViews.swift", "8adf650")
 
 package ai.opencode.mobilecode
 
@@ -157,7 +157,8 @@ fun AgentFileCards(
                     modifier = Modifier
                         .heightIn(min = 44.dp)
                         .clip(shape)
-                        .background(SystemColors.secondarySystemBackground),
+                        .background(SystemColors.secondarySystemBackground)
+                        .mediaZoomSource(id = file.zoomSourceID, cornerRadius = TranscriptMetrics.cardCornerRadius.dp),
                 ) {
                     Text(file.typeLabel, maxLines = 1)
                 }

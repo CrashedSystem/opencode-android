@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
                     // UI Automator sees test tags as resource IDs, as XCUITest sees accessibility identifiers.
                     Box(Modifier.semantics { testTagsAsResourceId = true }) {
                         AppView(store = OpenCodeApp.store)
+                        MediaPresenterHost()
                     }
                 }
             }

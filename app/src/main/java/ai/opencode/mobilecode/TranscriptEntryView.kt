@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "ebb011d")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "16b40f7")
 
 package ai.opencode.mobilecode
 
@@ -35,8 +35,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,12 +48,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -66,7 +60,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,15 +68,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.Role
@@ -91,6 +84,7 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -100,6 +94,9 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import kotlin.math.PI
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.reflect.KMutableProperty1
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -226,24 +223,47 @@ fun TranscriptRule(
     }
 }
 
-/// The tool summary's counts roll like a counter as a live turn grows.
+/// The collapsed Used N row: one line whose counts roll like a counter as a
+/// live turn grows. The tool list truncates before a failure, so "Failed"
+/// stays in view; accessibility sizes wrap it as prose instead.
 @Composable
-private fun ToolUsageSummary(text: String, style: TextStyle, color: Color) {
+private fun ToolGroupLabel(text: String, failed: Boolean, modifier: Modifier = Modifier) {
+    val failure = buildAnnotatedString {
+        append(" · ")
+        withStyle(SpanStyle(color = SystemColors.systemRed)) { append("Failed") }
+    }
+    // iOS's accessibility sizes start past xxxLarge, about 1.35×.
+    if (LocalDensity.current.fontScale > 1.35f) {
+        ToolGroupCounting(if (failed) AnnotatedString(text) + failure else AnnotatedString(text), modifier)
+        return
+    }
+    Row(modifier) {
+        ToolGroupCounting(AnnotatedString(text), Modifier.weight(1f, fill = false).alignByBaseline(), maxLines = 1)
+        if (failed) Text(failure, Modifier.alignByBaseline(), style = TextStyles.body, color = SystemColors.secondaryLabel, maxLines = 1, softWrap = false)
+    }
+}
+
+@Composable
+private fun ToolGroupCounting(label: AnnotatedString, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
     val reducedMotion = LocalReduceMotion.current
-    val digits = style.copy(fontFeatureSettings = "tnum")
+    val digits = TextStyles.body.copy(fontFeatureSettings = "tnum")
+    @Composable
+    fun line(value: AnnotatedString) =
+        Text(value, style = digits, color = SystemColors.secondaryLabel, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
     if (reducedMotion) {
-        Text(text, style = digits, color = color)
+        Box(modifier) { line(label) }
         return
     }
     AnimatedContent(
-        targetState = text,
+        targetState = label,
+        modifier = modifier,
         transitionSpec = {
             (slideInVertically(tween(250)) { it / 2 } + fadeIn(tween(250))) togetherWith
                 (slideOutVertically(tween(250)) { -it / 2 } + fadeOut(tween(250))) using SizeTransform(clip = false)
         },
         label = "tool-usage",
     ) { value ->
-        Text(value, style = digits, color = color)
+        line(value)
     }
 }
 
@@ -270,6 +290,12 @@ class TranscriptDisclosureState {
         }
         val animate = animateToggle
         if (animate != null) animate(entryID, !set.get(this).contains(id), toggle) else toggle()
+    }
+
+    companion object {
+        /// `-lab-expand-tools` opens Used N groups by default, for captures.
+        val labExpandsTools: Boolean
+            get() = ai.opencode.mobilecode.system.ProcessInfo.processInfo.arguments.contains("-lab-expand-tools")
     }
 }
 
@@ -340,18 +366,18 @@ object TranscriptEntryView {
         onOpenFile: (AgentFileReference) -> Unit,
         disclosure: TranscriptDisclosureState,
     ) {
-        val isExpanded = disclosure.toolGroups.contains(id)
+        var isExpanded = disclosure.toolGroups.contains(id)
+        if (BuildConfig.DEBUG && TranscriptDisclosureState.labExpandsTools) isExpanded = !isExpanded
         val images = entry.toolImageAttachments
         val summary = toolGroupSummary(tools)
         val label = if (summary.isEmpty()) "Updates" else "Used $summary"
-        val failed = tools.any { item ->
-            (item is OpenCodeTranscriptItem.tool && item.call.status == OpenCodeToolCall.Status.error) ||
-                (item is OpenCodeTranscriptItem.notice && item.isError)
-        }
+        val failed = toolGroupFailed(tools)
         val reducedMotion = LocalReduceMotion.current
         Column(verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered.dp)) {
             // Body size like the prose around it, quieter in grey.
-            Row(
+            ToolGroupLabel(
+                label,
+                failed,
                 Modifier
                     // Laid out as a line of prose; the target takes the row's halves.
                     .rowHitTarget { disclosure.toggle(TranscriptDisclosureState::toolGroups, id, entry.id) }
@@ -359,16 +385,7 @@ object TranscriptEntryView {
                         contentDescription = label
                         stateDescription = (if (isExpanded) "Expanded" else "Collapsed") + (if (failed) ", Failed" else "")
                     },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (summary.isEmpty()) {
-                    Text("Updates", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                } else {
-                    Text("Used", style = TextStyles.body, color = SystemColors.secondaryLabel)
-                    ToolUsageSummary(summary, TextStyles.body, SystemColors.secondaryLabel)
-                }
-                if (failed) Text("Failed", style = TextStyles.body, color = SystemColors.systemRed)
-            }
+            )
 
             if (images.isNotEmpty()) {
                 ToolImageMosaic(images) { selectedID ->
@@ -499,8 +516,16 @@ object TranscriptEntryView {
             counts[call.displayName] = (counts[call.displayName] ?: 0) + 1
         }
         val parts = order.take(3).map { "${counts[it] ?: 0} $it" }
-        return parts.joinToString(", ") + (if (order.size > 3) ", …" else "")
+        return parts.joinToString(", ") + (if (order.size > 3) "…" else "")
     }
+
+    /// Whether any tool or delivered notice in the group failed, which the
+    /// collapsed row keeps in view.
+    fun toolGroupFailed(tools: List<OpenCodeTranscriptItem>): Boolean =
+        tools.any { item ->
+            (item is OpenCodeTranscriptItem.tool && item.call.status == OpenCodeToolCall.Status.error) ||
+                (item is OpenCodeTranscriptItem.notice && item.isError)
+        }
 
     @Composable
     private fun ItemView(
@@ -632,14 +657,19 @@ object TranscriptEntryView {
             verticalAlignment = Alignment.Top,
         ) {
             Box(Modifier.width(18.dp).height(20.dp).semantics { hideFromAccessibility() }, contentAlignment = Alignment.Center) {
-                when {
-                    call.status == OpenCodeToolCall.Status.error ->
-                        SystemImage("exclamationmark.triangle.fill", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.systemRed)
-                    running -> androidx.compose.runtime.CompositionLocalProvider(
-                        androidx.compose.material3.LocalContentColor provides SystemColors.label,
-                    ) { AgentActivityGlyph() }
-                    else -> SystemImage("arrow.triangle.branch", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.secondaryLabel)
-                }
+                AgentActivityGlyph(
+                    source = AgentActivitySource.subagent(
+                        SubagentActivity(
+                            sessionID = childID,
+                            phase = when {
+                                call.status == OpenCodeToolCall.Status.error -> SubagentActivity.Phase.failed
+                                running -> if (call.status == OpenCodeToolCall.Status.streaming || childID == null) SubagentActivity.Phase.spawning else SubagentActivity.Phase.running
+                                else -> SubagentActivity.Phase.done
+                            },
+                            needsInput = childID?.let { store.state.waitingSessionIDs.contains(it) } == true,
+                        ),
+                    ),
+                )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.compact.dp)) {
                 Text(child?.title ?: name, style = TextStyles.subheadline.medium, color = SystemColors.label)
@@ -983,47 +1013,154 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>) {
     }
 }
 
-/// Inline, cropped previews keep the tool row scannable; tapping any tile
-/// opens all images in the same native gallery. The third tile shows how
-/// many more images are behind it, like an iMessage attachment cluster.
+/// Every image a tool read, whole and in order, so it can be read without
+/// opening it: justified rows (`JustifiedImageRows`) where each row's images
+/// share a height and together fill the width, nothing cropped or hidden.
+/// Tapping one opens them all in the native gallery.
 @Composable
 private fun ToolImageMosaic(images: List<OpenCodeImageAttachment>, onPreview: (String) -> Unit) {
-    Box(Modifier.fillMaxWidth().semantics { testTag = "tool-image-mosaic" }) {
-        Box(Modifier.clip(RoundedRectangle(TranscriptMetrics.cardCornerRadius.dp))) {
-            when {
-                images.size == 1 -> MosaicTile(images, 0, 300, 210, onPreview)
-                images.size == 2 -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MosaicTile(images, 0, 148, 160, onPreview)
-                    MosaicTile(images, 1, 148, 160, onPreview)
-                }
-                else -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MosaicTile(images, 0, 148, 204, onPreview)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        MosaicTile(images, 1, 148, 100, onPreview)
-                        MosaicTile(images, 2, 148, 100, onPreview)
-                    }
-                }
-            }
+    val decoded = images.map { CachedImage.decoded(it.id, it.data) }
+    JustifiedImagesLayout(
+        aspects = decoded.map { image ->
+            if (image == null || image.width <= 0 || image.height <= 0) 1.0 else image.width.toDouble() / image.height
+        },
+        modifier = Modifier.semantics { testTag = "tool-image-mosaic" },
+    ) {
+        images.forEachIndexed { index, attachment ->
+            key(attachment.id) { ToolImageTile(attachment, decoded[index], index, images.size, onPreview) }
         }
     }
 }
 
 @Composable
-private fun MosaicTile(images: List<OpenCodeImageAttachment>, index: Int, width: Int, height: Int, onPreview: (String) -> Unit) {
-    val attachment = images[index]
+private fun ToolImageTile(attachment: OpenCodeImageAttachment, image: ImageBitmap?, index: Int, count: Int, onPreview: (String) -> Unit) {
+    val shape = RoundedRectangle(JustifiedImageRows.cornerRadius.dp)
     Box(
         Modifier
-            .size(width.dp, height.dp)
             .clickable(role = Role.Button) { onPreview(attachment.id) }
-            .semantics { contentDescription = "Open tool image ${index + 1} of ${images.size}" },
-        contentAlignment = Alignment.Center,
+            .semantics { contentDescription = "Open tool image ${index + 1} of $count" }
+            .clip(shape)
+            // Behind transparent images, and while one decodes.
+            .background(SystemColors.secondarySystemBackground)
+            // Keeps a white image's edge visible on a white transcript.
+            .border(0.5.dp, SystemColors.separator.copy(alpha = 0.6f), shape),
     ) {
-        CachedImage(attachment.id, attachment.data, Modifier.size(width.dp, height.dp))
-        if (index == 2 && images.size > 3) {
-            Box(Modifier.size(width.dp, height.dp).background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
-                Text("+${images.size - 3}", style = TextStyles.title2.semibold, color = Color.White)
+        if (image != null) {
+            MediaThumbnail(
+                image = image,
+                ids = listOf(attachment.id),
+                modifier = Modifier.fillMaxSize(),
+                fits = true,
+                cornerRadius = JustifiedImageRows.cornerRadius.dp,
+            )
+        }
+    }
+}
+
+/// Lays out images by `JustifiedImageRows`, each at its exact frame.
+@Composable
+fun JustifiedImagesLayout(aspects: List<Double>, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth / density.toDouble() else 360.0
+        val rows = JustifiedImageRows(aspects, width)
+        fun px(points: Double) = (points * density).roundToInt()
+        val placeables = measurables.zip(rows.frames) { measurable, frame ->
+            measurable.measure(Constraints.fixed(px(frame.maxX) - px(frame.minX), px(frame.maxY) - px(frame.minY)))
+        }
+        layout(px(width), px(rows.height)) {
+            placeables.forEachIndexed { index, placeable ->
+                placeable.place(px(rows.frames[index].minX), px(rows.frames[index].minY))
             }
         }
+    }
+}
+
+/// Justified rows: images keep their shapes, a row's images share one
+/// height and fill the width, and the breaks between rows are chosen (in
+/// order) to keep every row near a comfortable height. A wide panorama
+/// gets a row to itself; a tall screenshot pairs with something square.
+/// A row that can't fill the width without growing past the cap (a lone
+/// tall screenshot) stays at the cap, leading-aligned.
+class JustifiedImageRows(raw: List<Double>, width: Double) {
+    data class Frame(val minX: Double, val minY: Double, val width: Double, val height: Double) {
+        val maxX: Double get() = minX + width
+        val maxY: Double get() = minY + height
+    }
+
+    val frames: List<Frame>
+    val height: Double
+
+    init {
+        val aspects = raw.map { if (it.isFinite() && it > 0) min(max(it, 0.2), 8.0) else 1.0 }
+        if (aspects.isEmpty() || width <= 0) {
+            frames = emptyList()
+            height = 0.0
+        } else if (aspects.size == 1) {
+            val h = min(width / aspects[0], singleMaxHeight)
+            frames = listOf(Frame(0.0, 0.0, min(width, h * aspects[0]), h))
+            height = h
+        } else {
+            val target = width * 0.6
+            val maxHeight = width * 0.9
+
+            /// A row's height when it fills the width, and its cost: how far it is
+            /// from the target, and a steep price for a row that can't fill.
+            fun rowHeight(range: IntRange): Double {
+                val gaps = spacing * (range.count() - 1)
+                return (width - gaps) / range.sumOf { aspects[it] }
+            }
+            fun cost(range: IntRange): Double {
+                val h = rowHeight(range)
+                var c = (h - target) * (h - target)
+                if (h > maxHeight) c += (h - maxHeight) * (h - maxHeight) * 20
+                if (range.count() > 4) c += 1e9
+                return c
+            }
+            // Best breaks for the first i images, then walk back.
+            val n = aspects.size
+            val best = DoubleArray(n + 1) { Double.POSITIVE_INFINITY }
+            val from = IntArray(n + 1)
+            best[0] = 0.0
+            for (end in 1..n) {
+                for (start in max(0, end - 4) until end) {
+                    if (best[start] == Double.POSITIVE_INFINITY) continue
+                    val total = best[start] + cost(start until end)
+                    if (total < best[end]) {
+                        best[end] = total
+                        from[end] = start
+                    }
+                }
+            }
+            val ranges = ArrayDeque<IntRange>()
+            var end = n
+            while (end > 0) {
+                ranges.addFirst(from[end] until end)
+                end = from[end]
+            }
+            val laidOut = mutableListOf<Frame>()
+            var y = 0.0
+            for (range in ranges) {
+                val h = min(rowHeight(range), maxHeight)
+                var x = 0.0
+                for (index in range) {
+                    val w = h * aspects[index]
+                    laidOut += Frame(x, y, w, h)
+                    x += w + spacing
+                }
+                y += h + spacing
+            }
+            frames = laidOut
+            height = max(0.0, y - spacing)
+        }
+    }
+
+    companion object {
+        const val spacing = 4.0
+        const val cornerRadius = 14f
+
+        /// A lone image may stand this tall (a phone screenshot would otherwise
+        /// run to two screens).
+        const val singleMaxHeight = 520.0
     }
 }
 
@@ -1052,24 +1189,19 @@ fun MarkdownImage(
     val shape = RoundedCornerShape(TranscriptMetrics.cardCornerRadius.dp)
     val loaded = image
     when {
-        loaded != null -> Image(
-            bitmap = loaded,
-            contentDescription = "Open ${alt.ifEmpty { "image" }}",
-            modifier = Modifier
-                // `.resizable().scaledToFit()` in a full-width frame at most 360 tall.
-                .layout { measurable, constraints ->
-                    val width = constraints.maxWidth
-                    val height = minOf(width * loaded.height / loaded.width, 360.dp.roundToPx())
-                    val placeable = measurable.measure(Constraints.fixed(width, height))
-                    layout(width, height) { placeable.place(0, 0) }
-                }
-                .clip(shape)
+        loaded != null -> Box(
+            Modifier
+                .fillMaxWidth()
                 .background(SystemColors.secondarySystemBackground, shape)
+                .clip(shape)
                 .clickable(role = Role.Button) {
                     onPreview(TranscriptImagePreview(id = cacheKey, image = loaded, label = alt.ifEmpty { "Image" }))
-                },
-            contentScale = ContentScale.Fit,
-        )
+                }
+                .semantics { contentDescription = "Open ${alt.ifEmpty { "image" }}" },
+            contentAlignment = Alignment.Center,
+        ) {
+            MediaThumbnail(image = loaded, ids = listOf(cacheKey), fits = true, maxHeight = 360.dp, cornerRadius = TranscriptMetrics.cardCornerRadius.dp)
+        }
         failed -> Row(
             Modifier
                 .fillMaxWidth()
@@ -1116,87 +1248,6 @@ private suspend fun loadMarkdownImage(source: String, server: OpenCodeServer, di
 private object MarkdownImageCache {
     val shared = LruCache<String, ImageBitmap>(64)
     val client = OkHttpClient()
-}
-
-@Composable
-fun TranscriptImageViewer(preview: TranscriptImagePreview, onDismiss: () -> Unit) {
-    val initial = preview.pages.indexOfFirst { it.id == preview.id }.coerceAtLeast(0)
-    val pager = rememberPagerState(initialPage = initial) { preview.pages.size }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        HorizontalPager(pager, Modifier.fillMaxSize().semantics { testTag = "image-gallery" }) { index ->
-            ZoomableGalleryPage(preview.pages[index], isSelected = pager.currentPage == index)
-        }
-        if (preview.pages.size > 1) {
-            Text(
-                "${pager.currentPage + 1} of ${preview.pages.size}",
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 24.dp)
-                    .background(Color.White.copy(alpha = 0.18f), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .semantics { testTag = "image-gallery-position" },
-                style = TextStyles.footnote.copy(fontFeatureSettings = "tnum"),
-                color = Color.White,
-            )
-        }
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(16.dp)
-                .size(44.dp)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape)
-                .clickable(role = Role.Button, onClick = onDismiss)
-                .semantics { contentDescription = "Close image" },
-            contentAlignment = Alignment.Center,
-        ) {
-            SystemImage("xmark", null, Modifier.symbolSize(TextStyles.body), tint = Color.White)
-        }
-    }
-}
-
-@Composable
-private fun ZoomableGalleryPage(page: TranscriptImagePreview.Page, isSelected: Boolean) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    LaunchedEffect(isSelected) {
-        if (!isSelected) {
-            scale = 1f
-            offset = Offset.Zero
-        }
-    }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    offset = if (scale > 1f) offset + pan else Offset.Zero
-                }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = {
-                    scale = if (scale > 1f) 1f else 2f
-                    if (scale == 1f) offset = Offset.Zero
-                })
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            bitmap = page.image,
-            contentDescription = page.label,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
-                },
-            contentScale = ContentScale.Fit,
-        )
-    }
 }
 
 /// Under a finished reply: copy the whole reply as Markdown.

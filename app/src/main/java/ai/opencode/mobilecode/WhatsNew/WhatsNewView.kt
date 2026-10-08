@@ -1,12 +1,11 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "166a26d")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewView.swift", "7fa8e81")
 
 package ai.opencode.mobilecode
 
-import ai.opencode.mobilecode.system.GroupedList
-import ai.opencode.mobilecode.system.ListSectionSpacing
 import ai.opencode.mobilecode.system.LocalDismiss
 import ai.opencode.mobilecode.system.NavigationStack
 import ai.opencode.mobilecode.system.NavigationTitle
+import ai.opencode.mobilecode.system.RoundedRectangle
 import ai.opencode.mobilecode.system.SystemButton
 import ai.opencode.mobilecode.system.SystemColors
 import ai.opencode.mobilecode.system.SystemContextMenu
@@ -33,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -41,20 +41,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
@@ -95,34 +101,56 @@ private fun WhatsNewSheetContent(store: Store<WhatsNewFeature.State, WhatsNewFea
 /// pushes it; the sheet wraps it in its own navigation stack.
 @Composable
 fun WhatsNewList(store: Store<WhatsNewFeature.State, WhatsNewFeature.Action>) {
-    val monthDay = remember { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMd")) }
-
-    GroupedList(
-        modifier = Modifier.testTag("whats-new-list"),
-        sectionSpacing = ListSectionSpacing.compact,
-        scrollContentBackground = false,
+    // Each day’s card is one view rather than a List section: the cells
+    // of a List could leave a card’s fill short over rows that painted only
+    // their separators.
+    Column(
+        Modifier
+            .testTag("whats-new-list")
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp),
     ) {
-        ForEach(store.days, id = { it.day }) { day ->
-            Section(header = { Text(day.day.format(monthDay)) }) {
-                ForEach(day.entries) { WhatsNewRow(entry = it) }
-            }
+        for (day in WhatsNewDay.group(store.state.entries)) {
+            key(day.id) { WhatsNewDayCard(day = day) }
         }
     }
     NavigationTitle("What’s New", displayMode = TitleDisplayMode.inline)
     store.onAppear { store.send(WhatsNewFeature.Action.viewed) }
 }
 
-private class Day(val day: LocalDate, val entries: MutableList<WhatsNewEntry>)
-
-private val Store<WhatsNewFeature.State, WhatsNewFeature.Action>.days: List<Day>
-    get() {
-        val days = mutableListOf<Day>()
-        for (entry in state.entries) {
-            if (days.lastOrNull()?.day == entry.day) days[days.size - 1].entries.add(entry)
-            else days.add(Day(entry.day, mutableListOf(entry)))
+/// A day’s header above a grouped card holding exactly its entries, with
+/// dividers only between them.
+@Composable
+private fun WhatsNewDayCard(day: WhatsNewDay) {
+    val monthDay = remember { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMd")) }
+    val hairline = with(LocalDensity.current) { 1f.toDp() }
+    Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            day.day.format(monthDay),
+            Modifier.padding(horizontal = 20.dp).semantics { heading() },
+            style = TextStyles.headline,
+            color = SystemColors.secondaryLabel,
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                // A translucent fill reads on the sheet and on the pushed page.
+                .background(SystemColors.tertiarySystemFill, RoundedRectangle(26.dp))
+                .testTag("whats-new-day-${day.id}"),
+        ) {
+            day.entries.forEachIndexed { index, entry ->
+                if (index > 0) {
+                    HorizontalDivider(Modifier.padding(start = (20 + 48 + 14).dp, end = 20.dp), thickness = hairline, color = SystemColors.separator)
+                }
+                Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp)) {
+                    WhatsNewRow(entry = entry)
+                }
+            }
         }
-        return days
     }
+}
 
 @Composable
 private fun WhatsNewRow(entry: WhatsNewEntry) {
@@ -267,6 +295,10 @@ private fun WhatsNewIllustration(kind: WhatsNewEntry.Illustration) {
                 SystemImage("camera.aperture", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.attachmentMenu ->
                 SystemImage("plus.circle", contentDescription = null, modifier = Modifier.symbolSize(20), tint = SystemColors.secondaryLabel)
+            WhatsNewEntry.Illustration.statusOrb ->
+                AgentActivityGlyph(source = AgentActivitySource.running, size = 26.dp)
+            WhatsNewEntry.Illustration.mediaDismiss ->
+                SystemImage("photo.on.rectangle.angled", contentDescription = null, modifier = Modifier.symbolSize(19), tint = SystemColors.secondaryLabel)
             WhatsNewEntry.Illustration.voiceMessage ->
                 Column(Modifier.width(36.dp), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.End) {
                     SystemImage("waveform", contentDescription = null, modifier = Modifier.symbolSize(7), tint = SystemColors.secondaryLabel)

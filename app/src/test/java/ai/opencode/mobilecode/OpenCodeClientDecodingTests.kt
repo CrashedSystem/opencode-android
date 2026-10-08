@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "626fbb8")
+@file:PortedFrom("OpenCodeTests/OpenCodeClientDecodingTests.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -150,6 +150,39 @@ class OpenCodeClientDecodingTests {
         }
         val transcript = OpenCodeClient.decodeTranscript("""{"data":[{"id":"msg_shell","type":"synthetic","text":"<shell state=\"completed\">raw tool output</shell>","description":"xcodebuild build-for-testing","metadata":{"source":"shell","state":"completed"}}]}""".toByteArray())
         assertEquals(listOf(OpenCodeTranscriptItem.notice("msg_shell", "Shell finished · xcodebuild build-for-testing")), transcript)
+    }
+
+    /// Prompts another session's agent forwarded, and a subagent's first
+    /// prompt from its parent, are known as agents' messages; typed ones aren't.
+    @Test
+    fun userMessagesKnowWhenAnAgentSentThem() = runBlocking {
+        val transcript = OpenCodeClient.decodeTranscript(
+            """{"data":[{"id":"msg_typed","type":"user","text":"Typed here","metadata":{"notification":{"callbackURL":"https://relay"}}},{"id":"msg_forwarded","type":"user","text":"Rerun the tests","metadata":{"anomaly.session":{"originSessionID":"ses_other"}}},{"id":"msg_spawned","type":"user","text":"You are a subagent spawned by another session.\nAudit the spacing."}]}""".toByteArray(),
+        )
+        // Pages arrive newest first; only each message's source matters here.
+        val byID = transcript.associateBy { it.id }
+        assertEquals(3, byID.size)
+        assertEquals(OpenCodeTranscriptItem.userText(id = "msg_typed", text = "Typed here"), byID["msg_typed"])
+        assertEquals(OpenCodeTranscriptItem.userText(id = "msg_forwarded", text = "Rerun the tests", source = OpenCodePromptSource.session(id = "ses_other")), byID["msg_forwarded"])
+        assertEquals(
+            OpenCodeTranscriptItem.userText(id = "msg_spawned", text = "You are a subagent spawned by another session.\nAudit the spacing.", source = OpenCodePromptSource.parentAgent),
+            byID["msg_spawned"],
+        )
+
+        val fixture = pendingRequestsFixture(mapOf(
+            "GET /api/session/ses_child/inbox" to WireFixture.Reply.json(200, """{"data":[{"id":"msg_typed","type":"user","payload":{"text":"Typed"}},{"id":"msg_forwarded","type":"user","delivery":"queue","payload":{"text":"From another session","metadata":{"anomaly.session":{"originSessionID":"ses_other"}}}}]}"""),
+        ))
+        fixture.use {
+            val inputs = OpenCodeClient.liveValue.pendingInputs(fixture.server, "ses_child")
+            assertEquals(listOf(null, OpenCodePromptSource.session(id = "ses_other")), inputs.map { it.source })
+        }
+    }
+
+    @Test
+    fun transcriptSnapshotsSavedBeforeMessageSourcesStillLoad() {
+        val saved = """{"entries":[{"serverID":"s","sessionID":"ses","updatedAt":0,"items":[{"userText":{"id":"msg_old","text":"Saved before sources"}}]}]}"""
+        val snapshot = transcriptCacheJson.decodeFromString(CachedTranscriptSnapshots.serializer(), saved)
+        assertEquals(listOf(OpenCodeTranscriptItem.userText(id = "msg_old", text = "Saved before sources")), snapshot.entries.single().items)
     }
 
     @Test
@@ -318,7 +351,7 @@ class OpenCodeClientDecodingTests {
         assertEquals("Edit File?", request("edit", listOf("a.swift")).title)
         assertEquals("Edit 2 Files?", request("edit", listOf("a.swift", "b.swift")).title)
         assertEquals("Access a Folder Outside the Project?", request("external_directory", listOf("/tmp")).title)
-        assertEquals("Allow Opencode read mcp resource?", request("opencode_read_mcp_resource", emptyList()).title)
+        assertEquals("Allow Read mcp resource?", request("opencode_read_mcp_resource", emptyList()).title)
     }
 
     @Test

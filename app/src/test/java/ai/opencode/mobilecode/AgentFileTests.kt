@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AgentFileTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/AgentFileTests.swift", "3dd2dc7")
 
 package ai.opencode.mobilecode
 
@@ -226,13 +226,13 @@ class AgentFileLoadingTests {
 }
 
 class ToolSummaryTests {
-    private fun tool(name: String): OpenCodeTranscriptItem =
+    private fun tool(name: String, status: OpenCodeToolCall.Status = OpenCodeToolCall.Status.completed): OpenCodeTranscriptItem =
         OpenCodeTranscriptItem.tool(
             id = java.util.UUID.randomUUID().toString(),
             call = OpenCodeToolCall(
                 callID = "c",
                 name = name,
-                status = OpenCodeToolCall.Status.completed,
+                status = status,
                 input = OpenCodeJSONValue.`object`(emptyMap()),
                 output = emptyList(),
                 metadata = emptyMap(),
@@ -242,7 +242,21 @@ class ToolSummaryTests {
     @Test
     fun eachToolKeepsItsOwnCountInFirstUseOrder() {
         val tools = listOf(tool("bash"), tool("edit"), tool("bash"), tool("webfetch"), tool("bash"), tool("read"))
-        assertEquals("3 Shell, 1 Edit, 1 Webfetch, …", TranscriptEntryView.toolGroupSummary(tools))
+        assertEquals("3 Shell, 1 Edit, 1 Webfetch…", TranscriptEntryView.toolGroupSummary(tools))
         assertEquals("2 Edit", TranscriptEntryView.toolGroupSummary(listOf(tool("edit"), tool("edit"))))
+    }
+
+    /// Kit's phone: nine reads, two shells, seven image edits and more, one
+    /// of which failed, read as one line with the failure kept in view.
+    @Test
+    fun longFailedMixSummarisesWithDesktopNames() {
+        val tools = List(9) { tool("read") } + listOf(tool("shell"), tool("shell")) +
+            List(6) { tool("opencode_image_edit") } + listOf(tool("opencode_image_edit", OpenCodeToolCall.Status.error), tool("grep"))
+        assertEquals("9 Read, 2 Shell, 7 Image edit…", TranscriptEntryView.toolGroupSummary(tools))
+        assertTrue(TranscriptEntryView.toolGroupFailed(tools))
+        assertFalse(TranscriptEntryView.toolGroupFailed(tools.take(11)))
+        assertTrue(TranscriptEntryView.toolGroupFailed(listOf(tool("read"), OpenCodeTranscriptItem.notice(id = "n", text = "Shell failed", isError = true))))
+        assertEquals("Image generate", OpenCodeToolCall.displayName("opencode_image_generate"))
+        assertEquals("Other MCP servers keep their name", "Slack send", OpenCodeToolCall.displayName("slack_send"))
     }
 }

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TraceTests.swift", "494e433")
+@file:PortedFrom("OpenCodeTests/TraceTests.swift", "42c4225")
 
 package ai.opencode.mobilecode
 

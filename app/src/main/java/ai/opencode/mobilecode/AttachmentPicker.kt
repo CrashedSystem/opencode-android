@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentPicker.swift", "a1ce7ab")
+@file:PortedFrom("OpenCode/AttachmentPicker.swift", "4482259")
 
 package ai.opencode.mobilecode
 
@@ -44,10 +44,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/// The composer's + button. A tap opens `AttachmentMenuPanel`, which grows out
-/// of the button's glass; touching down and holding opens it too, and the
-/// finger can slide across the rows and release on one to choose it. While
-/// the menu is open the + turns into a × that closes it.
+/// The composer's + button. A tap opens the attachment menu
+/// (`AttachmentMenuOverlay`), which grows up out of the button; touching
+/// down and holding opens it too, and the finger can slide across the rows
+/// and release on one to choose it. While the menu is open the + turns into
+/// a × that closes it.
 object AttachmentPickerButton {
     const val maxPhotoSelection = 4
 
@@ -67,7 +68,6 @@ fun AttachmentPickerButton(
     /// The rows a slide can reach: none unless the menu itself is up (not
     /// while the photo card has taken its place).
     rows: Map<AttachmentMenuItem, Rect>,
-    lift: Float = 0f,
     onToggle: () -> Unit,
     onChoose: (AttachmentMenuItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -80,13 +80,8 @@ fun AttachmentPickerButton(
     val opened by rememberUpdatedState(isOpen)
     val toggle by rememberUpdatedState(onToggle)
     val choose by rememberUpdatedState(onChoose)
-    val currentLift by rememberUpdatedState(lift)
     val reachable by rememberUpdatedState(rows)
     val opacity by animateFloatAsState(if (isTouching && !isOpen) 0.55f else 1f, tween(150), label = "touch")
-
-    /// The button where it is now: `anchors` keeps its resting frame while
-    /// the picker card lifts the composer.
-    fun liveButton(): Rect = anchors.button.translate(0f, -currentLift)
 
     fun openByHold() {
         hold?.cancel()
@@ -110,7 +105,7 @@ fun AttachmentPickerButton(
         modifier
             .alpha(opacity)
             .size(44.dp)
-            .attachmentMenuAnchor(anchors::button, lift)
+            .attachmentMenuAnchor(anchors::button)
             // The composer's tap-to-focus must not take the touch: the button
             // consumes it.
             .then(
@@ -122,7 +117,7 @@ fun AttachmentPickerButton(
                             val down = awaitFirstDown(requireUnconsumed = false)
                             down.consume()
                             // In the session screen's points, like the anchors.
-                            fun location(position: Offset) = liveButton().topLeft + position / density
+                            fun location(position: Offset) = anchors.button.topLeft + position / density
                             isTouching = true
                             press.began(isOpen = opened)
                             if (!opened) {
@@ -131,7 +126,7 @@ fun AttachmentPickerButton(
                                     openByHold()
                                 }
                             }
-                            press.moved(to = location(down.position), button = liveButton(), rows = reachable)
+                            press.moved(to = location(down.position), button = anchors.button, rows = reachable)
                             while (true) {
                                 val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
                                 // Resets however the touch ends, so a press the system takes (the
@@ -144,7 +139,7 @@ fun AttachmentPickerButton(
                                 if (!change.pressed) {
                                     if (!isTouching) return@awaitEachGesture
                                     finishTouch()
-                                    when (val outcome = press.ended(at = location(change.position), button = liveButton(), rows = reachable)) {
+                                    when (val outcome = press.ended(at = location(change.position), button = anchors.button, rows = reachable)) {
                                         AttachmentMenuPress.Outcome.none -> Unit
                                         AttachmentMenuPress.Outcome.toggle, AttachmentMenuPress.Outcome.close -> toggle()
                                         is AttachmentMenuPress.Outcome.choose -> choose(outcome.item)
@@ -154,7 +149,7 @@ fun AttachmentPickerButton(
                                 if ((change.position - down.position).getDistance() / density > AttachmentPickerButton.dragDistance) {
                                     openByHold()
                                 }
-                                press.moved(to = location(change.position), button = liveButton(), rows = reachable)
+                                press.moved(to = location(change.position), button = anchors.button, rows = reachable)
                             }
                         }
                     }
@@ -203,6 +198,7 @@ enum class AttachmentMenuItem {
     camera,
     photos,
     files,
+    location,
     paste,
     ;
 
@@ -211,6 +207,7 @@ enum class AttachmentMenuItem {
             camera -> "Camera"
             photos -> "Photos"
             files -> "Files"
+            location -> "Location"
             paste -> "Paste"
         }
 
@@ -219,6 +216,7 @@ enum class AttachmentMenuItem {
             camera -> "camera"
             photos -> "photo.on.rectangle"
             files -> "folder"
+            location -> "location"
             paste -> "doc.on.clipboard"
         }
 
@@ -328,41 +326,29 @@ class AttachmentMenuAnchors {
     /// The + button the menu grows from and shrinks back into.
     var button by mutableStateOf(Rect.Zero)
 
-    /// The composer surface the menu rests above, where it rests when the
-    /// picker card isn't lifting it.
+    /// The composer surface the menu and the photo card stand above.
     var composer by mutableStateOf(Rect.Zero)
 
-    /// The menu panel, where the photo-picker card morphs from and back to.
-    var menu by mutableStateOf(Rect.Zero)
-
-    /// Each row of the menu, for choosing by sliding a finger from +.
-    val rows: Map<AttachmentMenuItem, Rect>
-        get() = rowOffsets.mapValues { it.value.translate(menu.topLeft) }
-
-    /// Where each row rests within the menu panel. Compose lays the rows out
-    /// where they are drawn, mid-spring included, so their resting frames
-    /// come from the resting panel, `menu`, and their place in it.
-    var rowOffsets by mutableStateOf(emptyMap<AttachmentMenuItem, Rect>())
+    /// Each row of the menu where it rests open, for choosing by sliding a
+    /// finger from +.
+    var rows by mutableStateOf(emptyMap<AttachmentMenuItem, Rect>())
 
     companion object {
         const val space = "attachment-menu"
     }
 }
 
-/// `lift` is how far the picker card currently raises the measured view.
-/// Recording the resting frame keeps the menu's targets still while the
-/// composer travels, so a morph never retargets mid-flight. Frames are in
-/// points from the root, the session screen's `AttachmentMenuAnchors.space`.
+/// Frames are in points from the root, the session screen's
+/// `AttachmentMenuAnchors.space`.
 @Composable
 fun Modifier.attachmentMenuAnchor(
     keyPath: KMutableProperty0<Rect>,
-    lift: Float = 0f,
 ): Modifier {
     val density = LocalDensity.current.density
     return onGloballyPositioned { coordinates ->
         val origin = coordinates.positionInRoot() / density
         val size = coordinates.size
-        keyPath.set(Rect(origin.x, origin.y + lift, origin.x + size.width / density, origin.y + lift + size.height / density))
+        keyPath.set(Rect(origin.x, origin.y, origin.x + size.width / density, origin.y + size.height / density))
     }
 }
 
