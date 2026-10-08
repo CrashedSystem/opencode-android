@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "7fa8e81", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "8d94632", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -43,6 +43,7 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -1393,6 +1394,7 @@ class TranscriptListViewController(
                 minY = { key -> listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.offset?.toFloat() },
                 isFollowing = behavior.mode == TranscriptScrollBehavior.Mode.following,
                 trailingSpace = trailingSpace / density,
+                composerInset = composerPart / density,
                 isExempt = reduceMotion || !hasLaidOutContent || now() < arrivalsGlideAfter || keyboardIsMoving() ||
                     springActive && (springKind == SpringKind.jump || springKind == SpringKind.keyboard),
                 isUserScrolling = isUserScrolling,
@@ -1479,6 +1481,7 @@ internal class TranscriptScrollTrace(private val controller: TranscriptListViewC
         val minY: (String) -> Float?,
         val isFollowing: Boolean,
         val trailingSpace: Float,
+        val composerInset: Float,
         val isExempt: Boolean,
         val isUserScrolling: Boolean,
         val density: Float,
@@ -1546,7 +1549,7 @@ internal class TranscriptScrollTrace(private val controller: TranscriptListViewC
         } else {
             lastAnchor = null
         }
-        val value = "Trailing space: ${probe.trailingSpace.toInt()} pt; $summary"
+        val value = "Trailing space: ${probe.trailingSpace.toInt()} pt; composer inset ${probe.composerInset.roundToInt()} pt; $summary"
         if (value != published.value) {
             published.value = value
             latest = value

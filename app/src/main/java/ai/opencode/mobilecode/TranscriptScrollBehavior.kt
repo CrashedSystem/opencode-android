@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "553a407")
+@file:PortedFrom("OpenCode/Transcript/TranscriptScrollBehavior.swift", "8d94632")
 
 package ai.opencode.mobilecode
 
@@ -69,15 +69,22 @@ class TranscriptScrollBehavior {
                 requestEarlierHistoryIfNeeded(viewport, commands)
             }
             is Event.userSettled -> {
-                val travelled = dragStartOffsetY?.let { it - event.viewport.offsetY } ?: 0f
+                // Without a following drag (an assistive scroll, or a reader already
+                // browsing), how far up they rest is their distance from the bottom.
+                val travelled = dragStartOffsetY?.let { it - event.viewport.offsetY } ?: distanceFromBottom(event.viewport)
                 dragStartOffsetY = null
-                if (distanceFromBottom(event.viewport) <= restDistance && (travelled <= restDistance || event.contentArrived)) {
+                // Content arriving keeps a short drag following, but not one that
+                // already left: held space would otherwise call any rest the bottom.
+                val keepsFollowing = travelled <= restDistance || event.contentArrived && mode == Mode.following
+                if (distanceFromBottom(event.viewport) <= restDistance && keepsFollowing) {
                     if (mode == Mode.browsing) {
                         mode = Mode.following
                         commands += Command.showJumpButton(false)
                     }
                     commands += Command.scrollToBottom(false)
-                } else if (mode == Mode.following && event.contentArrived) {
+                } else if (mode == Mode.following && keepsFollowing) {
+                    // Short of an end that moved on (the follower was still gliding to
+                    // it), a drag that carried the reader nowhere up rides on.
                     commands += Command.scrollToBottom(false)
                 } else if (mode == Mode.following) {
                     mode = Mode.browsing

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "339260d", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "8d94632", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
 
 package ai.opencode.mobilecode
 
@@ -1658,8 +1658,16 @@ private class SessionViewState {
         val hasQueued = queuedMessages().isNotEmpty()
         if (!(hasActivity || canMove || hasQueued)) return
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (canMove) MoveToBackground()
-            if (hasActivity || hasQueued || showsJumpButton) {
+            if (canMove) {
+                // Without a row below, the jump button joins this one: showing
+                // it never adds a row to the transcript's insets.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    MoveToBackground()
+                    Spacer(Modifier.weight(1f))
+                    if (showsJumpButton && !hasActivity && !hasQueued) JumpToLatestButton()
+                }
+            }
+            if (hasActivity || hasQueued) {
                 ViewThatFits(
                     {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

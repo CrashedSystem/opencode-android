@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "626fbb8")
+@file:PortedFrom("OpenCodeTests/TranscriptScrollBehaviorTests.swift", "8d94632")
 
 package ai.opencode.mobilecode
 
@@ -270,6 +270,49 @@ class TranscriptScrollBehaviorTests {
         assertEquals(
             listOf(TranscriptScrollBehavior.Command.scrollToBottom(false)),
             behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, false)),
+        )
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
+    }
+
+    @Test
+    fun aDragThatLeftInsideHeldSpaceStaysBrowsingAsContentArrives() {
+        val behavior = TranscriptScrollBehavior()
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_180f, 1_500f, 320f)))
+        val grown = viewport(1_180f, 1_500f, 600f, canRequestEarlierHistory = false).copy(isUserScrolling = true)
+        behavior.handle(TranscriptScrollBehavior.Event.layoutChanged(grown))
+        behavior.handle(TranscriptScrollBehavior.Event.userScrolled(viewport(1_040f, 1_500f, 600f, 280f, false)))
+        assertEquals(TranscriptScrollBehavior.Mode.browsing, behavior.mode)
+        // Still inside the held space, so the distance to its end is zero, and
+        // a reply grew meanwhile: the reader who left is not pulled back.
+        val resting = viewport(1_040f, 1_560f, 600f, 80f, false)
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, true)).isEmpty())
+        assertEquals(TranscriptScrollBehavior.Mode.browsing, behavior.mode)
+    }
+
+    @Test
+    fun aDragDuringTheFollowersGlideKeepsFollowing() {
+        val behavior = TranscriptScrollBehavior()
+        // The follower trails a streaming end by 30 pt when the finger lands.
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_470f, 2_000f, 500f)))
+        val resting = viewport(1_472f, 2_000f, 500f, canRequestEarlierHistory = false)
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.scrollToBottom(false)),
+            behavior.handle(TranscriptScrollBehavior.Event.userSettled(resting, false)),
+        )
+        assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
+    }
+
+    @Test
+    fun aPillRowGrowingUnderAFingerAtTheEndKeepsFollowing() {
+        val behavior = TranscriptScrollBehavior()
+        behavior.handle(TranscriptScrollBehavior.Event.dragBegan(viewport(1_500f, 2_000f, 500f)))
+        // The capsule's row joins the composer while the finger holds the list:
+        // the end now lies 54 pt below, but the reader went nowhere.
+        val shrunk = viewport(1_500f, 2_000f, 446f, canRequestEarlierHistory = false).copy(isUserScrolling = true)
+        assertTrue(behavior.handle(TranscriptScrollBehavior.Event.layoutChanged(shrunk)).isEmpty())
+        assertEquals(
+            listOf(TranscriptScrollBehavior.Command.scrollToBottom(false)),
+            behavior.handle(TranscriptScrollBehavior.Event.userSettled(shrunk.copy(isUserScrolling = false), false)),
         )
         assertEquals(TranscriptScrollBehavior.Mode.following, behavior.mode)
     }
