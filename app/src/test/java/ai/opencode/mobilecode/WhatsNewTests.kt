@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/WhatsNewTests.swift", "553a407")
+@file:PortedFrom("OpenCodeTests/WhatsNewTests.swift", "a9bc920")
 
 package ai.opencode.mobilecode
 
@@ -102,6 +102,24 @@ class WhatsNewTests {
         store.send(HomeFeature.Action.whatsNew(Action.buttonTapped))
         expect(store.state.whatsNew.isPresented)
         expect(!store.state.whatsNew.showsButton)
+    }
+
+    @Test
+    fun eachDayIsOneCardHoldingExactlyItsEntries() {
+        val entries = listOf(
+            entry("c", day = "2026-10-07"), entry("b"), entry("a"),
+            entry("z", day = "2026-10-05"), entry("late", day = "2026-10-07"),
+        )
+        val days = WhatsNewDay.group(entries)
+        expect(days.map { it.id } == listOf("2026-10-07", "2026-10-06", "2026-10-05"))
+        expect(days.map { day -> day.entries.map { it.id } } == listOf(listOf("c", "late"), listOf("b", "a"), listOf("z")))
+    }
+
+    @Test
+    fun shippedEntriesGroupIntoUniqueDays() {
+        val days = WhatsNewDay.group(WhatsNewEntry.all)
+        expect(days.map { it.id }.toSet().size == days.size)
+        expect(days.flatMap { it.entries } == WhatsNewEntry.all, "Every entry appears once, in its card, in order")
     }
 
     @Test

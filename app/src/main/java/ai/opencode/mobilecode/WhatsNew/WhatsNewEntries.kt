@@ -1,9 +1,10 @@
-@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "8adf650")
+@file:PortedFrom("OpenCode/WhatsNew/WhatsNewEntries.swift", "a9bc920")
 
 package ai.opencode.mobilecode
 
 import ai.opencode.mobilecode.tca.Identifiable
 import java.time.LocalDate
+import java.util.Locale
 
 /// One change in What’s New. IDs are permanent: a seen ID never shows as new
 /// again, so reword an entry freely but give a new feature a new ID.
@@ -151,5 +152,32 @@ data class WhatsNewEntry(
                     illustration = Illustration.callButton,
                 ),
             )
+    }
+}
+
+/// The entries that shipped on one day: one card in the list.
+data class WhatsNewDay(
+    val day: LocalDate,
+    val entries: List<WhatsNewEntry>,
+) : Identifiable<String> {
+    /// `yyyy-MM-dd`, unique per day.
+    override val id: String
+        get() = String.format(Locale.ROOT, "%04d-%02d-%02d", day.year, day.monthValue, day.dayOfMonth)
+
+    companion object {
+        /// Groups entries by day in the order each day first appears, so a day
+        /// never yields two cards even if its entries aren’t adjacent.
+        fun group(entries: List<WhatsNewEntry>): List<WhatsNewDay> {
+            val days = mutableListOf<WhatsNewDay>()
+            for (entry in entries) {
+                val index = days.indexOfFirst { it.day == entry.day }
+                if (index >= 0) {
+                    days[index] = days[index].copy(entries = days[index].entries + entry)
+                } else {
+                    days += WhatsNewDay(day = entry.day, entries = listOf(entry))
+                }
+            }
+            return days
+        }
     }
 }
