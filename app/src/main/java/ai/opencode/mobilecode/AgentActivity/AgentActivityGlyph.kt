@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AgentActivity/AgentActivityGlyph.swift", "339260d")
+@file:PortedFrom("OpenCode/AgentActivity/AgentActivityGlyph.swift", "f843672")
 
 package ai.opencode.mobilecode
 
@@ -27,6 +27,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.max
@@ -47,8 +50,11 @@ fun AgentActivityGlyph(
     source: AgentActivitySource = AgentActivitySource.running,
     /// The layout box. The orb is 2 pt narrower (4 pt from 24 pt up), and its glow spills past it.
     size: Dp = 18.dp,
+    /// Hidden behind something that stands in for it: hold the pose, draw nothing new.
+    isPaused: Boolean = false,
 ) {
     val reducedMotion = LocalReduceMotion.current
+    val active = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.RESUMED)
     val dark = isSystemInDarkTheme()
     val scale = LocalDensity.current.density
     val model = remember { AgentActivityGlyphModel() }
@@ -57,8 +63,12 @@ fun AgentActivityGlyph(
     val latestSource by rememberUpdatedState(source)
     var frame by remember { mutableStateOf(model.advance(to = AgentActivityLedger.now(), source = source, lab = lab, reduceMotion = reducedMotion)) }
     // Done and Failed hold. Under Reduce Motion every state holds a still
-    // pose; a slow tick still notices the next state.
-    LaunchedEffect(model, current, reducedMotion, lab) {
+    // pose; a slow tick still notices the next state. Hidden or in the
+    // background it stops; resuming steps on from the held pose (each step
+    // is at most 1/30 s), so nothing jumps.
+    val paused = isPaused || !active
+    LaunchedEffect(model, current, reducedMotion, lab, paused) {
+        if (paused) return@LaunchedEffect
         var now = AgentActivityLedger.now()
         while (true) {
             val activity = latestSource.activity(at = now, lab = lab)

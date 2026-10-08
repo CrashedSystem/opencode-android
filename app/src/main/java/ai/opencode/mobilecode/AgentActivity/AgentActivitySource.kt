@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AgentActivity/AgentActivitySource.swift", "339260d")
+@file:PortedFrom("OpenCode/AgentActivity/AgentActivitySource.swift", "f843672")
 
 package ai.opencode.mobilecode
 
@@ -148,7 +148,9 @@ class AgentActivityLedger {
             is OpenCodeServerEvent.executionStarted -> update(event.sessionID, now) { it.copy(isActive = true, startedAt = now) }
             is OpenCodeServerEvent.executionEnded -> update(event.sessionID, now) { it.copy(isActive = false) }
             is OpenCodeServerEvent.contentBatch -> update(event.sessionID, now) { start ->
-                var record = start
+                // Its own events mean it's running, even when its start came before
+                // the stream connected.
+                var record = start.copy(isActive = true)
                 var output = false
                 for (content in event.events) {
                     when (content) {

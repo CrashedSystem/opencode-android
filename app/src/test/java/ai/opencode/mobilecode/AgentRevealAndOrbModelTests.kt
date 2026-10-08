@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCodeTests/AgentRevealAndOrbModelTests.swift", "7fa8e81")
+@file:PortedFrom("OpenCodeTests/AgentRevealAndOrbModelTests.swift", "f843672")
 
 package ai.opencode.mobilecode
 
@@ -148,5 +148,16 @@ class AgentRevealAndOrbModelTests {
         ledger.record(OpenCodeServerEvent.contentBatch(sessionID = id, events = listOf(OpenCodeLiveContentEvent.textDelta(messageID = "m", ordinal = 0, delta = "hi"))), at = now + 6)
         expect(subagent.activity(at = now + 6.2) == AgentActivity.streaming)
         expect(subagent.activity(at = now + 15) == AgentActivity.longWork)
+    }
+
+    @Test
+    fun subagentRunningBeforeTheStreamConnectedStillReachesLongWork() {
+        val now = AgentActivityLedger.now()
+        val id = "ses_orb_${UUID.randomUUID()}"
+        val subagent = SubagentActivity(sessionID = id, phase = SubagentActivity.Phase.running)
+        // Its execution started before the stream connected: only content arrives.
+        AgentActivityLedger.shared.record(OpenCodeServerEvent.contentBatch(sessionID = id, events = listOf(OpenCodeLiveContentEvent.reasoningDelta(messageID = "m", ordinal = 0, delta = "…"))), at = now)
+        expect(subagent.activity(at = now + 1) == AgentActivity.thinking)
+        expect(subagent.activity(at = now + 9) == AgentActivity.longWork)
     }
 }

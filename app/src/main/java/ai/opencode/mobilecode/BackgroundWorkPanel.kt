@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "339260d", partial = "all but the -lab-glass-trace overlay and stage log")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "f843672", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -149,7 +149,7 @@ fun BackgroundWorkCapsuleLabel(summary: String, activity: AgentActivitySource) {
     val hidden = LocalBackgroundActivityAnchor.current?.capsuleHidden == true
     Box(Modifier.alpha(if (hidden) 0f else 1f)) {
         ComposerPillLabel(title = summary) {
-            AgentActivityGlyph(source = activity)
+            AgentActivityGlyph(source = activity, isPaused = hidden)
         }
     }
 }
@@ -445,7 +445,7 @@ private fun BackgroundWorkSurface(
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     ComposerPillContent(title = BackgroundWorkPanel.summary(agents, shells)) {
-                        AgentActivityGlyph(source = AgentActivitySource.summary(agents = agents, shells = shells, waiting = store.state.waitingSessionIDs))
+                        AgentActivityGlyph(source = AgentActivitySource.summary(agents = agents, shells = shells, waiting = store.state.waitingSessionIDs), isPaused = isPanel)
                     }
                 }
             }
