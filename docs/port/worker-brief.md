@@ -24,6 +24,7 @@ The Android app keeps the iOS UI, UX, copy, and behavior, adapted to Android, an
 - `./gradlew assembleDebug testDebugUnitTest` passes in your worktree.
 - Views are rendered with the Roborazzi harness (`docs/port/screenshots.md`) in light and dark and compared by eye with the matching iOS captures in `docs/port/reference/ios/` (see `MANIFEST.md`). Look at the PNGs yourself and list visible differences.
 - `python3 scripts/ios-sync.py progress` shows your files as ported or partial as intended.
+- On a device, use only the emulator your prompt names, and pass its serial (`ANDROID_SERIAL=emulator-5556`): without it Gradle installs on every running emulator. Boot one with `scripts/boot-emulator.sh <avd> <port>`. Never start the emulator in the foreground; your shell waits for it to exit, and it never does.
 
 ## Report
 
