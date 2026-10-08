@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "3804368", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
+@file:PortedFrom("OpenCode/SessionView.swift", "e2ea70b", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52, e377b41)")
 
 package ai.opencode.mobilecode
 
@@ -1679,14 +1679,9 @@ private class SessionViewState {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 if (hasActivity) {
-                                    BackgroundWorkCapsuleLabel(
-                                        summary = BackgroundWorkPanel.summary(store.observe { activeSubagents }, store.observe { backgroundShells }),
-                                        activity = AgentActivitySource.summary(
-                                            agents = store.state.activeSubagents,
-                                            shells = store.state.backgroundShells,
-                                            waiting = store.state.waitingSessionIDs,
-                                        ),
-                                    )
+                                    ComposerPillLabel(title = BackgroundWorkPanel.summary(store.observe { activeSubagents }, store.observe { backgroundShells })) {
+                                        Spacer(Modifier.size(18.dp))
+                                    }
                                 }
                                 Spacer(Modifier.weight(1f))
                                 if (hasQueued) {
