@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "42c4225")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "339260d")
 
 package ai.opencode.mobilecode
 
@@ -1221,6 +1221,7 @@ private class EventBatcher(private val emit: suspend (OpenCodeServerEvent) -> Un
     private var flushJob: Job? = null
 
     suspend fun receive(event: OpenCodeServerEvent) {
+        AgentActivityLedger.shared.record(event)
         val outgoing = mutex.withLock {
             val batch = event as? OpenCodeServerEvent.contentBatch
             if (batch == null) {

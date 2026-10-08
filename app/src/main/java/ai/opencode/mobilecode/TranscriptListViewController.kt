@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "5480d82", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "339260d", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 

@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "74bd186")
+@file:PortedFrom("OpenCode/Transcript/TranscriptEntryView.swift", "339260d")
 
 package ai.opencode.mobilecode
 
@@ -260,6 +260,12 @@ class TranscriptDisclosureState {
         val animate = animateToggle
         if (animate != null) animate(entryID, !set.get(this).contains(id), toggle) else toggle()
     }
+
+    companion object {
+        /// `-lab-expand-tools` opens Used N groups by default, for captures.
+        val labExpandsTools: Boolean
+            get() = ai.opencode.mobilecode.system.ProcessInfo.processInfo.arguments.contains("-lab-expand-tools")
+    }
 }
 
 /// What a disclosure reveals fades in as the row grows over it, and out
@@ -329,7 +335,8 @@ object TranscriptEntryView {
         onOpenFile: (AgentFileReference) -> Unit,
         disclosure: TranscriptDisclosureState,
     ) {
-        val isExpanded = disclosure.toolGroups.contains(id)
+        var isExpanded = disclosure.toolGroups.contains(id)
+        if (BuildConfig.DEBUG && TranscriptDisclosureState.labExpandsTools) isExpanded = !isExpanded
         val images = entry.toolImageAttachments
         val summary = toolGroupSummary(tools)
         val label = if (summary.isEmpty()) "Updates" else "Used $summary"
@@ -621,14 +628,19 @@ object TranscriptEntryView {
             verticalAlignment = Alignment.Top,
         ) {
             Box(Modifier.width(18.dp).height(20.dp).semantics { hideFromAccessibility() }, contentAlignment = Alignment.Center) {
-                when {
-                    call.status == OpenCodeToolCall.Status.error ->
-                        SystemImage("exclamationmark.triangle.fill", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.systemRed)
-                    running -> androidx.compose.runtime.CompositionLocalProvider(
-                        androidx.compose.material3.LocalContentColor provides SystemColors.label,
-                    ) { AgentActivityGlyph() }
-                    else -> SystemImage("arrow.triangle.branch", null, Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.secondaryLabel)
-                }
+                AgentActivityGlyph(
+                    source = AgentActivitySource.subagent(
+                        SubagentActivity(
+                            sessionID = childID,
+                            phase = when {
+                                call.status == OpenCodeToolCall.Status.error -> SubagentActivity.Phase.failed
+                                running -> if (call.status == OpenCodeToolCall.Status.streaming || childID == null) SubagentActivity.Phase.spawning else SubagentActivity.Phase.running
+                                else -> SubagentActivity.Phase.done
+                            },
+                            needsInput = childID?.let { store.state.waitingSessionIDs.contains(it) } == true,
+                        ),
+                    ),
+                )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.compact.dp)) {
                 Text(child?.title ?: name, style = TextStyles.subheadline.medium, color = SystemColors.label)

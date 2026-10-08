@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionFeature.swift", "083cd94", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
+@file:PortedFrom("OpenCode/SessionFeature.swift", "339260d", partial = "all but the voice agent's setPinned and openDraft delegates (5cfc623) and Raise to Talk's raisedToEar and atEarChanged (2e313a1)")
 
 package ai.opencode.mobilecode
 
@@ -637,6 +637,9 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             get() = permissionRequests.isNotEmpty() || formRequests.isNotEmpty()
 
         val reviewRequestIDs: List<String> get() = formRequests.map { it.id } + permissionRequests.map { it.id }
+
+        /// Sessions a pending request waits on: their activity glyphs show Waiting for Input.
+        val waitingSessionIDs: Set<String> get() = (formRequests.map { it.sessionID } + permissionRequests.map { it.sessionID }).toSet()
 
         /// Transient request failures stay quiet while connectivity is already
         /// explaining the outage. A failure becomes actionable only after the

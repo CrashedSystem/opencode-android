@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "cba9609", partial = "all but the -lab-glass-trace overlay and stage log")
+@file:PortedFrom("OpenCode/BackgroundWorkPanel.swift", "339260d", partial = "all but the -lab-glass-trace overlay and stage log")
 
 package ai.opencode.mobilecode
 
@@ -145,11 +145,11 @@ object BackgroundWorkMotion {
 /// The background-work capsule in the composer pill row. It steps aside
 /// while the shared glass stands in for it.
 @Composable
-fun BackgroundWorkCapsuleLabel(summary: String) {
+fun BackgroundWorkCapsuleLabel(summary: String, activity: AgentActivitySource) {
     val hidden = LocalBackgroundActivityAnchor.current?.capsuleHidden == true
     Box(Modifier.alpha(if (hidden) 0f else 1f)) {
         ComposerPillLabel(title = summary) {
-            AgentActivityGlyph()
+            AgentActivityGlyph(source = activity)
         }
     }
 }
@@ -422,6 +422,7 @@ private fun BackgroundWorkSurface(
                 ) {
                     BackgroundWorkPanel(
                         agents = agents,
+                        waitingSessionIDs = store.state.waitingSessionIDs,
                         shells = shells,
                         onContentHeight = onContentHeight,
                         onOpenSubagent = { id ->
@@ -444,7 +445,7 @@ private fun BackgroundWorkSurface(
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     ComposerPillContent(title = BackgroundWorkPanel.summary(agents, shells)) {
-                        AgentActivityGlyph()
+                        AgentActivityGlyph(source = AgentActivitySource.summary(agents = agents, shells = shells, waiting = store.state.waitingSessionIDs))
                     }
                 }
             }
@@ -484,6 +485,7 @@ object BackgroundWorkPanel {
 @Composable
 fun BackgroundWorkPanel(
     agents: List<OpenCodeSession>,
+    waitingSessionIDs: Set<String> = emptySet(),
     shells: List<OpenCodeShell>,
     onContentHeight: (Float) -> Unit,
     onOpenSubagent: (String) -> Unit,
@@ -512,7 +514,11 @@ fun BackgroundWorkPanel(
                         enabled = enabled,
                         modifier = Modifier.semantics { testTag = "background-subagent-${agent.id}" },
                     ) {
-                        AgentActivityGlyph()
+                        AgentActivityGlyph(
+                            source = AgentActivitySource.subagent(
+                                SubagentActivity(sessionID = agent.id, phase = SubagentActivity.Phase.running, needsInput = waitingSessionIDs.contains(agent.id)),
+                            ),
+                        )
                     }
                 }
             }

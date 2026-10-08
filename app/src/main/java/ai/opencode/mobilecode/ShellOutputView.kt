@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/ShellOutputView.swift", "face06c")
+@file:PortedFrom("OpenCode/ShellOutputView.swift", "339260d")
 
 package ai.opencode.mobilecode
 
@@ -324,7 +324,7 @@ private fun ShellStatusLabel(state: ShellOutputFeature.State, modifier: Modifier
 @Composable
 private fun StatusIcon(state: ShellOutputFeature.State) {
     when (state.shell.status) {
-        OpenCodeShell.Status.running if !state.isUnavailable -> AgentActivityGlyph(Modifier.width(18.dp))
+        OpenCodeShell.Status.running if !state.isUnavailable -> AgentActivityGlyph(Modifier.width(18.dp), source = AgentActivitySource.shell)
         OpenCodeShell.Status.running, OpenCodeShell.Status.killed ->
             SystemImage("stop.circle", contentDescription = null, modifier = Modifier.symbolSize(TextStyles.subheadline), tint = SystemColors.secondaryLabel)
         OpenCodeShell.Status.timeout ->

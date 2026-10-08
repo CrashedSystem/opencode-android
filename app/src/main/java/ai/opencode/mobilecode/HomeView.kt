@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/HomeView.swift", "494e433")
+@file:PortedFrom("OpenCode/HomeView.swift", "339260d")
 
 package ai.opencode.mobilecode
 
@@ -1175,40 +1175,6 @@ fun DrawerShortcutLabel(
         Spacer(Modifier.weight(1f))
         Box(Modifier.widthIn(min = 18.dp), contentAlignment = Alignment.Center) {
             accessory()
-        }
-    }
-}
-
-/// The desktop app's subagent progress glyph: a 5×5 dot matrix with a
-/// diagonal wave. Reduce Motion shows one still center dot.
-@Composable
-fun AgentActivityGlyph(modifier: Modifier = Modifier, size: Dp = 15.dp) {
-    if (LocalReduceMotion.current) {
-        Box(modifier.size(size), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(size * 0.3f).background(LocalContentColor.current, CircleShape).semantics { contentDescription = "Running" })
-        }
-        return
-    }
-    val time by rememberInfiniteTransition().animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1_100, easing = LinearEasing)),
-        label = "agent-activity",
-    )
-    val color = LocalContentColor.current
-    Canvas(modifier.size(size).semantics { contentDescription = "Running" }) {
-        val pitch = this.size.width / 5f
-        val dot = pitch * 0.62f
-        for (row in 0 until 5) {
-            for (column in 0 until 5) {
-                val wave = 0.5 + 0.5 * cos(((row + column) / 8.0 - time) * 2 * PI)
-                val alpha = (0.16 + 0.84 * wave * wave * wave).toFloat()
-                drawCircle(
-                    color = color.copy(alpha = alpha),
-                    radius = dot / 2f,
-                    center = Offset(column * pitch + pitch / 2f, row * pitch + pitch / 2f),
-                )
-            }
         }
     }
 }
