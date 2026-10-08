@@ -32,5 +32,5 @@ iOS opens documents (Quick Look, code, Markdown) with the system zoom transition
 
 ## Features not on Android yet
 
-- **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at d809b1e shows that row; the parity review should expect its absence.
+- **Turn-finished notifications.** iOS sends them through a notify plugin on the server and an APNs relay (upstream d0ed2a9 and neighbors). Android would need an FCM relay that the server side does not have, so `SessionNotifications.swift` is deferred and Settings has no Notifications row. The iOS baseline at 16b40f7 shows that row; the parity review should expect its absence.
 - **iOS-only lab and UI-test bridges.** The lab pasteboard bridge and lab color scheme in `OpenCodeApp.swift` have Android equivalents as debug intent extras instead.
