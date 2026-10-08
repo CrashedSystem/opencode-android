@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "c3a6c9a", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
+@file:PortedFrom("OpenCode/Transcript/TranscriptListViewController.swift", "5480d82", partial = "all but the scroll trace's follow measurements (arrive, chase, lag, jump, stray)")
 
 package ai.opencode.mobilecode
 
@@ -128,6 +128,7 @@ class TranscriptListViewController(
     var disclosure = TranscriptDisclosureState()
         private set
     private var textReveal = TranscriptTextReveal()
+    private var voiceReveal = TranscriptVoiceReveal()
     /// A disclosure's motion is running; its layout reports itself.
     private var isAnimatingDisclosure = false
     private var disclosureMotion = 0
@@ -363,6 +364,7 @@ class TranscriptListViewController(
             queuedStableIDs = emptyMap()
             disclosure = TranscriptDisclosureState()
             textReveal = TranscriptTextReveal()
+            voiceReveal = TranscriptVoiceReveal()
             installDisclosureMotion()
             itemSizes.clear()
         }
@@ -517,14 +519,17 @@ class TranscriptListViewController(
         disclosure: TranscriptDisclosureState,
         modifier: Modifier,
     ) {
+        val entry = (row as? MessageRow.entry)?.value
+        val queued = (row as? MessageRow.queued)?.value
         androidx.compose.foundation.layout.Box(modifier) {
             TranscriptMessageRow(
-                entry = (row as? MessageRow.entry)?.value,
-                queued = (row as? MessageRow.queued)?.value,
+                entry = entry,
+                queued = queued,
                 store = store,
                 onPreviewImage = onPreviewImage,
                 onOpenFile = onOpenFile,
                 disclosure = disclosure,
+                voiceArrival = (entry?.userMessageID ?: queued?.id)?.let { voiceReveal.arrival(of = it) },
             )
         }
     }
@@ -615,6 +620,12 @@ class TranscriptListViewController(
             entry.itemIDs.any { !oldItemIDs.contains(it) }
         }
         val appendedQueued = queuedItems.any { !oldItems.contains(it) }
+        val voiceArrivals = recordVoiceArrivals(
+            items = newItems,
+            inserted = newItemSet.filter { !oldItems.contains(it) }.toSet(),
+            oldItems = oldItems,
+            isLive = !isInitial && previousConfiguration != null && hasLaidOutContent && now() >= arrivalsGlideAfter,
+        )
         val promoted = !reduceMotion && identityPlan.promotedEntryIDs.isNotEmpty()
         // Rows that join the end of a transcript already on screen fade in: after
         // the last entry the reader already had (Working and pending messages
@@ -632,7 +643,8 @@ class TranscriptListViewController(
             if (tail.size != inserted.size || tail.size > RowEntrance.maximumRows || tail.any { it == ItemID.history || it == ItemID.empty }) {
                 return@run emptyList()
             }
-            tail
+            // A Voice message fades in with its own reveal instead.
+            tail.filter { !voiceArrivals.contains(it) }
         }
         holdRemovedTail(oldItems, newItemSet, configuration)
         val prepended = anchorFirstMessage(newItems)
@@ -646,6 +658,30 @@ class TranscriptListViewController(
             )
         }
         beginEntrances(entrances)
+    }
+
+    /// Voice messages joining the end of a transcript already on screen: each
+    /// records its arrival once, which starts its reveal. Any other first
+    /// sighting (a session opening, a page of history) has no reveal.
+    private fun recordVoiceArrivals(items: List<ItemID>, inserted: Set<ItemID>, oldItems: Set<ItemID>, isLive: Boolean): Set<ItemID> {
+        if (!isLive || inserted.isEmpty()) return emptySet()
+        val lastKept = items.indexOfLast { item ->
+            item is ItemID.message && oldItems.contains(item) && messageRowsByStableID[item.stableID] is MessageRow.entry
+        }
+        val time = now()
+        val arrivals = mutableSetOf<ItemID>()
+        items.forEachIndexed { index, item ->
+            if (!inserted.contains(item) || index <= lastKept) return@forEachIndexed
+            val message = (item as? ItemID.message)?.let { messageRowsByStableID[it.stableID] }?.let(::userMessage) ?: return@forEachIndexed
+            if (message.voiceDelegation == null || !voiceReveal.arrive(message.id, at = time)) return@forEachIndexed
+            arrivals += item
+        }
+        return arrivals
+    }
+
+    private fun userMessage(row: MessageRow): TranscriptUserMessage? = when (row) {
+        is MessageRow.entry -> TranscriptUserMessage(row.value)
+        is MessageRow.queued -> TranscriptUserMessage(row.value)
     }
 
     private fun traceSnapshot(newItems: List<ItemID>) {
