@@ -283,6 +283,8 @@ A SwiftUI view is a composable function with the same name. Its stored propertie
 | `.alert("Title", isPresented: …) { Button("OK") {} } message: { Text(message) }` | `alert("Title", isPresented = …, message = message, buttons = listOf(AlertButton("OK")))` |
 | `@Environment(\.dismiss) private var dismiss` | `val dismiss = LocalDismiss.current` |
 | `@Environment(\.colorScheme)` and `colorScheme == .dark` | `isSystemInDarkTheme()` |
+| `@Environment(\.scenePhase)` and `scenePhase == .active` | `LocalLifecycleOwner.current.lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.RESUMED)` |
+| `@Environment(\.dynamicTypeSize)` and `dynamicTypeSize.isAccessibilitySize` | `LocalDensity.current.fontScale > 1.35f`, past iOS's xxxLarge |
 | `struct WhatsNewSheet: ViewModifier` | `@Composable fun WhatsNewSheet(store: …, content: @Composable () -> Unit)` that calls `content()` first |
 | `.modifier(WhatsNewSheet(store: …))` | `WhatsNewSheet(store = …) { … }` |
 | a computed view property such as `private var days` | a private extension property on the store, or a private function |
