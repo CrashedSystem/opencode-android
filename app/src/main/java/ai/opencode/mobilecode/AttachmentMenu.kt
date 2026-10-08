@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentMenu.swift", "6dd63f3")
+@file:PortedFrom("OpenCode/AttachmentMenu.swift", "4482259")
 
 package ai.opencode.mobilecode
 
@@ -21,13 +21,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -96,10 +95,8 @@ import kotlin.math.sqrt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/// Where the attachment menu is. The menu's glass grows out of the composer
-/// at the + button (`AttachmentMenuPanel`); the photo-picker card
-/// (`AttachmentMenuOverlay`) takes the glass over from the menu, morphs it
-/// into the card, and hands it back on the way out.
+/// Where the attachment menu is. The menu and the photo card are one
+/// floating glass surface (`AttachmentMenuOverlay`) above the composer.
 enum class AttachmentMenuPhase { closed, menu, photos }
 
 /// SwiftUI's `spring(duration:bounce:)` is stiffness (2π / duration)² and a
@@ -119,14 +116,25 @@ object AttachmentMenuMotion {
 }
 
 object AttachmentMenuMetrics {
+    /// The composer's, so the menu and the card read as the same glass.
     const val cornerRadius = 28f
 
     /// Between the panel's edge and its rows; the highlight is concentric.
     const val padding = 6f
 
-    /// Between the composer's top edge and the menu's bottom edge.
+    /// Between the composer's top edge and the menu's or card's bottom edge.
     const val composerGap = 10f
     const val minimumWidth = 210f
+
+    /// The glass the menu grows out of and shrinks back into, above the +.
+    const val seedSize = 34f
+
+    /// Between the card's edge and its controls and grid.
+    const val cardInset = 8f
+    const val cardHeaderHeight = 44f
+
+    /// The card stops short of the session header.
+    const val cardTopClearance = 64f
 }
 
 /// Media kinds the inline picker can narrow to.
@@ -178,208 +186,11 @@ fun clipboardHasImage(context: Context): Boolean {
         description.hasMimeType("image/*")
 }
 
-// MARK: - Menu
+// MARK: - Rows
 
-/// The menu's glass, an overlay of the composer capsule. One glass shape is
-/// the menu: closed, it is a small seed under the + button; opening springs
-/// its frame and corners out into the panel resting above the composer, so
-/// the menu pulls out of the composer at the + (which stays put and turns
-/// into the menu's ×), and closing shrinks it back in. Compose glass has no
-/// container that merges shapes, so the seed is clear at rest: the glass
-/// appears as it leaves the + and clears as it folds back. Under Reduce
-/// Motion the panel cross-fades in place instead.
-@Composable
-fun AttachmentMenuPanel(
-    /// The panel shows; otherwise the glass rests as the seed.
-    isOpen: Boolean,
-    items: List<AttachmentMenuItem>,
-    anchors: AttachmentMenuAnchors,
-    press: AttachmentMenuPress,
-    /// The photo-picker card holds the glass. The panel hands it over and
-    /// takes it back without animation, as iOS's transaction does.
-    handedOff: Boolean = false,
-    lift: Float = 0f,
-    onChoose: (AttachmentMenuItem) -> Unit,
-    onPaste: (List<NSItemProvider>) -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val reduceMotion = LocalReduceMotion.current
-    val scope = rememberCoroutineScope()
-    val dragOffset = remember { Animatable(0f) }
-    var panelSize by remember { mutableStateOf(Size(AttachmentMenuMetrics.minimumWidth, 160f)) }
-    /// The rows stay mounted while the glass folds back into the seed.
-    var rowsLinger by remember { mutableStateOf(false) }
-    /// A drag that carries the menu also carries a row under the finger;
-    /// its release must not count as a tap.
-    var isDragging by remember { mutableStateOf(false) }
-
-    /// The + button's center within the capsule; both anchors are resting
-    /// frames, so it holds while the picker card lifts the composer.
-    val buttonCenter = anchors.button.center - anchors.composer.topLeft
-    val seed = Rect(buttonCenter.x - seedSize / 2, buttonCenter.y - seedSize / 2, buttonCenter.x + seedSize / 2, buttonCenter.y + seedSize / 2)
-
-    @Composable
-    fun rows(highlighted: AttachmentMenuItem?, isPanel: Boolean) {
-        AttachmentMenuRows(
-            items = items,
-            buttonCenterX = buttonCenter.x,
-            highlighted = highlighted,
-            anchors = anchors,
-            // Dragged or lifted, the rows aren't where the menu rests.
-            isResting = isOpen && dragOffset.value == 0f && lift == 0f,
-            onChoose = { item ->
-                if (!isDragging) onChoose(item)
-            },
-            onPaste = onPaste,
-            enabled = isPanel,
-        )
-    }
-
-    @Composable
-    fun surface(rect: Rect, radius: Float, isPanel: Boolean, glassAlpha: () -> Float) {
-        val shape = RoundedCornerShape(max(radius, 0f).dp)
-        val density = LocalDensity.current
-        val rowsAlpha by animateFloatAsState(if (isPanel) 1f else 0f, tween(100), label = "rows")
-        Box(
-            Modifier
-                .frame(rect)
-                .graphicsLayer { alpha = glassAlpha() }
-                .glassEffect(shape)
-                .clip(shape)
-                .then(
-                    if (!isPanel) {
-                        Modifier
-                    } else {
-                        Modifier.pointerInput(Unit) {
-                            val tracker = VelocityTracker()
-                            var translation = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = {
-                                    translation = 0f
-                                    tracker.resetTracking()
-                                    isDragging = true
-                                },
-                                onVerticalDrag = { change, amount ->
-                                    tracker.addPosition(change.uptimeMillis, change.position)
-                                    translation += amount / density.density
-                                    // Rubber-band upward; follow the finger downward.
-                                    val y = translation
-                                    scope.launch { dragOffset.snapTo(if (y > 0) y else -sqrt(-y) * 2) }
-                                },
-                                onDragEnd = {
-                                    scope.launch { isDragging = false }
-                                    val predicted = translation + tracker.calculateVelocity().y / density.density * 0.25f
-                                    if (translation > 50 || predicted > 160) {
-                                        onDismiss()
-                                        scope.launch { dragOffset.animateTo(0f, AttachmentMenuMotion.close(reduceMotion)) }
-                                    } else {
-                                        scope.launch { dragOffset.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 322f)) }
-                                    }
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                    scope.launch { dragOffset.animateTo(0f) }
-                                },
-                            )
-                        }
-                    },
-                )
-                .then(
-                    if (isPanel) {
-                        Modifier.semantics { testTag = "attachment-menu" }
-                    } else {
-                        Modifier.clearAndSetSemantics {}
-                    },
-                ),
-            contentAlignment = Alignment.BottomStart,
-        ) {
-            // Mounted only while the panel is open or folding away: hidden rows
-            // inside the glass would still reach assistive technologies.
-            AnimatedVisibility(
-                visible = isPanel || (rowsLinger && !reduceMotion),
-                enter = fadeIn(tween(220, delayMillis = if (reduceMotion) 0 else 80)),
-                exit = fadeOut(tween(220, delayMillis = if (reduceMotion) 0 else 80)),
-            ) {
-                // The rows size themselves; the panel takes their size.
-                Box(
-                    Modifier
-                        .wrapContentSize(Alignment.BottomStart, unbounded = true)
-                        .onSizeChanged { panelSize = Size(it.width / density.density, it.height / density.density) }
-                        // One layer, so its text fades with it. The rows arrive
-                        // once the glass has mostly grown, and leave first.
-                        .graphicsLayer { alpha = rowsAlpha },
-                ) {
-                    rows(highlighted = press.highlighted, isPanel = isPanel)
-                }
-            }
-        }
-    }
-
-    BoxWithConstraints(modifier) {
-        /// On the composer's leading edge, standing a little above it.
-        val panel = Rect(
-            0f,
-            -AttachmentMenuMetrics.composerGap - panelSize.height,
-            min(panelSize.width, maxWidth.value),
-            -AttachmentMenuMetrics.composerGap,
-        )
-        // Where the panel rests, for the photo-picker card to morph from.
-        Box(
-            Modifier
-                .frame(panel)
-                .attachmentMenuAnchor(anchors::menu, lift)
-                .clearAndSetSemantics {},
-        )
-        if (reduceMotion) {
-            AnimatedVisibility(isOpen, enter = fadeIn(tween(200)), exit = fadeOut(tween(200))) {
-                surface(rect = panel, radius = AttachmentMenuMetrics.cornerRadius, isPanel = true, glassAlpha = { 1f })
-            }
-        } else {
-            var handedOffBefore by remember { mutableStateOf(handedOff) }
-            val animates = !handedOff && handedOff == handedOffBefore
-            SideEffect { handedOffBefore = handedOff }
-            val rect = animatedRect(
-                if (isOpen) panel else seed,
-                if (isOpen) AttachmentMenuMotion.open(reduceMotion = false) else AttachmentMenuMotion.close(reduceMotion = false),
-                animates = animates,
-            )
-            val radius = animatedFloat(
-                if (isOpen) AttachmentMenuMetrics.cornerRadius else seedSize / 2,
-                if (isOpen) AttachmentMenuMotion.open(reduceMotion = false) else AttachmentMenuMotion.close(reduceMotion = false),
-                animates = animates,
-            )
-            val glassAlpha = animatedFloat(
-                if (isOpen) 1f else 0f,
-                if (isOpen) tween(90) else tween(110, delayMillis = 170),
-                animates = animates,
-            )
-            surface(rect = rect.translate(0f, if (isOpen) dragOffset.value else 0f), radius = radius, isPanel = isOpen, glassAlpha = { glassAlpha })
-        }
-    }
-    // Rows unmount whenever the menu folds away, but where they rest stays
-    // known (Back from Photos morphs into the Photos row); only rows the
-    // menu no longer offers are forgotten.
-    LaunchedEffect(items) {
-        anchors.rowOffsets = anchors.rowOffsets.filterKeys { it in items }
-    }
-    LaunchedEffect(isOpen) {
-        if (isOpen) {
-            rowsLinger = true
-            return@LaunchedEffect
-        }
-        if (!rowsLinger) return@LaunchedEffect
-        delay(400)
-        rowsLinger = false
-    }
-    // The system's back is the escape gesture.
-    BackHandler(enabled = isOpen) { onDismiss() }
-}
-
-private const val seedSize = 34f
-
-/// The menu's rows, shared by the panel and the copy the picker card
-/// carries while it takes the glass over.
+/// The menu's rows. A hidden copy measures where each row rests
+/// (`onRowFrame`), so choosing by a slide from + never depends on the glass
+/// mid-flight.
 @Composable
 fun AttachmentMenuRows(
     items: List<AttachmentMenuItem>,
@@ -387,56 +198,49 @@ fun AttachmentMenuRows(
     /// rows' icons line up under it.
     buttonCenterX: Float,
     highlighted: AttachmentMenuItem? = null,
-    /// Records each row's frame for choosing by drag; the card's copy doesn't.
-    anchors: AttachmentMenuAnchors? = null,
-    /// The rows are laid out where the open menu rests.
-    isResting: Boolean = true,
+    /// Set on the measuring copy, which draws plain labels: each row's frame
+    /// in the rows' own space.
+    onRowFrame: ((AttachmentMenuItem, Rect) -> Unit)? = null,
     onChoose: (AttachmentMenuItem) -> Unit = {},
     onPaste: (List<NSItemProvider>) -> Unit = {},
-    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
     val rowHeight = with(density) { 48.sp.toDp() }
     val iconWidth = with(density) { 26.sp.toDp() }
     val iconInset = max(buttonCenterX - AttachmentMenuMetrics.padding - iconWidth.value / 2, 10f)
-    val origin = remember { RowsOrigin() }
+    val space = remember { RowsSpace() }
     Column(
         modifier
-            .onGloballyPositioned { origin.coordinates = it }
             .widthIn(min = AttachmentMenuMetrics.minimumWidth.dp)
             .width(IntrinsicSize.Max)
-            .padding(AttachmentMenuMetrics.padding.dp),
+            .padding(AttachmentMenuMetrics.padding.dp)
+            .onGloballyPositioned { space.coordinates = it },
     ) {
         items.forEach { item ->
             val label = AttachmentMenuRowLabel(item = item, iconWidth = iconWidth.value, inset = iconInset, height = rowHeight.value)
-            Box(Modifier.rowAnchor(item, anchors, isResting, origin)) {
-                if (item == AttachmentMenuItem.paste) {
-                    AttachmentPasteRow(label = label, onPaste = onPaste, enabled = enabled)
-                } else {
-                    AttachmentMenuRowButton(label = label, isHighlighted = highlighted == item, enabled = enabled) { onChoose(item) }
-                }
+            if (onRowFrame != null) {
+                AttachmentMenuRowContent(
+                    label,
+                    Modifier.onGloballyPositioned { row ->
+                        val rows = space.coordinates?.takeIf { it.isAttached } ?: return@onGloballyPositioned
+                        // In the padded rows' own space, as SwiftUI's named space.
+                        val origin = rows.localPositionOf(row, Offset.Zero) / density.density
+                        val padding = AttachmentMenuMetrics.padding
+                        onRowFrame(item, Rect(origin.x + padding, origin.y + padding, origin.x + padding + row.size.width / density.density, origin.y + padding + row.size.height / density.density))
+                    },
+                )
+            } else if (item == AttachmentMenuItem.paste) {
+                AttachmentPasteRow(label = label, onPaste = onPaste)
+            } else {
+                AttachmentMenuRowButton(label = label, isHighlighted = highlighted == item) { onChoose(item) }
             }
         }
     }
 }
 
-/// The rows' own top-leading corner, which rests on the panel's.
-private class RowsOrigin {
+private class RowsSpace {
     var coordinates: LayoutCoordinates? = null
-}
-
-@Composable
-private fun Modifier.rowAnchor(item: AttachmentMenuItem, anchors: AttachmentMenuAnchors?, isResting: Boolean, origin: RowsOrigin): Modifier {
-    if (anchors == null) return this
-    val density = LocalDensity.current.density
-    return onGloballyPositioned { coordinates ->
-        // Folded into the seed, the rows aren't where the menu rests.
-        if (!isResting) return@onGloballyPositioned
-        val rows = origin.coordinates?.takeIf { it.isAttached } ?: return@onGloballyPositioned
-        val offset = rows.localPositionOf(coordinates, Offset.Zero) / density
-        anchors.rowOffsets += item to Rect(offset.x, offset.y, offset.x + coordinates.size.width / density, offset.y + coordinates.size.height / density)
-    }
 }
 
 private class AttachmentMenuRowLabel(
@@ -471,7 +275,7 @@ private fun AttachmentMenuRowContent(label: AttachmentMenuRowLabel, modifier: Mo
 /// The system menus' highlight: a quiet fill concentric with the panel, for
 /// a press or a finger sliding over the row from +.
 @Composable
-private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted: Boolean, enabled: Boolean, action: () -> Unit) {
+private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted: Boolean, action: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val lit = pressed || isHighlighted
@@ -482,9 +286,7 @@ private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted
         Modifier
             .background(SystemColors.tertiarySystemFill.let { it.copy(alpha = it.alpha * fill) }, shape)
             .clip(shape)
-            // Folding away or copied onto the card's glass, the rows take no
-            // touch at all, as `allowsHitTesting(false)` does.
-            .then(if (enabled) Modifier.clickable(interactionSource = interaction, indication = null, onClick = action) else Modifier)
+            .clickable(interactionSource = interaction, indication = null, onClick = action)
             .semantics { contentDescription = label.item.title },
     )
 }
@@ -493,7 +295,7 @@ private fun AttachmentMenuRowButton(label: AttachmentMenuRowLabel, isHighlighted
 /// paste control insists on drawing itself, opaque, with its icon and title
 /// centered, so the row draws the same.
 @Composable
-private fun AttachmentPasteRow(label: AttachmentMenuRowLabel, onPaste: (List<NSItemProvider>) -> Unit, enabled: Boolean) {
+private fun AttachmentPasteRow(label: AttachmentMenuRowLabel, onPaste: (List<NSItemProvider>) -> Unit) {
     val context = LocalContext.current
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     /// Opaque, as the control requires: about the rows' highlight over glass.
@@ -505,16 +307,10 @@ private fun AttachmentPasteRow(label: AttachmentMenuRowLabel, onPaste: (List<NSI
             .heightIn(min = label.height.dp)
             .background(fill, shape)
             .clip(shape)
-            .then(
-                if (!enabled) {
-                    Modifier
-                } else {
-                    Modifier.clickable {
-                        val providers = clipboardImages(context)
-                        if (providers.isNotEmpty()) onPaste(providers)
-                    }
-                },
-            )
+            .clickable {
+                val providers = clipboardImages(context)
+                if (providers.isNotEmpty()) onPaste(providers)
+            }
             .semantics(mergeDescendants = true) { contentDescription = label.item.title },
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
@@ -537,62 +333,161 @@ private fun clipboardImages(context: Context): List<NSItemProvider> {
     }
 }
 
-// MARK: - Photo-picker card
-
-object AttachmentMenuOverlay {
-    const val cardCornerRadius = 44f
-    const val cardInset = 8f
-
-    /// Between the composer's bottom edge and the card's top edge.
-    const val composerGap = 10f
-}
+// MARK: - Menu and photo card
 
 private data class AttachmentMenuFrames(
+    /// The overlay's origin in `AttachmentMenuAnchors.space`.
+    val origin: Offset,
     val button: Rect,
+    val seed: Rect,
     val menu: Rect,
-    /// A sliver across the Photos row: the picker opens out of it and folds
-    /// back into it.
-    val photosSeed: Rect,
     val card: Rect,
-    /// Above the composer: tapping here dismisses while the card is up.
-    val scrim: Rect,
-    val reservation: Float,
+    /// The picker's place inside the card, below its controls.
+    val grid: Rect,
+    /// A sliver across the Photos row: the picker opens out of it and
+    /// folds back into it.
+    val photosSeed: Rect,
 )
 
-/// Drawn over the whole session screen: the dismissing scrim, the inline
-/// photo picker, and, while `cardOwnsGlass`, the glass the menu hands it.
-/// The picker card sits under the composer, which rises by
-/// `pickerReservation` to make room for it.
+private const val gridRadius = AttachmentMenuMetrics.cornerRadius - AttachmentMenuMetrics.cardInset
+
+/// The attachment menu and the photo card: one floating glass surface drawn
+/// over the session screen, always above the composer, so the + (a × while
+/// it's open) stays visible and the composer and transcript never move.
+/// Closed, nothing is drawn. Opening grows the glass up out of a seed just
+/// above the + into the menu; Photos grows it on into the card, which frames
+/// the inline system picker; Back shrinks it onto the menu and closing
+/// shrinks it into the seed. The glass is the composer's, on its own, never
+/// merged with the composer's glass, and is placed by layout, never by an
+/// offset. Under Reduce Motion the menu and the card cross-fade in place.
 @Composable
 fun AttachmentMenuOverlay(
     phase: Binding<AttachmentMenuPhase>,
-    /// Set (without animation) as Photos is chosen: the card's glass replaces
-    /// the menu's in place, then morphs into the card. Cleared once Back has
-    /// morphed it back onto the menu, which takes it over again.
-    cardOwnsGlass: Binding<Boolean>,
     anchors: AttachmentMenuAnchors,
+    press: AttachmentMenuPress,
     selection: InlinePhotoSelection,
     items: List<AttachmentMenuItem>,
     /// Videos upload as files, so they appear only when the server takes uploads.
     includesVideos: Boolean,
-    /// Space the composer area keeps below the composer while the card is up.
-    pickerReservation: Binding<Float>,
+    onChoose: (AttachmentMenuItem) -> Unit,
+    onPaste: (List<NSItemProvider>) -> Unit,
     onPhotos: (List<PhotosPickerItem>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val reduceMotion = LocalReduceMotion.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val assistive = assistiveTechnologyEnabled(context)
     var filter by remember { mutableStateOf(InlinePhotoFilter.all) }
-    /// Keeps the picker drawn while the card morphs away from it.
+    /// Keeps the picker drawn while the card shrinks away from it.
     var keepsPickerDrawn by remember { mutableStateOf(false) }
-    /// The open phase the panel last showed; the card closes by sliding down.
+    /// The open phase last shown; closing from the card shrinks the picker too.
     var openPhase by remember { mutableStateOf(AttachmentMenuPhase.menu) }
-    var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    /// The glass stays while it shrinks away into the seed.
+    var glassLingers by remember { mutableStateOf(false) }
+    /// The rows stay mounted while they fade; hidden rows inside the glass
+    /// would still reach assistive technologies, so they don't stay longer.
+    var rowsLinger by remember { mutableStateOf(false) }
+    var rowsSize by remember { mutableStateOf(Size(AttachmentMenuMetrics.minimumWidth, 160f)) }
+    /// Each row's frame within the rows, from the measuring copy.
+    var rowFrames by remember { mutableStateOf(emptyMap<AttachmentMenuItem, Rect>()) }
+    val dragOffset = remember { Animatable(0f) }
+    /// A drag that carries the menu also carries a row under the finger; its
+    /// release must not count as a tap.
+    var isDragging by remember { mutableStateOf(false) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
     val current = phase.wrappedValue
     val safeTop = WindowInsets.systemBars.getTop(density) / density.density
     val safeBottom = WindowInsets.systemBars.getBottom(density) / density.density
+
+    fun dismiss() {
+        phase.wrappedValue = AttachmentMenuPhase.closed
+    }
+
+    /// The card shrinks back onto the menu.
+    fun back() {
+        phase.wrappedValue = AttachmentMenuPhase.menu
+    }
+
+    // The phase's own animation, as its caller's transaction sets it; the
+    // composer moving under attachments or the keyboard glides.
+    var previous by remember { mutableStateOf(current) }
+    val spec: AnimationSpec<Float> = when {
+        previous == current -> if (reduceMotion) snap() else tween(300, easing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f))
+        current == AttachmentMenuPhase.closed -> AttachmentMenuMotion.close(reduceMotion)
+        previous == AttachmentMenuPhase.closed -> AttachmentMenuMotion.open(reduceMotion)
+        else -> AttachmentMenuMotion.morph(reduceMotion)
+    }
+    SideEffect { previous = current }
+
+    val drag = Modifier.pointerInput(Unit) {
+        val tracker = VelocityTracker()
+        var translation = 0f
+        detectVerticalDragGestures(
+            onDragStart = {
+                translation = 0f
+                tracker.resetTracking()
+                isDragging = true
+            },
+            onVerticalDrag = { change, amount ->
+                tracker.addPosition(change.uptimeMillis, change.position)
+                translation += amount / density.density
+                // Rubber-band upward; follow the finger downward.
+                val y = translation
+                scope.launch { dragOffset.snapTo(if (y > 0) y else -sqrt(-y) * 2) }
+            },
+            onDragEnd = {
+                scope.launch { isDragging = false }
+                val predicted = translation + tracker.calculateVelocity().y / density.density * 0.25f
+                if (translation > 50 || predicted > 160) {
+                    dismiss()
+                    scope.launch { dragOffset.animateTo(0f, AttachmentMenuMotion.close(reduceMotion)) }
+                } else {
+                    scope.launch { dragOffset.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 322f)) }
+                }
+            },
+            onDragCancel = {
+                isDragging = false
+                scope.launch { dragOffset.animateTo(0f) }
+            },
+        )
+    }
+
+    @Composable
+    fun GlassPanel(frames: AttachmentMenuFrames, rect: Rect, radius: Float, glass: Boolean, showsRows: Boolean, alpha: () -> Float) {
+        val shape = RoundedCornerShape(max(radius, 0f).dp)
+        val rowsAlpha by animateFloatAsState(if (showsRows) 1f else 0f, tween(100), label = "rows")
+        Box(
+            Modifier
+                .frame(rect)
+                .graphicsLayer { this.alpha = alpha() }
+                .then(if (glass) Modifier.glassEffect(shape) else Modifier)
+                .clip(shape)
+                .then(if (current == AttachmentMenuPhase.closed) Modifier else drag)
+                .then(if (showsRows) Modifier.semantics { testTag = "attachment-menu" } else Modifier.clearAndSetSemantics {}),
+            contentAlignment = Alignment.BottomStart,
+        ) {
+            AnimatedVisibility(
+                visible = showsRows || (rowsLinger && !reduceMotion),
+                // The rows arrive once the glass has mostly grown, and leave first.
+                enter = fadeIn(tween(220, delayMillis = if (reduceMotion) 0 else 80)),
+                exit = fadeOut(tween(220, delayMillis = if (reduceMotion) 0 else 80)),
+            ) {
+                AttachmentMenuRows(
+                    items = items,
+                    buttonCenterX = frames.button.center.x - frames.menu.left,
+                    highlighted = press.highlighted,
+                    onChoose = { item -> if (!isDragging) onChoose(item) },
+                    onPaste = onPaste,
+                    // One layer, so its text fades with it.
+                    modifier = Modifier
+                        .requiredSize(frames.menu.width.dp, frames.menu.height.dp)
+                        .graphicsLayer { this.alpha = rowsAlpha },
+                )
+            }
+        }
+    }
 
     BoxWithConstraints(
         modifier
@@ -600,181 +495,156 @@ fun AttachmentMenuOverlay(
             .onGloballyPositioned { origin = it.positionInRoot() / density.density },
     ) {
         val frames = frames(
-            width = maxWidth.value,
             height = maxHeight.value,
             safeTop = safeTop,
             safeBottom = safeBottom,
             origin = origin,
             anchors = anchors,
+            rowsSize = rowsSize,
+            rowFrames = rowFrames,
         )
-        LaunchedEffect(frames.reservation) { pickerReservation.wrappedValue = frames.reservation }
-        // Phase changes animate like their SwiftUI transactions: Photos and Back
-        // morph, dismissing closes.
-        val closing = current == AttachmentMenuPhase.closed
-        val panelTarget = when (current) {
-            // Like the keyboard it stands in for, the card leaves downward.
-            AttachmentMenuPhase.closed -> frames.card.translate(0f, frames.card.height + AttachmentMenuOverlay.cardInset * 4)
-            AttachmentMenuPhase.menu -> frames.menu
-            AttachmentMenuPhase.photos -> frames.card
-        }
-        val owned = cardOwnsGlass.wrappedValue
-        // Only the glass the card holds travels; otherwise it waits on the menu.
-        val panelRect = animatedRect(panelTarget, if (closing) AttachmentMenuMotion.close(reduceMotion) else AttachmentMenuMotion.morph(reduceMotion), animates = owned)
-        val panelRadius = animatedFloat(
-            if (current == AttachmentMenuPhase.menu) AttachmentMenuMetrics.cornerRadius else AttachmentMenuOverlay.cardCornerRadius,
-            if (closing) AttachmentMenuMotion.close(reduceMotion) else AttachmentMenuMotion.morph(reduceMotion),
-            animates = owned,
+        // Measures the rows where nothing can see or reach them.
+        AttachmentMenuRows(
+            items = items,
+            buttonCenterX = frames.button.center.x - frames.menu.left,
+            onRowFrame = { item, frame -> if (rowFrames[item] != frame) rowFrames = rowFrames + (item to frame) },
+            modifier = Modifier
+                .wrapContentSize(Alignment.TopStart, unbounded = true)
+                .onSizeChanged { rowsSize = Size(it.width / density.density, it.height / density.density) }
+                .graphicsLayer { alpha = 0f }
+                .clearAndSetSemantics {},
         )
-        /// Where the menu's glass and rows are: travelling with the card, or
-        /// under Reduce Motion staying on the menu while they cross-fade.
-        val glassRect = if (reduceMotion) frames.menu else panelRect
-        val glassRadius = if (reduceMotion) AttachmentMenuMetrics.cornerRadius else panelRadius
-        val showsCard = current == AttachmentMenuPhase.photos || (closing && openPhase == AttachmentMenuPhase.photos)
-        /// Where the picker shows. It is drawn opaque from the moment the menu
-        /// opens, so revealing it never waits on the system's placeholder.
-        val pickerMaskRect = animatedRect(
-            if (reduceMotion) frames.card else if (showsCard) panelTarget else frames.photosSeed,
-            if (closing) AttachmentMenuMotion.close(reduceMotion) else AttachmentMenuMotion.morph(reduceMotion),
-            animates = true,
-        )
-        // Revealed in place while morphing; carried along when the card leaves.
-        val pickerRect = animatedRect(
-            if (closing && openPhase == AttachmentMenuPhase.photos && !reduceMotion) panelTarget else frames.card,
-            AttachmentMenuMotion.close(reduceMotion),
-            animates = true,
-        )
-        /// The system picker takes a moment to load, so it mounts (masked away)
-        /// as soon as the menu opens. Its out-of-process elements can't be hidden
-        /// from assistive technologies, which therefore get it only once chosen.
-        val mountsPicker = photoPickerKind() == PhotoPickerKind.embedded && when (current) {
-            AttachmentMenuPhase.photos -> true
-            AttachmentMenuPhase.menu -> keepsPickerDrawn || !assistive
-            AttachmentMenuPhase.closed -> keepsPickerDrawn
-        }
-
-        if (current == AttachmentMenuPhase.photos) {
-            // While the card is up, everywhere above the composer dismisses.
-            AttachmentMenuDismissArea(
-                onDismiss = { phase.wrappedValue = AttachmentMenuPhase.closed },
-                modifier = Modifier.frame(frames.scrim),
-            )
-        }
-        if (mountsPicker) {
-            val visible = current == AttachmentMenuPhase.photos
-            // With Reduce Motion the card stays put and simply fades.
-            val drawn by animateFloatAsState(if (!reduceMotion || visible) 1f else 0f, tween(if (reduceMotion) 200 else 0), label = "picker")
-            val rect = pickerRect
-            // Waiting behind the menu, it parks below the screen: masking hides it
-            // from sight but not from accessibility, which would find it instead
-            // of the menu's rows. It moves into place, unseen, as the card takes
-            // the glass over.
-            val parked = if (current == AttachmentMenuPhase.menu && !cardOwnsGlass.wrappedValue) frames.card.bottom + frames.card.height else 0f
-            val maskRadius = if (reduceMotion || showsCard) AttachmentMenuOverlay.cardCornerRadius else 0f
-            // The mask, then the picker inside it at its own frame.
-            Box(
-                Modifier
-                    .frame(pickerMaskRect.translate(0f, parked))
-                    .clip(RoundedCornerShape(maskRadius.dp))
-                    .then(if (visible) Modifier else Modifier.clearAndSetSemantics {}),
-            ) {
+        if (anchors.composer != Rect.Zero) {
+            val isOpen = current != AttachmentMenuPhase.closed
+            if (reduceMotion) {
+                // The menu and the card each fade in and out in place.
+                AnimatedVisibility(current == AttachmentMenuPhase.menu, enter = fadeIn(tween(200)), exit = fadeOut(tween(200))) {
+                    GlassPanel(frames, frames.menu, AttachmentMenuMetrics.cornerRadius, glass = true, showsRows = true) { 1f }
+                }
+                AnimatedVisibility(current == AttachmentMenuPhase.photos, enter = fadeIn(tween(200)), exit = fadeOut(tween(200))) {
+                    GlassPanel(frames, frames.card, AttachmentMenuMetrics.cornerRadius, glass = true, showsRows = false) { 1f }
+                }
+            } else {
+                val target = when (current) {
+                    AttachmentMenuPhase.closed -> frames.seed
+                    AttachmentMenuPhase.menu -> frames.menu
+                    AttachmentMenuPhase.photos -> frames.card
+                }
+                val rect = animatedRect(target, spec)
+                val radius = animatedFloat(if (isOpen) AttachmentMenuMetrics.cornerRadius else AttachmentMenuMetrics.seedSize / 2, spec)
+                // The seed is clear; the glass gathers as it grows.
+                val glassAlpha by animateFloatAsState(
+                    if (isOpen) 1f else 0f,
+                    if (isOpen) tween(160) else tween(220, delayMillis = 100),
+                    label = "glass",
+                )
+                GlassPanel(
+                    frames,
+                    rect.translate(0f, if (isOpen) dragOffset.value else 0f),
+                    radius,
+                    glass = isOpen || glassLingers,
+                    showsRows = current == AttachmentMenuPhase.menu,
+                ) { glassAlpha }
+            }
+            /// The system picker takes a moment to load, so it mounts (masked away)
+            /// as soon as the menu opens. Its out-of-process elements can't be hidden
+            /// from assistive technologies, which therefore get it only once chosen.
+            val mountsPicker = photoPickerKind() == PhotoPickerKind.embedded && when (current) {
+                AttachmentMenuPhase.photos -> true
+                AttachmentMenuPhase.menu -> keepsPickerDrawn || !assistive
+                AttachmentMenuPhase.closed -> keepsPickerDrawn
+            }
+            if (mountsPicker) {
+                val visible = current == AttachmentMenuPhase.photos
+                // With Reduce Motion the card stays put and simply fades.
+                val drawn by animateFloatAsState(if (!reduceMotion || visible) 1f else 0f, tween(if (reduceMotion) 200 else 0), label = "picker")
+                val grid = frames.grid
+                /// Where the picker shows. It is drawn opaque from the moment the menu
+                /// opens, so revealing it never waits on the system's placeholder.
+                val maskTarget = when {
+                    reduceMotion -> grid
+                    current == AttachmentMenuPhase.photos -> grid
+                    current == AttachmentMenuPhase.menu -> frames.photosSeed
+                    // From the card it shrinks away into the seed with the glass.
+                    openPhase == AttachmentMenuPhase.photos -> Rect(frames.seed.center, frames.seed.center)
+                    else -> frames.photosSeed
+                }
+                val mask = animatedRect(maskTarget, spec)
+                val maskRadius = animatedFloat(if (reduceMotion || current == AttachmentMenuPhase.photos) gridRadius else 0f, spec)
+                // Waiting behind the menu, it parks below the screen: masking hides it
+                // from sight but not from accessibility, which would find it instead
+                // of the menu's rows. It parks and unparks unseen.
+                val parked = if (current == AttachmentMenuPhase.menu && !keepsPickerDrawn) grid.bottom + grid.height + 200 else 0f
+                val drift = if (visible) dragOffset.value else 0f
                 Box(
                     Modifier
-                        .frame(rect.translate(-pickerMaskRect.left, -pickerMaskRect.top))
-                        .graphicsLayer { alpha = drawn }
-                        .background(SystemColors.systemBackground)
-                        .semantics { testTag = "inline-photo-picker" },
+                        .frame(mask.translate(0f, drift + parked))
+                        .clip(RoundedCornerShape(max(maskRadius, 0f).dp))
+                        .then(if (visible) Modifier else Modifier.clearAndSetSemantics {}),
                 ) {
-                    EmbeddedPhotoPickerHost(selection, filter, includesVideos, onPhotos, Modifier.fillMaxSize())
+                    Box(
+                        Modifier
+                            .frame(grid.translate(-mask.left, -mask.top))
+                            .graphicsLayer { alpha = drawn }
+                            .background(SystemColors.systemBackground)
+                            .semantics { testTag = "inline-photo-picker" },
+                    ) {
+                        EmbeddedPhotoPickerHost(selection, filter, includesVideos, onPhotos, Modifier.fillMaxSize())
+                    }
                 }
             }
-        }
-        if (cardOwnsGlass.wrappedValue) {
-            val visible = current == AttachmentMenuPhase.menu
-            // The menu's glass, taken over by the card. Over the card it clears like
-            // a veil, revealing the picker beneath instead of fading the picker
-            // itself: the system picker shows a blurred placeholder whenever it is
-            // drawn translucent.
-            val glassAlpha by animateFloatAsState(
-                if (visible) 1f else 0f,
-                // Clears as the card opens (after a beat that hides the picker's first
-                // placeholder frames); returning, the grid stays readable while it
-                // shrinks before the glass frosts back over it.
-                if (current == AttachmentMenuPhase.photos) tween(320, delayMillis = 80) else tween(240, delayMillis = if (visible) 100 else 0),
-                label = "veil",
-            )
-            Box(
-                Modifier
-                    .frame(glassRect)
-                    .graphicsLayer { alpha = glassAlpha }
-                    .glassEffect(RoundedCornerShape(glassRadius.dp))
-                    .clearAndSetSemantics {},
-            )
-            // The menu's rows, drawn over the glass the card took over, fading as it
-            // morphs into the card and back in as it returns.
-            val rowsAlpha by animateFloatAsState(
-                if (visible) 1f else 0f,
-                if (visible) tween(280, delayMillis = 50) else tween(200),
-                label = "copy",
-            )
-            Box(
-                Modifier
-                    .frame(glassRect)
-                    .clip(RoundedCornerShape(glassRadius.dp))
-                    .clearAndSetSemantics {},
+            val card = frames.card.translate(0f, dragOffset.value)
+            val inset = AttachmentMenuMetrics.cardInset
+            val header = AttachmentMenuMetrics.cardHeaderHeight
+            AnimatedVisibility(
+                visible = current == AttachmentMenuPhase.photos,
+                modifier = Modifier.frame(Rect(card.left, card.top, card.right, card.top + header + inset * 2)),
+                // They settle onto the card once it has mostly grown.
+                enter = fadeIn(tween(240, delayMillis = if (reduceMotion) 0 else 160)),
+                exit = fadeOut(tween(120)),
             ) {
-                AttachmentMenuRows(
-                    items = items,
-                    buttonCenterX = frames.button.center.x - frames.menu.left,
-                    enabled = false,
-                    modifier = Modifier
-                        .frame(frames.menu.translate(-glassRect.left, -glassRect.top))
-                        .wrapContentSize(Alignment.BottomCenter, unbounded = true)
-                        .graphicsLayer { alpha = rowsAlpha },
+                CardControls(
+                    filter = filter,
+                    includesVideos = includesVideos,
+                    onFilter = { filter = it },
+                    onBack = ::back,
+                    modifier = Modifier.padding(inset.dp),
                 )
             }
         }
-        AnimatedVisibility(
-            visible = current == AttachmentMenuPhase.photos,
-            modifier = Modifier.frame(frames.card),
-            // They settle onto the card once it has mostly opened.
-            enter = if (reduceMotion) {
-                fadeIn()
-            } else {
-                slideInVertically(spring(dampingRatio = 0.8f, stiffness = 247f)) { with(density) { 18.dp.roundToPx() } } + fadeIn(tween(250, delayMillis = 140))
-            },
-            exit = fadeOut(tween(120)),
-        ) {
-            PickerControls(
-                filter = filter,
-                includesVideos = includesVideos,
-                onFilter = { filter = it },
-                /// The card morphs back into the menu, which then takes its glass back.
-                onBack = { phase.wrappedValue = AttachmentMenuPhase.menu },
-            )
+        val resting = restingRows(frames, rowFrames, items)
+        LaunchedEffect(resting) { anchors.rows = resting }
+    }
+    LaunchedEffect(current) {
+        if (current != AttachmentMenuPhase.closed) {
+            openPhase = current
+            glassLingers = true
         }
-    }
-    LaunchedEffect(current) {
-        if (current != AttachmentMenuPhase.closed) openPhase = current
+        if (current == AttachmentMenuPhase.menu) rowsLinger = true
         if (current == AttachmentMenuPhase.photos) keepsPickerDrawn = true
-        if (current == AttachmentMenuPhase.closed) cardOwnsGlass.wrappedValue = false
     }
     LaunchedEffect(current) {
-        if (current != AttachmentMenuPhase.menu || !cardOwnsGlass.wrappedValue) return@LaunchedEffect
-        // Once the card has settled back onto the menu.
-        delay(if (reduceMotion) 260 else 560)
-        if (phase.wrappedValue != AttachmentMenuPhase.menu) return@LaunchedEffect
-        cardOwnsGlass.wrappedValue = false
+        if (current == AttachmentMenuPhase.menu || !rowsLinger) return@LaunchedEffect
+        delay(400)
+        rowsLinger = false
     }
     LaunchedEffect(current) {
         if (current == AttachmentMenuPhase.photos || !keepsPickerDrawn) return@LaunchedEffect
         delay(550)
         keepsPickerDrawn = false
-        if (phase.wrappedValue == AttachmentMenuPhase.closed) openPhase = AttachmentMenuPhase.menu
     }
+    LaunchedEffect(current) {
+        if (current != AttachmentMenuPhase.closed || !glassLingers) return@LaunchedEffect
+        delay(550)
+        glassLingers = false
+        openPhase = AttachmentMenuPhase.menu
+    }
+    // The system's back is the escape gesture.
+    BackHandler(enabled = current != AttachmentMenuPhase.closed) { dismiss() }
 }
 
-/// SwiftUI's `.frame(width:height:)` and `.offset(x:y:)` from the parent's
-/// top-leading corner, in points: the view takes the rect whatever room the
+/// SwiftUI's `.frame(width:height:)` and `.position`, in points from the
+/// parent's top-leading corner: the view takes the rect whatever room the
 /// parent offers, and takes none from it.
 private fun Modifier.frame(rect: Rect): Modifier = layout { measurable, _ ->
     val placeable = measurable.measure(
@@ -784,114 +654,124 @@ private fun Modifier.frame(rect: Rect): Modifier = layout { measurable, _ ->
 }
 
 /// A frame that animates to each new target with `spec`, as a SwiftUI
-/// transaction animates a view's frame, or follows it at once while nothing
-/// shows it.
+/// transaction animates a view's frame.
 @Composable
-private fun animatedRect(target: Rect, spec: AnimationSpec<Rect>, animates: Boolean): Rect {
-    val rect = remember { Animatable(target, Rect.VectorConverter) }
-    LaunchedEffect(target, animates) {
-        if (animates) rect.animateTo(target, spec) else rect.snapTo(target)
-    }
-    return rect.value
+private fun animatedRect(target: Rect, spec: AnimationSpec<Float>): Rect {
+    val left = animatedFloat(target.left, spec)
+    val top = animatedFloat(target.top, spec)
+    val right = animatedFloat(target.right, spec)
+    val bottom = animatedFloat(target.bottom, spec)
+    return Rect(left, top, right, bottom)
 }
 
 @Composable
-private fun animatedFloat(target: Float, spec: AnimationSpec<Float>, animates: Boolean): Float {
+private fun animatedFloat(target: Float, spec: AnimationSpec<Float>): Float {
     val value = remember { Animatable(target) }
-    LaunchedEffect(target, animates) {
-        if (animates) value.animateTo(target, spec) else value.snapTo(target)
-    }
+    LaunchedEffect(target) { value.animateTo(target, spec) }
     return value.value
 }
 
 // MARK: Layout
 
 private fun frames(
-    width: Float,
     height: Float,
     safeTop: Float,
     safeBottom: Float,
-    origin: androidx.compose.ui.geometry.Offset,
+    origin: Offset,
     anchors: AttachmentMenuAnchors,
+    rowsSize: Size,
+    rowFrames: Map<AttachmentMenuItem, Rect>,
 ): AttachmentMenuFrames {
     val local = { rect: Rect -> rect.translate(-origin) }
     val button = local(anchors.button)
-    val composer = if (anchors.composer == Rect.Zero) button else local(anchors.composer)
-    val menu = local(anchors.menu)
-
-    // The overlay spans the whole screen, its safe areas included.
-    val cardHeight = min(max(height * 0.5f, 340f), height - safeTop - safeBottom - 220f)
-    val card = Rect(
-        AttachmentMenuOverlay.cardInset,
-        height - AttachmentMenuOverlay.cardInset - cardHeight,
-        width - AttachmentMenuOverlay.cardInset,
-        height - AttachmentMenuOverlay.cardInset,
+    val composer = local(anchors.composer)
+    val inset = AttachmentMenuMetrics.cardInset
+    val header = AttachmentMenuMetrics.cardHeaderHeight
+    // Everything rests on this line, a little above the composer.
+    val base = composer.top - AttachmentMenuMetrics.composerGap
+    val seedSize = AttachmentMenuMetrics.seedSize
+    val seed = Rect(button.center.x - seedSize / 2, base - seedSize, button.center.x + seedSize / 2, base)
+    val menu = Rect(composer.left, base - rowsSize.height, composer.left + min(rowsSize.width, composer.width), base)
+    // About half the screen, short of the session header. The overlay spans
+    // the whole screen, so its height already holds the safe areas.
+    val screenHeight = height
+    val cardHeight = max(min(screenHeight * 0.5f, base - AttachmentMenuMetrics.cardTopClearance - safeTop), menu.height)
+    val card = Rect(composer.left, base - cardHeight, composer.right, base)
+    val grid = Rect(
+        card.left + inset,
+        card.top + inset * 2 + header,
+        card.left + inset + max(card.width - inset * 2, 0f),
+        card.top + inset * 2 + header + max(card.height - inset * 3 - header, 0f),
     )
-    val reservation = max(cardHeight + AttachmentMenuOverlay.cardInset + AttachmentMenuOverlay.composerGap - safeBottom, 0f)
-    // Above the composer as the card lifts it.
-    val scrim = Rect(0f, 0f, width, max(composer.top - reservation - 6f, 0f))
-    val photosRow = anchors.rows[AttachmentMenuItem.photos]?.let(local) ?: Rect(menu.left, menu.center.y, menu.right, menu.center.y)
+    val photosRow = rowFrames[AttachmentMenuItem.photos]?.translate(menu.topLeft) ?: Rect(menu.left, menu.center.y, menu.right, menu.center.y)
     val photosSeed = Rect(
         menu.left + AttachmentMenuMetrics.padding,
         photosRow.center.y,
         menu.left + AttachmentMenuMetrics.padding + max(menu.width - AttachmentMenuMetrics.padding * 2, 0f),
         photosRow.center.y,
     )
-    return AttachmentMenuFrames(button = button, menu = menu, photosSeed = photosSeed, card = card, scrim = scrim, reservation = reservation)
+    return AttachmentMenuFrames(origin = origin, button = button, seed = seed, menu = menu, card = card, grid = grid, photosSeed = photosSeed)
 }
 
+/// Where each row rests while the menu is open, in the anchors' space.
+private fun restingRows(frames: AttachmentMenuFrames, rowFrames: Map<AttachmentMenuItem, Rect>, items: List<AttachmentMenuItem>): Map<AttachmentMenuItem, Rect> {
+    val origin = frames.origin + frames.menu.topLeft
+    return rowFrames.filterKeys { it in items }.mapValues { it.value.translate(origin) }
+}
+
+/// Back and the filter, glass controls along the card's top edge.
 @Composable
-private fun PickerControls(
+private fun CardControls(
     filter: InlinePhotoFilter,
     includesVideos: Boolean,
     onFilter: (InlinePhotoFilter) -> Unit,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxSize().padding(horizontal = 14.dp).padding(bottom = 14.dp), contentAlignment = Alignment.BottomStart) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Box(
+    val header = AttachmentMenuMetrics.cardHeaderHeight.dp
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(header)
+                .glassEffect(GlassSurface.Circle, interactive = true)
+                .clickable(onClick = onBack)
+                .semantics {
+                    contentDescription = "Back"
+                    stateDescription = "Returns to attachment options"
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            SystemImage("chevron.left", contentDescription = null, tint = SystemColors.label, modifier = Modifier.symbolSize(TextStyles.body.semibold))
+        }
+        Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
+        Box {
+            Row(
                 Modifier
-                    .size(44.dp)
-                    .glassEffect(GlassSurface.Circle, interactive = true)
-                    .clickable(onClick = onBack)
-                    .semantics {
-                        contentDescription = "Back"
-                        stateDescription = "Returns to attachment options"
+                    .heightIn(min = header)
+                    .glassEffect(GlassSurface.Capsule, interactive = true)
+                    .clickable { open = true }
+                    .padding(horizontal = 16.dp)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "Show"
+                        stateDescription = filter.title
                     },
-                contentAlignment = Alignment.Center,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                SystemImage("chevron.left", contentDescription = null, tint = SystemColors.label, modifier = Modifier.symbolSize(TextStyles.body.semibold))
+                Text(filter.title, style = TextStyles.subheadline.semibold, color = SystemColors.label)
+                SystemImage("chevron.up.chevron.down", contentDescription = null, tint = SystemColors.secondaryLabel, modifier = Modifier.symbolSize(TextStyles.caption2.semibold))
             }
-            Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
-            Box {
-                Row(
-                    Modifier
-                        .heightIn(min = 44.dp)
-                        .glassEffect(GlassSurface.Capsule, interactive = true)
-                        .clickable { open = true }
-                        .padding(horizontal = 16.dp)
-                        .semantics(mergeDescendants = true) {
-                            contentDescription = "Show"
-                            stateDescription = filter.title
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                InlinePhotoFilter.visible(includesVideos).forEach { item ->
+                    DropdownMenuItem(
+                        text = { Text(item.title) },
+                        leadingIcon = { SystemImage(item.systemImage, contentDescription = null) },
+                        onClick = {
+                            onFilter(item)
+                            open = false
                         },
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(filter.title, style = TextStyles.subheadline.semibold, color = SystemColors.label)
-                    SystemImage("chevron.up.chevron.down", contentDescription = null, tint = SystemColors.secondaryLabel, modifier = Modifier.symbolSize(TextStyles.caption2.semibold))
-                }
-                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    InlinePhotoFilter.visible(includesVideos).forEach { item ->
-                        DropdownMenuItem(
-                            text = { Text(item.title) },
-                            leadingIcon = { SystemImage(item.systemImage, contentDescription = null) },
-                            onClick = {
-                                onFilter(item)
-                                open = false
-                            },
-                        )
-                    }
+                    )
                 }
             }
         }
@@ -947,6 +827,7 @@ internal fun AttachmentMenuSurface(
 ) {
     val anchors = remember { AttachmentMenuAnchors() }
     val press = remember { AttachmentMenuPress() }
+    val selection = remember { InlinePhotoSelection() }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         Box(
             Modifier
@@ -968,17 +849,16 @@ internal fun AttachmentMenuSurface(
                 )
             }
         }
-        Box(Modifier.padding(horizontal = 20.dp, vertical = 16.dp).fillMaxWidth().heightIn(min = 56.dp)) {
-            AttachmentMenuPanel(
-                isOpen = phase == AttachmentMenuPhase.menu,
-                items = items,
-                anchors = anchors,
-                press = press,
-                onChoose = {},
-                onPaste = {},
-                onDismiss = {},
-                modifier = Modifier.matchParentSize(),
-            )
-        }
+        AttachmentMenuOverlay(
+            phase = Binding({ phase }, {}),
+            anchors = anchors,
+            press = press,
+            selection = selection,
+            items = items,
+            includesVideos = true,
+            onChoose = {},
+            onPaste = {},
+            onPhotos = {},
+        )
     }
 }

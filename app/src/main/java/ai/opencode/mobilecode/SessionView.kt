@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/SessionView.swift", "42c4225", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
+@file:PortedFrom("OpenCode/SessionView.swift", "4482259", partial = "all but the voice call surfaces (VoiceCallComposer, voiceCallSurface, VoiceCallFailure, VoiceCallEnded), the dictation bar's DotScopeView, Raise to Talk's detector task (2e313a1), and the GPT-Live socket warmer task (f3bda52)")
 
 package ai.opencode.mobilecode
 
@@ -33,8 +33,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,7 +45,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloat
@@ -1152,12 +1149,8 @@ private class SessionViewState {
     var dictationHoldVisuals by mutableStateOf(DictationHoldVisuals())
     var attachmentMenu by mutableStateOf(AttachmentMenuPhase.closed)
     var photoSelection = InlinePhotoSelection()
-    /// In points, like the menu's anchors.
-    var pickerReservation by mutableFloatStateOf(0f)
     val attachmentMenuAnchors = AttachmentMenuAnchors()
     val attachmentMenuPress = AttachmentMenuPress()
-    /// The photo-picker card holds the menu's glass (see `AttachmentMenuOverlay`).
-    var attachmentCardOwnsGlass by mutableStateOf(false)
     var showsFileImporter by mutableStateOf(false)
     var showsAttachmentCamera by mutableStateOf(false)
     /// Photos without an inline picker: the system picker opens instead.
@@ -1588,9 +1581,7 @@ private class SessionViewState {
                 // `windowInsetsPadding` supplies the navigation bar clearance when
                 // the keyboard is hidden; with the keyboard up the pill needs its own
                 // breathing room so it doesn't sit flush against the keys.
-                .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp)
-                // The composer rides on top of the inline photo picker.
-                .padding(bottom = shownComposerLift.value.dp),
+                .padding(bottom = if (messageFieldFocused) 8.dp else 0.dp),
         ) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // A new session's project and model sit right above where you type.
@@ -1858,8 +1849,8 @@ private class SessionViewState {
     fun ComposerCapsule() {
         Box(Modifier.fillMaxWidth()) {
             // Behind the composer, so its × stays reachable: a tap anywhere else
-            // or a downward drag dismisses the menu.
-            if (attachmentMenu == AttachmentMenuPhase.menu) {
+            // or a downward drag dismisses the menu or the photo card.
+            if (attachmentMenu != AttachmentMenuPhase.closed) {
                 AttachmentMenuDismissArea(
                     onDismiss = ::closeAttachmentMenu,
                     modifier = Modifier.matchParentSize().wrapContentSize(unbounded = true),
@@ -1868,20 +1859,6 @@ private class SessionViewState {
             }
             Box(Modifier.fillMaxWidth().openCodeGlass(RoundedCornerShape(28.dp))) {
                 Composer()
-            }
-            if (store.state.voice == null) {
-                AttachmentMenuPanel(
-                    isOpen = attachmentMenu == AttachmentMenuPhase.menu && !attachmentCardOwnsGlass,
-                    items = attachmentMenuItems(LocalContext.current),
-                    anchors = attachmentMenuAnchors,
-                    press = attachmentMenuPress,
-                    handedOff = attachmentCardOwnsGlass,
-                    lift = shownComposerLift.value,
-                    onChoose = ::chooseAttachment,
-                    onPaste = ::pasteAttachments,
-                    onDismiss = ::closeAttachmentMenu,
-                    modifier = Modifier.matchParentSize(),
-                )
             }
         }
         // The inline photo picker can't stay under a call's transcript.
@@ -1903,7 +1880,7 @@ private class SessionViewState {
             Modifier
                 .fillMaxWidth()
                 .animateContentSize(if (reducedMotion) snap() else spring(dampingRatio = 1f, stiffness = 630f))
-                .attachmentMenuAnchor(attachmentMenuAnchors::composer, shownComposerLift.value)
+                .attachmentMenuAnchor(attachmentMenuAnchors::composer)
                 .clickable(interactionSource = null, indication = null) { messageFieldFocused = true }
                 .padding(horizontal = 6.dp)
                 .padding(bottom = 6.dp, top = if (composerExpanded) 0.dp else 6.dp)
@@ -2015,7 +1992,6 @@ private class SessionViewState {
                 anchors = attachmentMenuAnchors,
                 press = attachmentMenuPress,
                 rows = if (attachmentMenu == AttachmentMenuPhase.menu) attachmentMenuAnchors.rows else emptyMap(),
-                lift = shownComposerLift.value,
                 onToggle = ::toggleAttachmentMenu,
                 onChoose = ::chooseAttachment,
                 // Sliding from + to the rows must not open the drawer; while it's
@@ -2445,15 +2421,15 @@ private class SessionViewState {
     @Composable
     fun AttachmentMenuOverlayHost() {
         val context = LocalContext.current
-        ComposerLiftMotion()
         AttachmentMenuOverlay(
             phase = Binding({ attachmentMenu }, { attachmentMenu = it }),
-            cardOwnsGlass = Binding({ attachmentCardOwnsGlass }, { attachmentCardOwnsGlass = it }),
             anchors = attachmentMenuAnchors,
+            press = attachmentMenuPress,
             selection = photoSelection,
             items = attachmentMenuItems(context),
             includesVideos = store.state.supportsFileUploads,
-            pickerReservation = Binding({ pickerReservation }, { pickerReservation = it }),
+            onChoose = ::chooseAttachment,
+            onPaste = ::pasteAttachments,
             onPhotos = { items ->
                 photoSelection.items = items
                 syncPickedPhotos()
@@ -2525,25 +2501,6 @@ private class SessionViewState {
         }
     }
 
-    /// How far the picker card raises the composer.
-    val composerLift: Float get() = if (attachmentMenu == AttachmentMenuPhase.photos) pickerReservation else 0f
-
-    /// The lift as drawn: SwiftUI animates the padding with the card's morph,
-    /// and the menu's anchors add back what is drawn to find where they rest.
-    val shownComposerLift = Animatable(0f)
-
-    @Composable
-    fun ComposerLiftMotion() {
-        val target = composerLift
-        val closing = attachmentMenu == AttachmentMenuPhase.closed
-        LaunchedEffect(target) {
-            shownComposerLift.animateTo(
-                target,
-                if (closing) AttachmentMenuMotion.close(reducedMotion) else AttachmentMenuMotion.morph(reducedMotion),
-            )
-        }
-    }
-
     val composerAttachmentIDs: Set<UUID>
         get() = store.state.pendingAttachments.mapNotNull { runCatching { UUID.fromString(it.id) }.getOrNull() }.toSet() +
             store.state.pendingFiles.map { it.id }
@@ -2595,12 +2552,7 @@ private class SessionViewState {
                     closeAttachmentMenu()
                     return
                 }
-                // The card takes the glass over in place, then morphs it into itself.
-                attachmentCardOwnsGlass = true
-                Handler(Looper.getMainLooper()).post {
-                    if (attachmentMenu != AttachmentMenuPhase.menu) return@post
-                    attachmentMenu = AttachmentMenuPhase.photos
-                }
+                attachmentMenu = AttachmentMenuPhase.photos
             }
             AttachmentMenuItem.location -> {
                 attachmentMenuRestoresFocus = true
