@@ -142,17 +142,19 @@ fun SystemSheet(
         val density = LocalDensity.current
         var hidden by remember { mutableStateOf(0.dp) }
         CompositionLocalProvider(LocalDismiss provides dismiss, LocalSheetHiddenHeight provides hidden) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { coordinates ->
-                        val root = coordinates.findRootCoordinates()
-                        val bottom = root.localBoundingBoxOf(coordinates, clipBounds = false).bottom
-                        hidden = with(density) { (bottom - root.size.height).coerceAtLeast(0f).toDp() }
-                    }
-                    .semantics { testTagsAsResourceId = true },
-                content = content,
-            )
+            GlassWindow {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            val root = coordinates.findRootCoordinates()
+                            val bottom = root.localBoundingBoxOf(coordinates, clipBounds = false).bottom
+                            hidden = with(density) { (bottom - root.size.height).coerceAtLeast(0f).toDp() }
+                        }
+                        .semantics { testTagsAsResourceId = true },
+                    content = content,
+                )
+            }
         }
     }
 }
