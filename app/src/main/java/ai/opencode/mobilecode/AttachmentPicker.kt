@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/AttachmentPicker.swift", "083cd94")
+@file:PortedFrom("OpenCode/AttachmentPicker.swift", "42c4225")
 
 package ai.opencode.mobilecode
 

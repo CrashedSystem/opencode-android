@@ -1,4 +1,4 @@
-@file:PortedFrom("OpenCode/OpenCodeClient.swift", "ba012e9")
+@file:PortedFrom("OpenCode/OpenCodeClient.swift", "42c4225")
 
 package ai.opencode.mobilecode
 
