@@ -51,3 +51,13 @@ The integration step owns `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveA
    - Port `OpenCodeUITests/VoiceCallTests.swift` and `VoiceLiveActivityUITests.swift` as on-device flows.
 10. Place the lab demo call (`OPENCODE_LAB_VOICE_DEMO`). Then make one live call each over Realtime and GPT-Live with the key in `~/.config/opencode-android/openai_api_key`, including a delegation. Throttle the network with `adb emu network speed gsm` and check that "Weak connection" shows.
 11. Clear the voice entries from `sync.json` `partial`. `ios-sync check` must pass. Then merge `voice-integration` into main.
+
+## After integration: the WebRTC voice sync
+
+Upstream moved both engines from WebSockets to WebRTC after d809b1e. Port these once `voice-integration` has merged into main:
+- `e377b41` (GPT-Live over WebRTC: `LiveRTC.swift`, the app's audio engine stays in charge with WebRTC's own processing off, a WebSocket fallback through `LiveTransportChoice`, WebRTC stats in the weak-connection warning, and the lab's `OPENCODE_LAB_VOICE_INPUT` and `OPENCODE_LAB_OPENAI_KEY`)
+- `9e1aad3` (Realtime over WebRTC too, and the "Steadier Voice Calls" What's New entry)
+- `6994288` (Demo Mode plays calls as media for USB recordings, with its Diagnostics toggle and `voiceDemoMode` shared key)
+- the third sync's voice hunks: `SessionFeature`'s `isVoiceAvailable` with `VoiceLabDemo.labAPIKey` and `SessionView`'s warm-up lab key (both `e377b41`)
+
+Android needs a WebRTC library whose audio device takes the app's own capture and hands back decoded speech, the way iOS's `LiveRTCAudioDevice` does. Choose it on evidence. Then revisit the reply pre-roll in `deviations.md`: WebRTC's jitter buffer delivers speech at a steady pace.
