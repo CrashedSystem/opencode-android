@@ -1109,7 +1109,7 @@ private class DockScope(
         Box(Modifier.fillMaxWidth().heightIn(min = RequestTunables.labelHeight), contentAlignment = Alignment.Center) {
             Text(
                 title,
-                style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 modifier = Modifier.graphicsLayer { alpha = if (sending) 0f else 1f },
             )

@@ -39,12 +39,12 @@ object TranscriptFonts {
     /** Denser tool commands, arguments, and output (the desktop app's 13 pt). */
     val toolFont: TextStyle = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace)
 
-    /** Used N, answered question rows, and Working (`metaSize`; 17 pt body by default). */
+    /** Used N, answered question rows, and Working (`metaSize`; body size, 16 sp, by default). */
     @Composable
     fun metaFont(weight: FontWeight = FontWeight.Normal): TextStyle {
         val size = LocalTranscriptLayoutTuning.current.metaSize
         val body = OpenCodeTextStyles.body
-        val sized = if (size == 17f) body else body.copy(fontSize = size.sp, lineHeight = (size * 22f / 17f).sp)
+        val sized = if (size == body.fontSize.value) body else body.copy(fontSize = size.sp, lineHeight = (size * 1.5f).sp)
         return if (weight == FontWeight.Normal) sized else sized.copy(fontWeight = weight)
     }
 }

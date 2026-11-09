@@ -85,14 +85,14 @@ object TranscriptTunables {
         val cardCornerRadius = Tunable("transcript.card.cornerRadius", "Card corner radius", default = 14f, range = 6.0..24.0, step = 1.0)
 
         // Typography (D-52)
-        val bodySize = Tunable("transcript.typography.bodySize", "Body size (pt)", default = 17f, range = 14.0..20.0, step = 0.5)
-        val bodyLeading = Tunable("transcript.typography.bodyLeading", "Body leading (pt)", default = 4.5f, range = 0.0..8.0, step = 0.5)
+        val bodySize = Tunable("transcript.typography.bodySize", "Body size (pt)", default = 16f, range = 14.0..20.0, step = 0.5)
+        val bodyLeading = Tunable("transcript.typography.bodyLeading", "Body leading (pt)", default = 3.5f, range = 0.0..8.0, step = 0.5)
         val bodyTone = Tunable("transcript.typography.bodyTone", "Body tone", default = 0.92, range = 0.75..1.0, step = 0.01)
         val h1Size = Tunable("transcript.typography.h1Size", "H1 size (pt)", default = 22f, range = 18.0..28.0, step = 1.0)
         val h2Size = Tunable("transcript.typography.h2Size", "H2 size (pt)", default = 20f, range = 16.0..24.0, step = 1.0)
         val h3Size = Tunable("transcript.typography.h3Size", "H3 size (pt)", default = 18f, range = 12.0..20.0, step = 0.5)
         val h3Weight = Tunable("transcript.typography.h3Weight", "H3 weight", default = TranscriptFontWeight.Bold)
-        val metaSize = Tunable("transcript.typography.metaSize", "Used N & Working size (pt)", default = 17f, range = 11.0..17.0, step = 0.5)
+        val metaSize = Tunable("transcript.typography.metaSize", "Used N & Working size (pt)", default = 16f, range = 11.0..17.0, step = 0.5)
         val listNumSize = Tunable("transcript.typography.listNumSize", "List number size (pt)", default = 13f, range = 11.0..17.0, step = 0.5)
         val codeLeading = Tunable("transcript.typography.codeLeading", "Code leading (pt)", default = 3f, range = 0.0..6.0, step = 0.5)
         /** `0` inherits `flowHalf * 2`; any positive value is used directly. */
@@ -177,7 +177,8 @@ object TranscriptTunables {
 
     /**
      * Session view typography presets (D-52): 1 is what shipped (Refined Standard with Used N
-     * and Working kept at 17 pt body size), 2 is the pre-D-52 baseline.
+     * and Working kept at body size), 2 is the pre-D-52 baseline. Android's body is Material 3's
+     * bodyLarge (16 sp on a ~24 sp line) where iOS uses SF's 17 pt `.body`.
      */
     val typography: TuningPresets by lazy {
         with(Knobs) {

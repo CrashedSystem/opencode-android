@@ -688,8 +688,9 @@ private fun AutocompleteFlightView(flight: AutocompleteSimulation.ChipFlight, pa
     val inset = params.rowInset + (AutocompleteChipMetrics.leadingPad - params.rowInset) * t
     val iconSize = params.iconSize + (AutocompleteChipMetrics.iconSize - params.iconSize) * t
     val gap = 10 + (AutocompleteChipMetrics.gap - 10) * t
-    // Body (17) to the chip's 15; sp scales with the font size setting like iOS's @ScaledMetric.
-    val fontSize = 17 + (AutocompleteChipMetrics.fontSize - 17) * t
+    // The composer's body size to the chip's; sp scales with the font size setting like iOS's @ScaledMetric.
+    val bodySize = OpenCodeTextStyles.body.fontSize.value
+    val fontSize = bodySize + (AutocompleteChipMetrics.fontSize - bodySize) * t
     val hiTone = if (isDark) AutocompleteChipMetrics.highlightToneDark else AutocompleteChipMetrics.highlightToneLight
     val chipTone = if (isDark) AutocompleteChipMetrics.chipToneDark else AutocompleteChipMetrics.chipToneLight
     val fill = tone(hiTone + (chipTone - hiTone) * t)
@@ -1055,7 +1056,7 @@ class ComposerAutocompleteTextBridge {
                 var style = baseStyle
                 var rawWidth = ceil(measurer.measure(token, style, softWrap = false, maxLines = 1, density = density).size.width.toDouble()).toFloat()
                 var fontSize: androidx.compose.ui.unit.TextUnit? = null
-                val baseSize = baseStyle.fontSize.takeIf { it.isSp }?.value ?: 17f
+                val baseSize = baseStyle.fontSize.takeIf { it.isSp }?.value ?: OpenCodeTextStyles.body.fontSize.value
                 if (rawWidth > targetWidthPx && rawWidth > 1) {
                     val scaled = max(8f, floor(baseSize * (targetWidthPx / rawWidth)))
                     fontSize = scaled.sp

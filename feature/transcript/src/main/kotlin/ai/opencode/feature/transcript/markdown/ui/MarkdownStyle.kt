@@ -50,7 +50,7 @@ class MarkdownStyle(
         hyphens = Hyphens.None,
     )
 
-    /** `.body` at `bodySize` (17), with `bodyLeading` (4.5) between lines. */
+    /** Body at `bodySize` (16, Material 3 bodyLarge), with `bodyLeading` (3.5) between lines: a ~24 sp line. */
     val bodyStyle: TextStyle
         get() = textStyle(tuning.bodySize, bodyLineHeight(tuning.bodySize) + tuning.bodyLeading)
 
@@ -69,7 +69,7 @@ class MarkdownStyle(
         1 -> tuning.h1Size
         2 -> tuning.h2Size
         3 -> tuning.h3Size
-        else -> 17f
+        else -> 16f
     }
 
     fun headingWeight(level: Int): FontWeight = when (level) {
@@ -79,7 +79,7 @@ class MarkdownStyle(
         else -> FontWeight.SemiBold
     }
 
-    /** H1 `.title2` bold, H2 `.title3` semibold, H3 `h3Size` in `h3Weight`, deeper `.headline`. Line spacing 0. */
+    /** H1 `.title2` bold, H2 `.title3` semibold, H3 `h3Size` in `h3Weight`, deeper at body size (16, Material 3 titleMedium). Line spacing 0. */
     fun headingStyle(level: Int): TextStyle {
         val size = headingSize(level)
         val lineHeight = when (level) {
@@ -116,7 +116,7 @@ class MarkdownStyle(
         val listIndent: Dp = 20.dp
 
         /** The default body size, for surfaces without a tuning snapshot (display math). */
-        val bodyTextSize: TextUnit = 17.sp
+        val bodyTextSize: TextUnit = 16.sp
 
         /** iOS `TranscriptMetrics.codeFont` (`.subheadline.monospaced()`) with `codeLeading` (3) between lines. */
         fun codeTextStyle(codeLeading: Float = 3f): TextStyle = OpenCodeTextStyles.subheadline.copy(

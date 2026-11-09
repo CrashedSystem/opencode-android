@@ -408,7 +408,7 @@ class MarkdownBlockTests {
         assertTrue(paragraphCode.all { it.style.fontWeight == null })
 
         // In a heading it takes the heading's size (H1 `.title2`, H2 `.title3`, H3 18, H4 `.headline`), monospaced and semibold.
-        for ((level, size) in listOf(1 to 22f, 2 to 20f, 3 to 18f, 4 to 17f)) {
+        for ((level, size) in listOf(1 to 22f, 2 to 20f, 3 to 18f, 4 to 16f)) {
             assertEquals(size.sp, style.headingStyle(level).fontSize)
             val codeRuns = codeSpans(present(heading.text, style, headingLevel = level))
             assertEquals(1, codeRuns.size)
@@ -468,15 +468,16 @@ class MarkdownBlockTests {
 
     @Test fun refinedStandardTypographyDefaultsAndIncreaseContrast() {
         with(TranscriptTunables.Knobs) {
-            assertEquals(17f, bodySize.defaultValue)
-            assertEquals(4.5f, bodyLeading.defaultValue)
+            // Android: Material 3 bodyLarge (16 sp on a ~24 sp line) instead of SF's 17 pt `.body`.
+            assertEquals(16f, bodySize.defaultValue)
+            assertEquals(3.5f, bodyLeading.defaultValue)
             assertEquals(0.92, bodyTone.defaultValue, 0.0)
             assertEquals(22f, h1Size.defaultValue)
             assertEquals(20f, h2Size.defaultValue)
             assertEquals(18f, h3Size.defaultValue)
             assertEquals(TranscriptFontWeight.Bold, h3Weight.defaultValue)
-            // Per Kit's note on D-52 option 2, Used N and Working stay at 17 pt body size.
-            assertEquals(17f, metaSize.defaultValue)
+            // Per Kit's note on D-52 option 2, Used N and Working stay at body size.
+            assertEquals(16f, metaSize.defaultValue)
             assertEquals(13f, listNumSize.defaultValue)
             assertEquals(3f, codeLeading.defaultValue)
             assertEquals(0f, paragraphGap.defaultValue)
@@ -484,9 +485,9 @@ class MarkdownBlockTests {
         }
 
         val standard = markdownStyle(standardColors)
-        assertEquals(17.sp, standard.bodyStyle.fontSize)
-        // `.body`'s 22 pt line plus 4.5 pt leading.
-        assertEquals((22f + 4.5f).sp, standard.bodyStyle.lineHeight)
+        assertEquals(16.sp, standard.bodyStyle.fontSize)
+        // SF's 22-on-17 line, scaled to 16, plus 3.5 sp leading: Material 3 bodyLarge's ~24 sp line.
+        assertEquals((16f * 22f / 17f + 3.5f).sp, standard.bodyStyle.lineHeight)
         assertEquals((20f + 3f).sp, MarkdownStyle.codeTextStyle(standard.tuning.codeLeading).lineHeight)
         assertEquals(standardColors.bodyText(0.92), standard.bodyColor)
         assertEquals(22.sp, standard.headingStyle(1).fontSize)
@@ -495,7 +496,7 @@ class MarkdownBlockTests {
         assertEquals(FontWeight.SemiBold, standard.headingStyle(2).fontWeight)
         assertEquals(18.sp, standard.headingStyle(3).fontSize)
         assertEquals(FontWeight.Bold, standard.headingStyle(3).fontWeight)
-        assertEquals(17.sp, standard.headingStyle(4).fontSize)
+        assertEquals(16.sp, standard.headingStyle(4).fontSize)
         assertEquals(FontWeight.SemiBold, standard.headingStyle(4).fontWeight)
         assertEquals(13.sp, standard.listNumberStyle.fontSize)
         assertEquals("tnum", standard.listNumberStyle.fontFeatureSettings)
