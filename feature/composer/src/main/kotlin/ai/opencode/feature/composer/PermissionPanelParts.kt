@@ -6,7 +6,6 @@ import ai.opencode.server.model.OpenCodePermissionRequest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -18,6 +17,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -89,10 +89,11 @@ internal fun lastPathComponent(path: String): String {
 object RequestTunables {
     /** `requests.permission.scopeMaxHeight`: the scope list's maximum height (120…400). */
     val scopeMaxHeight = 220.dp
-    /** `requests.permission.labelHeight`: the action label's height (20…44); with the button's padding, a 48 dp target. */
-    val labelHeight = 30.dp
-    /** `requests.permission.buttonRadius`: the actions' corner radius (6…24), the card's family rather than a capsule. */
-    val buttonRadius = 14.dp
+    /**
+     * `requests.permission.labelHeight`: the action label's height (20…44). Android: 24 dp, so with
+     * [ButtonDefaults.ContentPadding] the button is M3's 40 dp default; the touch target stays 48 dp.
+     */
+    val labelHeight = 24.dp
 }
 
 /** iOS `TranscriptMetrics` fonts and corner the request panel borrows (the transcript module sits beside this one). */
@@ -108,10 +109,12 @@ internal object RequestTranscriptMetrics {
 }
 
 /**
- * A permission action (iOS `requestPermissionButtonShape()` inside the shared button
- * styles): normal height, its corners [RequestTunables.buttonRadius]. Primary is the
- * accent fill (Always Allow), secondary the neutral tonal one (Allow Once).
+ * A permission action (iOS `requestPermissionButtonShape()` inside the shared button styles).
+ * Android: M3's default 40 dp button with its expressive round shape (it squares up when pressed)
+ * and labelLarge text, not iOS's 14 dp card corners. Primary is the accent fill (Always Allow),
+ * secondary the neutral tonal one (Allow Once).
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun RequestPermissionButton(
     primary: Boolean,
@@ -120,13 +123,13 @@ internal fun RequestPermissionButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(RequestTunables.buttonRadius)
-    val padding = PaddingValues(horizontal = 16.dp, vertical = 9.dp)
-    val sized = modifier.heightIn(min = RequestTunables.labelHeight + 18.dp)
+    val shapes = ButtonDefaults.shapesFor(ButtonDefaults.MinHeight)
+    val padding = ButtonDefaults.ContentPadding
+    val sized = modifier.heightIn(min = ButtonDefaults.MinHeight)
     if (primary) {
-        Button(onClick, sized, enabled, shape = shape, colors = ButtonDefaults.buttonColors(), contentPadding = padding, content = content)
+        Button(onClick, shapes, sized, enabled, colors = ButtonDefaults.buttonColors(), contentPadding = padding, content = content)
     } else {
-        FilledTonalButton(onClick, sized, enabled, shape = shape, colors = ButtonDefaults.filledTonalButtonColors(), contentPadding = padding, content = content)
+        FilledTonalButton(onClick, shapes, sized, enabled, colors = ButtonDefaults.filledTonalButtonColors(), contentPadding = padding, content = content)
     }
 }
 
@@ -156,11 +159,7 @@ fun PermissionScopeConfirm(save: List<String>, confirm: () -> Unit, modifier: Mo
             }
         }
         RequestPermissionButton(primary = true, onClick = confirm, modifier = Modifier.fillMaxWidth().testTag("request-always-confirm")) {
-            Text(
-                "Always Allow",
-                style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-            )
+            Text("Always Allow", maxLines = 1)
         }
     }
 }

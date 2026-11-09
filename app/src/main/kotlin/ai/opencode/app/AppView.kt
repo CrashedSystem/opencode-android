@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package ai.opencode.app
 
 import ai.opencode.core.diagnostics.HidesFromScreenshots
@@ -11,10 +13,13 @@ import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.store.rememberScope
 import ai.opencode.core.ui.OpenCodeAppTheme
+import ai.opencode.core.ui.OpenCodeButtonDefaults
+import ai.opencode.core.ui.OpenCodeButtonSize
 import ai.opencode.core.ui.OpenCodeFonts
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
 import ai.opencode.core.ui.OpenCodeIconButtonStyle
+import ai.opencode.core.ui.OpenCodePrimaryButton
 import ai.opencode.core.ui.OpenCodeSecondaryButton
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -63,10 +68,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -282,59 +290,48 @@ private fun ConnectionView(store: StoreOf<AppFeature.State, AppFeature.Action>) 
 
 private val COLUMN_WIDTH = 520.dp
 
-/** Peer pairing actions share one shape; prominence is carried by the fill alone (iOS `pairingActionLabel`). */
+/**
+ * The pairing actions as M3 medium (56 dp) buttons: Scan Pairing Code is the filled primary
+ * CTA, Enter a Server Manually its tonal companion (iOS `pairingActionLabel` carries
+ * prominence by fill alone, so the two stay the same size).
+ */
 @Composable
 private fun PairingActionsButtons(store: StoreOf<AppFeature.State, AppFeature.Action>) {
     val progress by store.observe { it.connectionProgressLabel }
-    val colors = OpenCodeTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        PairingActionButton(
+        OpenCodeSecondaryButton(
+            text = "Enter a Server Manually",
             onClick = { store.send(AppFeature.Action.AddServerTapped) },
-            container = MaterialTheme.colorScheme.surfaceContainerHighest,
-            content = colors.text,
-        ) { Text("Enter a Server Manually", style = OpenCodeTextStyles.headline, textAlign = TextAlign.Center) }
-        PairingActionButton(
+            size = OpenCodeButtonSize.Medium,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val scheme = MaterialTheme.colorScheme
+        val height = OpenCodeButtonDefaults.heroHeight
+        Button(
             onClick = { store.send(AppFeature.Action.ScanPairingCodeTapped) },
+            shapes = ButtonDefaults.shapesFor(height),
             enabled = progress == null,
-            container = colors.text,
-            content = colors.canvas,
+            colors = ButtonDefaults.buttonColors(
+                // The progress state keeps its fill: the label says what's happening.
+                disabledContainerColor = scheme.primary,
+                disabledContentColor = scheme.onPrimary,
+            ),
+            contentPadding = OpenCodeButtonDefaults.heroContentPadding,
+            modifier = Modifier.fillMaxWidth().heightIn(min = height),
         ) {
-            if (progress != null) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = colors.canvas)
-                Spacer(Modifier.width(10.dp))
-                Text(progress!!, style = OpenCodeTextStyles.headline)
-            } else {
-                OpenCodeIcon(SFSymbol.QrcodeViewfinder, contentDescription = null)
-                Spacer(Modifier.width(10.dp))
-                Text("Scan Pairing Code", style = OpenCodeTextStyles.headline, textAlign = TextAlign.Center)
+            ProvideTextStyle(OpenCodeButtonDefaults.textStyle(OpenCodeButtonSize.Medium)) {
+                if (progress != null) {
+                    CircularProgressIndicator(Modifier.size(ButtonDefaults.MediumIconSize), strokeWidth = 2.dp, color = scheme.onPrimary)
+                    Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+                    Text(progress!!, maxLines = 1)
+                } else {
+                    OpenCodeIcon(SFSymbol.QrcodeViewfinder, contentDescription = null, size = ButtonDefaults.MediumIconSize)
+                    Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+                    Text("Scan Pairing Code", maxLines = 1)
+                }
             }
         }
     }
-}
-
-@Composable
-private fun PairingActionButton(
-    onClick: () -> Unit,
-    container: Color,
-    content: Color,
-    enabled: Boolean = true,
-    label: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = container,
-            contentColor = content,
-            // The progress state keeps its fill: the label says what's happening.
-            disabledContainerColor = container,
-            disabledContentColor = content,
-        ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-        content = label,
-    )
 }
 
 /** What a new user needs on their computer before the scan can work. */
@@ -396,8 +393,8 @@ private fun PasteRow(store: StoreOf<AppFeature.State, AppFeature.Action>) {
     }
     val button: @Composable () -> Unit = {
         OpenCodeSecondaryButton(onClick = { store.send(AppFeature.Action.PastePairingCodeTapped) }, enabled = progress == null) {
-            OpenCodeIcon(SFSymbol.DocOnClipboard, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            OpenCodeIcon(SFSymbol.DocOnClipboard, contentDescription = null, size = ButtonDefaults.IconSize)
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
             Text("Paste", maxLines = 1)
         }
     }
@@ -620,8 +617,8 @@ private fun ConnectionErrorCard(store: StoreOf<AppFeature.State, AppFeature.Acti
                     didCopy = true
                 }
             }) {
-                OpenCodeIcon(if (didCopy) SFSymbol.Checkmark else SFSymbol.SquareOnSquare, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
+                OpenCodeIcon(if (didCopy) SFSymbol.Checkmark else SFSymbol.SquareOnSquare, contentDescription = null, size = ButtonDefaults.IconSize)
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text(if (didCopy) "Copied" else "Copy Error Report")
             }
         }
@@ -646,17 +643,25 @@ private fun ServerFormSheet(store: StoreOf<AppFeature.State, AppFeature.Action>)
     ) {
         // Its password and headers, out of problem reports and voice screenshots.
         HidesFromScreenshots()
-        Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+        // M3 sheet header: close at the start, the title beside it; the filled Connect button
+        // below the fields is the action (iOS: a Cancel text button and a centred title).
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OpenCodeIconButton(
+                symbol = SFSymbol.Xmark,
+                contentDescription = "Cancel",
+                onClick = { store.send(AppFeature.Action.CancelEditingTapped) },
+                style = OpenCodeIconButtonStyle.Standard,
+            )
             Text(
                 if (state.editingSavedServer == null) "New Server" else "Edit Server",
-                style = OpenCodeTextStyles.headline,
+                style = MaterialTheme.typography.titleLarge,
                 color = OpenCodeTheme.colors.text,
                 modifier = Modifier.semantics { heading() },
             )
-            TextButton(
-                onClick = { store.send(AppFeature.Action.CancelEditingTapped) },
-                modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp),
-            ) { Text("Cancel") }
         }
         Column(
             Modifier.fillMaxWidth().verticalScroll(scroll).imePadding().navigationBarsPadding().padding(24.dp),
@@ -741,29 +746,23 @@ private fun editHint(editing: OpenCodeServer?): String {
     }
 }
 
-/** iOS's Connect button: label-coloured when ready, a quiet fill while disabled, an arrow at the end. */
+/**
+ * The form's Connect action: an M3 filled medium button across the sheet, with a spinner while
+ * connecting (iOS: a label-coloured capsule with a trailing arrow).
+ */
 @Composable
 private fun ConnectButton(label: String, inProgress: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val colors = OpenCodeTheme.colors
-    Button(
+    OpenCodePrimaryButton(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.text,
-            contentColor = colors.canvas,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            disabledContentColor = colors.secondaryText,
-        ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        size = OpenCodeButtonSize.Medium,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         if (inProgress) {
-            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = colors.secondaryText)
-            Spacer(Modifier.width(10.dp))
+            CircularProgressIndicator(Modifier.size(ButtonDefaults.MediumIconSize), strokeWidth = 2.dp, color = LocalContentColor.current)
+            Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
         }
-        Text(label, style = OpenCodeTextStyles.headline)
-        Spacer(Modifier.weight(1f))
-        OpenCodeIcon(SFSymbol.ArrowRight, contentDescription = null)
+        Text(label, maxLines = 1)
     }
 }
 

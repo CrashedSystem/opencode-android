@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package ai.opencode.feature.settings.onboarding
 
 import ai.opencode.core.motion.transitionBlurEffect
@@ -8,6 +10,7 @@ import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.ui.OpenCodeButtonDefaults
+import ai.opencode.core.ui.OpenCodeButtonSize
 import ai.opencode.core.ui.OpenCodeFonts
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
@@ -824,35 +827,37 @@ private fun StoryLine(symbol: SFSymbol, text: String) {
     }
 }
 
-/** The label-coloured primary (iOS `.openCodePrimaryButton().tint(Color(.label))`). Off while its page is inactive. */
+/**
+ * The page's primary CTA: an M3 filled medium (56 dp) button in the theme's primary (iOS tints
+ * it label-coloured). Off, without dimming, while its page is inactive.
+ */
 @Composable
 private fun PrimaryButton(title: String, active: Boolean, onClick: () -> Unit) {
-    val container = OpenCodeTheme.colors.text
-    val content = OpenCodeTheme.colors.canvas
+    val colors = ButtonDefaults.buttonColors()
+    val height = OpenCodeButtonDefaults.heroHeight
     Button(
         onClick = onClick,
+        shapes = ButtonDefaults.shapesFor(height),
         enabled = active,
-        modifier = Modifier.fillMaxWidth().heightIn(min = OpenCodeButtonDefaults.height),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = container,
-            contentColor = content,
-            disabledContainerColor = container,
-            disabledContentColor = content,
-        ),
-        contentPadding = OpenCodeButtonDefaults.contentPadding,
-    ) { Text(title, style = OpenCodeTextStyles.headline) }
+        modifier = Modifier.fillMaxWidth().heightIn(min = height),
+        colors = colors.copy(disabledContainerColor = colors.containerColor, disabledContentColor = colors.contentColor),
+        contentPadding = OpenCodeButtonDefaults.heroContentPadding,
+    ) { Text(title, style = OpenCodeButtonDefaults.textStyle(OpenCodeButtonSize.Medium)) }
 }
 
+/** The tonal companion at the same size; off, without dimming, while its page is inactive. */
 @Composable
 private fun SecondaryButton(title: String, active: Boolean, onClick: () -> Unit) {
     val colors = ButtonDefaults.filledTonalButtonColors()
+    val height = OpenCodeButtonDefaults.heroHeight
     FilledTonalButton(
         onClick = onClick,
+        shapes = ButtonDefaults.shapesFor(height),
         enabled = active,
-        modifier = Modifier.fillMaxWidth().heightIn(min = OpenCodeButtonDefaults.height),
+        modifier = Modifier.fillMaxWidth().heightIn(min = height),
         colors = colors.copy(disabledContainerColor = colors.containerColor, disabledContentColor = colors.contentColor),
-        contentPadding = OpenCodeButtonDefaults.contentPadding,
-    ) { Text(title, style = OpenCodeTextStyles.headline) }
+        contentPadding = OpenCodeButtonDefaults.heroContentPadding,
+    ) { Text(title, style = OpenCodeButtonDefaults.textStyle(OpenCodeButtonSize.Medium)) }
 }
 
 /** iOS's large circular glass icon button; off (without dimming) while its page is inactive. */

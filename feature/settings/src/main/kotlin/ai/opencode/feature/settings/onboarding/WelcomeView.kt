@@ -8,6 +8,7 @@ import ai.opencode.core.tuning.TuningContext
 import ai.opencode.core.tuning.TuningContextEffect
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
+import ai.opencode.core.ui.OpenCodeButtonSize
 import ai.opencode.core.ui.OpenCodePrimaryButton
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -274,10 +275,11 @@ private fun Actions(
         OpenCodePrimaryButton(
             onClick = onPrimary,
             enabled = progress == null,
+            size = OpenCodeButtonSize.Medium,
             modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth().semantics { testTag = "welcome-primary" },
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("Get Started", style = OpenCodeTextStyles.headline, modifier = Modifier.welcomeSwap(!pairing, reduced))
+                Text("Get Started", modifier = Modifier.welcomeSwap(!pairing, reduced))
                 Row(
                     Modifier.welcomeSwap(pairing, reduced),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -285,10 +287,10 @@ private fun Actions(
                 ) {
                     if (progress != null) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        Text(progress, style = OpenCodeTextStyles.headline)
+                        Text(progress)
                     } else {
                         OpenCodeIcon(SFSymbol.QrcodeViewfinder, contentDescription = null)
-                        Text("Scan Pairing Code", style = OpenCodeTextStyles.headline)
+                        Text("Scan Pairing Code")
                     }
                 }
             }
