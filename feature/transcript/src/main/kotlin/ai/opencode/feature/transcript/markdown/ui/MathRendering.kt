@@ -122,7 +122,7 @@ object InlineMath {
 }
 
 /**
- * iOS `MathDisplayView`: display math on the full-width band code blocks use, scrolling
+ * iOS `MathDisplayView`: display math on the card code blocks use (iOS: their full-width band), scrolling
  * sideways when it's wider than the screen. Source jlatexmath can't typeset shows as code, as
  * written.
  *
@@ -141,16 +141,16 @@ fun MathDisplayView(math: OpenCodeMarkdownBlock.MathBlock, selection: Transcript
     if (selection != null) {
         drag = Modifier.transcriptDragSource(
             TranscriptDragPayload.Code(math.raw, "tex"),
-            cornerRadius = 10.dp,
+            cornerRadius = CodeBlockCard.cornerRadius,
             surface = TranscriptDragSurfaceStyle.Band,
         )
     }
-    MarkdownBand(
+    CodeBlockCard(
         modifier.clearAndSetSemantics {
             contentDescription = "Equation"
             stateDescription = math.source
         },
-        bandModifier = drag,
+        cardModifier = drag,
     ) {
         val replySelection = if (selection != null) LocalTranscriptReplySelection.current else null
         if (rendered != null) {

@@ -100,8 +100,8 @@ class TableRules {
 }
 
 /**
- * Code and tables run the screen's full width on a faint band between hairlines (iOS
- * `MarkdownBand`). Content starts at the prose edge and scrolls out to the screen edges,
+ * Tables run the screen's full width on a faint band between hairlines (iOS
+ * `MarkdownBand`; code and display math are on [CodeBlockCard] on Android). Content starts at the prose edge and scrolls out to the screen edges,
  * fading where more lies past them. A table's rules keep the viewport's width while its
  * columns scroll underneath.
  *

@@ -2,6 +2,8 @@ package ai.opencode.feature.transcript
 
 import ai.opencode.core.dependencies.PasteboardClient
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.haptics.Haptic
+import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.feature.media.AgentFileMarkdown
 import ai.opencode.feature.media.LinkMenuAction
 import ai.opencode.feature.media.LinkShareSheet
@@ -82,6 +84,13 @@ private fun perform(action: TranscriptAction, scope: CoroutineScope, onOpenFile:
             LinkMenuAction.Copy -> scope.launch { dependency(PasteboardClient).setURL(action.url) }
             LinkMenuAction.Share -> dependency(LinkShareSheet).present(action.url)
             LinkMenuAction.OpenSession, LinkMenuAction.CopySessionID -> Unit
+        }
+        // Android: the code card's copy button (iOS code blocks have none).
+        is TranscriptAction.CopyTextTapped -> {
+            if (action.text.isNotEmpty()) {
+                dependency(HapticsClient).play(Haptic.tap)
+                scope.launch { dependency(PasteboardClient).setString(action.text) }
+            }
         }
         else -> Unit
     }

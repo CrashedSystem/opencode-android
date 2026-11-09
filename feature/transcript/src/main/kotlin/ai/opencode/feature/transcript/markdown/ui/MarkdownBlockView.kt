@@ -9,7 +9,6 @@ import ai.opencode.feature.media.LocalLinkPreviewRevision
 import ai.opencode.feature.media.LocalLinkPreviewStore
 import ai.opencode.feature.media.MermaidDiagramCard
 import ai.opencode.feature.media.TranscriptMetrics
-import ai.opencode.feature.transcript.LocalTranscriptLayoutTuning
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.TranscriptAction
 import ai.opencode.feature.transcript.markdown.InlineText
@@ -92,7 +91,6 @@ fun MarkdownBlockView(
 private fun BlockContent(kind: Kind, grown: List<TranscriptTextReveal.Arrival>, isGrowingTail: Boolean, selection: TranscriptSelectionLeafKey?) {
     val style = currentMarkdownStyle()
     val colors = style.colors
-    val gutter = LocalTranscriptLayoutTuning.current.contentGutter.dp
     val context = LocalTranscriptRowContext.current
     val send = context.send
     when (kind) {
@@ -113,8 +111,8 @@ private fun BlockContent(kind: Kind, grown: List<TranscriptTextReveal.Arrival>, 
         }
         is Kind.Paragraph -> BlockText(kind, kind.text, style.bodyStyle, style.bodyColor, grown, isGrowingTail, selection)
         Kind.Divider ->
-            // Runs the screen's full width, like the code and table bands, with the block gap on each side.
-            HairlineRule(Modifier.bleedHorizontal(gutter).clearAndSetSemantics {})
+            // Android: an M3 divider in the prose column, like the code cards (iOS runs it the screen's full width).
+            HairlineRule(Modifier.clearAndSetSemantics {})
         is Kind.PullRequest -> PullRequestCard(kind.title, kind.url) { send(TranscriptAction.LinkTapped(kind.url)) }
         is Kind.Files -> FileCards(kind.files)
         // A Markdown image outside the session's folder loads through that folder's location once
@@ -132,11 +130,16 @@ private fun BlockContent(kind: Kind, grown: List<TranscriptTextReveal.Arrival>, 
             if (selection != null) {
                 drag = Modifier.transcriptDragSource(
                     TranscriptDragPayload.Code(kind.code.source, kind.code.language),
-                    cornerRadius = 10.dp,
+                    cornerRadius = CodeBlockCard.cornerRadius,
                     surface = TranscriptDragSurfaceStyle.Band,
                 )
             }
-            MarkdownBand(bandModifier = drag) {
+            val source = kind.code.source
+            CodeBlockCard(
+                language = kind.code.language,
+                onCopy = { send(TranscriptAction.CopyTextTapped(source)) },
+                cardModifier = drag,
+            ) {
                 QuoteSelectionContainer(kind, inReply = selection != null) {
                     ArrivingText(text, grown, MarkdownStyle.codeTextStyle(style.tuning.codeLeading), colors.text, softWrap = false, selectionKey = selection)
                 }
