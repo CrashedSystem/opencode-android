@@ -10,8 +10,8 @@ internal val WhatsNewShipped.sessionLiveActivity: WhatsNewEntry
     get() = smaller(
         id = "session-live-activity",
         day = "2026-10-24",
-        title = "Session Live Activity",
+        title = "Session Live Updates",
         symbol = "platter.filled.top.iphone",
-        summary = "Turn on Session Live Activity in Settings › Experimental › Drawer to follow a run you send in a notification, on the Lock Screen too, until it’s done or needs your input.",
+        summary = "Turn on Session Live Updates in Settings › Experimental › Drawer to follow a run you send in a live notification, on the lock screen too, until it’s done or needs your input.",
         tryIt = Destination.Open(SettingsDestination.Experiment("session-live-activity")),
     )

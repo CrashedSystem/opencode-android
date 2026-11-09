@@ -4,6 +4,7 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.motion.PageTransitions
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
 import ai.opencode.core.ui.OpenCodeIconButtonStyle
@@ -132,7 +133,7 @@ private fun TrayHeader(title: String?, subtitle: String?, onClose: () -> Unit, o
 /** The inset-grouped card a tray's rows sit on. */
 @Composable
 private fun TrayCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(OpenCodeTheme.colors.groupedCard)) {
+    Box(modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(OpenCodeRadius.card)).background(OpenCodeTheme.colors.groupedCard)) {
         content()
     }
 }
@@ -207,9 +208,9 @@ private fun MCPServersList(
         LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
             itemsIndexed(servers, key = { _, mcp -> mcp.name }) { index, mcp ->
                 val shape = when {
-                    servers.size == 1 -> RoundedCornerShape(26.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
-                    index == servers.lastIndex -> RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp)
+                    servers.size == 1 -> RoundedCornerShape(OpenCodeRadius.card)
+                    index == 0 -> RoundedCornerShape(topStart = OpenCodeRadius.card, topEnd = OpenCodeRadius.card)
+                    index == servers.lastIndex -> RoundedCornerShape(bottomStart = OpenCodeRadius.card, bottomEnd = OpenCodeRadius.card)
                     else -> RoundedCornerShape(0.dp)
                 }
                 // iOS `.animation(Motion.layout.animation(reduceMotion:), value: servers)`.
@@ -448,9 +449,9 @@ private fun SkillsTray(skills: List<OpenCodeAutocompleteSkill>, close: () -> Uni
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
             itemsIndexed(shown, key = { _, skill -> skill.id }) { index, skill ->
                 val shape = when {
-                    shown.size == 1 -> RoundedCornerShape(26.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
-                    index == shown.lastIndex -> RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp)
+                    shown.size == 1 -> RoundedCornerShape(OpenCodeRadius.card)
+                    index == 0 -> RoundedCornerShape(topStart = OpenCodeRadius.card, topEnd = OpenCodeRadius.card)
+                    index == shown.lastIndex -> RoundedCornerShape(bottomStart = OpenCodeRadius.card, bottomEnd = OpenCodeRadius.card)
                     else -> RoundedCornerShape(0.dp)
                 }
                 Column(Modifier.padding(horizontal = 16.dp).clip(shape).background(OpenCodeTheme.colors.groupedCard)) {

@@ -8,7 +8,10 @@ import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.observe
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodePrimaryButton
+import ai.opencode.core.ui.OpenCodeRadius
+import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
@@ -67,7 +70,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
@@ -245,27 +247,42 @@ private fun WhatsNewFeatureRow(entry: WhatsNewEntry, isNew: Boolean, onClick: ()
     }
 }
 
-/** A Settings row's tile, a size up for two lines. */
+/**
+ * A Settings row's tile, a size up for two lines. Android: an M3 tonal container (iOS draws a
+ * white symbol on a saturated tile); the entry's tint picks the primary, secondary or tertiary
+ * container so the list keeps some variety.
+ */
 @Composable
 private fun WhatsNewTile(entry: WhatsNewEntry) {
-    val color = entry.tint.settingsTint.color()
+    val scheme = MaterialTheme.colorScheme
+    val container: Color
+    val content: Color
+    when (entry.tint) {
+        WhatsNewEntry.Tint.red, WhatsNewEntry.Tint.orange,
+        WhatsNewEntry.Tint.pink, WhatsNewEntry.Tint.brown -> {
+            container = scheme.tertiaryContainer
+            content = scheme.onTertiaryContainer
+        }
+        WhatsNewEntry.Tint.green, WhatsNewEntry.Tint.mint, WhatsNewEntry.Tint.teal,
+        WhatsNewEntry.Tint.gray -> {
+            container = scheme.secondaryContainer
+            content = scheme.onSecondaryContainer
+        }
+        else -> {
+            container = scheme.primaryContainer
+            content = scheme.onPrimaryContainer
+        }
+    }
     Box(
         Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(Brush.verticalGradient(listOf(lerpWhite(color, 0.15f), color))),
+            .size(40.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(container),
         contentAlignment = Alignment.Center,
     ) {
-        OpenCodeIcon(entry.symbol, contentDescription = null, size = 21.dp, tint = Color.White)
+        OpenCodeIcon(entry.symbol, contentDescription = null, size = OpenCodeIconSize.medium, tint = content)
     }
 }
-
-private fun lerpWhite(color: Color, amount: Float) = Color(
-    red = color.red + (1 - color.red) * amount,
-    green = color.green + (1 - color.green) * amount,
-    blue = color.blue + (1 - color.blue) * amount,
-    alpha = color.alpha,
-)
 
 /**
  * An entry's page: its symbol lit on the dot grid, its details, what to try, and its action in
@@ -303,7 +320,7 @@ fun WhatsNewDetailPage(store: SettingsStore, entryID: String) {
                     .padding(top = 8.dp)
                     .padding(horizontal = 20.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(26.dp))
+                    .clip(OpenCodeShape.card)
                     .background(OpenCodeTheme.colors.groupedCard)
                     .padding(6.dp),
             ) {
@@ -331,7 +348,7 @@ fun WhatsNewDetailPage(store: SettingsStore, entryID: String) {
                         .padding(horizontal = 20.dp)
                         .padding(top = 22.dp)
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(26.dp))
+                        .clip(OpenCodeShape.card)
                         .background(OpenCodeTheme.colors.groupedCard),
                 ) {
                     current.details.forEachIndexed { index, detail ->
@@ -500,7 +517,7 @@ private fun WhatsNewDotSymbol(symbol: String, tint: Color, modifier: Modifier = 
         val phase = if (sample.isSettled) null else AmbientClock.phase(AmbientClock.mediaTime(), SWEEP_PERIOD).toFloat()
         Box(
             modifier
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(OpenCodeRadius.card - 6.dp))
                 .background(if (isDark) Color(0.04f, 0.04f, 0.04f) else Color(0.965f, 0.965f, 0.965f))
                 .onSizeChanged { size = it },
         ) {

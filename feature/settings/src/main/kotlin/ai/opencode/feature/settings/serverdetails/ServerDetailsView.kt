@@ -7,6 +7,7 @@ import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.collectState
 import ai.opencode.core.store.scope
+import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.AlertTextFields
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
@@ -43,6 +44,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -349,7 +351,7 @@ private fun OverviewTile(
     content: @Composable () -> Unit,
 ) {
     // Android divergence: a ripple answers the press (iOS shrinks the tile to 98 %).
-    val shape = RoundedCornerShape(26.dp)
+    val shape = RoundedCornerShape(OpenCodeRadius.card)
     Box(
         modifier
             .background(OpenCodeTheme.colors.groupedCard, shape)
@@ -370,8 +372,8 @@ private fun OverviewTile(
 @Composable
 private fun TileLabel(title: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Android divergence: no trailing chevron (Android rows and cards don't draw one).
         Text(title, style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold), color = OpenCodeTheme.colors.secondaryText)
-        OpenCodeIcon(SFSymbol.ChevronRight, contentDescription = null, size = 12.dp, tint = OpenCodeTheme.colors.tertiaryText)
     }
 }
 
@@ -408,7 +410,7 @@ internal fun ProblemBanner(
     val needsAuth = mcp.status is OpenCodeMCPServer.Status.NeedsAuth
     val brand = ServerBrand.mcp(mcp.name)
     val tone = mcp.status.tintColor()
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(OpenCodeRadius.card)
     Row(
         modifier
             .background(OpenCodeTheme.colors.groupedCard, shape)
@@ -449,13 +451,14 @@ internal enum class CapsuleKind { Prominent, Inverse, Tinted, Neutral }
 /** A capsule action in a row or banner: Sign In, Retry, Connect, Disconnect. */
 @Composable
 internal fun CapsuleAction(title: String, kind: CapsuleKind, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val blue = SettingsTint.Blue.color()
-    val colors = OpenCodeTheme.colors
+    // Android divergence: M3 roles and their on-colours (filled, inverse, tonal, neutral tonal)
+    // instead of iOS's system blue with white text.
+    val scheme = MaterialTheme.colorScheme
     val (fill, text) = when (kind) {
-        CapsuleKind.Prominent -> blue to Color.White
-        CapsuleKind.Inverse -> colors.text to colors.canvas
-        CapsuleKind.Tinted -> blue.copy(alpha = 0.15f) to blue
-        CapsuleKind.Neutral -> tertiarySystemFill() to colors.text
+        CapsuleKind.Prominent -> scheme.primary to scheme.onPrimary
+        CapsuleKind.Inverse -> scheme.inverseSurface to scheme.inverseOnSurface
+        CapsuleKind.Tinted -> scheme.secondaryContainer to scheme.onSecondaryContainer
+        CapsuleKind.Neutral -> scheme.surfaceContainerHighest to scheme.onSurface
     }
     // Android divergence: a ripple inside the capsule answers the press (iOS shrinks it to 95 %).
     val interaction = remember { MutableInteractionSource() }
@@ -475,7 +478,7 @@ internal fun CapsuleAction(title: String, kind: CapsuleKind, onClick: () -> Unit
                 .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(title, style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold), color = text, maxLines = 1)
+            Text(title, style = MaterialTheme.typography.labelLarge, color = text, maxLines = 1)
         }
     }
 }

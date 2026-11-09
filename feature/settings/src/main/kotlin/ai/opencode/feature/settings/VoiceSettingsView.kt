@@ -9,6 +9,7 @@ import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.store.scope
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -253,7 +254,7 @@ private fun KeyRow(state: VoiceSettingsFeature.State, reduceMotion: Boolean, onT
         return
     }
     val rotation by animateFloatAsState(
-        if (state.isEditingKey) 90f else 0f,
+        if (state.isEditingKey) 180f else 0f,
         if (reduceMotion) snap() else MotionRole.Layout.animation(),
         label = "key-chevron",
     )
@@ -301,11 +302,12 @@ private fun KeyStatusAccessory(state: VoiceSettingsFeature.State, rotation: Floa
             VoiceKeyStatus.Missing -> Text("Missing", style = SettingsText.title, color = secondary)
             is VoiceKeyStatus.OnServer -> Text(status.providerName, style = SettingsText.title, color = secondary)
         }
+        // Android divergence: an expand arrow that flips open (iOS turns a trailing chevron.right).
         OpenCodeIcon(
-            SFSymbol.ChevronRight,
+            SFSymbol.ChevronDown,
             contentDescription = null,
-            size = 18.dp,
-            tint = OpenCodeTheme.colors.tertiaryText,
+            size = OpenCodeIconSize.medium,
+            tint = OpenCodeTheme.colors.secondaryText,
             modifier = Modifier.rotate(rotation),
         )
     }

@@ -2,6 +2,7 @@ package ai.opencode.feature.settings
 
 import ai.opencode.core.diagnostics.HidesFromScreenshots
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
@@ -175,12 +176,13 @@ internal fun VoiceProviderDetailPage(store: SettingsStore, opensAccount: Boolean
                         style = SettingsText.title,
                         color = OpenCodeTheme.colors.secondaryText,
                     )
+                    // Android divergence: an expand arrow that flips open (iOS turns a trailing chevron.right).
                     OpenCodeIcon(
-                        SFSymbol.ChevronRight,
+                        SFSymbol.ChevronDown,
                         contentDescription = null,
-                        modifier = Modifier.rotate(if (showsUnavailable) 90f else 0f),
-                        size = 18.dp,
-                        tint = OpenCodeTheme.colors.tertiaryText,
+                        modifier = Modifier.rotate(if (showsUnavailable) 180f else 0f),
+                        size = OpenCodeIconSize.medium,
+                        tint = OpenCodeTheme.colors.secondaryText,
                     )
                 }
                 if (showsUnavailable) {

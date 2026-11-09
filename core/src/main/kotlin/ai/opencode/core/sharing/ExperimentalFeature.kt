@@ -48,8 +48,11 @@ enum class ExperimentalFeature(
 
     // Calls
     backgroundCallIntent(
-        "background-call-intent", "Background Action Button Call", ExperimentalGroup.calls, "button.programmable",
-        "Calls start without opening the app",
+        // Android divergence: iOS's “Background Action Button Call”. Android has no Action
+        // button; the switch lets the Start Voice Call in Background shortcut and App Action
+        // (`SystemActionOrigin.backgroundShortcut`) call without opening the app.
+        "background-call-intent", "Background Call Shortcut", ExperimentalGroup.calls, "button.programmable",
+        "The call shortcut starts calls without opening the app",
         // Starts the microphone with the app in the background.
         joinsAll = false,
     ),
@@ -64,8 +67,10 @@ enum class ExperimentalFeature(
     // Drawer
     inboxSidebar("inbox-sidebar", "Inbox Sidebar", ExperimentalGroup.drawer, "tray"),
     sessionLiveActivity(
-        "session-live-activity", "Session Live Activity", ExperimentalGroup.drawer, "platter.filled.top.iphone",
-        "Follow runs on the Lock Screen",
+        // Android divergence: iOS's “Session Live Activity … on the Lock Screen”. Android shows the
+        // run as a Live Update: a promoted ongoing notification in the status bar and shade.
+        "session-live-activity", "Session Live Updates", ExperimentalGroup.drawer, "platter.filled.top.iphone",
+        "Follow runs in a live notification",
     ),
     soundEffects("sound-effects", "Sound Effects", ExperimentalGroup.drawer, "speaker.wave.2.fill", "Soft sounds for replies and requests"),
 
