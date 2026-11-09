@@ -4,6 +4,7 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionRollDirection
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.excludedFromDrawerPan
 import ai.opencode.core.ui.openCodeTapTarget
@@ -14,7 +15,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -63,9 +63,10 @@ import kotlin.math.roundToInt
  *
  * TalkBack: one "Choose model" button whose value is the name and level; on an adjustable model
  * it is also a slider whose steps send [ModelPickerEvent.ModelRowLevelChanged] (iOS
- * `accessibilityAdjustableAction`). Android: drawn as an M3 assist chip (32 dp outlined
- * container, `labelLarge`) inside its 48 dp target, matching the agent chip beside it. It shows
- * no provider mark and no arrow, so the name and level fit a 384 dp screen at large font sizes.
+ * `accessibilityAdjustableAction`). Android: plain `labelLarge` text with no outline, like a
+ * text button: a press ripples a 32 dp capsule inside its 48 dp target, matching the agent chip
+ * beside it. It shows no provider mark and no arrow, so the name and level fit a 384 dp screen at
+ * large font sizes.
  *
  * [targetDrop]: how far its target sits below its ink (the composer's `pickerTargetDrop`).
  */
@@ -91,7 +92,6 @@ fun OnePickerChip(
 
     // One press source for the 48 dp target and the 32 dp chip, so the ripple stays on the chip.
     val interaction = remember { MutableInteractionSource() }
-    val chipShape = AssistChipDefaults.shape
     Box(
         modifier
             .excludedFromDrawerPan()
@@ -135,8 +135,7 @@ fun OnePickerChip(
         Row(
             Modifier
                 .height(AssistChipDefaults.Height)
-                .clip(chipShape)
-                .border(AssistChipDefaults.assistChipBorder(enabled = isEnabled), chipShape)
+                .clip(OpenCodeShape.capsule)
                 .indication(interaction, ripple())
                 .animateContentSize(if (animates) Motion.layout.animation(reduceMotion = reduceMotion) else snap())
                 .padding(horizontal = ChipHorizontalPadding),
@@ -206,8 +205,8 @@ object OnePickerChip {
     }
 }
 
-/** Inside the outline; M3's text-only assist chip uses 16 dp, trimmed to leave the name room. */
-private val ChipHorizontalPadding = 12.dp
+/** Room for the press ripple around the text; M3's text button uses 12 dp, trimmed to leave the name room. */
+private val ChipHorizontalPadding = 8.dp
 
 /** M3 chip label (`labelLarge`); iOS uses `.subheadline.weight(.medium)`. */
 private val ChipTextStyle: TextStyle

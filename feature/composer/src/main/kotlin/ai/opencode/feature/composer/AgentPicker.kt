@@ -5,12 +5,12 @@ import ai.opencode.core.sharing.SharedKey
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
+import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.server.model.AgentDisplayName
 import ai.opencode.server.model.OpenCodeAutocompleteAgent
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -113,7 +113,7 @@ fun ComposerAgentChip(
 
 /**
  * iOS `AgentChip`: the current agent's name, opening a menu of the server's primary agents.
- * Android: an outlined M3 assist chip without iOS's chevron, like the model chip beside it.
+ * Android: plain text with no outline or iOS chevron, like the model chip beside it.
  * [targetDrop]: how far its target sits below its ink (the composer's `pickerTargetDrop`).
  */
 @Composable
@@ -133,7 +133,6 @@ fun AgentChip(
     val secondary = OpenCodeTheme.colors.secondaryText
     // One press source for the 48 dp target and the 32 dp chip, so the ripple stays on the chip.
     val interaction = remember { MutableInteractionSource() }
-    val chipShape = AssistChipDefaults.shape
     // The whole menu moves its target down and its ink back up (iOS e16d3e8e), so the menu
     // drops from the lowered target too.
     Box(modifier.offset(y = targetDrop)) {
@@ -150,14 +149,13 @@ fun AgentChip(
                 .offset(y = -targetDrop),
             contentAlignment = Alignment.CenterStart,
         ) {
-            // Android: an M3 assist chip (32 dp outlined, `labelLarge`), matching the model chip.
+            // Android: plain `labelLarge` text like a text button; a press ripples a 32 dp capsule.
             Box(
                 Modifier
                     .height(AssistChipDefaults.Height)
-                    .clip(chipShape)
-                    .border(AssistChipDefaults.assistChipBorder(enabled = enabled), chipShape)
+                    .clip(OpenCodeShape.capsule)
                     .indication(interaction, ripple())
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
