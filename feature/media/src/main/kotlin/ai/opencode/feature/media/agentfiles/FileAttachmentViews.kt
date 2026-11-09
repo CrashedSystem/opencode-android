@@ -122,7 +122,7 @@ fun AgentFileCards(files: List<AgentFileReference>, onOpen: (AgentFileReference)
                 name = file.name,
                 symbolName = file.symbolName,
                 width = if (files.size == 1) 260.dp else 220.dp,
-                trailingSymbolName = if (file.kind.isTimeBased) "play.fill" else "chevron.right",
+                trailingSymbolName = if (file.kind.isTimeBased) "play.fill" else null,
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     // Holding drags the file out (iOS `.transcriptDragSource(.agentFile(file:))`), served by

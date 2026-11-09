@@ -81,6 +81,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -101,6 +102,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -367,6 +369,7 @@ private fun TranscriptListContent(
                     modifier = Modifier.fillMaxSize().testTag("transcript-list")
                         .semantics { customActions = listOf(CustomAccessibilityAction("Scroll to top", controller::scrollToTop)) }
                         .graphicsLayer { alpha = controller.handoffProgress() }
+                        .bottomScrollEdge(contentPadding.calculateBottomPadding(), OpenCodeTheme.colors.canvas)
                         .then(if (controller.emptyHandoff != null) Modifier.clearAndSetSemantics { } else Modifier)
                         .onGloballyPositioned {
                             motionCoordinates[0] = it
@@ -485,6 +488,23 @@ private fun TranscriptListContent(
             }
         }
     }
+}
+
+/**
+ * iOS's soft bottom scroll edge under the floating composer: rows fade into the canvas from just
+ * above the composer, so nothing shows around its rounded edges or under the navigation bar.
+ */
+private fun Modifier.bottomScrollEdge(obstruction: Dp, canvas: Color): Modifier = drawWithContent {
+    drawContent()
+    val bottom = obstruction.toPx()
+    if (bottom <= 0f) return@drawWithContent
+    val top = (size.height - bottom - 8.dp.toPx()).coerceAtLeast(0f)
+    val solid = size.height - bottom + 20.dp.toPx()
+    drawRect(
+        Brush.verticalGradient(listOf(Color.Transparent, canvas), startY = top, endY = solid),
+        topLeft = Offset(0f, top),
+        size = Size(size.width, size.height - top),
+    )
 }
 
 /** [pending]'s drawing for its flight into the queued pill, while the session hosts flights ([LocalSendLanding]). */

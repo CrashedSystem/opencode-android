@@ -49,6 +49,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -657,7 +659,6 @@ fun JumpToLatestPill(
         if (!isShown) mounted = false
     }
     val slotOpen = if (reduceMotion) (if (isShown) 1f else 0f) else presence.value.coerceIn(0f, 1f)
-    val interactions = remember { MutableInteractionSource() }
     val slotWidth = if (collapsesSlot) (48f + JumpToLatestPillMotion.gap) * slotOpen else 48f
     Box(modifier.width(slotWidth.dp).heightIn(min = 48.dp), contentAlignment = Alignment.CenterEnd) {
         if (mounted) {
@@ -667,29 +668,20 @@ fun JumpToLatestPill(
                     .scale(if (reduceMotion) 1f else 0.5f + 0.5f * p)
                     .alpha(p.coerceIn(0f, 1f))
                     .coveredByBackgroundWork()
-                    .then(
-                        if (isShown) {
-                            Modifier
-                                .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick)
-                                .semantics { contentDescription = "Scroll to latest" }
-                                .testTag("scroll-to-latest")
-                        } else {
-                            Modifier.clearAndSetSemantics { }.blockTouches()
-                        },
-                    )
-                    .openCodeTapTarget(accessibility = false),
+                    .then(if (isShown) Modifier else Modifier.clearAndSetSemantics { }.blockTouches()),
                 contentAlignment = Alignment.Center,
             ) {
-                Surface(
-                    shape = OpenCodeShape.circle,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.size(34.dp).clip(OpenCodeShape.circle).indication(interactions, ripple()),
+                // Android: an M3 small FAB (40 dp, secondary container) rather than iOS's grey glass circle.
+                SmallFloatingActionButton(
+                    onClick = onClick,
+                    modifier = Modifier
+                        .semantics { contentDescription = "Scroll to latest" }
+                        .testTag("scroll-to-latest"),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    elevation = FloatingActionButtonDefaults.loweredElevation(),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        OpenCodeIcon(SFSymbol.ArrowDown, contentDescription = null, size = 18.dp, tint = OpenCodeTheme.colors.text)
-                    }
+                    OpenCodeIcon(SFSymbol.ArrowDown, contentDescription = null, size = 24.dp)
                 }
             }
         }

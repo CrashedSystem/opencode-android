@@ -57,6 +57,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -809,8 +810,9 @@ fun LinkPreviewCard(preview: LinkPreview, modifier: Modifier = Modifier) {
                         val bitmap = remember(image) { image.image.asImageBitmap() }
                         Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         if (summary.isVideo) {
-                            Box(Modifier.background(Color.Black.copy(alpha = 0.4f), CircleShape).padding(14.dp)) {
-                                OpenCodeIcon("play.fill", contentDescription = null, size = 20.dp, tint = Color.White)
+                            // Android: an inverse-surface badge, so the glyph keeps its contrast in both themes.
+                            Box(Modifier.background(MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.8f), CircleShape).padding(14.dp)) {
+                                OpenCodeIcon("play.fill", contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.inverseOnSurface)
                             }
                         }
                     }

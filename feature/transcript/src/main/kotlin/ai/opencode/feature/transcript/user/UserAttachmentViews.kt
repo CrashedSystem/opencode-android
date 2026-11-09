@@ -231,8 +231,8 @@ internal fun SharedLocationCard(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.size(16.dp).background(Color.White, CircleShape))
-            OpenCodeIcon(SFSymbol.MappinCircleFill, contentDescription = null, size = OpenCodeIconSize.large, tint = Color(0xFFFF3B30))
+            Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.onError, CircleShape))
+            OpenCodeIcon(SFSymbol.MappinCircleFill, contentDescription = null, size = OpenCodeIconSize.large, tint = MaterialTheme.colorScheme.error)
         }
         Column(
             Modifier

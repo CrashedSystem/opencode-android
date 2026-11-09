@@ -128,9 +128,6 @@ internal fun SubagentToolView(call: OpenCodeToolCall, subagents: Map<String, Tra
                 Text("Failed", style = OpenCodeTextStyles.caption1.copy(fontWeight = FontWeight.Medium), color = colors.destructive)
             }
         }
-        if (isKnown) {
-            OpenCodeIcon("chevron.right", contentDescription = null, Modifier.align(Alignment.CenterVertically), size = 14.dp, tint = colors.tertiaryText)
-        }
     }
 }
 
@@ -388,7 +385,6 @@ private fun ToolBody(entry: TranscriptEntry, id: String, call: OpenCodeToolCall)
                 val style = OpenCodeTextStyles.footnote.copy(fontWeight = FontWeight.Medium)
                 OpenCodeIcon(file.symbolName, contentDescription = null, size = OpenCodeIconSize.small, tint = colors.secondaryText)
                 Text("Open $name", Modifier.weight(1f), style = style, color = colors.text, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
-                OpenCodeIcon("chevron.right", contentDescription = null, size = 14.dp, tint = colors.tertiaryText)
             }
         }
     }

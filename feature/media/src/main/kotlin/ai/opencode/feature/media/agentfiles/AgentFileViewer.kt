@@ -5,6 +5,7 @@ import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.ui.AppearanceColorScheme
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodePrimaryButton
 import ai.opencode.core.ui.OpenCodeSecondaryButton
@@ -252,7 +253,7 @@ private fun AgentFilePageContent(
                     if (isRoot) {
                         TextButton(onClick = onDone, modifier = Modifier.testTag("agent-file-done")) { Text("Done") }
                     } else {
-                        IconButton(onClick = onBack) { OpenCodeIcon("chevron.left", contentDescription = "Back") }
+                        IconButton(onClick = onBack) { OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = "Back") }
                     }
                 },
                 actions = {
