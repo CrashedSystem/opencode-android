@@ -5,7 +5,6 @@ import ai.opencode.core.motion.MotionRollDirection
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.ui.OpenCodeIcon
-import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.ui.excludedFromDrawerPan
@@ -17,15 +16,26 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -41,7 +51,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,15 +58,15 @@ import kotlin.math.roundToInt
 
 /**
  * Port of iOS `OnePickerChip`: One Picker's composer chip, the provider's mark, the short model
- * name and the level word dimmed ([OnePickerTunables.LEVEL_ALPHA]). A tap opens One Picker. The
+ * name and the level word (`onSurfaceVariant`). A tap opens One Picker. The
  * name rolls (a few dp of travel, a slight scale and blur) only when [ModelKey] changes, so a
  * level change rolls the word alone, and the chip's width eases with them; neither animates
  * while the picker is shown. Its root-dp frame goes to [OnePickerController.chipFrame].
  *
  * TalkBack: one "Choose model" button whose value is the name and level; on an adjustable model
  * it is also a slider whose steps send [ModelPickerEvent.ModelRowLevelChanged] (iOS
- * `accessibilityAdjustableAction`). Material 3 Expressive: no button chrome of its own, as the
- * composer's other chips.
+ * `accessibilityAdjustableAction`). Android: drawn as an M3 assist chip (32 dp outlined
+ * container, `labelLarge`, an 18 dp drop-down arrow) inside its 48 dp target.
  *
  * [targetDrop]: how far its target sits below its ink (the composer's `pickerTargetDrop`).
  */
@@ -81,7 +90,10 @@ fun OnePickerChip(
     val level = state.currentLevel
     val value = listOfNotNull(key.shortName, levelLabel).joinToString(", ")
 
-    Row(
+    // One press source for the 48 dp target and the 32 dp chip, so the ripple stays on the chip.
+    val interaction = remember { MutableInteractionSource() }
+    val chipShape = AssistChipDefaults.shape
+    Box(
         modifier
             .excludedFromDrawerPan()
             .onGloballyPositioned { coordinates ->
@@ -98,10 +110,9 @@ fun OnePickerChip(
             // The target sits [targetDrop] below the ink (iOS `openCodeTapTarget(lowered:)`): the
             // chip's touch and TalkBack bounds move down and its ink moves back up.
             .offset(y = targetDrop)
-            .clickable(enabled = isEnabled, role = Role.Button) { onOpen() }
+            .clickable(interactionSource = interaction, indication = null, enabled = isEnabled, role = Role.Button) { onOpen() }
             .openCodeTapTarget()
             .heightIn(min = 48.dp)
-            .animateContentSize(if (animates) Motion.layout.animation(reduceMotion = reduceMotion) else snap())
             .clearAndSetSemantics {
                 contentDescription = "Choose model"
                 stateDescription = value
@@ -120,49 +131,60 @@ fun OnePickerChip(
             }
             .testTag("composer-model")
             .offset(y = -targetDrop),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.CenterStart,
     ) {
-        // Only the name gives way when the chip runs out of room (iOS keeps the level word, arc and
-        // chevron `fixedSize`): weighted, it's measured after them and ellipsizes into what's left.
-        OnePickerChipRoll(key, animates, reduceMotion, label = "onePickerName", modifier = Modifier.weight(1f, fill = false)) { rolled ->
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (OnePickerTunables.CHIP_SHOWS_LOGO && (state.currentModel != null || model != null)) {
-                    OnePickerProviderMark(
-                        providerID = state.currentModel?.providerID ?: "opencode",
-                        canonical = model?.canonicalProviderID,
-                        size = 15.dp,
-                        tint = OpenCodeTheme.colors.secondaryText,
-                    )
-                }
-                Text(
-                    rolled.shortName,
-                    style = ChipTextStyle,
-                    color = OpenCodeTheme.colors.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-            }
-        }
-        if (scale != null) {
-            if (OnePickerTunables.CHIP_SHOWS_ARC) {
-                AnimatedLevelArc(scale, level, size = 14.5.dp, color = OpenCodeTheme.colors.text.copy(alpha = 0.78f))
-            }
-            if (OnePickerTunables.CHIP_SHOWS_LEVEL_WORD && levelLabel != null) {
-                OnePickerChipRoll(levelLabel, animates, reduceMotion, label = "onePickerLevel") { word ->
+        Row(
+            Modifier
+                .height(AssistChipDefaults.Height)
+                .clip(chipShape)
+                .border(AssistChipDefaults.assistChipBorder(enabled = isEnabled), chipShape)
+                .indication(interaction, ripple())
+                .animateContentSize(if (animates) Motion.layout.animation(reduceMotion = reduceMotion) else snap())
+                // The drop-down arrow's glyph carries its own side bearing, so the end inset is smaller.
+                .padding(start = 8.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Only the name gives way when the chip runs out of room (iOS keeps the level word, arc and
+            // chevron `fixedSize`): weighted, it's measured after them and ellipsizes into what's left.
+            OnePickerChipRoll(key, animates, reduceMotion, label = "onePickerName", modifier = Modifier.weight(1f, fill = false)) { rolled ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (OnePickerTunables.CHIP_SHOWS_LOGO && (state.currentModel != null || model != null)) {
+                        OnePickerProviderMark(
+                            providerID = state.currentModel?.providerID ?: "opencode",
+                            canonical = model?.canonicalProviderID,
+                            size = 16.dp,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Text(
-                        word,
+                        rolled.shortName,
                         style = ChipTextStyle,
-                        color = OpenCodeTheme.colors.text.copy(alpha = OnePickerTunables.LEVEL_ALPHA.toFloat()),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
             }
-        }
-        if (OnePickerTunables.CHIP_SHOWS_CHEVRON) {
-            OpenCodeIcon(SFSymbol.ChevronDown, null, size = 11.dp, tint = OpenCodeTheme.colors.secondaryText)
+            if (scale != null) {
+                if (OnePickerTunables.CHIP_SHOWS_ARC) {
+                    AnimatedLevelArc(scale, level, size = 14.5.dp, color = OpenCodeTheme.colors.text.copy(alpha = 0.78f))
+                }
+                if (OnePickerTunables.CHIP_SHOWS_LEVEL_WORD && levelLabel != null) {
+                    OnePickerChipRoll(levelLabel, animates, reduceMotion, label = "onePickerLevel") { word ->
+                        Text(
+                            word,
+                            style = ChipTextStyle,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+            }
+            // Android: always the M3 drop-down arrow (iOS hides its chevron, `CHIP_SHOWS_CHEVRON`).
+            OpenCodeIcon(SFSymbol.ArrowtriangleDownFill, null, size = AssistChipDefaults.IconSize, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -185,8 +207,9 @@ object OnePickerChip {
     }
 }
 
-/** iOS `.subheadline.weight(.medium)`. */
-private val ChipTextStyle: TextStyle get() = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium)
+/** M3 chip label (`labelLarge`); iOS uses `.subheadline.weight(.medium)`. */
+private val ChipTextStyle: TextStyle
+    @Composable get() = MaterialTheme.typography.labelLarge
 
 /**
  * The incoming label rolls up from below on the frame the outgoing one rolls away
