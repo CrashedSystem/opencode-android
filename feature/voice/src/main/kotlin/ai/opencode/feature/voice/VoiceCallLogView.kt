@@ -237,11 +237,11 @@ private fun VoiceCallLogRow(log: VoiceCallLog, onOpen: () -> Unit, onDelete: () 
         enableDismissFromStartToEnd = false,
         backgroundContent = {
             Row(
-                Modifier.fillMaxSize().background(OpenCodeTheme.colors.destructive).padding(horizontal = 20.dp),
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Delete", color = Color.White, style = OpenCodeTextStyles.body)
+                Text("Delete", color = MaterialTheme.colorScheme.onError, style = OpenCodeTextStyles.body)
             }
         },
         onDismiss = { value -> if (value == SwipeToDismissBoxValue.EndToStart) onDelete() },
@@ -403,6 +403,7 @@ private fun ReplayTimeline(log: VoiceCallLog, playback: VoiceCallReplayPlayback)
     val secondary = OpenCodeTheme.colors.secondaryText
     val red = VoiceCallLogColors.red(dark)
     val measurer = rememberTextMeasurer()
+    // White stays: labels sit on the fixed track colours (VoiceCallLogColors), not on a theme surface.
     val labelStyle = OpenCodeTextStyles.caption2.copy(fontWeight = FontWeight.Medium, color = Color.White)
     val labels = remember(log, labelStyle) { log.spans.associate { it.id to measurer.measure(it.label, labelStyle, maxLines = 1, softWrap = false) } }
     val now = playback.now

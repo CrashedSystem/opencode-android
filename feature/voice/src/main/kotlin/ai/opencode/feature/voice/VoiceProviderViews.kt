@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -124,6 +125,7 @@ fun VoiceProviderTile(kind: VoiceProviderTileKind, modifier: Modifier = Modifier
             .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
+        // White stays: the tile is a fixed brand gradient in both themes, like an app icon.
         OpenCodeIcon(kind.symbol, null, size = (size * VoiceProviderTunables.symbolRatio.value).dp, tint = Color.White)
     }
 }
@@ -239,12 +241,13 @@ fun VoiceProviderFailureCard(
                         .align(Alignment.BottomEnd)
                         .offset(offset.dp, offset.dp)
                         .size(badge.dp)
-                        .background(VoiceCallSurfaceDefaults.orange, CircleShape)
+                        // Android: an M3 badge (error / onError) instead of iOS's orange disc with a white glyph.
+                        .background(MaterialTheme.colorScheme.error, CircleShape)
                         .border(2.dp, OpenCodeTheme.colors.canvas, CircleShape)
                         .clearAndSetSemantics {},
                     contentAlignment = Alignment.Center,
                 ) {
-                    OpenCodeIcon(SFSymbol.Exclamationmark, null, size = (badge * 0.7).dp, tint = Color.White)
+                    OpenCodeIcon(SFSymbol.Exclamationmark, null, size = (badge * 0.7).dp, tint = MaterialTheme.colorScheme.onError)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

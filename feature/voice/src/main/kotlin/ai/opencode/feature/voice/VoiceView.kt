@@ -150,11 +150,6 @@ object VoiceCallSurfaceDefaults {
     val color: Color
         @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceContainerHigh
 
-    /** `UIColor.tertiarySystemFill`: Mute's soft disc. */
-    val tertiaryFill: Color
-        @Composable @ReadOnlyComposable get() =
-            Color(0.4627f, 0.4627f, 0.502f, if (OpenCodeTheme.colors.isDark) 0.24f else 0.12f)
-
     /** `UIColor.systemOrange`: needs input, a weak connection, the failure's title. */
     val orange: Color
         @Composable @ReadOnlyComposable get() =

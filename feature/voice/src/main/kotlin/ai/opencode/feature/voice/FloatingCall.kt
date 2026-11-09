@@ -22,13 +22,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -53,6 +51,12 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,7 +74,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -100,7 +103,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.dismiss
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -1493,23 +1495,27 @@ private fun FloatingCallOrbControls(isMuted: Boolean, statusText: String, reduce
     }
 }
 
-/** The capsule's End (iOS `endButton(diameter:)`): a red circle in a full touch target. */
+/**
+ * The capsule's End (iOS `endButton(diameter:)`): Android: an M3 filled icon button in the error
+ * colours, centred in a full touch target.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FloatingCallEndButton(diameter: Float, isEnabled: Boolean, onEnd: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .size(FloatingCallSurfaceModel.MIN_TOUCH.dp)
-            .clickable(enabled = isEnabled, role = Role.Button, onClick = onEnd)
-            .semantics { contentDescription = "End voice call" },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier
+    Box(modifier.size(FloatingCallSurfaceModel.MIN_TOUCH.dp), contentAlignment = Alignment.Center) {
+        FilledIconButton(
+            onClick = onEnd,
+            shapes = IconButtonDefaults.shapes(),
+            modifier = Modifier
                 .size(diameter.dp)
-                .background(VoiceCallSurfaceDefaults.red, CircleShape),
-            contentAlignment = Alignment.Center,
+                .semantics { contentDescription = "End voice call" },
+            enabled = isEnabled,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ),
         ) {
-            OpenCodeIcon(SFSymbol.PhoneDownFill, null, size = 18.dp, tint = Color.White)
+            OpenCodeIcon(SFSymbol.PhoneDownFill, null, size = 18.dp, tint = LocalContentColor.current)
         }
     }
 }
@@ -1530,56 +1536,76 @@ private fun FloatingCallTag(text: String) {
 }
 
 /**
- * One of the card's controls: an equal circle, centred in an equal share of the row, so every
- * glyph sits on one line.
+ * One of the card's controls, centred in an equal share of the row, so every glyph sits on one line.
+ * Android: M3 Expressive icon buttons (their shape morphs on press and when checked, as in the
+ * Pixel Phone app): a tonal toggle for an on/off control such as Mute, the error colours for End,
+ * a tonal button otherwise.
  *
+ * @param isToggle announces [isOn] as checked/unchecked rather than a plain button.
  * @param isPlaceholder shown so the layout can be judged; needs plumbing that isn't built yet.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun RowScope.FloatingCallControl(
     name: String,
     symbol: SFSymbol,
     diameter: Float,
     isOn: Boolean = false,
+    isToggle: Boolean = false,
     isEnabled: Boolean = true,
     isDestructive: Boolean = false,
     isPlaceholder: Boolean = false,
     action: () -> Unit,
 ) {
     val active = !isPlaceholder && isEnabled
-    // Mute turning on, or every control dimming as the call ends, eases rather than flipping.
     val reduceMotion = rememberReduceMotion()
-    val dim by animateFloatAsState(if (isPlaceholder || !isEnabled) 0.35f else 1f, Motion.swap.animation(reduceMotion = reduceMotion), label = "floatingCallControlDim")
-    val text = OpenCodeTheme.colors.text
-    val background = MaterialTheme.colorScheme.background
-    val fill by animateColorAsState(
-        if (isDestructive) VoiceCallSurfaceDefaults.red else if (isOn) text else VoiceCallSurfaceDefaults.tertiaryFill,
-        Motion.swap.animation(reduceMotion = reduceMotion),
-        label = "floatingCallControlFill",
-    )
-    val tint = if (isDestructive) Color.White else if (isOn) background else text
+    val glyphSize = (diameter * 0.38f + 4).dp
+    val buttonModifier = Modifier
+        .size(diameter.dp)
+        .semantics {
+            contentDescription = name
+            if (isPlaceholder) stateDescription = "Not available in this prototype"
+        }
+    val glyph: @Composable () -> Unit = {
+        Crossfade(symbol, animationSpec = Motion.swap.animation(reduceMotion = reduceMotion), label = "floatingCallControlGlyph") { shown ->
+            OpenCodeIcon(shown, null, tint = LocalContentColor.current, size = glyphSize)
+        }
+    }
     Box(
         Modifier
             .weight(1f)
-            .heightIn(min = max(48f, diameter).dp)
-            .clickable(enabled = active, role = Role.Button, onClick = action)
-            .semantics {
-                contentDescription = name
-                if (isPlaceholder) stateDescription = "Not available in this prototype"
-                if (!active) disabled()
-            },
+            .heightIn(min = max(48f, diameter).dp),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            Modifier
-                .size(diameter.dp)
-                .alpha(dim)
-                .background(fill, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Crossfade(symbol, animationSpec = Motion.swap.animation(reduceMotion = reduceMotion), label = "floatingCallControlGlyph") { shown ->
-                OpenCodeIcon(shown, null, tint = tint, size = (diameter * 0.38f + 4).dp)
-            }
+        if (isToggle) {
+            FilledTonalIconToggleButton(
+                checked = isOn,
+                onCheckedChange = { action() },
+                shapes = IconButtonDefaults.toggleableShapes(),
+                modifier = buttonModifier,
+                enabled = active,
+                content = glyph,
+            )
+        } else if (isDestructive) {
+            FilledIconButton(
+                onClick = action,
+                shapes = IconButtonDefaults.shapes(),
+                modifier = buttonModifier,
+                enabled = active,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+                content = glyph,
+            )
+        } else {
+            FilledTonalIconButton(
+                onClick = action,
+                shapes = IconButtonDefaults.shapes(),
+                modifier = buttonModifier,
+                enabled = active,
+                content = glyph,
+            )
         }
     }
 }

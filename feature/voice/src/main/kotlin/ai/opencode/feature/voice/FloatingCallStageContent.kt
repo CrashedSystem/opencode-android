@@ -6,9 +6,7 @@ import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
-import ai.opencode.core.ui.openCodeTapTarget
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +45,6 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -179,15 +178,9 @@ private fun FloatingCallStageHeader(store: VoiceStoreOf, status: String, onMinim
             )
         }
         FloatingCallDuration(connectedAt, status, Modifier.padding(end = 4.dp))
-        Box(
-            Modifier
-                .size(48.dp)
-                .clickable(role = Role.Button, onClick = onMinimize)
-                .openCodeTapTarget()
-                .semantics { contentDescription = "Minimize" },
-            contentAlignment = Alignment.Center,
-        ) {
-            OpenCodeIcon(SFSymbol.ChevronDown, null, tint = OpenCodeTheme.colors.secondaryText, size = 20.dp)
+        // Android: an M3 icon button with Material's collapse glyph instead of iOS's chevron.
+        IconButton(onClick = onMinimize, modifier = Modifier.semantics { contentDescription = "Minimize" }) {
+            OpenCodeIcon(SFSymbol.ArrowDownRightAndArrowUpLeft, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -199,10 +192,12 @@ private fun FloatingCallStageControls(store: VoiceStoreOf, diameter: Float, modi
     val isLive by store.observe { it.phase == VoiceFeature.State.Phase.Live }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         FloatingCallControl(
-            name = if (isMuted) "Unmute" else "Mute",
+            // Android: a toggle named "Mute" that TalkBack reads as on/off (iOS relabels it Unmute).
+            name = "Mute",
             symbol = if (isMuted) SFSymbol.MicSlashFill else SFSymbol.MicFill,
             diameter = diameter,
             isOn = isMuted,
+            isToggle = true,
             isEnabled = isLive,
         ) { store.send(VoiceFeature.Action.MuteTapped) }
         FloatingCallControl(name = "Pause", symbol = SFSymbol.PauseFill, diameter = diameter, isPlaceholder = true) {}
