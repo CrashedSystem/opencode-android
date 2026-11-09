@@ -16,9 +16,12 @@ import ai.opencode.core.store.Store
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.cancellable
 import ai.opencode.core.store.collectState
+import ai.opencode.core.ui.AppearanceColorScheme
 import ai.opencode.core.ui.OpenCodeIconButton
 import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import ai.opencode.core.ui.OpenCodeTextStyles
+import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.rememberAppAppearance
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.files.AttachmentFileType
 import android.content.ClipData
@@ -428,167 +431,170 @@ fun TranscriptImageViewer(
 
     val controlsVisible = controlsAreVisible(state.isShowingControls, talkBack, viewer.chromeHidden)
 
-    // The overlays keep to the safe area; the pages fill the screen, so a page's fitted image
-    // is where the flight lands.
-    Box(Modifier.fillMaxSize()) {
-        val initialPage = remember { pages.indexOfFirst { it.id == state.selectedID }.coerceAtLeast(0) }
-        val pagerState = rememberPagerState(initialPage = initialPage) { pages.size }
-        LaunchedEffect(pagerState, pages) {
-            snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { index ->
-                val id = pages.getOrNull(index)?.id ?: return@collect
-                if (id != store.state.selectedID) store.send(TranscriptImageViewerFeature.Action.PageSelected(id))
-            }
-        }
-        // A removed page hands the selection on: the pager follows it.
-        LaunchedEffect(pagerState, pages, state.selectedID) {
-            val target = pages.indexOfFirst { it.id == state.selectedID }
-            if (target >= 0 && target != pagerState.currentPage) pagerState.scrollToPage(target)
-        }
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize().testTag("image-gallery"),
-            beyondViewportPageCount = 1,
-            key = { pages[it].id },
-        ) { index ->
-            val page = pages[index]
-            val selected = state.selectedID == page.id
-            val image = page.image
-            val tap = { store.send(TranscriptImageViewerFeature.Action.ImageTapped) }
-            val placeholder = Modifier.fillMaxSize().background(Color.Black).clickable(
-                interactionSource = null,
-                indication = null,
-                onClick = tap,
-            )
-            when {
-                image != null -> ZoomableImagePage(
-                    image = image,
-                    label = page.label,
-                    isSelected = selected,
-                    isHidden = viewer.mediaHidden && selected,
-                    onSingleTap = tap,
-                    onZoomChange = { zoomed -> if (store.state.selectedID == page.id) viewer.isZoomed = zoomed },
-                    onFrame = { viewer.mediaFrames[page.id] = it },
-                )
-                page.isUnavailable -> Box(placeholder) {
-                    MediaAttachmentUnavailableView(name = page.name ?: page.displayTitle)
+    // Android: the viewer is always over a black backdrop, so it takes the dark scheme of the
+    // reader's theme; its controls get dark surfaces and on-colours in a light app.
+    OpenCodeTheme(theme = rememberAppAppearance().theme, appearance = AppearanceColorScheme.Dark) {
+        // The overlays keep to the safe area; the pages fill the screen, so a page's fitted image
+        // is where the flight lands.
+        Box(Modifier.fillMaxSize()) {
+            val initialPage = remember { pages.indexOfFirst { it.id == state.selectedID }.coerceAtLeast(0) }
+            val pagerState = rememberPagerState(initialPage = initialPage) { pages.size }
+            LaunchedEffect(pagerState, pages) {
+                snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { index ->
+                    val id = pages.getOrNull(index)?.id ?: return@collect
+                    if (id != store.state.selectedID) store.send(TranscriptImageViewerFeature.Action.PageSelected(id))
                 }
-                page.loadFailed -> Box(placeholder) {
-                    MediaAttachmentUnavailableView(
-                        name = page.name ?: page.displayTitle,
-                        onRetry = { store.send(TranscriptImageViewerFeature.Action.RetryPageTapped(page.id)) },
-                        isTransientFailure = true,
+            }
+            // A removed page hands the selection on: the pager follows it.
+            LaunchedEffect(pagerState, pages, state.selectedID) {
+                val target = pages.indexOfFirst { it.id == state.selectedID }
+                if (target >= 0 && target != pagerState.currentPage) pagerState.scrollToPage(target)
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize().testTag("image-gallery"),
+                beyondViewportPageCount = 1,
+                key = { pages[it].id },
+            ) { index ->
+                val page = pages[index]
+                val selected = state.selectedID == page.id
+                val image = page.image
+                val tap = { store.send(TranscriptImageViewerFeature.Action.ImageTapped) }
+                val placeholder = Modifier.fillMaxSize().background(Color.Black).clickable(
+                    interactionSource = null,
+                    indication = null,
+                    onClick = tap,
+                )
+                when {
+                    image != null -> ZoomableImagePage(
+                        image = image,
+                        label = page.label,
+                        isSelected = selected,
+                        isHidden = viewer.mediaHidden && selected,
+                        onSingleTap = tap,
+                        onZoomChange = { zoomed -> if (store.state.selectedID == page.id) viewer.isZoomed = zoomed },
+                        onFrame = { viewer.mediaFrames[page.id] = it },
+                    )
+                    page.isUnavailable -> Box(placeholder) {
+                        MediaAttachmentUnavailableView(name = page.name ?: page.displayTitle)
+                    }
+                    page.loadFailed -> Box(placeholder) {
+                        MediaAttachmentUnavailableView(
+                            name = page.name ?: page.displayTitle,
+                            onRetry = { store.send(TranscriptImageViewerFeature.Action.RetryPageTapped(page.id)) },
+                            isTransientFailure = true,
+                        )
+                    }
+                    else -> Box(placeholder, contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            val safe = WindowInsets.systemBarsIgnoringVisibility.union(WindowInsets.displayCutout)
+            // The controls swap in and out (iOS `Motion.swap`).
+            val reduceMotion = rememberReduceMotion()
+            val enter = fadeIn(MotionRole.Swap.animation(MotionPhase.Enter, reduceMotion))
+            val exit = fadeOut(MotionRole.Swap.animation(MotionPhase.Exit, reduceMotion))
+            Box(Modifier.fillMaxSize().windowInsetsPadding(safe)) {
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = enter,
+                    exit = exit,
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 8.dp),
+                ) {
+                    OpenCodeIconButton(
+                        symbol = SFSymbol.Xmark,
+                        contentDescription = "Close",
+                        onClick = { store.send(TranscriptImageViewerFeature.Action.CloseTapped) },
+                        modifier = Modifier.testTag("image-gallery-close"),
+                        style = OpenCodeIconButtonStyle.Circle,
                     )
                 }
-                else -> Box(placeholder, contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            }
-        }
-
-        val safe = WindowInsets.systemBarsIgnoringVisibility.union(WindowInsets.displayCutout)
-        // The controls swap in and out (iOS `Motion.swap`).
-        val reduceMotion = rememberReduceMotion()
-        val enter = fadeIn(MotionRole.Swap.animation(MotionPhase.Enter, reduceMotion))
-        val exit = fadeOut(MotionRole.Swap.animation(MotionPhase.Exit, reduceMotion))
-        Box(Modifier.fillMaxSize().windowInsetsPadding(safe)) {
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter = enter,
-                exit = exit,
-                modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 8.dp),
-            ) {
-                OpenCodeIconButton(
-                    symbol = SFSymbol.Xmark,
-                    contentDescription = "Close",
-                    onClick = { store.send(TranscriptImageViewerFeature.Action.CloseTapped) },
-                    modifier = Modifier.testTag("image-gallery-close"),
-                    style = OpenCodeIconButtonStyle.Circle,
-                )
-            }
-            val title = state.selectedPage?.displayTitle
-            val detail = state.selectedPage?.detail
-            AnimatedVisibility(
-                visible = controlsVisible && (title != null || detail != null),
-                enter = enter,
-                exit = exit,
-                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 76.dp).padding(top = 8.dp),
-            ) {
-                Column(
-                    Modifier.heightIn(min = 48.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                val title = state.selectedPage?.displayTitle
+                val detail = state.selectedPage?.detail
+                AnimatedVisibility(
+                    visible = controlsVisible && (title != null || detail != null),
+                    enter = enter,
+                    exit = exit,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 76.dp).padding(top = 8.dp),
                 ) {
-                    if (title != null) {
-                        Text(
-                            text = title,
-                            style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium),
-                            color = Color.White.copy(alpha = 0.85f),
-                            maxLines = 1,
-                            overflow = TextOverflow.MiddleEllipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.wrapContentHeight().testTag("image-gallery-title"),
-                        )
-                    }
-                    if (detail != null) {
-                        Text(
-                            text = detail,
-                            style = OpenCodeTextStyles.caption1.copy(fontFeatureSettings = "tnum"),
-                            color = Color.White.copy(alpha = 0.6f),
-                            maxLines = 1,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.testTag("image-gallery-detail"),
-                        )
-                    }
-                }
-            }
-            AnimatedVisibility(
-                visible = controlsVisible && state.allowsRemove,
-                enter = enter,
-                exit = exit,
-                modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 16.dp),
-            ) {
-                OpenCodeIconButton(
-                    symbol = SFSymbol.Trash,
-                    contentDescription = "Remove",
-                    onClick = { store.send(TranscriptImageViewerFeature.Action.RemoveTapped) },
-                    modifier = Modifier.testTag("image-gallery-remove"),
-                    style = OpenCodeIconButtonStyle.Circle,
-                    tint = MaterialTheme.colorScheme.error,
-                    enabled = !state.isDiscarded,
-                )
-            }
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter = enter,
-                exit = exit,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(percent = 50),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    contentColor = Color.White,
-                ) {
-                    Row(
-                        modifier = Modifier.height(52.dp).padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        Modifier.heightIn(min = 48.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        OpenCodeIconButton(
-                            symbol = SFSymbol.SquareAndArrowDown,
-                            contentDescription = "Save to Photos",
-                            onClick = { store.send(TranscriptImageViewerFeature.Action.SaveTapped) },
-                            modifier = Modifier.testTag("image-gallery-save"),
-                            style = OpenCodeIconButtonStyle.Standard,
-                            enabled = !state.isSaving && state.selectedPage?.image != null,
-                        )
-                        OpenCodeIconButton(
-                            symbol = SFSymbol.SquareAndArrowUp,
-                            contentDescription = "Share",
-                            onClick = { store.send(TranscriptImageViewerFeature.Action.ShareTapped) },
-                            modifier = Modifier.testTag("image-gallery-share"),
-                            style = OpenCodeIconButtonStyle.Standard,
-                            enabled = state.selectedPage?.image != null,
-                        )
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.MiddleEllipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.wrapContentHeight().testTag("image-gallery-title"),
+                            )
+                        }
+                        if (detail != null) {
+                            Text(
+                                text = detail,
+                                style = OpenCodeTextStyles.caption1.copy(fontFeatureSettings = "tnum"),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.testTag("image-gallery-detail"),
+                            )
+                        }
+                    }
+                }
+                AnimatedVisibility(
+                    visible = controlsVisible && state.allowsRemove,
+                    enter = enter,
+                    exit = exit,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 16.dp),
+                ) {
+                    OpenCodeIconButton(
+                        symbol = SFSymbol.Trash,
+                        contentDescription = "Remove",
+                        onClick = { store.send(TranscriptImageViewerFeature.Action.RemoveTapped) },
+                        modifier = Modifier.testTag("image-gallery-remove"),
+                        style = OpenCodeIconButtonStyle.Circle,
+                        tint = MaterialTheme.colorScheme.error,
+                        enabled = !state.isDiscarded,
+                    )
+                }
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = enter,
+                    exit = exit,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(percent = 50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Row(
+                            modifier = Modifier.height(52.dp).padding(horizontal = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OpenCodeIconButton(
+                                symbol = SFSymbol.SquareAndArrowDown,
+                                contentDescription = "Save to Photos",
+                                onClick = { store.send(TranscriptImageViewerFeature.Action.SaveTapped) },
+                                modifier = Modifier.testTag("image-gallery-save"),
+                                style = OpenCodeIconButtonStyle.Standard,
+                                enabled = !state.isSaving && state.selectedPage?.image != null,
+                            )
+                            OpenCodeIconButton(
+                                symbol = SFSymbol.SquareAndArrowUp,
+                                contentDescription = "Share",
+                                onClick = { store.send(TranscriptImageViewerFeature.Action.ShareTapped) },
+                                modifier = Modifier.testTag("image-gallery-share"),
+                                style = OpenCodeIconButtonStyle.Standard,
+                                enabled = state.selectedPage?.image != null,
+                            )
+                        }
                     }
                 }
             }
