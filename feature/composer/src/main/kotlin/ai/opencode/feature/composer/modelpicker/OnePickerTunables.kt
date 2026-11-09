@@ -71,8 +71,11 @@ object OnePickerTunables {
     /** "Scroll edge fade" (0…40). */
     const val EDGE_FADE = 24.0
 
-    /** "Backdrop dim" (0…0.45). */
-    const val BACKDROP_DIM = 0.0
+    /**
+     * "Backdrop dim" (0…0.45). Android: the M3 modal bottom sheet's scrim opacity, so the open
+     * picker dims what's behind it (iOS ships 0).
+     */
+    const val BACKDROP_DIM = 0.32
 
     /** "Backdrop blur" (0…20). */
     const val BACKDROP_BLUR = 0.0

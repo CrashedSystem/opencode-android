@@ -107,8 +107,9 @@ import kotlinx.coroutines.delay
 // draws one Liquid Glass shape under the composer (`OnePickerGlassBackdrop`) and the panel's
 // rows over it (`OnePickerSurface`), both at `OnePickerController`'s per-frame pose. On Android
 // the shape is a Material 3 tonal surface (`surfaceContainerHigh`, as the composer's own
-// surface), never a blur or glass imitation, and the backdrop dim and blur stay off, as iOS's
-// tunables default. Coordinates are dp in the overlay's own space (the session's root box).
+// surface), never a blur or glass imitation. The backdrop blur stays off, as iOS's tunables
+// default; the backdrop dim is the M3 modal bottom sheet's scrim (`BACKDROP_DIM`). Coordinates
+// are dp in the overlay's own space (the session's root box).
 // The DEBUG-only probes (window space, glass, chip, composer, integrity readout) are n/a.
 
 /** One Picker's surface colour: the composer's (so the morph reads as one surface). */
@@ -134,10 +135,16 @@ private fun FramePoseShape(pose: OnePickerSimulation.FramePose) = RoundedCornerS
 fun OnePickerGlassBackdrop(controller: OnePickerController, modifier: Modifier = Modifier) {
     if (!controller.isShown) return
     val color = OnePickerSurfaceDefaults.color
+    val scrim = MaterialTheme.colorScheme.scrim
     Box(modifier.fillMaxSize().semantics { hideFromAccessibility() }) {
         val pose = controller.motion.pose
         val rect = pose.rect
         val shape = FramePoseShape(pose)
+        // The modal sheet's scrim under the composer and the panel, deepening as the panel opens.
+        val dim = (OnePickerTunables.BACKDROP_DIM * pose.backdropStrength).toFloat().coerceIn(0f, 1f)
+        if (dim > 0f) {
+            Box(Modifier.fillMaxSize().background(scrim.copy(alpha = dim)))
+        }
         Box(
             Modifier
                 .offset { IntOffset(rect.left.dp.roundToPx(), rect.top.dp.roundToPx()) }

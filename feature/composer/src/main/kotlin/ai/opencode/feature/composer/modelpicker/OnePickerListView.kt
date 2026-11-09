@@ -29,12 +29,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -322,8 +324,10 @@ private fun OnePickerRowCell(item: OnePickerRowItem, actions: OnePickerListActio
         bounce.animateTo(1f, Motion.press.animation(MotionPhase.Exit, reduceMotion = false))
     }
     val toggleFavorite = { actions.onToggleFavorite(item.model) }
-    // Android divergence: a ripple in the row's rounded inset answers the press (iOS tints it).
-    val highlight = if (item.isCurrent) colors.text.copy(alpha = if (colors.highContrast) 0.16f else if (colors.isDark) 0.10f else 0.07f) else null
+    // Android divergence: a ripple in the row's rounded inset answers the press (iOS tints it),
+    // and the current model sits on M3's selected list item container (secondaryContainer).
+    val highlight = if (item.isCurrent) MaterialTheme.colorScheme.secondaryContainer else null
+    val nameColor = if (item.isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else colors.text
     val panelColor = OnePickerSurfaceDefaults.color
 
     FavoriteSwipeBox(
@@ -392,7 +396,7 @@ private fun OnePickerRowCell(item: OnePickerRowItem, actions: OnePickerListActio
                             item.model.providerID,
                             canonical = item.model.canonicalProviderID,
                             size = 20.dp,
-                            tint = if (item.isCurrent) colors.text else colors.secondaryText,
+                            tint = if (item.isCurrent) nameColor else colors.secondaryText,
                         )
                         Spacer(Modifier.size(12.dp))
                         Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -400,7 +404,7 @@ private fun OnePickerRowCell(item: OnePickerRowItem, actions: OnePickerListActio
                                 item.shortName,
                                 style = OpenCodeTextStyles.body,
                                 fontWeight = if (item.isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                                color = colors.text,
+                                color = nameColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -427,22 +431,29 @@ private fun rowHoldConfiguration(base: ViewConfiguration): ViewConfiguration = o
     override val longPressTimeoutMillis: Long get() = 350L
 }
 
-/** iOS's level button: the level word (a menu of every level, highest first) at the row's end. */
+/**
+ * iOS's level button: the level word (a menu of every level, highest first) at the row's end.
+ * Android: an M3 assist chip with a drop-down arrow, the menu's anchor, so it reads as a control.
+ */
 @Composable
 private fun OnePickerLevelButton(item: OnePickerRowItem, onPickLevel: (String?) -> Unit) {
-    val colors = OpenCodeTheme.colors
     val scale = ModelLevelScale(item.model.variants)
     val currentIndex = scale.index(item.shownLevel)
     var menuOpen by remember { mutableStateOf(false) }
-    val tint = if (item.hasParsedSearchLevel) colors.text else colors.text.copy(alpha = item.levelAlpha.toFloat())
+    // A level read from the search query stands out; a remembered one is quieter.
+    val labelColor = if (item.hasParsedSearchLevel) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
     val step = { by: Int -> onPickLevel(scale.stepped(item.shownLevel, by)) }
-    Box {
-        Row(
-            Modifier
-                .widthIn(min = 44.dp)
-                .heightIn(min = 44.dp)
-                .padding(end = 10.dp)
-                .clickable(role = Role.Button) { menuOpen = true }
+    Box(Modifier.padding(start = 8.dp, end = 16.dp)) {
+        AssistChip(
+            onClick = { menuOpen = true },
+            label = {
+                Text(
+                    item.levelLabel,
+                    fontWeight = if (item.hasParsedSearchLevel) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+            },
+            modifier = Modifier
                 .semantics {
                     contentDescription = "${item.shortName} thinking level"
                     stateDescription = item.levelLabel
@@ -451,20 +462,14 @@ private fun OnePickerLevelButton(item: OnePickerRowItem, onPickLevel: (String?) 
                         CustomAccessibilityAction("Lower Thinking Level") { step(-1); true },
                     )
                 }
-                .testTag("${item.idPrefix}-level-${item.model.id}")
-                .padding(start = if (item.showsArc) 10.dp else 12.dp, end = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (item.showsArc) AnimatedLevelArc(scale, item.shownLevel, size = 14.dp, color = tint)
-            Text(
-                item.levelLabel,
-                style = OpenCodeTextStyles.subheadline,
-                fontWeight = if (item.hasParsedSearchLevel) FontWeight.Medium else FontWeight.Normal,
-                color = tint,
-                maxLines = 1,
-            )
-        }
+                .testTag("${item.idPrefix}-level-${item.model.id}"),
+            leadingIcon = if (item.showsArc) ({ AnimatedLevelArc(scale, item.shownLevel, size = 14.dp, color = labelColor) }) else null,
+            trailingIcon = { OpenCodeIcon(SFSymbol.ArrowtriangleDownFill, null, size = AssistChipDefaults.IconSize) },
+            colors = AssistChipDefaults.assistChipColors(
+                labelColor = labelColor,
+                trailingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             for (index in (0 until scale.count).reversed()) {
                 val option = scale.level(index)
