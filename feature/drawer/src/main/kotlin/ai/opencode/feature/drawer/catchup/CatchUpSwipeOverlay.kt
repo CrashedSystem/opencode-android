@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -148,56 +149,51 @@ internal fun CatchUpSwipeOverlay(state: CatchUpBadgeState, opaque: Boolean, modi
 /** A Slack-style progress circle (iOS `CatchUpProgressCircleView`, 56 pt, drawn in a 100-unit box). */
 @Composable
 private fun CatchUpProgressCircle(state: CatchUpBadgeState, tone: Color, isRead: Boolean) {
-    Canvas(
-        Modifier
-            .size(56.dp)
-            .graphicsLayer {
-                scaleX = state.pop.value
-                scaleY = state.pop.value
-            },
-    ) {
-        val scale = size.width / 100f
-        val center = Offset(size.width / 2, size.height / 2)
-        val full = state.isFull
-        drawCircle(if (full) CatchUpMetrics.onToneColor else Color.Black.copy(alpha = 0.18f), radius = 44 * scale, center = center)
-        val ringRadius = 46 * scale
-        val ringStroke = Stroke(width = 6.5f * scale, cap = StrokeCap.Round)
-        drawCircle(CatchUpMetrics.onToneColor.copy(alpha = 0.32f), radius = ringRadius, center = center, style = Stroke(width = 6.5f * scale))
-        val progress = state.ringProgress
-        if (progress > 0f) {
-            drawArc(
-                color = CatchUpMetrics.onToneColor,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = Offset(center.x - ringRadius, center.y - ringRadius),
-                size = Size(ringRadius * 2, ringRadius * 2),
-                style = ringStroke,
-            )
-        }
-        val glyphColor = if (full) tone else CatchUpMetrics.onToneColor
-        if (isRead) {
-            val path = Path().apply {
-                moveTo(33 * scale, 51.5f * scale)
-                lineTo(44 * scale, 62.5f * scale)
-                lineTo(67 * scale, 38.5f * scale)
+    Canvas(Modifier.size(56.dp)) {
+        scale(state.pop.value) {
+            val scale = size.width / 100f
+            val center = Offset(size.width / 2, size.height / 2)
+            val full = state.isFull
+            drawCircle(if (full) CatchUpMetrics.onToneColor else Color.Black.copy(alpha = 0.18f), radius = 44 * scale, center = center)
+            val ringRadius = 46 * scale
+            val ringStroke = Stroke(width = 6.5f * scale, cap = StrokeCap.Round)
+            drawCircle(CatchUpMetrics.onToneColor.copy(alpha = 0.32f), radius = ringRadius, center = center, style = Stroke(width = 6.5f * scale))
+            val progress = state.ringProgress
+            if (progress > 0f) {
+                drawArc(
+                    color = CatchUpMetrics.onToneColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f * progress,
+                    useCenter = false,
+                    topLeft = Offset(center.x - ringRadius, center.y - ringRadius),
+                    size = Size(ringRadius * 2, ringRadius * 2),
+                    style = ringStroke,
+                )
             }
-            drawPath(path, glyphColor, style = Stroke(width = 7.5f * scale, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        } else {
-            val glyph = Stroke(width = 6.5f * scale, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            drawRoundRect(
-                glyphColor,
-                topLeft = Offset(29 * scale, 35 * scale),
-                size = Size(42 * scale, 30 * scale),
-                cornerRadius = CornerRadius(5 * scale),
-                style = glyph,
-            )
-            val path = Path().apply {
-                moveTo(31 * scale, 38 * scale)
-                lineTo(50 * scale, 52 * scale)
-                lineTo(69 * scale, 38 * scale)
+            val glyphColor = if (full) tone else CatchUpMetrics.onToneColor
+            if (isRead) {
+                val path = Path().apply {
+                    moveTo(33 * scale, 51.5f * scale)
+                    lineTo(44 * scale, 62.5f * scale)
+                    lineTo(67 * scale, 38.5f * scale)
+                }
+                drawPath(path, glyphColor, style = Stroke(width = 7.5f * scale, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            } else {
+                val glyph = Stroke(width = 6.5f * scale, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                drawRoundRect(
+                    glyphColor,
+                    topLeft = Offset(29 * scale, 35 * scale),
+                    size = Size(42 * scale, 30 * scale),
+                    cornerRadius = CornerRadius(5 * scale),
+                    style = glyph,
+                )
+                val path = Path().apply {
+                    moveTo(31 * scale, 38 * scale)
+                    lineTo(50 * scale, 52 * scale)
+                    lineTo(69 * scale, 38 * scale)
+                }
+                drawPath(path, glyphColor, style = glyph)
             }
-            drawPath(path, glyphColor, style = glyph)
         }
     }
 }

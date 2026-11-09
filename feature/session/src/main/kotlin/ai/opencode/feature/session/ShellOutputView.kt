@@ -10,6 +10,7 @@ import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.composer.OpenCodeBottomSheet
 import ai.opencode.server.model.OpenCodeShell
 import androidx.compose.animation.AnimatedVisibility
@@ -542,8 +543,9 @@ private fun ElapsedTime(since: Instant, until: Instant?, style: androidx.compose
     }
     val end = until ?: Instant.ofEpochMilli(now)
     val seconds = maxOf(0L, Duration.between(since, end).seconds)
-    val text = if (seconds >= 3600) "%d:%02d:%02d".format(seconds / 3600, seconds % 3600 / 60, seconds % 60)
-    else "%d:%02d".format(seconds / 60, seconds % 60)
+    val locale = appFormattingLocale()
+    val text = if (seconds >= 3600) "%d:%02d:%02d".format(locale, seconds / 3600, seconds % 3600 / 60, seconds % 60)
+    else "%d:%02d".format(locale, seconds / 60, seconds % 60)
     val spoken = buildList {
         if (seconds >= 3600) add("${seconds / 3600} ${if (seconds / 3600 == 1L) "hour" else "hours"}")
         if (seconds >= 60) add("${seconds % 3600 / 60} ${if (seconds % 3600 / 60 == 1L) "minute" else "minutes"}")

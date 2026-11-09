@@ -43,6 +43,18 @@ interface ComposerSwipeInput {
      * it selects the word under the first tap and the control does nothing.
      */
     fun takesDoubleTap(): Boolean = false
+
+    /**
+     * Before a send reads the draft: hands the parent any text the field holds that it hasn't
+     * reported yet (the keyboard's latest commit, a composing word), so the send takes what shows.
+     */
+    fun flushEdits() {}
+
+    /**
+     * After a send cleared the draft: the field takes it now, not on the next composition, so the
+     * keyboard's next commit lands in the empty field instead of on the sent text.
+     */
+    fun takeParentText() {}
 }
 
 class ComposerSendTransition {

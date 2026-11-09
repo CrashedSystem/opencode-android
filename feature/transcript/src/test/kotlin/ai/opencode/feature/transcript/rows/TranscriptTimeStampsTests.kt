@@ -1,5 +1,6 @@
 package ai.opencode.feature.transcript.rows
 
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.server.model.OpenCodePromptSource
@@ -304,5 +305,24 @@ class TranscriptTimeStampsTests {
         val result = TranscriptTimeStamps.stamps(turn(wednesday) + turn(today), now = now, zone = zone, locale = german)
         assertEquals("Mittwoch\t8:24", result[id(wednesday)])
         assertEquals("Heute\t8:00", result[id(today)])
+    }
+
+    /** Y-02: iOS's `Locale.current` in an English-only bundle: English words, the region's formats. */
+    @Test
+    fun writesEnglishInTheUsersRegion() {
+        assertEquals(Locale.forLanguageTag("en-DE"), appFormattingLocale(Locale.GERMANY))
+        assertEquals(Locale.forLanguageTag("en-EG"), appFormattingLocale(Locale.forLanguageTag("ar-EG")))
+        assertEquals(Locale.forLanguageTag("en"), appFormattingLocale(Locale.forLanguageTag("ar")))
+        assertEquals(Locale.forLanguageTag("en-TW-u-hc-h23"), appFormattingLocale(Locale.forLanguageTag("zh-Hant-TW-u-hc-h23")))
+        assertEquals(Locale.US, appFormattingLocale(Locale.US))
+        val now = at(10, 12, 9, 41)
+        val wednesday = at(10, 7, 21, 5)
+        val yesterday = at(10, 11, 21, 5)
+        val items = turn(wednesday) + turn(yesterday)
+        val german = TranscriptTimeStamps.stamps(items, now = now, zone = zone, locale = appFormattingLocale(Locale.GERMANY))
+        assertEquals("Wednesday\t21:05", german[id(wednesday)])
+        assertEquals("Yesterday\t21:05", german[id(yesterday)])
+        val arabic = plain(TranscriptTimeStamps.stamps(items, now = now, zone = zone, locale = appFormattingLocale(Locale.forLanguageTag("ar"))))
+        assertEquals("Yesterday\t9:05 PM", arabic[id(yesterday)])
     }
 }

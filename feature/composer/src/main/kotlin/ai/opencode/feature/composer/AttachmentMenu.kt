@@ -8,6 +8,8 @@ import ai.opencode.core.motion.transitionBlur
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.AccessibilityFocusRequest
+import ai.opencode.core.ui.accessibilityFocusRequest
 import ai.opencode.feature.composer.plusmenu.PlusMenuPlacement
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -185,6 +188,8 @@ fun AttachmentMenuRows(
     /** New Plus Menu: the menu's fixed width; otherwise the rows size to their content. */
     menuWidth: Dp? = null,
     onRowFrame: ((AttachmentMenuItem, Rect) -> Unit)? = null,
+    /** Moves TalkBack's focus onto the top row once ([accessibilityFocusRequest]). */
+    focusRequest: AccessibilityFocusRequest? = null,
     onChoose: (AttachmentMenuItem) -> Unit = {},
     onPaste: () -> Unit = {},
 ) {
@@ -229,7 +234,8 @@ fun AttachmentMenuRows(
                             .clickable(role = Role.Button) {
                                 if (item == AttachmentMenuItem.Paste) onPaste() else onChoose(item)
                             }
-                            .semantics { testTag = "attachment-menu-${item.name.lowercase()}" },
+                            .semantics { testTag = "attachment-menu-${item.name.lowercase()}" }
+                            .accessibilityFocusRequest(if (index == 0) focusRequest else null),
                     ) { label(highlighted == item) }
                 }
             }
@@ -324,6 +330,7 @@ fun AttachmentMenuMeasure(
     val density = LocalDensity.current
     // The docked keyboard's top in the measure's space (iOS `DockedKeyboard.frameInScreen`).
     val imeBottom = WindowInsets.ime.getBottom(density)
+    val navigationBarBottom = WindowInsets.navigationBars.getBottom(density)
     /** Each row's frame within the rows, from the measuring copy. */
     val rowFrames = remember { mutableStateMapOf<AttachmentMenuItem, Rect>() }
     var origin by remember { mutableStateOf(Offset.Zero) }
@@ -335,6 +342,10 @@ fun AttachmentMenuMeasure(
         val top = rootHeight - imeBottom - origin.y
         if (top < measureSize.height) keyboardTop = top
     }
+    // Keyboard down: the part of the navigation bar the measure reaches down over.
+    val navigationBarInset = if (imeBottom == 0 && measureSize.height > 0f) {
+        max(0f, navigationBarBottom - (rootHeight - origin.y - measureSize.height))
+    } else 0f
     val frames = with(density) {
         attachmentMenuFrames(
             anchors = anchors,
@@ -344,6 +355,7 @@ fun AttachmentMenuMeasure(
             itemCount = items.size,
             fontScale = min(fontScale, 2f),
             keyboardTop = keyboardTop,
+            navigationBarInset = navigationBarInset,
         )
     }
 
@@ -405,6 +417,8 @@ internal fun attachmentMenuFrames(
     fontScale: Float = 1f,
     /** The docked keyboard's top in the measure's space, if it covers part of it. */
     keyboardTop: Float? = null,
+    /** Keyboard down, the navigation bar's height over the overlay's bottom (Android only). */
+    navigationBarInset: Float = 0f,
 ): AttachmentMenuFrames {
     val button = anchors.button.translate(-origin)
     val composer = anchors.composer.translate(-origin)
@@ -423,6 +437,7 @@ internal fun attachmentMenuFrames(
         keyboardTop = keyboardTop,
         drop = px(PlusMenuTunables.MENU_DROP.dp),
         floor = px(AttachmentMenuMetrics.overComposerFloor),
+        navigationBarInset = navigationBarInset,
     )
     val seed = Rect(Offset(button.center.x - seedSize / 2, button.center.y - seedSize / 2), Size(seedSize, seedSize))
     val menu = Rect(

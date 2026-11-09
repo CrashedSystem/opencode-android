@@ -99,8 +99,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -218,7 +221,11 @@ fun HomeDrawer(
     Box(
         modifier
             .fillMaxSize()
-            .background(drawerSurface()),
+            .background(drawerSurface())
+            // TalkBack reads top to bottom, as VoiceOver reads iOS's header inset, list and bottom
+            // bar: the title and search, the list, then New Session and Settings. The bands lie
+            // over the full-height list, so without an order TalkBack read the controls first.
+            .semantics { isTraversalGroup = true },
     ) {
         val listPadding = PaddingValues(
             top = headerHeight.dp + DrawerTunables.topGap,
@@ -266,7 +273,11 @@ fun HomeDrawer(
                 .fillMaxWidth()
                 .onSizeChanged { headerHeight = it.height / density.density }
                 // The band takes its own touches: a row scrolled beneath it is never tapped through it.
-                .swallowingTouches(),
+                .swallowingTouches()
+                .semantics {
+                    isTraversalGroup = true
+                    traversalIndex = -1f
+                },
         ) {
             // Revealed by the list's scroll, so the list at rest reads clear.
             DrawerHeaderBackdrop(
@@ -315,7 +326,11 @@ fun HomeDrawer(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .drawerSearchFocusFade(viewState.search, reducedMotion),
+                .drawerSearchFocusFade(viewState.search, reducedMotion)
+                .semantics {
+                    isTraversalGroup = true
+                    traversalIndex = 1f
+                },
         ) {
             // From the buttons' top edge to the screen's bottom: rows run on behind their upper
             // part (`controlsReach`), then fade into the drawer's colour.

@@ -7,9 +7,11 @@ import ai.opencode.feature.session.agentactivity.AgentActivityGlyphModels
 import ai.opencode.feature.session.agentactivity.animationKey
 import ai.opencode.feature.session.agentactivity.drawAgentActivityOrb
 import ai.opencode.feature.transcript.list.LocalTranscriptTimelinePaused
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -21,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -66,7 +69,7 @@ fun AgentActivityGlyph(
     val localModel = remember { AgentActivityGlyphModel() }
     val key = source.animationKey
     val model = if (scope != null && key != null) remember(scope, key) { AgentActivityGlyphModels.model("$scope|$key") } else localModel
-    val reduceMotion = rememberReduceMotion()
+    val still = rememberReduceMotion() || rememberTouchExplorationEnabled()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     // Hosted transcript rows also hold while the list's timelines are paused (covered, off
     // screen, not drawn), as iOS's `transcriptTimelineGate`.
@@ -81,11 +84,12 @@ fun AgentActivityGlyph(
     var tick by remember { mutableLongStateOf(0L) }
     var shown by remember { mutableStateOf(source.activity(AgentActivityClock.now(), lab)) }
 
-    LaunchedEffect(model, isPaused, active, reduceMotion) {
+    LaunchedEffect(model, isPaused, active, still) {
         fun draw(now: Double) {
-            val frame = model.advance(now, currentSource, currentLab, reduceMotion)
+            val previousField = model.frame.field
+            val frame = model.advance(now, currentSource, currentLab, still)
             if (frame.stepped && !isPaused && active) stepTrace?.let(GlyphAdvanceProbe::stepped)
-            tick += 1
+            if (previousField == null || !still || !frame.resting || frame.activity != shown) tick += 1
             if (frame.activity != shown) shown = frame.activity
         }
         // Hidden or in the background it stops; resuming steps on from the held pose (each step
@@ -107,7 +111,7 @@ fun AgentActivityGlyph(
                 snapshotFlow { currentSource to currentLab }.first { it != (src to l) }
                 continue
             }
-            if (reduceMotion && resting) {
+            if (still && resting) {
                 // Every state holds a still pose; a slow tick still notices the next state.
                 delay(500)
                 draw(AgentActivityClock.now())
@@ -134,4 +138,19 @@ fun AgentActivityGlyph(
         tick
         drawAgentActivityOrb(model.frame.field, dark = dark)
     }
+}
+
+@Composable
+internal fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        if (manager == null) return@DisposableEffect onDispose {}
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        enabled = manager.isTouchExplorationEnabled
+        manager.addTouchExplorationStateChangeListener(listener)
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
 }

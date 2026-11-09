@@ -350,7 +350,7 @@ internal fun SessionFeature.authoritativeRefresh(
                             scope = AuthoritativeRefresh.Scope.Page,
                             context = loaded.context,
                             observedIsRead = read != null,
-                            pageCursor = loaded.pageCursor?.let { AuthoritativeRefresh.PageCursor(it.next, it.reachesStart) },
+                            pageCursor = loaded.pageCursor?.let { AuthoritativeRefresh.PageCursor(it.next, it.reachesStart, it.isComplete) },
                         ),
                     )
                 }
@@ -441,7 +441,16 @@ internal fun SessionFeature.acceptWindow(
     if (!preserve) s = s.resetLiveProjection()
     LabMarks.mark("session_data", sessionID = s.session?.id)
     s = s.copy(initialTranscriptRequestIsExternal = false, isLoading = false, loadError = null)
-    if (hasDurableRows && items.isNotEmpty() && !firstFetchedIsDurable) {
+    val complete = pageCursor?.isComplete == true
+    if (complete) {
+        s = s.copy(
+            earlierHistory = SessionFeature.State.EarlierHistory.Exhausted,
+            earlierHistoryGeneration = if (s.isLoadingEarlier) s.earlierHistoryGeneration + 1 else s.earlierHistoryGeneration,
+            earlierHistoryInsertionID = null,
+            earlierHistoryError = null,
+            earlierHistoryRetriesOnReconnect = false,
+        )
+    } else if (hasDurableRows && items.isNotEmpty() && !firstFetchedIsDurable) {
         // Reaching the oldest message once doesn't mean future refreshes can't skip an interval.
         // Reopen the cursor chain so browsing fills that gap.
         if (!allDurableRowsInWindow || s.earlierHistory != SessionFeature.State.EarlierHistory.UnknownEdge) {
@@ -461,8 +470,9 @@ internal fun SessionFeature.acceptWindow(
         projectedMessageIDs = if (preserve) s.projectedMessageIDs else emptySet(),
         echoedPromptIDs = s.echoedPromptIDs,
         pendingNoticeIDs = s.pendingNoticeIDs,
+        complete = complete,
     )
-    if (!s.isLoadingEarlier && pageCursor != null && allDurableRowsInWindow && merged.firstOrNull()?.id == firstFetchedID) {
+    if (!complete && !s.isLoadingEarlier && pageCursor != null && allDurableRowsInWindow && merged.firstOrNull()?.id == firstFetchedID) {
         val next = pageCursor.next
         s = if (next != null) {
             s.copy(earlierHistory = SessionFeature.State.EarlierHistory.Paging(next), earlierHistoryInsertionID = firstFetchedID)

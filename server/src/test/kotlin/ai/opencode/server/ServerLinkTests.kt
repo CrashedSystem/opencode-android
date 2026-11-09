@@ -601,7 +601,10 @@ class ServerLinkTests {
         clock.advance(deadline - 1.seconds)
         delay(50)
         assertFalse("Not before the deadline", done.get())
-        for (attempt in 0 until 40) {
+        // The watchdog wakes on another thread: under load it can read the clock before the jump
+        // and register its next sleep after it, landing that sleep up to a deadline later. Keep
+        // stepping (up to 100 s) until the stream ends rather than a fixed 20 s.
+        for (attempt in 0 until 200) {
             if (done.get()) break
             clock.advance(500.milliseconds)
             delay(10)

@@ -55,8 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -96,7 +99,7 @@ fun DevToolsView(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = { Text(title, Modifier.semantics { heading() }) },
                 navigationIcon = {
                     val back = if (state.route != DevToolsFeature.Route.Main) ({ send(DevToolsFeature.Action.BackTapped) }) else onClose
                     if (back != null) IconButton(onClick = back) { OpenCodeIcon(SFSymbol.ChevronBackward, "Back") }
@@ -166,7 +169,7 @@ private fun MainPage(
                 "Developer Mode",
                 null,
                 state.developerMode,
-                hint = "Adds Report a Problem to the session menu and uploads voice calls to the OpenCode log server",
+                hint = "Toggle adding Report a Problem to the session menu and uploading voice calls to the OpenCode log server",
             ) { send(DevToolsFeature.Action.DeveloperModeChanged(it)) }
         }
         item {
@@ -175,12 +178,12 @@ private fun MainPage(
                 null,
                 state.recordDiagnostics,
                 enabled = !state.developerMode,
-                hint = "Records a bounded timeline of timing and network metadata on this phone",
+                hint = "Toggle recording a bounded timeline of timing and network metadata on this phone",
             ) { send(DevToolsFeature.Action.RecordDiagnosticsChanged(it)) }
         }
         if (state.isInternalBuild && state.recordDiagnostics) {
             item {
-                SwitchRow("Include Transcripts", null, state.includesTranscripts, hint = "Keeps a short excerpt of each voice turn in the timeline") {
+                SwitchRow("Include Transcripts", null, state.includesTranscripts, hint = "Toggle keeping a short excerpt of each voice turn in the timeline") {
                     send(DevToolsFeature.Action.IncludeTranscriptsChanged(it))
                 }
             }
@@ -258,7 +261,7 @@ private fun LazyListScope.section(title: String) {
     item(key = "section-$title") {
         Text(
             title,
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp).semantics { heading() },
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -289,6 +292,12 @@ private fun SwitchRow(
     Row(
         modifier.fillMaxWidth()
             .clickable(enabled = enabled, role = Role.Switch, onClickLabel = hint) { onChange(!checked) }
+            // The row is the switch (iOS `Toggle`). Its On/Off is spelled out so a change goes out as a
+            // state description, which TalkBack speaks on the focused row.
+            .semantics {
+                toggleableState = ToggleableState(checked)
+                stateDescription = if (checked) "On" else "Off"
+            }
             .heightIn(min = 56.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

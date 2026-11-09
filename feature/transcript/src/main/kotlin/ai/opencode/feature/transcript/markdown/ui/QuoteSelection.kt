@@ -10,15 +10,17 @@ import androidx.compose.foundation.text.contextmenu.provider.TextContextMenuProv
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+
+/** TalkBack's whole-block Quote action for the enclosing reply block (iOS `quoteSelectionSource`). */
+internal val LocalQuoteAccessibilityAction = compositionLocalOf<CustomAccessibilityAction?> { null }
 
 /**
  * A block whose text can be quoted whole (iOS `QuoteSelectionBlockSource`): TalkBack's Quote
@@ -87,16 +89,19 @@ fun QuoteSelectionContainer(
         return
     }
     val currentHandler by rememberUpdatedState(handler)
-    Box(
-        modifier.semantics {
-            customActions = listOf(
-                CustomAccessibilityAction("Quote") {
-                    source.fullBlockQuoteText()?.let { currentHandler.quote(it) }
-                    true
-                },
-            )
-        },
-    ) { content() }
+    val currentSource by rememberUpdatedState(source)
+    // Attached directly to the block's Text semantics (via LocalQuoteAccessibilityAction) rather
+    // than an unmerged wrapper Box, matching iOS `.accessibilityAction(named: Text("Quote"))` and
+    // avoiding a per-paragraph ancestor semantics node during streaming scroll/growth.
+    val quoteAction = remember {
+        CustomAccessibilityAction("Quote") {
+            currentSource.fullBlockQuoteText()?.let { currentHandler.quote(it) }
+            true
+        }
+    }
+    CompositionLocalProvider(LocalQuoteAccessibilityAction provides quoteAction) {
+        Box(modifier) { content() }
+    }
 }
 
 /**

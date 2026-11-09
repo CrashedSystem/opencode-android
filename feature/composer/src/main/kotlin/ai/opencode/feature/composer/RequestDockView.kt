@@ -96,6 +96,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -1017,16 +1018,16 @@ private class DockScope(
                 .clickable(enabled = enabled, role = Role.Button) {
                     state.expandedPermissionID = if (expanded) null else permission.id
                 }
-                .semantics(mergeDescendants = true) {
+                .clearAndSetSemantics {
                     contentDescription = summary.text
                     stateDescription = if (expanded) "Expanded" else "Collapsed"
                     onClick(label = if (expanded) "Hide the details" else "Show the full ${if (summary.isCode) "command" else "details"}") {
                         state.expandedPermissionID = if (expanded) null else permission.id
                         true
                     }
+                    testTag = "request-summary"
                 }
-                .padding(vertical = 6.dp)
-                .testTag("request-summary"),
+                .padding(vertical = 6.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
@@ -1073,7 +1074,6 @@ private class DockScope(
                         modifier = Modifier
                             .fillMaxWidth()
                             .semantics {
-                                contentDescription = "Always Allow"
                                 stateDescription = scope
                                 // iOS hint “Shows what won’t ask again”.
                                 onClick(label = "Show what won’t ask again") {

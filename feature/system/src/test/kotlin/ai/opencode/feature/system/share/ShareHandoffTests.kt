@@ -3,10 +3,13 @@ package ai.opencode.feature.system.share
 import ai.opencode.core.files.ComposerFileStaging
 import ai.opencode.core.files.AttachmentFileType
 import ai.opencode.core.testing.TestIsolationRule
+import android.content.ClipData
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.ExifInterface
+import android.net.Uri
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -177,6 +180,29 @@ class SharedItemLoaderAndActivationTests {
 @Config(sdk = [35])
 class SharedItemLoaderAndActivationFrameworkTests {
     @get:Rule val isolation = TestIsolationRule()
+
+    @Test
+    fun chromeSharesTheURLNotItsChooserThumbnail() {
+        val preview = Uri.parse("content://sender/thumbnail")
+        val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "https://example.com/")
+        intent.clipData = ClipData.newRawUri("Preview", preview)
+        assertEquals(listOf(SharedItemLoader.Provider.Text("https://example.com/")), SharedItemLoader.providers(intent))
+
+        intent.removeExtra(Intent.EXTRA_TEXT)
+        assertEquals(listOf(SharedItemLoader.Provider.Stream(preview, "text/plain")), SharedItemLoader.providers(intent))
+    }
+
+    @Test
+    fun multipleImagesInClipDataArePayloadEvenWithACaption() {
+        val first = Uri.parse("content://photos/one")
+        val second = Uri.parse("content://photos/two")
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).setType("image/*").putExtra(Intent.EXTRA_TEXT, "Both photos")
+        intent.clipData = ClipData.newRawUri("Photos", first).apply { addItem(ClipData.Item(second)) }
+        assertEquals(
+            listOf(SharedItemLoader.Provider.Stream(first, null), SharedItemLoader.Provider.Stream(second, null), SharedItemLoader.Provider.Text("Both photos")),
+            SharedItemLoader.providers(intent),
+        )
+    }
 
     @Test
     fun stagesJSONAcrossFileURLTransferableAndInMemoryRepresentationsWithoutRewritingBytes() {

@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -82,6 +83,9 @@ class TranscriptReplySelection {
 
     private class Ends(val start: End, val end: End)
 
+    /** A selection saved when the activity was recreated, put back once its reply is in the list. */
+    private class Pending(val ends: Ends, val menu: Boolean)
+
     private sealed interface Drag {
         class Sweep(val base: TextRange) : Drag
         class Handle(val fixed: End, val grab: Offset) : Drag
@@ -135,6 +139,9 @@ class TranscriptReplySelection {
     internal var overlay: TranscriptReplySelectionOverlayNode? = null
 
     val isSelected: Boolean get() = ends != null
+
+    private var pending: Pending? = null
+    private var restoreAttempted = false
 
     // MARK: Anchors
 
@@ -220,6 +227,8 @@ class TranscriptReplySelection {
 
     /** iOS `clearSelection`: ends the magnifier, any drag and the menu too. */
     fun clear(byReader: Boolean = false) {
+        // The list's first configuration clears before the saved selection is put back.
+        if (restoreAttempted) pending = null
         drag = null
         isDragging = false
         hasMoved = false
@@ -268,8 +277,29 @@ class TranscriptReplySelection {
         this.ends = Ends(End(ends.start.key, startLocal), End(ends.end.key, endLocal))
     }
 
+    /**
+     * Puts back the selection [Saver] kept across the activity being recreated (iOS keeps it
+     * through a trait change), once the list has its reply; dropped if its leaves are gone, or
+     * once the reader selects, sends or jumps first. Called after each list update.
+     */
+    fun restorePending() {
+        restoreAttempted = true
+        val pending = pending ?: return
+        val next = host?.document(pending.ends.start.key.itemID) ?: return
+        this.pending = null
+        val start = next.index(pending.ends.start.key) ?: return
+        val end = next.index(pending.ends.end.key) ?: return
+        document = next
+        revision += 1
+        val startLocal = minOf(pending.ends.start.local, next.leaves[start].length)
+        val endLocal = minOf(pending.ends.end.local, next.leaves[end].length)
+        setEnds(Ends(End(pending.ends.start.key, startLocal), End(pending.ends.end.key, endLocal)), byReader = false)
+        if (pending.menu) presentMenu()
+    }
+
     /** Uses [document] for what comes next, dropping a selection in another reply first. */
     private fun adopt(document: TranscriptSelectionDocument) {
+        pending = null
         if (document === this.document) return
         if (ends != null) clear()
         this.document = document
@@ -551,6 +581,27 @@ class TranscriptReplySelection {
     }
 
     companion object {
+        /**
+         * For the list's `rememberSaveable`: the selected ends (and whether the menu was up) outlive
+         * the activity being recreated, where iOS's selection view only redraws. A drag in
+         * progress, the magnifier and the document are rebuilt, not saved.
+         */
+        val Saver: Saver<TranscriptReplySelection, List<Any>> = Saver(
+            save = { selection ->
+                val saved = selection.ends?.let { Pending(it, selection.menuWanted) } ?: selection.pending
+                saved?.let { (listOf(it.ends.start, it.ends.end).flatMap { end -> listOf(end.key.itemID, end.key.blockID, end.key.part, end.local) }) + it.menu }
+                    ?: emptyList()
+            },
+            restore = { saved ->
+                TranscriptReplySelection().apply {
+                    if (saved.size == 9) {
+                        fun end(at: Int) = End(TranscriptSelectionLeafKey(saved[at] as String, saved[at + 1] as Int, saved[at + 2] as Int), saved[at + 3] as Int)
+                        pending = Pending(Ends(end(0), end(4)), saved[8] as Boolean)
+                    }
+                }
+            },
+        )
+
         /** iOS `Hit.reach`: how far from text a hold or double tap still lands (vertical counts 4×). */
         const val HIT_REACH = 12f
 

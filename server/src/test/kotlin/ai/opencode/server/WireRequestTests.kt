@@ -6,6 +6,7 @@ import ai.opencode.core.dependencies.withDependenciesSuspending
 import ai.opencode.core.testing.TestIsolationRule
 import ai.opencode.server.live.LOCATION_BOOT_TIMEOUT
 import ai.opencode.server.live.WAIT_POLL_TIMEOUT
+import ai.opencode.server.model.FileReadTarget
 import ai.opencode.server.model.OpenCodeDelivery
 import ai.opencode.server.model.OpenCodeNotifyPluginStatus
 import ai.opencode.server.model.OpenCodeOutgoingAttachment
@@ -284,6 +285,22 @@ class WireRequestTests {
         val remote = server.imageRequest("https://cdn.example/x.png", null)
         assertEquals("https://cdn.example/x.png", remote?.url?.toString())
         assertNull(remote?.header("Authorization"))
+    }
+
+    @Test
+    fun retryReadsAnOutsideMarkdownImageFromItsOwnFolderAgain() = runTest {
+        withFixture(WireFixture { Reply.status(404) }) { fixture ->
+            val client = OpenCodeClient.testValue
+            val target = FileReadTarget("/elsewhere", "missing.png")
+            repeat(2) {
+                assertNull(client.markdownImage(fixture.server, "/work/proj", "/elsewhere/missing.png", target))
+            }
+            assertEquals(2, fixture.requests.size)
+            for (request in fixture.requests) {
+                assertEquals("GET /api/fs/read/missing.png", request.route)
+                assertEquals(listOf("location[directory]" to "/elsewhere"), request.queryItems)
+            }
+        }
     }
 
     /** iOS `VoiceHandoff.format(instruction:transcriptDelta: [])` (its type lives in `:feature:voice`). */

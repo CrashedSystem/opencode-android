@@ -3,12 +3,14 @@ package ai.opencode.feature.drawer.catchup
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.ui.OpenCodeTheme
 import android.graphics.RuntimeShader
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -18,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.Lifecycle
@@ -40,7 +43,7 @@ import kotlin.math.min
  */
 @Composable
 fun CatchUpDriftFieldView(isFinished: Boolean, modifier: Modifier = Modifier) {
-    val reduceMotion = rememberReduceMotion()
+    val isStill = rememberReduceMotion() || rememberTouchExplorationEnabled()
     val isDark = OpenCodeTheme.colors.isDark
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val isPaused = !lifecycle.isAtLeast(Lifecycle.State.RESUMED)
@@ -56,8 +59,8 @@ fun CatchUpDriftFieldView(isFinished: Boolean, modifier: Modifier = Modifier) {
     LaunchedEffect(isFinished) {
         finishStart = if (isFinished) CatchUpDriftRenderer.clock() else null
     }
-    LaunchedEffect(reduceMotion, isPaused) {
-        if (reduceMotion || isPaused) return@LaunchedEffect
+    LaunchedEffect(isStill, isPaused) {
+        if (isStill || isPaused) return@LaunchedEffect
         // A slow drift: 30 frames a second look the same as 60 (iOS 22ddb6a0), so the field
         // redraws only every other frame or so (a little early, so 60 Hz lands on every second).
         val frameSeconds = 1.0 / CatchUpDriftRenderer.FRAMES_PER_SECOND
@@ -78,7 +81,7 @@ fun CatchUpDriftFieldView(isFinished: Boolean, modifier: Modifier = Modifier) {
             now = now.doubleValue,
             finishStart = finishStart,
             isFinished = isFinished,
-            isStill = reduceMotion,
+            isStill = isStill,
             isDark = isDark,
             safeTopPx = safeTop.toFloat(),
             safeBottomPx = safeBottom.toFloat(),
@@ -89,6 +92,21 @@ fun CatchUpDriftFieldView(isFinished: Boolean, modifier: Modifier = Modifier) {
 
 private const val FRAME_SLACK_SECONDS = 0.002
 
+
+@Composable
+internal fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        if (manager == null) return@DisposableEffect onDispose {}
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        enabled = manager.isTouchExplorationEnabled
+        manager.addTouchExplorationStateChangeListener(listener)
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
+}
 /** Owns the shader and its uniforms (iOS `CatchUpDriftRenderer`). */
 internal class CatchUpDriftRenderer {
     private val shader = RuntimeShader(SHADER)
@@ -219,6 +237,7 @@ internal class CatchUpDriftRenderer {
               if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= cols || cell.y >= rows) return half4(0.0);
               float2 ctr = origin.xy + (cell + 0.5) * pitch;
               float d = length(position - ctr);
+              if (d > (look.w < 0.0 ? 0.36 : 0.52) * pitch + 0.5) return half4(0.0);
               bool dark = origin.w > 0.5;
 
               float2 pt = ctr / sc - centre.xy;

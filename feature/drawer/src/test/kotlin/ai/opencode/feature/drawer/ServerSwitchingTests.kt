@@ -57,7 +57,7 @@ class ServerSwitchingTests {
         )
         val several = DrawerTitle.Presentation(serverCount = 3, status = ConnectionStatus.connected)
         assertTrue(!several.isDimmed && several.hasMenu && several.listsServers && !several.offersTryAgain)
-        assertEquals("Shows your servers", several.accessibilityHint)
+        assertEquals("Show your servers", several.accessibilityHint)
 
         for (count in listOf(1, 3)) {
             val reconnecting = DrawerTitle.Presentation(serverCount = count, status = ConnectionStatus.reconnecting)
@@ -68,7 +68,7 @@ class ServerSwitchingTests {
             assertTrue("An outage dims it; Try Again is in its menu", offline.isDimmed && offline.hasMenu && offline.offersTryAgain)
             assertEquals(count > 1, offline.listsServers)
             assertEquals("VoiceOver doesn't rely on the dimming", "Offline", offline.accessibilityValue)
-            assertEquals(if (count > 1) "Shows your servers" else "Offers to try again", offline.accessibilityHint)
+            assertEquals(if (count > 1) "Show your servers" else "Offer to try again", offline.accessibilityHint)
         }
 
         val switching = DrawerTitle.Presentation(serverCount = 3, status = ConnectionStatus.disconnected, switchingTo = "Studio")
@@ -87,7 +87,7 @@ class ServerSwitchingTests {
                 rejected.isDimmed && rejected.hasMenu && rejected.offersEdit && !rejected.offersTryAgain,
             )
             assertEquals("Sign-in failed", rejected.accessibilityValue)
-            assertEquals(if (count > 1) "Shows your servers" else "Offers to edit the server", rejected.accessibilityHint)
+            assertEquals(if (count > 1) "Show your servers" else "Offer to edit the server", rejected.accessibilityHint)
         }
         val offline = DrawerTitle.Presentation(serverCount = 1, status = ConnectionStatus.disconnected)
         assertTrue(offline.offersTryAgain && !offline.offersEdit)

@@ -102,7 +102,7 @@ data class OpenCodeTranscriptWindow(
      * when nothing is older, so a page shorter than its limit says so too (it names an unnamed
      * session after its first prompt; paging still follows [next]).
      */
-    data class PageCursor(val next: String?, val reachesStart: Boolean = next == null)
+    data class PageCursor(val next: String?, val reachesStart: Boolean = next == null, val isComplete: Boolean = next == null)
 }
 
 /**
@@ -113,9 +113,11 @@ data class OpenCodeTranscriptWindow(
 suspend fun OpenCodeClient.transcriptWithContextUsageAndCursor(server: OpenCodeServer, sessionID: String, limit: Int): OpenCodeTranscriptWindow {
     val capture = TranscriptContextCapture()
     val items = TranscriptContextCapture.current.withValue(capture) { transcript(server, sessionID, limit) }
-    capture.take()?.let {
-        val reachesStart = it.nextCursor == null || it.messageCount < limit
-        return OpenCodeTranscriptWindow(items, it.reading, OpenCodeTranscriptWindow.PageCursor(it.nextCursor, reachesStart))
+    capture.take()?.let { captured ->
+        val next = captured.cursor?.next
+        // Missing cursor metadata is sufficient for the existing paging/title heuristics, not for erasing rows.
+        val pageCursor = OpenCodeTranscriptWindow.PageCursor(next, next == null || captured.messageCount < limit, captured.cursor != null && next == null)
+        return OpenCodeTranscriptWindow(items, captured.reading, pageCursor)
     }
     val fallback = try { contextUsage(server, sessionID) } catch (_: OpenCodeClientError) { OpenCodeContextReading.Inconclusive }
     return OpenCodeTranscriptWindow(items, fallback, null)

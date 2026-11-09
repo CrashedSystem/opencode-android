@@ -1,5 +1,6 @@
 package ai.opencode.feature.drawer.motion
 
+import ai.opencode.core.ui.appFormattingLocale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -42,7 +43,7 @@ object DrawerTimestamp {
         date: Instant,
         now: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
-        locale: Locale = Locale.getDefault(),
+        locale: Locale = appFormattingLocale(),
         hour24: Boolean? = null,
     ): String = Day(now, zone, locale, hour24).text(date)
 

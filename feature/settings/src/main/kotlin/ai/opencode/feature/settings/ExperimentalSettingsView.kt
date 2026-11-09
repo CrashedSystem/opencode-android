@@ -155,7 +155,7 @@ private fun highlightSpec(highlighted: Boolean, reduceMotion: Boolean): Animatio
  * (“2 On”), or “All On” while All Experiments is.
  */
 @Composable
-fun ExperimentalSettingsRow(onClick: () -> Unit) {
+fun ExperimentalSettingsRow(modifier: Modifier = Modifier, onClick: () -> Unit) {
     val all by remember { shared(AllExperiments.key).flow }.collectAsState()
     val features = ExperimentalGroup.entries.flatMap { it.features }
     val enabled = features.map { feature -> remember(feature) { shared(feature.key).flow }.collectAsState().value }
@@ -164,7 +164,7 @@ fun ExperimentalSettingsRow(onClick: () -> Unit) {
         if (enabled[index]) on += 1
     }
     val value = if (all) "All On" else if (on == 0) null else "$on On"
-    SettingsRow("Experimental", "flask.fill", SettingsTint.Gray, value = value, onClick = onClick)
+    SettingsRow("Experimental", "flask.fill", SettingsTint.Gray, value = value, modifier = modifier, onClick = onClick)
 }
 
 val ExperimentalGroup.tint: SettingsTint

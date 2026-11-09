@@ -212,7 +212,7 @@ internal suspend fun selectedTranscript(
     sessionID: String,
 ): Pair<Result<List<OpenCodeTranscriptItem>>, SessionFeature.AuthoritativeRefresh.PageCursor?> = try {
     val window = client.transcriptWithContextUsageAndCursor(server, sessionID, SessionFeature.firstFrameFetchLimit)
-    Result.success(window.items) to window.pageCursor?.let { SessionFeature.AuthoritativeRefresh.PageCursor(it.next, it.reachesStart) }
+    Result.success(window.items) to window.pageCursor?.let { SessionFeature.AuthoritativeRefresh.PageCursor(it.next, it.reachesStart, it.isComplete) }
 } catch (cancellation: CancellationException) {
     throw cancellation
 } catch (error: OpenCodeClientError) {

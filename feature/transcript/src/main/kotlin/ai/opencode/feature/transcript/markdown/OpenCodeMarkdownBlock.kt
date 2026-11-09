@@ -530,10 +530,29 @@ data class OpenCodeMarkdownBlock(val id: Int, val kind: Kind) {
             val cells = body.split('|').map { cell ->
                 val parsed = inlineEntry(SwiftText.trimWhitespace(cell), cache)
                 if (parsed.cardFiles.isNotEmpty()) cardFiles.addAll(parsed.cardFiles)
-                parsed.attributed
+                tableCellLineBreaks(parsed.attributed)
             }
             return InlineCache.TableRowEntry(cells, cardFiles)
         }
+
+        private val tableCellBreak = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
+
+        /**
+         * Android divergence: a `<br>` (`<br/>`, `<br />`) in a table cell's prose breaks the
+         * line, as GitHub renders it, since a pipe row can't hold a newline. iOS's Foundation
+         * parser keeps it literal. Code, links and math keep their text; no other HTML is read.
+         */
+        private fun tableCellLineBreaks(cell: InlineText): InlineText {
+            if (cell.runs.none { it.breaksTableCellLines() }) return cell
+            return InlineText(
+                cell.runs.map { run ->
+                    if (run.breaksTableCellLines()) run.copy(text = run.text.replace(tableCellBreak, "\n")) else run
+                },
+            )
+        }
+
+        private fun InlineRun.breaksTableCellLines(): Boolean =
+            !code && link == null && languageIdentifier == null && sessionChip == null && tableCellBreak.containsMatchIn(text)
 
         private fun inlineEntry(text: String, cache: InlineCache?): InlineCache.Entry = cache?.parse(text) ?: uncachedInlineEntry(text)
 

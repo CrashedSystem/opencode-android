@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -118,9 +117,11 @@ fun PastedTextCard(
                 color = OpenCodeTheme.colors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                // iOS `Spacer(minLength: 6)` gives way before the title does: the title takes the
+                // free width (drawn from the leading edge) and truncates only past it.
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f).widthIn(min = 6.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 summary.length,
                 style = OpenCodeTextStyles.caption1.copy(fontFeatureSettings = "tnum"),

@@ -9,6 +9,7 @@ import ai.opencode.core.ui.OpenCodeSecondaryButton
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.model.OpenCodeFormField
 import ai.opencode.server.model.OpenCodeFormFieldType
 import ai.opencode.server.model.OpenCodeFormOption
@@ -339,4 +340,4 @@ private fun AnswerField(
 
 /** Swift's `Double.formatted()` for a number answer shown back in its field. */
 private fun formatTypedNumber(value: Double): String =
-    java.text.DecimalFormat("#,##0.######", java.text.DecimalFormatSymbols.getInstance(java.util.Locale.getDefault())).format(value)
+    java.text.DecimalFormat("#,##0.######", java.text.DecimalFormatSymbols.getInstance(appFormattingLocale())).format(value)

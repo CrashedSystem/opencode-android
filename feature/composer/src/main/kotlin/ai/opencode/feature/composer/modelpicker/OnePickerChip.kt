@@ -170,13 +170,16 @@ fun OnePickerChip(
                     AnimatedLevelArc(scale, level, size = 14.5.dp, color = OpenCodeTheme.colors.text.copy(alpha = 0.78f))
                 }
                 if (OnePickerTunables.CHIP_SHOWS_LEVEL_WORD && levelLabel != null) {
-                    OnePickerChipRoll(levelLabel, animates, reduceMotion, label = "onePickerLevel") { word ->
+                    // Measured last: a short row ellipsizes the quieter level word before the name, not
+                    // a hard clip at the row's edge.
+                    OnePickerChipRoll(levelLabel, animates, reduceMotion, label = "onePickerLevel", modifier = Modifier.weight(1f, fill = false)) { word ->
                         Text(
                             word,
                             style = ChipTextStyle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

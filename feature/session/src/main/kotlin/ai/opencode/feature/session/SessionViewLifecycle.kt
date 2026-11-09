@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.retain.retain
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -35,7 +36,14 @@ internal fun SessionLifecycle(store: StoreOf<State, Action>) {
     val taskIdentity by store.observe { it.taskIdentity }
     // Keyed by visit and session: the drawer swaps the screen in place, a draft opened from another
     // draft starts a fresh task, and a draft becoming its own session continues the one it started.
-    LaunchedEffect(taskIdentity) { store.send(Action.Task) }
+    // Retained across activity recreation so a theme or font-scale change doesn't re-run `.task`
+    // (which reloads the transcript as `.open` and discards pending dictation, K-01).
+    val startedTaskIdentity = retain { arrayOfNulls<State.TaskIdentity>(1) }
+    LaunchedEffect(taskIdentity) {
+        if (startedTaskIdentity[0] == taskIdentity) return@LaunchedEffect
+        startedTaskIdentity[0] = taskIdentity
+        store.send(Action.Task)
+    }
     // A held mic's bar shows its scope at once.
     LaunchedEffect(Unit) { DotScopeRenderer.prepare() }
 
@@ -57,7 +65,7 @@ internal fun SessionLifecycle(store: StoreOf<State, Action>) {
             if (catchingUp || changingConfigurations()) return@LifecycleEventObserver
             val active = when (event) {
                 Lifecycle.Event.ON_RESUME -> true
-                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP, Lifecycle.Event.ON_START -> false
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> false
                 else -> return@LifecycleEventObserver
             }
             currentStore.send(Action.SceneActiveChanged(active))
@@ -85,6 +93,6 @@ internal fun SessionLifecycle(store: StoreOf<State, Action>) {
         notifications.setVisibleSession(sceneActive && isVisible && !isCovered, sessionID)
     }
     DisposableEffect(notifications) {
-        onDispose { notifications.setVisibleSession(false, latestSessionID) }
+        onDispose { if (!changingConfigurations()) notifications.setVisibleSession(false, latestSessionID) }
     }
 }

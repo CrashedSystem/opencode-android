@@ -217,6 +217,9 @@ fun ComposerMorphSurface(
         Box(
             Modifier
                 .fillMaxSize()
+                // iOS `accessibilityHidden(true)`. Ahead of the clickable: after it, the clearing
+                // would leave the click's own semantics, a full-screen "Unlabelled" button.
+                .clearAndSetSemantics {}
                 .then(
                     if (morph.isOpen) {
                         Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
@@ -224,8 +227,7 @@ fun ComposerMorphSurface(
                         Modifier
                     },
                 )
-                .excludedFromDrawerPan(morph.isOpen)
-                .clearAndSetSemantics {},
+                .excludedFromDrawerPan(morph.isOpen),
         )
         // The backdrop: everything above the sheet dims, growing with the morph; it takes no touches.
         val strength = progress.coerceIn(0f, 1f)
@@ -304,8 +306,8 @@ fun ComposerMorphSurface(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                            .clearAndSetSemantics {},
+                            .clearAndSetSemantics {}
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     )
                 }
             }
@@ -385,8 +387,8 @@ fun ComposerMorphSurface(
                         Box(
                             Modifier
                                 .matchParentSize()
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                                .clearAndSetSemantics {},
+                                .clearAndSetSemantics {}
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                         )
                     }
                 }
@@ -406,21 +408,24 @@ val LocalComposerMorphContentActive = compositionLocalOf { true }
 private const val RETAINED_CONTENT_PREWARM_MILLIS = 700L
 
 /**
- * The retained content while closed: laid out at the rest's size (so opening only moves it),
- * one screen below the window so no pointer reaches it, transparent and out of semantics.
+ * The retained content while closed: measured at the rest's size (so opening only places it),
+ * never placed while closed so nothing draws, takes touches, or registers bounds in RectManager.
  */
 @Composable
 private fun RetainedClosedContent(screen: Rect, target: (screen: Rect, keyboardTop: Float?) -> Rect, content: @Composable () -> Unit) {
-    val rest = target(screen, null).translate(-screen.topLeft)
+    val rest = target(screen, null)
     val focusManager = LocalFocusManager.current
-    PlacedBox(
-        Rect(Offset(rest.left, screen.height * 2), rest.size),
-        Modifier
-            .graphicsLayer { alpha = 0f }
+    Layout(
+        content = { CompositionLocalProvider(LocalComposerMorphContentActive provides false) { content() } },
+        modifier = Modifier
             .clearAndSetSemantics {}
             .inertToFocus(focusManager),
-    ) {
-        CompositionLocalProvider(LocalComposerMorphContentActive provides false) { content() }
+    ) { measurables, _ ->
+        val w = rest.width.roundToInt().coerceAtLeast(1)
+        val h = rest.height.roundToInt().coerceAtLeast(1)
+        val fixed = Constraints.fixed(w, h)
+        for (i in measurables.indices) measurables[i].measure(fixed)
+        layout(0, 0) {}
     }
 }
 

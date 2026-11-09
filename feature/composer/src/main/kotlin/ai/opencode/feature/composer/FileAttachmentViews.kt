@@ -4,6 +4,7 @@ import ai.opencode.core.files.AttachmentFileType
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.media.FileAttachmentCard
 import ai.opencode.feature.media.FileAttachmentDetail
 import androidx.compose.foundation.background
@@ -52,9 +53,9 @@ object ComposerFileChip {
 
     fun subtitle(file: ComposerFileAttachment): String = AttachmentFileType.subtitle(file.name, file.mime, file.size)
 
-    /** “42%”, in the user's locale. */
+    /** “42%”, as [appFormattingLocale] writes it. */
     fun percent(value: Double): String =
-        NumberFormat.getPercentInstance().apply { maximumFractionDigits = 0 }.format(value)
+        NumberFormat.getPercentInstance(appFormattingLocale()).apply { maximumFractionDigits = 0 }.format(value)
 
     fun statusDescription(file: ComposerFileAttachment): String = when (val status = file.status) {
         is ComposerFileAttachment.Status.Uploading -> "Uploading, ${percent(file.progress)}"

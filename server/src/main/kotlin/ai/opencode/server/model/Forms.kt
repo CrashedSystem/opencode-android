@@ -1,5 +1,6 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.internal.ElementSerializer
 import ai.opencode.server.internal.arr
 import ai.opencode.server.internal.str
@@ -27,7 +28,7 @@ sealed interface OpenCodeFormValue {
          * A number as typed in [locale]: grouping separators ignored, a trailing decimal
          * separator reads as the whole number. Blank or unreadable text is no answer.
          */
-        fun typedNumber(text: String, locale: Locale = Locale.getDefault()): OpenCodeFormValue? {
+        fun typedNumber(text: String, locale: Locale = appFormattingLocale()): OpenCodeFormValue? {
             val symbols = DecimalFormatSymbols.getInstance(locale)
             var cleaned = text.trim()
             cleaned = cleaned.replace(symbols.groupingSeparator.toString(), "")

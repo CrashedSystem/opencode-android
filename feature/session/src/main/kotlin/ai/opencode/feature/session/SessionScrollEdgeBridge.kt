@@ -1,10 +1,14 @@
 package ai.opencode.feature.session
 
 import ai.opencode.feature.transcript.list.TranscriptBorrowedDrag
+import android.os.Process
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import kotlin.math.max
 import kotlin.math.min
@@ -22,6 +26,14 @@ import kotlin.math.roundToInt
 class SessionScrollEdgeBridge {
     /** The composer area's height (dp), the list's bottom content inset. */
     var composerHeight by mutableFloatStateOf(0f)
+
+    /**
+     * What the transcript last said about Jump to latest (the composer host shows it). Saved with
+     * the composer's height, so a recreated screen's pill is there from its first frame (F-38).
+     * Only within the same process: after process death the list starts hidden while its row
+     * loads (V-01) and says itself when to show the pill (AI-01).
+     */
+    var reportedShowsJumpButton = false
 
     /** Content scrolled under the header (dp), capped at the reveal distance and rounded. */
     var scrolledUnderHeader by mutableFloatStateOf(0f)
@@ -51,7 +63,12 @@ class SessionScrollEdgeBridge {
         return now
     }
 
+    /** Whether the transcript has reported where it sits yet; until then the header's bar doesn't animate. */
+    var hasPlacedTranscript by mutableStateOf(false)
+        private set
+
     fun scrolled(underHeader: Float, revealDistance: Float) {
+        if (!hasPlacedTranscript) hasPlacedTranscript = true
         val capped = min(max(underHeader, 0f), max(revealDistance, MINIMUM_TRACKED_REVEAL)).roundToInt().toFloat()
         if (capped != scrolledUnderHeader) scrolledUnderHeader = capped
     }
@@ -59,5 +76,24 @@ class SessionScrollEdgeBridge {
     companion object {
         /** Tracked even when nothing reveals with the scroll, so a band that takes over draws at once. */
         const val MINIMUM_TRACKED_REVEAL = 24f
+
+        /**
+         * For the screen's `rememberSaveable`: the composer's last height outlives the activity
+         * being recreated, so a restored transcript's first frame already has its bottom inset and
+         * lays the reader's row out where it was (I-02), instead of a frame at a shorter scroll range.
+         * Jump to latest's last state goes with it within the same process (F-38, AI-01).
+         */
+        val Saver: Saver<SessionScrollEdgeBridge, Any> = listSaver(
+            save = { listOf(it.composerHeight, it.reportedShowsJumpButton, process) },
+            restore = {
+                SessionScrollEdgeBridge().apply {
+                    composerHeight = it[0] as Float
+                    reportedShowsJumpButton = it[1] as Boolean && it.getOrNull(2) == process
+                }
+            },
+        )
+
+        /** This process (pid and start time), so a saved value can tell a recreation from a restore after process death. */
+        private val process: String get() = "${Process.myPid()}:${Process.getStartUptimeMillis()}"
     }
 }

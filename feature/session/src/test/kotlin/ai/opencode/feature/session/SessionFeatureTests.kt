@@ -32,6 +32,7 @@ import ai.opencode.server.model.OpenCodeSessionFamily
 import ai.opencode.server.model.OpenCodeShell
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
+import ai.opencode.server.model.SessionTitle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
@@ -378,6 +379,18 @@ class SessionFeatureTests {
         assertEquals(fresh, store.state.items)
         store.send(Action.RefreshResponse(sessionID = session.id, requestID = 2, result = refreshed(session, fresh, AuthoritativeRefresh.Scope.Page)))
         assertEquals(fresh, store.state.items)
+    }
+
+    @Test fun messageSettlementKeepsTheTitleReceivedDuringItsRead() = sessionTest { h ->
+        val session = testSession(title = SessionTitle.placeholder).copy(firstPrompt = "Explain todo.js")
+        val state = h.makeState(session = session).copy(refresh = State.Refresh(id = 1, reason = RefreshReason.Settlement("msg_reply")))
+        val store = h.store(state)
+        store.exhaustive = false
+
+        store.send(Action.FamilySessionRenamed(session.id, "Todo CLI walkthrough"))
+        store.send(Action.RefreshResponse(session.id, 1, refreshed(session, emptyList(), AuthoritativeRefresh.Scope.Message("msg_reply"))))
+        assertEquals("Todo CLI walkthrough", store.state.session?.title)
+        assertEquals("Todo CLI walkthrough", store.state.familySessions.single().title)
     }
 
     @Test fun messageSettlementKeepsLaterRowsAndRacedLiveContent() = sessionTest { h ->

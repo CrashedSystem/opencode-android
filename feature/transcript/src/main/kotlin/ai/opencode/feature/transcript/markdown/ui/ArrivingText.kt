@@ -47,15 +47,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.CompositingStrategy as LayerCompositingStrategy
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -66,11 +67,13 @@ import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import ai.opencode.feature.media.LinkMenu
 import ai.opencode.feature.media.LinkMenuHandler
+import ai.opencode.feature.media.LinkMenuText
 import ai.opencode.feature.media.LocalLinkMenu
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.AnnotatedString
@@ -151,6 +154,11 @@ internal fun ArrivingText(
     }
     // Focus's blur steps share a few layers, one per step (iOS: `ctx.drawLayer` per step).
     val blurLayers = if (sweep?.focus == true && sweep.blurPoints > 0) List(SweepParameters.STEPS) { rememberGraphicsLayer() } else null
+    // Offscreen layer for DstOut/Plus chunk fades (drawn inside `drawWithContent` instead of
+    // `Modifier.graphicsLayer`, whose `BlockGraphicsLayerModifier` invalidated Text semantics on
+    // every chunk).
+    val offscreenLayer = if (ends != null) rememberGraphicsLayer() else null
+    val quoteAction = LocalQuoteAccessibilityAction.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var pressed by remember { mutableStateOf<String?>(null) }
     // Web, pairing and session links hold to media's link menu (iOS `linkMenu(for:)`: the
@@ -158,6 +166,11 @@ internal fun ArrivingText(
     // from the hold); file links stay this text's own (tap opens the viewer).
     val linkMenu = remember { LinkMenuHandler { action, url -> MarkdownLinkActions.perform(action, url, send) } }
     val menuText = remember(presented.text) { linkMenuText(presented.text) }
+    // A paragraph with menu links has one TalkBack node for the links' actions and Quote, the link
+    // menu's (AL-01: an action on the Text too made TalkBack stop there, short of the links').
+    val hasMenuLinks = remember(menuText) { LinkMenuText.webLinks(menuText).isNotEmpty() }
+    val quoteOnLinkMenu = quoteAction != null && hasMenuLinks
+    val textQuoteAction = quoteAction.takeUnless { quoteOnLinkMenu }
     val chipGlyphs = if (presented.chips.isEmpty()) null else ChipGlyphs(
         session = painterResource(SFSymbol.BubbleLeftFill.drawable),
         subagent = painterResource(SFSymbol.ArrowTurnDownRight.drawable),
@@ -170,90 +183,135 @@ internal fun ArrivingText(
         fillScale = (if (colors.isDark) 1.6f else 1f) * (if (colors.highContrast) 1.8f else 1f),
     )
     val links = presented.menuLinks
+    val viewConfiguration = LocalViewConfiguration.current
+    val touchTargets = remember(viewConfiguration) { exactTouchTargets(viewConfiguration) }
 
     CompositionLocalProvider(LocalLinkMenu provides linkMenu) {
-    LinkMenu(menuText, textLayout = { layout }, onOpen = { MarkdownLinkActions.tap(it, send) }, modifier = modifier) {
-        Text(
-            text = presented.text,
-            style = style,
-            color = color,
-            softWrap = softWrap,
-            inlineContent = presented.inlineContent,
-            onTextLayout = { layout = it },
-            modifier = Modifier
-                .then(
-                    if (replySelection != null && selectionKey != null) {
-                        Modifier.transcriptSelectionAnchor(selectionKey, replySelection) { layout }
-                    } else {
-                        Modifier
-                    },
-                )
-                .graphicsLayer {
-                    compositingStrategy = if (ends != null) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-                }
-                .drawWithContent {
-                    val result = layout
-                    if (result != null && chipGlyphs != null) {
-                        for (chip in presented.chips) drawChipBackground(result, chip, emPx, chipStyle, chip.url == pressed)
-                    }
-                    drawContent()
-                    if (result != null && chipGlyphs != null) {
-                        for (chip in presented.chips) drawChipGlyph(result, chip, emPx, chipStyle, chipGlyphs)
-                    }
-                    if (result != null && active.isNotEmpty()) {
-                        frame.longValue
-                        if (sweep == null) {
-                            eraseArriving(result, active, reveal.now())
+    LinkMenu(
+        menuText,
+        textLayout = { layout },
+        onOpen = { MarkdownLinkActions.tap(it, send) },
+        modifier = modifier,
+        trailingActions = if (quoteOnLinkMenu) listOfNotNull(quoteAction) else emptyList(),
+    ) {
+        // Compose widens each link's own clickable node to a 48 dp touch target, past the
+        // link's glyphs and even past this text's box (M-02: a tap in the gap above a line
+        // opened its link). Links take touches only on their glyphs, as on iOS, so the link
+        // nodes get no minimum target: they stay inside the text, where the gesture below
+        // keeps every touch that misses the glyphs from them.
+        CompositionLocalProvider(LocalViewConfiguration provides touchTargets) {
+            Text(
+                text = presented.text,
+                style = style,
+                color = color,
+                softWrap = softWrap,
+                inlineContent = presented.inlineContent,
+                onTextLayout = { layout = it },
+                modifier = Modifier
+                    .then(
+                        if (replySelection != null && selectionKey != null) {
+                            Modifier.transcriptSelectionAnchor(selectionKey, replySelection) { layout }
                         } else {
-                            sweepArriving(result, active, reveal.now(), sweep, blurLayers)
+                            Modifier
+                        },
+                    )
+                    .drawWithContent {
+                        val result = layout
+                        val drawNow = if (result != null && active.isNotEmpty()) {
+                            frame.longValue
+                            reveal.now()
+                        } else {
+                            0.0
                         }
-                    }
-                }
-                .then(
-                    if (presented.menuLinks.isEmpty() && presented.text.getLinkAnnotations(0, presented.text.length).isEmpty()) {
-                        Modifier
-                    } else {
-                        Modifier.pointerInput(presented) {
-                            awaitEachGesture {
-                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                val url = layout?.let { linkAt(it, presented, down.position) } ?: return@awaitEachGesture
-                                // The link menu above owns the links it offers.
-                                if (MarkdownLinks.offersMenu(url)) return@awaitEachGesture
-                                down.consume()
-                                pressed = url
-                                val slop = viewConfiguration.touchSlop
-                                // Holding decides a little before selection's own long press, so the
-                                // menu wins and the consumed events cancel selection's.
-                                val holdAfter = (viewConfiguration.longPressTimeoutMillis * 0.85).toLong()
-                                // 0 cancelled, 1 tap, 2 hold
-                                val decided = withTimeoutOrNull(holdAfter) {
-                                    var result = -1
-                                    while (result < 0) {
-                                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                                        val change = event.changes.firstOrNull { it.id == down.id }
-                                        result = when {
-                                            change == null -> 0
-                                            !change.pressed -> { change.consume(); 1 }
-                                            (change.position - down.position).getDistance() > slop -> 0
-                                            else -> -1
-                                        }
-                                    }
-                                    result
+                        val fading = result != null && offscreenLayer != null && active.isNotEmpty() &&
+                            ends != null && drawNow < ends && size.width > 0f && size.height > 0f
+                        if (fading) {
+                            offscreenLayer.compositingStrategy = LayerCompositingStrategy.Offscreen
+                            offscreenLayer.record {
+                                if (chipGlyphs != null) {
+                                    for (chip in presented.chips) drawChipBackground(result, chip, emPx, chipStyle, chip.url == pressed)
                                 }
-                                if (decided == 1) MarkdownLinkActions.tap(url, send)
-                                pressed = null
+                                this@drawWithContent.drawContent()
+                                if (chipGlyphs != null) {
+                                    for (chip in presented.chips) drawChipGlyph(result, chip, emPx, chipStyle, chipGlyphs)
+                                }
+                                if (sweep == null) {
+                                    eraseArriving(result, active, drawNow)
+                                } else {
+                                    sweepArriving(result, active, drawNow, sweep, blurLayers)
+                                }
+                            }
+                            drawLayer(offscreenLayer)
+                        } else {
+                            if (result != null && chipGlyphs != null) {
+                                for (chip in presented.chips) drawChipBackground(result, chip, emPx, chipStyle, chip.url == pressed)
+                            }
+                            drawContent()
+                            if (result != null && chipGlyphs != null) {
+                                for (chip in presented.chips) drawChipGlyph(result, chip, emPx, chipStyle, chipGlyphs)
                             }
                         }
+                    }
+                    .then(
+                        if (presented.menuLinks.isEmpty() && presented.text.getLinkAnnotations(0, presented.text.length).isEmpty()) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(presented) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    val laidOut = layout ?: return@awaitEachGesture
+                                    val url = linkAt(laidOut, presented, down.position)
+                                    if (url == null) {
+                                        // Off a link's glyphs the touch goes to the text: keep it from
+                                        // the node Compose lays over each link's whole box, which for a
+                                        // wrapped link spans both lines' full width.
+                                        if (!down.isConsumed && inLinkBox(laidOut, presented, down.position)) down.consume()
+                                        return@awaitEachGesture
+                                    }
+                                    // The link menu above owns the links it offers.
+                                    if (MarkdownLinks.offersMenu(url)) return@awaitEachGesture
+                                    down.consume()
+                                    pressed = url
+                                    val slop = viewConfiguration.touchSlop
+                                    // Holding decides a little before selection's own long press, so the
+                                    // menu wins and the consumed events cancel selection's.
+                                    val holdAfter = (viewConfiguration.longPressTimeoutMillis * 0.85).toLong()
+                                    // 0 cancelled, 1 tap, 2 hold
+                                    val decided = withTimeoutOrNull(holdAfter) {
+                                        var result = -1
+                                        while (result < 0) {
+                                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                                            val change = event.changes.firstOrNull { it.id == down.id }
+                                            result = when {
+                                                change == null -> 0
+                                                !change.pressed -> { change.consume(); 1 }
+                                                (change.position - down.position).getDistance() > slop -> 0
+                                                else -> -1
+                                            }
+                                        }
+                                        result
+                                    }
+                                    if (decided == 1) MarkdownLinkActions.tap(url, send)
+                                    pressed = null
+                                }
+                            }
+                        },
+                    )
+                    .semantics {
+                        // iOS `.accessibilityHint("Links to …")`: read after the text.
+                        presented.linkHint?.let { stateDescription = it }
+                        // With menu links, Quote joins the links' actions on the link menu's box.
+                        if (textQuoteAction != null) customActions = listOf(textQuoteAction)
                     },
-                )
-                .semantics {
-                    // iOS `.accessibilityHint("Links to …")`: read after the text.
-                    presented.linkHint?.let { stateDescription = it }
-                    // The link menu gives TalkBack the links' actions (on its box).
-                },
-        )
+            )
+        }
     }
     }
+}
+
+/** [base] without a minimum touch target: a node takes touches only inside its own bounds. */
+private fun exactTouchTargets(base: ViewConfiguration): ViewConfiguration = object : ViewConfiguration by base {
+    override val minimumTouchTargetSize: DpSize get() = DpSize.Zero
 }
 
 /** [text] with each link as a `LinkAnnotation.Url` over the same ranges, as media's [LinkMenu] reads links. */
@@ -280,6 +338,15 @@ private fun linkAt(layout: TextLayoutResult, presented: PresentedText, position:
         if (link != null) return link.tag
     }
     return null
+}
+
+/** Whether [position] is inside the box of the lines a link covers, where Compose places the link's own node. */
+private fun inLinkBox(layout: TextLayoutResult, presented: PresentedText, position: Offset): Boolean {
+    val length = layout.layoutInput.text.length
+    return presented.text.getLinkAnnotations(0, presented.text.length).any { range ->
+        val end = minOf(range.end, length)
+        range.start < end && layout.getPathForRange(range.start, end).getBounds().contains(position)
+    }
 }
 
 /** Erases each arriving chunk's characters by `1 - opacity` (DstOut over the offscreen layer). */

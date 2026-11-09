@@ -1,5 +1,6 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.ui.appFormattingLocale
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -18,7 +19,6 @@ import java.math.BigDecimal
 import java.text.BreakIterator
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.util.Locale
 
 /** Port of iOS `OpenCodeJSONValue`: any JSON value, decoded leniently. */
 @Serializable(with = OpenCodeJSONValueSerializer::class)
@@ -142,15 +142,16 @@ private fun jsonString(text: String): String = buildString {
 }
 
 /**
- * Swift's `Double.formatted()`: the current locale, grouped, and ICU's default of at most six
- * fraction digits, rounded half to even (`0.26575467567788` → "0.265755").
+ * Swift's `Double.formatted()`: `Locale.current` (English in the user's region, see
+ * [appFormattingLocale]), grouped, and ICU's default of at most six fraction digits, rounded half
+ * to even (`0.26575467567788` → "0.265755").
  */
 internal fun formatGroupedNumber(value: Double): String =
-    DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.getDefault())).format(value)
+    DecimalFormat("#,##0.######", DecimalFormatSymbols(appFormattingLocale())).format(value)
 
 /** Swift's `Double.formatted(.number.grouping(.never))`: as [formatGroupedNumber], ungrouped. */
 internal fun formatPlainNumber(value: Double): String =
-    DecimalFormat("0.######", DecimalFormatSymbols(Locale.getDefault())).format(value)
+    DecimalFormat("0.######", DecimalFormatSymbols(appFormattingLocale())).format(value)
 
 internal fun utf8Length(text: String): Int {
     var count = 0

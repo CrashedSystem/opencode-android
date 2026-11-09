@@ -1,5 +1,6 @@
 package ai.opencode.feature.system.intents
 
+import ai.opencode.feature.system.LeftToRight
 import ai.opencode.feature.system.SessionDirectory
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.dependency
@@ -11,6 +12,7 @@ import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodePrimaryButton
 import ai.opencode.core.ui.OpenCodeSecondaryButton
 import ai.opencode.core.ui.SFSymbol
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -78,6 +80,11 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class AskOpenCodeActivity : ComponentActivity() {
     private val model: AskOpenCodeModel by viewModels()
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        applyOverrideConfiguration(LeftToRight.configuration())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

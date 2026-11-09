@@ -63,6 +63,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -293,6 +294,13 @@ class LinkMenuHandler(val perform: (LinkMenuAction, String) -> Unit) {
 /** iOS `EnvironmentValues.linkMenu`. */
 val LocalLinkMenu = staticCompositionLocalOf<LinkMenuHandler?> { null }
 
+/** The most custom actions one node may carry: past it Android throws as the tree is read (VoiceOver has no cap). */
+const val MAX_CUSTOM_ACCESSIBILITY_ACTIONS = 32
+
+/** [this], cut to what one node may carry ([MAX_CUSTOM_ACCESSIBILITY_ACTIONS]). */
+fun List<CustomAccessibilityAction>.withinNodeLimit(): List<CustomAccessibilityAction> =
+    if (size <= MAX_CUSTOM_ACCESSIBILITY_ACTIONS) this else take(MAX_CUSTOM_ACCESSIBILITY_ACTIONS)
+
 /** Port of iOS `LinkMenuText`. */
 object LinkMenuText {
     /** The text's web links, once each, in order. */
@@ -306,8 +314,17 @@ object LinkMenuText {
             ?: BrowserLinkPolicy.displayHost(url)
             ?: url
 
-    /** One link: the menu's own titles. Several: each names its host. */
-    fun accessibilityName(action: LinkMenuAction, url: String, among: List<String>): String {
+    /**
+     * One link: the menu's own titles. Several: each names its host, and a host that several
+     * links share also names what tells each apart ([accessibilityTarget]). [linkText] is a link's
+     * own text in the reply.
+     */
+    fun accessibilityName(
+        action: LinkMenuAction,
+        url: String,
+        among: List<String>,
+        linkText: (String) -> String? = { null },
+    ): String {
         val id = SessionLink.id(url)
         if (id != null) {
             val name = SessionLink.title(url) ?: SessionLink.shortID(id)
@@ -317,7 +334,7 @@ object LinkMenuText {
             }
         }
         if (among.size <= 1) return action.title.replace("…", "")
-        val host = displayHost(url)
+        val host = accessibilityTarget(url, among, linkText)
         return when (action) {
             LinkMenuAction.OpenInAppBrowser -> "Open $host in App Browser"
             LinkMenuAction.OpenInSafari -> "Open $host in Browser"
@@ -326,6 +343,114 @@ object LinkMenuText {
             LinkMenuAction.Share -> "Share Link to $host"
             LinkMenuAction.OpenSession, LinkMenuAction.CopySessionID -> action.title
         }
+    }
+
+    /**
+     * What names a web link among the text's links: its host (as iOS), or, when another link has
+     * the same host, also what tells it apart: its own text if that isn't its address (“docs on
+     * example.com”), else its path (“example.net/n-3”), else its place (“example.net link 3”).
+     * Android-only: TalkBack shows one of several actions with the same label, VoiceOver all.
+     */
+    fun accessibilityTarget(url: String, among: List<String>, linkText: (String) -> String? = { null }): String {
+        val host = displayHost(url)
+        if (SessionLink.id(url) != null) return host
+        val sameHost = among.filter { SessionLink.id(it) == null && displayHost(it) == host }
+        if (sameHost.size <= 1) return host
+        fun ownText(link: String): String? {
+            val text = linkText(link)?.filterNot { it in invisibleLinkChars }?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            // A bare URL shows its own address (scheme dropped, maybe shortened): that names nothing new.
+            val bare = text.lowercase().removePrefix("https://").removePrefix("http://").removePrefix("www.")
+            return text.takeUnless { bare.startsWith(host.lowercase().removePrefix("www.")) }
+        }
+        ownText(url)?.let { text -> if (sameHost.count { ownText(it) == text } == 1) return "$text on $host" }
+        path(url)?.let { path -> if (sameHost.count { path(it) == path } == 1) return "$host$path" }
+        return "$host link ${among.indexOf(url) + 1}"
+    }
+
+    /** [url]'s path and query, without a trailing slash; null when it has none. */
+    private fun path(url: String): String? {
+        val rest = url.substringAfter("://", "").substringBefore('#')
+        val slash = rest.indexOfAny(charArrayOf('/', '?')).takeIf { it >= 0 } ?: return null
+        return rest.substring(slash).trimEnd('/').takeIf { it.isNotEmpty() }
+    }
+
+    /** The word joiner and object placeholders a link's inline icon slot adds to its text. */
+    private val invisibleLinkChars = setOf('\u2060', '\uFFFC', '\uFFFD', '\u200B')
+
+    /** TalkBack's name for the action that lists the links whose actions don't fit on the text. */
+    const val moreLinks = "More Links"
+
+    /** What the text's links give TalkBack: [actions] on the text, and the links behind [moreLinks]. */
+    data class AccessibilityActions(val actions: List<Pair<LinkMenuAction, String>>, val more: List<String>)
+
+    /**
+     * Every link's actions, in order, as iOS puts them on the text. Android allows one node only
+     * [MAX_CUSTOM_ACCESSIBILITY_ACTIONS], less the [reserved] slots the caller's own actions
+     * (Quote) take, so when they don't all fit, the first links keep all of theirs and the rest
+     * are listed behind one [moreLinks] action, whose chooser opens a link's own menu.
+     */
+    fun accessibilityActions(
+        links: List<String>,
+        actionsFor: (String) -> List<LinkMenuAction>,
+        reserved: Int = 0,
+    ): AccessibilityActions {
+        val limit = MAX_CUSTOM_ACCESSIBILITY_ACTIONS - reserved
+        val perLink = links.map { url -> url to actionsFor(url) }
+        val all = perLink.flatMap { (url, actions) -> actions.map { it to url } }
+        if (all.size <= limit) return AccessibilityActions(all, emptyList())
+        val kept = ArrayList<Pair<LinkMenuAction, String>>()
+        var cut = perLink.size
+        for ((index, entry) in perLink.withIndex()) {
+            val (url, actions) = entry
+            // One slot stays for More Links.
+            if (kept.size + actions.size > limit - 1) {
+                cut = index
+                break
+            }
+            actions.mapTo(kept) { it to url }
+        }
+        return AccessibilityActions(kept, perLink.drop(cut).map { it.first })
+    }
+
+    /**
+     * The text's TalkBack actions on its one node: the links' ([accessibilityActions]), More
+     * Links when they don't all fit, then the caller's [trailing] ones (the block's Quote, which
+     * iOS adds on the block around the text: `MarkdownBlockView.swift:50` around
+     * `ArrivingText.swift:119`'s `linkMenu`), never more than [MAX_CUSTOM_ACCESSIBILITY_ACTIONS].
+     */
+    fun accessibilityCustomActions(
+        links: List<String>,
+        actionsFor: (String) -> List<LinkMenuAction>,
+        linkText: (String) -> String?,
+        trailing: List<CustomAccessibilityAction>,
+        perform: (LinkMenuAction, String) -> Unit,
+        showMore: (List<String>) -> Unit,
+    ): List<CustomAccessibilityAction> {
+        val plan = accessibilityActions(links, actionsFor, reserved = trailing.size)
+        return buildList {
+            for ((action, url) in plan.actions) {
+                add(CustomAccessibilityAction(accessibilityName(action, url, links, linkText)) { perform(action, url); true })
+            }
+            if (plan.more.isNotEmpty()) add(CustomAccessibilityAction(moreLinks) { showMore(plan.more); true })
+            addAll(trailing)
+        }.withinNodeLimit()
+    }
+
+    /** A link's row in the More Links chooser: a session's name, or the link named as its actions name it. */
+    fun chooserTitle(url: String, among: List<String>, linkText: (String) -> String? = { null }): String {
+        val id = SessionLink.id(url) ?: return accessibilityTarget(url, among, linkText)
+        return SessionLink.title(url) ?: SessionLink.shortID(id)
+    }
+
+    /** Each link's own text in [text], by URL (its first run). */
+    fun linkTexts(text: AnnotatedString, ranges: List<Pair<IntRange, String>> = linkRanges(text)): Map<String, String> {
+        val texts = LinkedHashMap<String, String>()
+        for ((range, url) in ranges) {
+            if (url in texts) continue
+            val end = (range.last + 1).coerceAtMost(text.length)
+            if (range.first in 0 until end) texts[url] = text.text.substring(range.first, end)
+        }
+        return texts
     }
 
     /**
@@ -396,16 +521,24 @@ class LinkHitLayout(
     private fun <T> hit(items: List<Pair<IntRange, T>>, point: Offset, predicate: (T) -> Boolean = { true }): Hit<T>? {
         for ((range, value) in items) {
             if (!predicate(value)) continue
-            val rects = rects(range)
-            if (rects.any { Rect(it.left - slopX, it.top - slopY, it.right + slopX, it.bottom + slopY).contains(point) }) {
-                return Hit(value, rects)
+            if (rects(range, leadingBelow = true).any { Rect(it.left - slopX, it.top - slopY, it.right + slopX, it.bottom + slopY).contains(point) }) {
+                return Hit(value, rects(range))
             }
         }
         return null
     }
 
     /** One rect per line the range covers (TextKit's enclosing rects). */
-    fun rects(range: IntRange): List<Rect> {
+    fun rects(range: IntRange): List<Rect> = rects(range, leadingBelow = false)
+
+    /**
+     * With [leadingBelow], each line's rect starts at its glyphs' top and carries the leading
+     * down to the next line's glyphs, as TextKit's line fragments do (iOS hit-tests those). Compose
+     * spreads the leading mostly above each line, so the slop around a wrapped link's second line
+     * reached into the words of the line above (QA F-55). The text's first line is trimmed to its
+     * glyphs, so its baseline gives the ascent.
+     */
+    private fun rects(range: IntRange, leadingBelow: Boolean): List<Rect> {
         val textLength = layout.layoutInput.text.length
         val start = range.first.coerceIn(0, textLength)
         val end = (range.last + 1).coerceIn(start, textLength)
@@ -424,16 +557,27 @@ class LinkHitLayout(
                 left = minOf(left, box.left)
                 right = maxOf(right, box.right)
             }
-            result += Rect(left, layout.getLineTop(line), right, layout.getLineBottom(line))
+            result += if (leadingBelow) {
+                val bottom = if (line + 1 < layout.lineCount) maxOf(layout.getLineBottom(line), glyphTop(line + 1)) else layout.getLineBottom(line)
+                Rect(left, glyphTop(line), right, bottom)
+            } else {
+                Rect(left, layout.getLineTop(line), right, layout.getLineBottom(line))
+            }
         }
         return result
     }
+
+    private val ascent: Float get() = layout.getLineBaseline(0) - layout.getLineTop(0)
+
+    private fun glyphTop(line: Int): Float = maxOf(layout.getLineTop(line), layout.getLineBaseline(line) - ascent)
 }
 
 /**
  * Holding a web link in [text] opens the link menu with a preview of the link; tapping it still
  * opens it as before ([onOpen], the row's link opener). Touches anywhere else go to the text
- * underneath (selection included). TalkBack gets the menu's actions on the text. Port of iOS
+ * underneath (selection included). TalkBack gets the menu's actions on the text; when they pass
+ * Android's 32-per-node cap, the rest of the links sit behind More Links, a chooser that opens a
+ * link's menu ([LinkMenuText.accessibilityActions]; Compose's own link nodes take no custom actions). Port of iOS
  * `View.linkMenu(for:…)` (`LinkMenuModifier` + `LinkMenuOverlay` + `LinkMenuView`); wrap the
  * text's `Text` in it and pass its latest [TextLayoutResult].
  */
@@ -443,12 +587,15 @@ fun LinkMenu(
     textLayout: () -> TextLayoutResult?,
     onOpen: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** The text's own TalkBack actions (Quote), on the same node after the links' (only when it has links). */
+    trailingActions: List<CustomAccessibilityAction> = emptyList(),
     content: @Composable () -> Unit,
 ) {
     val handler = LocalLinkMenu.current
     val ranges = remember(text) { LinkMenuText.linkRanges(text) }
     val webRanges = remember(ranges) { ranges.filter { LinkMenuAction.offers(it.second) } }
     val links = remember(webRanges) { webRanges.map { it.second }.distinct() }
+    val linkTexts = remember(text, webRanges) { LinkMenuText.linkTexts(text, webRanges) }
     if (handler == null || links.isEmpty()) {
         Box(modifier) { content() }
         return
@@ -458,6 +605,7 @@ fun LinkMenu(
     val slopX = with(density) { 6.dp.toPx() }
     val slopY = with(density) { 5.dp.toPx() }
     var menu by remember { mutableStateOf<LinkHitLayout.Hit<String>?>(null) }
+    var chooser by remember { mutableStateOf<List<String>?>(null) }
     var pressed by remember { mutableStateOf<Path?>(null) }
     val pressAlpha = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
@@ -466,19 +614,24 @@ fun LinkMenu(
     val pressColor = colors.text.copy(alpha = if (colors.isDark) 0.16f else 0.1f)
     val liftFill = MaterialTheme.colorScheme.surface
     HapticEffect(Haptic.threshold, menu?.value) { old, new -> old == null && new != null }
+    val accessibilityActions = remember(links, linkTexts, trailingActions, handler) {
+        LinkMenuText.accessibilityCustomActions(
+            links,
+            handler::accessibilityActions,
+            linkTexts::get,
+            trailingActions,
+            perform = handler.perform,
+            showMore = { chooser = it },
+        )
+    }
+    val accessibilitySemantics: SemanticsPropertyReceiver.() -> Unit = remember(accessibilityActions) {
+        { customActions = accessibilityActions }
+    }
 
     Box(
         modifier
-            .semantics {
-                customActions = links.flatMap { url ->
-                    handler.accessibilityActions(url).map { action ->
-                        CustomAccessibilityAction(LinkMenuText.accessibilityName(action, url, links)) {
-                            handler.perform(action, url)
-                            true
-                        }
-                    }
-                }
-            }
+            // Remembered, so a streaming paragraph's chunks leave the node's semantics alone (AH-01).
+            .semantics(properties = accessibilitySemantics)
             // A session chip darkens while a finger is on it: over the text, as iOS's press layer.
             .drawWithContent {
                 drawContent()
@@ -543,6 +696,23 @@ fun LinkMenu(
             },
     ) {
         content()
+        chooser?.let { more ->
+            DropdownMenu(expanded = true, onDismissRequest = { chooser = null }) {
+                for (url in more) {
+                    DropdownMenuItem(
+                        text = { Text(LinkMenuText.chooserTitle(url, links, linkTexts::get), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        leadingIcon = {
+                            OpenCodeIcon(if (SessionLink.id(url) == null) "globe" else "bubble.left.and.text.bubble.right", contentDescription = null)
+                        },
+                        onClick = {
+                            chooser = null
+                            val laidOut = textLayout()?.let { LinkHitLayout(it, webRanges, slopX = slopX, slopY = slopY).laidOutLinks }
+                            menu = laidOut?.firstOrNull { it.value == url } ?: LinkHitLayout.Hit(url, emptyList())
+                        },
+                    )
+                }
+            }
+        }
         menu?.let { hit ->
             val anchor = hit.rects.firstOrNull() ?: Rect.Zero
             Box(

@@ -219,6 +219,9 @@ class SessionAttachmentImporter internal constructor(
                     }
                 }
             },
+            // iOS `maxPhotoSelection(plusMenu: usesPlusMenuSheet)`; the session always uses the
+            // New Plus Menu (`SessionPhotoSheetState.usesPlusMenuSheet`), so its sheet's 8.
+            limit = AttachmentPickerButton.MAX_PHOTO_SELECTION,
         )
     }
 
@@ -334,7 +337,7 @@ class SessionAttachmentImporter internal constructor(
     /**
      * iOS `syncPickedPhotos` / `addLibraryPhotos`: photos picked in the system picker attach at
      * once — images on the inline image path, videos as uploads (when the server takes them).
-     * At most [AttachmentPickerButton.MAX_PHOTO_SELECTION]. [onAdded] is `focusComposer`.
+     * At most [AttachmentPickerButton.MAX_PHOTO_SELECTION] (8), the photo sheet's limit. [onAdded] is `focusComposer`.
      */
     fun importPickedMedia(uris: List<Uri>, onAdded: (() -> Unit)? = null) {
         if (uris.isEmpty()) return
@@ -630,7 +633,9 @@ fun PendingAttachmentsRow(
                         height = ComposerFileChip.height,
                         fill = MaterialTheme.colorScheme.surfaceContainerHighest,
                         shape = RoundedCornerShape(ComposerFileChip.cornerRadius),
-                        headerTrailingInset = 14.dp,
+                        // iOS 14 pt, plus the × reaching further in here: its 48 dp target (iOS
+                        // 44 pt) centres the 22 dp disc 2 dp further in, and the disc is ~1 dp wider.
+                        headerTrailingInset = 17.dp,
                     )
                 }
                 else -> {

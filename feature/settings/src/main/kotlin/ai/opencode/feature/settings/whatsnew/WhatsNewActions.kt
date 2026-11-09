@@ -27,7 +27,7 @@ fun WhatsNewEntry.Destination.title(voiceAvailable: Boolean): String = when (thi
 
 /** What the button does where its title alone doesn't say. */
 val WhatsNewEntry.Destination.hint: String?
-    get() = if (this is WhatsNewEntry.Destination.Prompt) "Opens a new session with the prompt typed in" else null
+    get() = if (this is WhatsNewEntry.Destination.Prompt) "Open a new session with the prompt typed in" else null
 
 val WhatsNewEntry.SettingsDestination.title: String
     get() = when (this) {

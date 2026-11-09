@@ -7,6 +7,7 @@ import ai.opencode.core.sound.soundEffectsVolume
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +37,7 @@ fun SoundEffectsSettingsRows(send: (HomeSettingsFeature.Action) -> Unit) {
     val volume by remember { shared(SharedKeys.soundEffectsVolume).flow }.collectAsState()
     val sendSound by remember { shared(SharedKeys.soundEffectsSend).flow }.collectAsState()
     val percent = remember(volume) {
-        NumberFormat.getPercentInstance().apply { maximumFractionDigits = 0 }.format(volume)
+        NumberFormat.getPercentInstance(appFormattingLocale()).apply { maximumFractionDigits = 0 }.format(volume)
     }
     Column(Modifier.fillMaxWidth()) {
         SettingsValueRow("Volume", percent)

@@ -6,6 +6,7 @@ import ai.opencode.core.motion.SpringSolver
 import ai.opencode.core.motion.motionFrameLoop
 import ai.opencode.core.motion.rememberFrameDurationSeconds
 import ai.opencode.core.store.StoreOf
+import ai.opencode.core.ui.rememberAccessibilityFocusRequest
 import ai.opencode.feature.drawer.DrawerListFooter
 import ai.opencode.feature.drawer.HomeFeature
 import ai.opencode.feature.drawer.SessionPagesAction
@@ -25,7 +26,6 @@ import ai.opencode.feature.drawer.style.DrawerSectionHeaderKind
 import ai.opencode.feature.drawer.style.DrawerTunables
 import ai.opencode.feature.drawer.visibleSessions
 import ai.opencode.feature.session.ServerFlowTunables
-import android.view.accessibility.AccessibilityManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
@@ -55,11 +55,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -74,11 +72,13 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 /*
@@ -380,21 +380,22 @@ fun DrawerListView(
         )
     }
 
-    // Leaving Catch Up: TalkBack lands on the Catch Up row, or on the highlighted session.
-    val catchUpFocus = remember { FocusRequester() }
-    val selectedFocus = remember { FocusRequester() }
+    // Leaving Catch Up: TalkBack lands on the Catch Up row, or on the highlighted session (iOS
+    // `focusCatchUpRow`, `DrawerListController.swift:652-664`), as VoiceOver goes back to the
+    // control that presented it. Accessibility focus only (QA AD-02): input focus on the row used
+    // to land on the drawer's scrim instead, and stayed in the window for Catch Up's next open to
+    // drop (AD-01). Once, as the leave happens: a row not laid out by then never takes it later.
     val answeredFocusRequests = remember { intArrayOf(catchUpFocusRequests) }
-    val context = LocalContext.current
+    var catchUpReturn by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(catchUpFocusRequests) {
         if (catchUpFocusRequests == answeredFocusRequests[0]) return@LaunchedEffect
         answeredFocusRequests[0] = catchUpFocusRequests
-        val accessibility = context.getSystemService(AccessibilityManager::class.java)
-        if (accessibility?.isTouchExplorationEnabled != true) return@LaunchedEffect
-        // Once the drawer is back in the accessibility tree (after this update).
-        withFrameNanos {}
-        val target = if (DrawerListItem.CatchUp in model.items) catchUpFocus else selectedFocus
-        runCatching { target.requestFocus() }
+        catchUpReturn = catchUpFocusRequests
+        delay(CATCH_UP_RETURN_FOCUS_MS)
+        catchUpReturn = null
     }
+    val returnFocus = rememberAccessibilityFocusRequest(catchUpReturn)
+    val returnsToCatchUp = DrawerListItem.CatchUp in model.items
 
     // iOS `apply`'s server branches: Server Flow's switch leaves the old server's rows hanging off
     // its name as it goes (`swapRows`); otherwise another server's Home arriving in place, or
@@ -500,8 +501,13 @@ fun DrawerListView(
         ) {
             val current = model
             itemsIndexed(current.items, key = { _, item -> item.key }, contentType = { _, item -> contentType(item) }) { index, item ->
+                // The dragged row draws above every other item, headers included, through its
+                // drag, landing and settle (iOS lifts it into a layer over the whole list). The
+                // z-order has to sit on the item's root: the list orders its items, not their content.
+                val isDragged = item is DrawerListItem.Session && pinDrag.draggingID == item.id
                 Box(
                     Modifier
+                        .zIndex(if (isDragged) 1f else 0f)
                         .serverSwapRow(serverSwap.takeIf { inputs.serverSwap != null }, current.serverID, current.reducedMotion) { index - listState.firstVisibleItemIndex }
                         .serverSwapPicture(swapPictures.takeIf { swapsRows }, item.key),
                 ) {
@@ -515,7 +521,7 @@ fun DrawerListView(
                         markAllRead = { store.send(HomeFeature.Action.CatchUp(ai.opencode.feature.drawer.catchup.CatchUpFeature.Action.MarkAllReadTapped)) },
                         openWhatsNew = { currentActions.openWhatsNew() },
                         hideWhatsNew = { currentActions.hideWhatsNew() },
-                        focusRequester = if (item == DrawerListItem.CatchUp) catchUpFocus else null,
+                        returnFocus = returnFocus.takeIf { item == DrawerListItem.CatchUp },
                     )
                     DrawerListItem.DeletionError -> DrawerListDeletionErrorRow(current.deletionError.orEmpty())
                     is DrawerListItem.Header -> DrawerListHeaderCell(item.kind, pinDrag)
@@ -539,7 +545,7 @@ fun DrawerListView(
                             reveal = reveal,
                             pinDrag = pinDrag,
                             listCoordinates = { listCoordinates[0] },
-                            focusRequester = if (row.selected) selectedFocus else null,
+                            returnFocus = returnFocus.takeIf { row.selected && !returnsToCatchUp },
                         )
                     }
                 }
@@ -686,3 +692,6 @@ private fun pinDragKey(key: Any): DrawerPinDrag.ItemKey? {
         else -> null
     }
 }
+
+/** How long leaving Catch Up offers TalkBack its row: well past the two frames the request waits. */
+private const val CATCH_UP_RETURN_FOCUS_MS = 1_000L

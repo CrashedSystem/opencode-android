@@ -1,20 +1,10 @@
 package ai.opencode.feature.composer.plusmenu
 
-import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
-import ai.opencode.core.log.AppLog
-import ai.opencode.feature.composer.OneShotRequestGate
-import android.Manifest
 import android.app.Activity
-import android.content.ComponentCallbacks2
-import android.content.ContentResolver
-import android.content.ContentUris
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.PackageManager
-import android.content.res.Configuration
-import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -22,13 +12,9 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.Typeface
-import android.net.Uri
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.LruCache
-import android.util.Size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -38,29 +24,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** How much of the photo library the app may read (iOS `PhotoLibraryAccess`). */
@@ -76,6 +49,12 @@ enum class PhotoLibraryAccess {
      */
     Limited,
     Denied,
+
+    /**
+     * Android only: the app has no library access to ask for (Google Play's photo and video
+     * permissions policy), so the system photo picker stands in for the sheet and the peek.
+     */
+    Unavailable,
     ;
 
     val canRead: Boolean get() = this == Full || this == Limited
@@ -145,7 +124,21 @@ class PhotoLibraryClient(
     val openSettings: () -> Unit = {},
 ) {
     companion object Key : DependencyKey<PhotoLibraryClient> {
-        override val liveValue: PhotoLibraryClient by lazy { live(dependency(AppContext)) }
+        /**
+         * The live library: none. Google Play allows `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO` only
+         * to apps whose core purpose is photos, so the app declares no photo permission and the
+         * + menu's Photos opens the system photo picker instead (Android-only exception to iOS).
+         */
+        override val liveValue: PhotoLibraryClient = PhotoLibraryClient(
+            access = { PhotoLibraryAccess.Unavailable },
+            requestAccess = { PhotoLibraryAccess.Unavailable },
+            recent = { emptyList() },
+            thumbnail = { _, _, _, _ -> null },
+            stopCaching = {},
+            imageData = { null },
+            changes = { emptyFlow() },
+            manageLimitedSelection = {},
+        )
 
         override val testValue: PhotoLibraryClient = PhotoLibraryClient(
             access = { PhotoLibraryAccess.Denied },
@@ -216,35 +209,6 @@ class PhotoLibraryClient(
                 manageLimitedSelection = {},
             )
         }
-
-        private fun live(context: Context): PhotoLibraryClient {
-            val live = LivePhotoLibrary(context.applicationContext)
-            return PhotoLibraryClient(
-                access = {
-                    val status = live.currentAccess()
-                    // Only a refusal drops the cache: never asked, nothing was cached, and the
-                    // library stays untouched until the sheet asks (iOS f0670c5d).
-                    if (status == PhotoLibraryAccess.Denied) live.stopCaching()
-                    status
-                },
-                requestAccess = {
-                    val status = live.requestAccess(limitedSelection = false)
-                    if (status == PhotoLibraryAccess.Denied) live.stopCaching()
-                    status
-                },
-                recent = { limit ->
-                    val expectedGeneration = live.beginFetch()
-                    live.fetchRecent(limit, expectedGeneration)
-                },
-                thumbnail = { id, side, scale, _ -> live.loadThumbnail(id, side, scale) },
-                stopCaching = { live.stopCaching() },
-                imageData = { id -> live.loadImageData(id) },
-                changes = { live.changes() },
-                manageLimitedSelection = { live.manageLimitedSelection() },
-                installRequester = { live.requester.set(it) },
-                openSettings = { live.openSettings() },
-            )
-        }
     }
 }
 
@@ -279,243 +243,6 @@ class PhotoCacheGate<Asset>(
         generation += 1
         assets = emptyMap()
         stopAll()
-    }
-}
-
-/** What MediaStore says about one row: where it lives and whether it's a video. */
-private data class MediaAsset(val uri: Uri, val isVideo: Boolean)
-
-private class LivePhotoLibrary(private val context: Context) {
-    val requester = AtomicReference<PhotoPermissionRequester?>(null)
-    private val resolver: ContentResolver = context.contentResolver
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val manualChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    private val prefs = context.getSharedPreferences("opencode.photoLibrary", Context.MODE_PRIVATE)
-
-    /** PHCachingImageManager's preheat cache: thumbnails by `uri@pixels`. */
-    private val warm = object : LruCache<String, ImageBitmap>(MAX_WARM_BYTES) {
-        override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
-    }
-    private var warmup: Job? = null
-    private val cache = PhotoCacheGate<MediaAsset>(
-        stopAll = {
-            warmup?.cancel()
-            warmup = null
-            warm.evictAll()
-        },
-        startWarmup = { assets, scale ->
-            val pixels = max(1, (140 * max(scale, 1f)).roundToInt())
-            warmup = scope.launch {
-                for (asset in assets) {
-                    if (!isActive) return@launch
-                    val key = "${asset.uri}@$pixels"
-                    if (warm.get(key) != null) continue
-                    val image = OneShotRequestGate().run { signal -> resolver.loadThumbnail(asset.uri, Size(pixels, pixels), signal) }
-                    if (image != null) warm.put(key, image.asImageBitmap())
-                }
-            }
-        },
-    )
-    private val memoryObserver = AtomicReference<ComponentCallbacks2?>(null)
-
-    private fun installMemoryObserverIfNeeded() {
-        if (memoryObserver.get() != null) return
-        val callbacks = object : ComponentCallbacks2 {
-            override fun onTrimMemory(level: Int) {
-                if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) stopCaching()
-            }
-
-            override fun onConfigurationChanged(newConfig: Configuration) = Unit
-
-            @Deprecated("Deprecated in Java")
-            override fun onLowMemory() = stopCaching()
-        }
-        if (memoryObserver.compareAndSet(null, callbacks)) context.registerComponentCallbacks(callbacks)
-    }
-
-    fun beginFetch(): Long {
-        installMemoryObserverIfNeeded()
-        return cache.currentGeneration()
-    }
-
-    fun stopCaching() {
-        cache.stopCaching()
-        memoryObserver.getAndSet(null)?.let { context.unregisterComponentCallbacks(it) }
-    }
-
-    private fun granted(permission: String): Boolean =
-        context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
-
-    fun currentAccess(): PhotoLibraryAccess = when {
-        granted(Manifest.permission.READ_MEDIA_IMAGES) -> PhotoLibraryAccess.Full
-        granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> PhotoLibraryAccess.Limited
-        prefs.getBoolean(ASKED, false) -> PhotoLibraryAccess.Denied
-        else -> PhotoLibraryAccess.NotDetermined
-    }
-
-    /**
-     * Asks through the installed activity seam. With [limitedSelection], re-asks while
-     * limited so Android 14+ shows its photo selection again (iOS `presentLimitedLibraryPicker`).
-     */
-    suspend fun requestAccess(limitedSelection: Boolean): PhotoLibraryAccess {
-        val before = currentAccess()
-        if (before != PhotoLibraryAccess.NotDetermined && !limitedSelection) return before
-        val seam = requester.get() ?: return before
-        seam.request(PERMISSIONS)
-        prefs.edit().putBoolean(ASKED, true).apply()
-        val after = currentAccess()
-        AppLog.app.info { "Photo access ${before.name} → ${after.name}" }
-        if (after != before || limitedSelection) manualChanges.tryEmit(Unit)
-        return after
-    }
-
-    fun manageLimitedSelection() {
-        scope.launch(Dispatchers.Main) { requestAccess(limitedSelection = true) }
-    }
-
-    fun openSettings() {
-        val intent = android.content.Intent(
-            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", context.packageName, null),
-        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { context.startActivity(intent) }
-            .onFailure { AppLog.app.error { "Couldn’t open Settings: ${it::class.java.simpleName}" } }
-    }
-
-    suspend fun fetchRecent(limit: Int, expectedGeneration: Long): List<LibraryPhoto> = withContext(Dispatchers.IO) {
-        if (!cache.isCurrent(expectedGeneration)) return@withContext emptyList()
-        val boundedLimit = min(max(limit, 0), MAX_CACHED_ASSETS)
-        val uri = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        val projection = arrayOf(
-            MediaStore.Files.FileColumns._ID,
-            MediaStore.Files.FileColumns.MEDIA_TYPE,
-            MediaStore.MediaColumns.DATE_TAKEN,
-            MediaStore.MediaColumns.DATE_ADDED,
-            MediaStore.MediaColumns.DATE_MODIFIED,
-            MediaStore.MediaColumns.DURATION,
-        )
-        val args = Bundle().apply {
-            putString(
-                ContentResolver.QUERY_ARG_SQL_SELECTION,
-                "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE} = ?",
-            )
-            putStringArray(
-                ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
-                arrayOf(
-                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
-                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
-                ),
-            )
-            putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(MediaStore.MediaColumns.DATE_ADDED))
-            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_DESCENDING)
-            putInt(ContentResolver.QUERY_ARG_LIMIT, boundedLimit)
-        }
-        val photos = ArrayList<LibraryPhoto>()
-        val assetsById = HashMap<String, MediaAsset>()
-        val warmupAssets = ArrayList<MediaAsset>()
-        val cursor = runCatching { resolver.query(uri, projection, args, null) }
-            .onFailure { AppLog.app.error { "Photo library query failed: ${it::class.java.simpleName}" } }
-            .getOrNull()
-        cursor?.use { c ->
-            val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-            val typeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
-            val takenCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_TAKEN)
-            val addedCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
-            val modifiedCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
-            val durationCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
-            while (c.moveToNext() && photos.size < boundedLimit) {
-                ensureActive()
-                val rowId = c.getLong(idCol)
-                val isVideo = c.getInt(typeCol) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
-                val base = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                val itemUri = ContentUris.withAppendedId(base, rowId)
-                val id = itemUri.toString()
-                val created = if (!c.isNull(takenCol) && c.getLong(takenCol) > 0) {
-                    Instant.ofEpochMilli(c.getLong(takenCol))
-                } else if (!c.isNull(addedCol)) {
-                    Instant.ofEpochSecond(c.getLong(addedCol))
-                } else {
-                    null
-                }
-                val modified = if (c.isNull(modifiedCol)) null else Instant.ofEpochSecond(c.getLong(modifiedCol))
-                val duration = if (isVideo) max(if (c.isNull(durationCol)) 0L else c.getLong(durationCol), 0L) / 1000.0 else null
-                photos.add(LibraryPhoto(id = id, created = created, modified = modified, videoDuration = duration))
-                val asset = MediaAsset(itemUri, isVideo)
-                assetsById[id] = asset
-                if (photos.size <= WARMUP_COUNT) warmupAssets.add(asset)
-            }
-        }
-        val scale = context.resources.displayMetrics.density.takeIf { it > 0 } ?: 3f
-        val committed = cache.commit(
-            expectedGeneration = expectedGeneration,
-            assetsById = assetsById,
-            warmupAssets = warmupAssets,
-            scale = scale,
-            cancelled = !coroutineContext.isActive,
-        )
-        if (committed) photos else emptyList()
-    }
-
-    private fun resolveAsset(id: String): MediaAsset? {
-        cache.cachedAsset(id)?.let { return it }
-        val uri = runCatching { Uri.parse(id) }.getOrNull() ?: return null
-        val isVideo = uri.toString().startsWith(MediaStore.Video.Media.EXTERNAL_CONTENT_URI.toString())
-        return MediaAsset(uri, isVideo)
-    }
-
-    suspend fun loadThumbnail(id: String, side: Float, scale: Float): ImageBitmap? {
-        val asset = resolveAsset(id) ?: return null
-        val pixels = max(1, (side * max(scale, 1f)).roundToInt())
-        // The warm cache was filled at the grid's size; a hit is the opportunistic answer.
-        warm.get("${asset.uri}@$pixels")?.let { return it }
-        return OneShotRequestGate().run { signal -> resolver.loadThumbnail(asset.uri, Size(pixels, pixels), signal) }
-            ?.asImageBitmap()
-    }
-
-    suspend fun loadImageData(id: String): ByteArray? {
-        val asset = resolveAsset(id) ?: return null
-        val gate = OneShotRequestGate()
-        if (asset.isVideo) {
-            return gate.run { signal ->
-                val frame = resolver.loadThumbnail(asset.uri, Size(1600, 1600), signal)
-                ByteArrayOutputStream().use { out ->
-                    frame.compress(Bitmap.CompressFormat.JPEG, 85, out)
-                    out.toByteArray()
-                }
-            }
-        }
-        return gate.run { signal ->
-            resolver.openInputStream(asset.uri)?.use { input ->
-                signal.throwIfCanceled()
-                input.readBytes()
-            }
-        }
-    }
-
-    fun changes(): Flow<Unit> = merge(
-        callbackFlow {
-            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-                override fun onChange(selfChange: Boolean) {
-                    trySend(Unit)
-                }
-            }
-            resolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer)
-            resolver.registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, observer)
-            awaitClose { resolver.unregisterContentObserver(observer) }
-        },
-        manualChanges,
-    )
-
-    companion object {
-        const val MAX_CACHED_ASSETS = 300
-        const val WARMUP_COUNT = 36
-        private const val MAX_WARM_BYTES = 24 * 1024 * 1024
-        private const val ASKED = "asked"
-        val PERMISSIONS = arrayOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
-        )
     }
 }
 

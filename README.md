@@ -9,10 +9,10 @@ iOS is tracked file by file in [docs/parity](docs/parity/README.md).
 
 **From Google Play (Anomaly team):** open
 https://play.google.com/apps/internaltest/4698009188042349382 with your @anoma.ly Google
-account, tap **Become a tester**, then install OpenCode from Play. Every push to `main` arrives
-as a Play update. Details in [docs/releasing.md](docs/releasing.md).
+account, tap **Become a tester**, then install OpenCode from Play. Every release (a `v*` GitHub
+Release) arrives as a Play update. Details in [docs/releasing.md](docs/releasing.md).
 
-**Sideload instead:** every push to `main` also builds a debug APK and publishes it as the rolling
+**Sideload instead:** every push to `main` builds a debug APK and publishes it as the rolling
 [`main-latest` pre-release](https://github.com/anomalyco/opencode-android/releases/tag/main-latest).
 It runs on Android 15 or newer.
 

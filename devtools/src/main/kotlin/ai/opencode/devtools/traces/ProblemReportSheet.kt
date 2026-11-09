@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -179,7 +180,8 @@ private fun ScreenshotToggle(isOn: Boolean, enabled: Boolean, onChange: (Boolean
         Row(
             Modifier
                 .heightIn(min = 48.dp)
-                .clickable(enabled = enabled, role = Role.Switch) { onChange(!isOn) }
+                .toggleable(value = isOn, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+                .semantics { stateDescription = if (isOn) "On" else "Off" }
                 .padding(horizontal = 14.dp)
                 .testTag("problem-report-include-screenshot"),
             verticalAlignment = Alignment.CenterVertically,

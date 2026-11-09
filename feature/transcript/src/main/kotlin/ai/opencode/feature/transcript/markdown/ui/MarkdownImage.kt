@@ -16,6 +16,7 @@ import ai.opencode.feature.transcript.user.transcriptDragSource
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.AgentFileReference
+import ai.opencode.server.model.FileReadTarget
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -119,7 +120,10 @@ fun MarkdownImage(
                     (result as? SuccessResult)?.image?.toBitmap()
                 } else {
                     val bytes = client.cachedMarkdownImage(cacheKey)
-                        ?: server?.let { client.markdownImage(it, directory, source, null) }
+                        ?: server?.let { server ->
+                            val fallback = fallbackFile?.target(directory)?.let { FileReadTarget(it.location, it.relativePath) }
+                            client.markdownImage(server, directory, source, fallback)
+                        }
                     bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
                 }
                 bitmap?.also { decodedImages.insert(it, cacheKey) }?.asImageBitmap()

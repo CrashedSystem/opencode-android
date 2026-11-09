@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -95,6 +96,8 @@ fun AppearanceSettingsView(store: SettingsStore) {
     val scheme by remember { shared(ThemeSharedKeys.appearanceColorScheme).flow }.collectAsState()
     val isDark = scheme.resolveIsDark(isSystemInDarkTheme())
     val send = { action: HomeSettingsFeature.Action -> store.send(SettingsFeature.Action.Settings(action)) }
+    // QA U-02: Back from the Theme picker puts TalkBack back on the Theme row.
+    val returnFocus = rememberSettingsReturnFocus(store, page = SettingsPage.Appearance)
 
     SettingsPageScaffold(title = "Appearance", store = store) {
         settingsSection(key = "mode", header = "Mode") {
@@ -110,12 +113,13 @@ fun AppearanceSettingsView(store: SettingsStore) {
             }
         }
         settingsSection(key = "theme", header = "Theme") {
+            // The clickable row merges its texts: "Theme", then the theme (iOS's label and value).
             SettingsRowFrame(
-                Modifier.semantics(mergeDescendants = true) {
-                    contentDescription = "Theme"
-                    stateDescription = appTheme.title
+                modifier = returnFocus.on(SettingsPage.Themes),
+                onClick = {
+                    returnFocus.opened(SettingsPage.Themes)
+                    store.send(SettingsFeature.Action.PagePushed(SettingsPage.Themes))
                 },
-                onClick = { store.send(SettingsFeature.Action.PagePushed(SettingsPage.Themes)) },
             ) {
                 val swatch = @Composable {
                     ThemeSwatchTile(
@@ -168,7 +172,7 @@ fun ThemesSettingsView(store: SettingsStore) {
         containerColor = colors.groupedCanvas,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Themes", style = OpenCodeTextStyles.headline) },
+                title = { Text("Themes", style = OpenCodeTextStyles.headline, modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = { store.send(SettingsFeature.Action.BackTapped) }) {
                         OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = "Back")
@@ -297,11 +301,9 @@ private fun ThemeOptionRow(
     onClick: () -> Unit,
 ) {
     val variant = definition.variant(isDark)
+    // The clickable row merges its title: the theme's name once (iOS's label), then selected.
     SettingsRowFrame(
-        Modifier.semantics(mergeDescendants = true) {
-            contentDescription = theme.title
-            selected = isSelected
-        },
+        Modifier.semantics { selected = isSelected },
         onClick = onClick,
         role = Role.RadioButton,
     ) {

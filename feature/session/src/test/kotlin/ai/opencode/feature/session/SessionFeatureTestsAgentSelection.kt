@@ -1,11 +1,17 @@
 package ai.opencode.feature.session
 
 import ai.opencode.core.dependencies.Clock
+import ai.opencode.core.dependencies.DependencyValues
 import ai.opencode.core.dependencies.ImmediateClock
 import ai.opencode.core.dependencies.UuidClient
 import ai.opencode.core.sharing.ExperimentalFeature
 import ai.opencode.core.sharing.ExperimentalFeatures
+import ai.opencode.core.sharing.experimental
+import ai.opencode.core.sharing.shared
+import ai.opencode.core.store.Store
 import ai.opencode.core.store.TestStore
+import ai.opencode.core.testing.TestIsolationRule
+import ai.opencode.core.ui.OpenCodeAppTheme
 import ai.opencode.feature.composer.PendingPrompt
 import ai.opencode.feature.session.FailedSendsSupport.expectOptimisticSend
 import ai.opencode.feature.session.FailedSendsSupport.sentID
@@ -26,11 +32,21 @@ import ai.opencode.server.model.OpenCodePendingRequests
 import ai.opencode.server.model.OpenCodeProject
 import ai.opencode.server.model.OpenCodeSession
 import ai.opencode.server.model.OpenCodeTranscriptItem
+import android.os.Looper
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.platform.ComposeView
+import java.time.Duration
 import kotlinx.coroutines.awaitCancellation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 
 /**
  * Port of iOS `SessionFeatureTests+AgentSelection.swift`: Agent Selection (experimental, OC-511).
@@ -382,5 +398,46 @@ class SessionFeatureTestsAgentSelection {
         store.receive(Action.PendingInputsRequested(sessionID = "ses_new"))
         assertEquals(listOf("agent ses_new plan", "prompt hello steer"), calls.value)
         h.skipInFlightEffects()
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
+class AgentSelectionComposerTests {
+    @get:Rule val isolation = TestIsolationRule()
+
+    @Test fun switchingServersFromADraftListsTheNewServersAgents() {
+        val values = DependencyValues.testing().update {
+            this[ExperimentalFeatures] = ExperimentalFeatures.enabling(setOf(ExperimentalFeature.agentSelection))
+            this[OpenCodeClient] = this[OpenCodeClient].copy(primaryAgents = { server, _ ->
+                val id = if (server == testServer) "build" else "review"
+                listOf(OpenCodeAutocompleteAgent(id = id, name = id, mode = "primary"))
+            })
+        }
+        DependencyValues.withValues(values) {
+            shared(experimental(ExperimentalFeature.agentSelection)).set(true)
+            val draft = State.draft(testServer, null, emptyList(), visit = 1)
+            val store = Store(draft, SessionFeature(), dependencies = values)
+            val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+            try {
+                val view = ComposeView(activity.get())
+                activity.get().setContentView(view)
+                view.setContent { OpenCodeAppTheme { SessionComposer(store) } }
+                shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(200))
+                assertEquals("Build", store.state.currentAgentName)
+
+                // Home replaced its initial draft in place: same visit and no session ID on either server.
+                store.send(Action.PreviewStateReplaced(draft.copy(server = testServer.copy(url = "http://localhost:10"))))
+                shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(200))
+                assertEquals("Review", store.state.currentAgentName)
+            } finally {
+                activity.pause().stop().destroy()
+                store.close()
+                // Drain the composition's teardown from the process-wide `AndroidUiDispatcher.Main`:
+                // Robolectric drops the main looper's messages between tests, which would strand its
+                // scheduled dispatch and stall the next test's effects.
+                shadowOf(Looper.getMainLooper()).idle()
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.model.OpenCodeExportFormat
 import android.content.ClipData
 import android.content.Context
@@ -80,7 +81,7 @@ object SessionExport {
         for ((label, key) in listOf("Created" to "created", "Updated" to "updated")) {
             val milliseconds = (time?.get(key) as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull ?: continue
             val date = Instant.ofEpochMilli(milliseconds.toLong()).atZone(ZoneId.systemDefault())
-            header += "\n**$label:** ${dateFormatter.format(date)}"
+            header += "\n**$label:** ${dateFormatter.withLocale(appFormattingLocale()).format(date)}"
         }
         return header + "\n\n---\n\n" + body.joinToString("\n\n---\n\n") + "\n"
     }

@@ -3,6 +3,7 @@ package ai.opencode.feature.session.header
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.appFormattingLocale
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.padding
@@ -109,14 +110,14 @@ object SessionContextRing {
 
 /** "64% of 400K", or the token count when the window is unknown (iOS `SessionContextText`). */
 object SessionContextText {
-    fun summary(tokens: Int, limit: Int?, locale: Locale = Locale.getDefault()): String {
+    fun summary(tokens: Int, limit: Int?, locale: Locale = appFormattingLocale()): String {
         if (limit == null || limit <= 0) return "${NumberFormat.getIntegerInstance(locale).format(tokens)} tokens"
         val percent = SessionContextRing.percent(tokens.toDouble() / limit.toDouble())
         val compact = CompactDecimalFormat.getInstance(locale, CompactDecimalFormat.CompactStyle.SHORT).format(limit.toLong())
         return "$percent% of $compact"
     }
 
-    fun accessibilityValue(tokens: Int, limit: Int?, locale: Locale = Locale.getDefault()): String {
+    fun accessibilityValue(tokens: Int, limit: Int?, locale: Locale = appFormattingLocale()): String {
         val format = NumberFormat.getIntegerInstance(locale)
         if (limit == null || limit <= 0) return "${format.format(tokens)} tokens"
         val percent = SessionContextRing.percent(tokens.toDouble() / limit.toDouble())

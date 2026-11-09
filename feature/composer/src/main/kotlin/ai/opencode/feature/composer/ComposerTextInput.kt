@@ -10,7 +10,9 @@ import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.drawerKeyboardField
 import ai.opencode.server.model.PastedText
 import android.net.Uri
+import android.os.Process
 import android.os.SystemClock
+import android.view.WindowInsetsController
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.content.MediaType
@@ -21,13 +23,21 @@ import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
+import androidx.compose.foundation.text.contextmenu.provider.TextContextMenuDataProvider
+import androidx.compose.foundation.text.contextmenu.provider.TextContextMenuProvider
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldBuffer
@@ -35,8 +45,10 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.placeCursorAtEnd
 import androidx.compose.foundation.text.input.then
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -46,12 +58,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -79,6 +94,9 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
@@ -88,18 +106,69 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/** How long a recreated window's inherited keys stay up over the restored field before they count as its own. */
+private const val INHERITED_KEYS_SETTLE_MILLIS = 1_000L
+
+/** How long a recreated field waits for its draft to put its saved selection back (QA AG-01). */
+private const val SELECTION_RESTORE_MILLIS = 1_000L
+
+/** How long keys must stay hidden before they count as having left the focused field (A-01). */
+private const val KEYS_LEFT_SETTLE_MILLIS = 250L
+
+/**
+ * The field's selection, saved across an activity recreation (QA AG-01). Restored only in the same
+ * process and for a draft of the same length; after process death the caret starts at the end.
+ */
+internal class ComposerSavedSelection(private val saved: List<Int>? = null) {
+    // Until the field reports its own, a save keeps what was restored (switches in a row).
+    private var length = saved?.get(2) ?: 0
+    private var selection = saved?.let { TextRange(it[0], it[1]) } ?: TextRange.Zero
+
+    fun update(length: Int, selection: TextRange) {
+        this.length = length
+        this.selection = selection
+    }
+
+    fun restored(text: String): TextRange? {
+        val (start, end, savedLength) = saved ?: return null
+        if (savedLength != text.length || maxOf(start, end) > text.length) return null
+        return TextRange(start, end)
+    }
+
+    companion object {
+        private val process: String get() = "${Process.myPid()}:${Process.getStartUptimeMillis()}"
+
+        val Saver: Saver<ComposerSavedSelection, ArrayList<String>> = Saver(
+            save = { arrayListOf(process, it.selection.start.toString(), it.selection.end.toString(), it.length.toString()) },
+            restore = { saved ->
+                val values = saved.takeIf { it.size == 4 && it[0] == process }?.drop(1)?.mapNotNull { it.toIntOrNull() }
+                ComposerSavedSelection(values?.takeIf { it.size == 3 })
+            },
+        )
+    }
+}
 
 /**
  * The composer tunables the text input reads (iOS `ComposerTunables`, `Session/ComposerViews.swift`):
@@ -309,6 +378,9 @@ class ComposerTextInputController {
     var isPublishingText = false
         private set
 
+    /** A send asked for the parent's text while the field was publishing (Return): taken once it's done. */
+    var syncsAfterPublish = false
+
     /** iOS `textFocusRequest`: the parent's last focus request; a new one places the caret at the end. */
     var textFocusRequest = 0
         private set
@@ -491,14 +563,48 @@ class ComposerTextInputController {
     }
 }
 
+/**
+ * The field's text toolbar ("Paste", a selection's actions), shown through [platform]. A toolbar
+ * that closes because the field became [covered] (the + menu, the drawer) is dismissed: the field
+ * still holds its toolbar state and asks to show it again whenever it's uncovered in a focused
+ * window, and those requests are swallowed until the field itself hides it (a tap, a long press,
+ * an edit, losing focus), which it only does in a focused, uncovered window. A long press then
+ * shows it as usual.
+ */
+private class CoverDismissedTextToolbar(
+    private val covered: () -> Boolean,
+    private val windowFocused: () -> Boolean,
+) : TextContextMenuProvider {
+    var platform: TextContextMenuProvider? = null
+    private var dismissedByCover = false
+
+    override suspend fun showTextContextMenu(dataProvider: TextContextMenuDataProvider) {
+        try {
+            if (dismissedByCover) awaitCancellation()
+            platform?.showTextContextMenu(dataProvider)
+        } catch (cancelled: CancellationException) {
+            dismissedByCover = when {
+                covered() -> true
+                windowFocused() -> false
+                else -> dismissedByCover
+            }
+            throw cancelled
+        }
+    }
+}
+
 /** The mounted field's [ComposerSwipeInput], refreshed every composition. */
 private class ComposerFieldSwipeInput : ComposerSwipeInput {
     var yieldsToText: () -> Boolean = { false }
     var claims: (Offset) -> Boolean = { false }
     var doubleTap: () -> Boolean = { false }
+    var flush: () -> Unit = {}
+    var sync: () -> Unit = {}
     override val isSwipeYieldedToText: Boolean get() = yieldsToText()
     override fun selectionClaims(rootPoint: Offset): Boolean = claims(rootPoint)
     override fun takesDoubleTap(): Boolean = doubleTap()
+    override fun flushEdits() = flush()
+    override fun takeParentText() = sync()
 }
 
 /**
@@ -542,8 +648,10 @@ private class ComposerFieldSwipeInput : ComposerSwipeInput {
  * [focusRequest] places the caret at the end ([ComposerTextInputController.syncText]). [onEdit]
  * (iOS `onEdit`) takes a typed edit and where it left the caret as one call, instead of
  * [onTextChange] plus the bridge's own caret report.
+ * [isCovered]: something is drawn over the field (the + menu); like the drawer's hold, it hides
+ * the field's handles and text toolbar, which are popup windows above the app's.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ComposerTextInput(
     text: String,
@@ -575,8 +683,21 @@ fun ComposerTextInput(
     currentText: (() -> String)? = null,
     focusRequest: Int = 0,
     onEdit: ((String, ComposerAutocompleteAction.CaretUpdate) -> Unit)? = null,
+    isCovered: Boolean = false,
 ) {
-    val state = remember { TextFieldState(text, TextRange(text.length)) }
+    // QA AG-01: a dark/light or language switch recreates the activity, where iOS's text view keeps
+    // its selection (and rotation, handled in place, keeps it here): the caret or selection comes
+    // back where it was, for the same draft in the same process.
+    val savedSelection = rememberSaveable(saver = ComposerSavedSelection.Saver) { ComposerSavedSelection() }
+    val state = remember { TextFieldState(text, savedSelection.restored(text) ?: TextRange(text.length)) }
+    LaunchedEffect(state) {
+        // The draft can reach a recreated field a moment after it composes (its caret then at the end).
+        withTimeoutOrNull(SELECTION_RESTORE_MILLIS) {
+            val restored = snapshotFlow { savedSelection.restored(state.text.toString()) }.filterNotNull().first()
+            if (state.selection != restored) state.edit { selection = restored }
+        }
+        snapshotFlow { state.text.length to state.selection }.collect { (length, selection) -> savedSelection.update(length, selection) }
+    }
     val controller = remember { ComposerTextInputController() }
     val scroll = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
@@ -608,9 +729,7 @@ fun ComposerTextInput(
     val currentReduceMotion by rememberUpdatedState(reduceMotion)
     val growthScope = rememberCoroutineScope()
 
-    // Programmatic updates (dictation, a restored draft, Share/Quote) follow the newest text;
-    // synced before the field measures so the first frame of an expand already has it.
-    SideEffect {
+    fun syncFromParent() {
         controller.syncText(state, text, currentText, focusRequest, hasFocus, autocompleteBridge) { newText ->
             // A send's clear shrinks on its own spring (`sendShrinkAnimation`); any other change lands at once.
             controller.heightSpring = ComposerLineGrowth.sendShrinkSpring(sendTransition?.takeShrinkOmega(), reduceMotion)
@@ -619,30 +738,39 @@ fun ComposerTextInput(
         }
     }
 
+    // Programmatic updates (dictation, a restored draft, Share/Quote) follow the newest text;
+    // synced before the field measures so the first frame of an expand already has it.
+    SideEffect { syncFromParent() }
+
     // The reader's own edits: report them, with a non-send newline first so the parent
     // never reads it as Return.
-    LaunchedEffect(state) {
-        snapshotFlow { state.text.toString() }.collect { newText ->
-            val previous = controller.externalText ?: return@collect
-            if (newText == previous) return@collect
-            controller.noteTextChange()
-            // A reader's own edit owns the caret; drop any pending follow-the-end.
-            controller.pinsToEnd = false
-            controller.followsCaret = true
-            val nonSendFrom = controller.nonSendEditFrom
-            controller.nonSendEditFrom = null
-            if (nonSendFrom != null && newText == nonSendFrom + "\n") currentOnNonSendNewline?.invoke(newText)
-            val onEdit = currentOnEdit
-            if (onEdit != null) {
-                // One action for the edit and the caret it left (iOS `onEdit`).
-                val caret = currentBridge?.caretUpdateAfterEdit(newText, state.selection, state.composition)
-                    ?: ComposerAutocompleteAction.CaretUpdate.Unchanged
-                controller.publish(newText) { onEdit(it, caret) }
-            } else {
-                controller.publish(newText, currentOnTextChange)
-                currentBridge?.notifyCaretAfterEdit(newText, state.selection, state.composition)
-            }
+    fun publishEdit(newText: String) {
+        val previous = controller.externalText ?: return
+        if (newText == previous) return
+        controller.noteTextChange()
+        // A reader's own edit owns the caret; drop any pending follow-the-end.
+        controller.pinsToEnd = false
+        controller.followsCaret = true
+        val nonSendFrom = controller.nonSendEditFrom
+        controller.nonSendEditFrom = null
+        if (nonSendFrom != null && newText == nonSendFrom + "\n") currentOnNonSendNewline?.invoke(newText)
+        val onEdit = currentOnEdit
+        if (onEdit != null) {
+            // One action for the edit and the caret it left (iOS `onEdit`).
+            val caret = currentBridge?.caretUpdateAfterEdit(newText, state.selection, state.composition)
+                ?: ComposerAutocompleteAction.CaretUpdate.Unchanged
+            controller.publish(newText) { onEdit(it, caret) }
+        } else {
+            controller.publish(newText, currentOnTextChange)
+            currentBridge?.notifyCaretAfterEdit(newText, state.selection, state.composition)
         }
+        if (controller.syncsAfterPublish) {
+            controller.syncsAfterPublish = false
+            syncFromParent()
+        }
+    }
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }.collect { newText -> publishEdit(newText) }
     }
 
     // Moving the caret off the end is reading or editing earlier text.
@@ -701,7 +829,8 @@ fun ComposerTextInput(
     LaunchedEffect(scroll, state) {
         snapshotFlow { Triple(scroll.maxValue, controller.layoutTick, state.selection) }.collectLatest { (maxValue, _, selection) ->
             if (maxValue <= 0) return@collectLatest
-            val viewport = capPx
+            // Short of room the composer lays the field out below its cap.
+            val viewport = scroll.viewportSize.takeIf { it > 0 }?.toFloat() ?: capPx
             if (controller.pinsToEnd) {
                 if (scroll.value != maxValue) scroll.scrollTo(maxValue)
                 return@collectLatest
@@ -758,6 +887,144 @@ fun ComposerTextInput(
     fun dismissKeyboard() {
         currentOnDismissKeyboard?.invoke()
         if (hasFocus) focusManager.clearFocus()
+    }
+
+    // On iOS the keyboard only leaves as the field resigns, so a hidden keyboard is an unfocused
+    // composer. Android's Back hides the IME and leaves the field focused (caret showing, row
+    // open, a draft's projects folded): the keys leaving on their own take the focus with them.
+    // Not while the drawer holds them down, or when another window or the background took them.
+    val imeVisible = WindowInsets.isImeVisible
+    val windowInfo = LocalWindowInfo.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var imeWasVisible by remember { mutableStateOf(false) }
+    // A recreated window (dark mode, language, font size) starts out reporting the old window's
+    // keys as up before it has focus. Until keys come up in this window, or those keys have
+    // stayed up over the restored, focused field for a moment, a hide is the system moving the
+    // old window's keys (sometimes reported before the restored field's rise starts), not the
+    // keys leaving.
+    var keysInherited by remember { mutableStateOf(imeVisible && !windowInfo.isWindowFocused) }
+    var inheritedKeysWentDown by remember { mutableStateOf(false) }
+    LaunchedEffect(keysInherited, hasFocus, imeVisible, windowInfo.isWindowFocused) {
+        if (!keysInherited || !hasFocus || !imeVisible || !windowInfo.isWindowFocused) return@LaunchedEffect
+        delay(INHERITED_KEYS_SETTLE_MILLIS)
+        keysInherited = false
+    }
+    // Each time the app leaves the foreground (Home, Recents): A-01's wait below doesn't outlive it.
+    var pauses by remember { mutableIntStateOf(0) }
+    // [pauses] when the keys were last seen coming up (QA AJ-01).
+    var pausesWhenShown by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_PAUSE) pauses++ }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    val imeTarget = WindowInsets.imeAnimationTarget
+    LaunchedEffect(imeVisible) {
+        val left = imeWasVisible && !imeVisible
+        if (keysInherited) {
+            if (!imeVisible) inheritedKeysWentDown = true else if (inheritedKeysWentDown) keysInherited = false
+            imeWasVisible = imeVisible
+            return@LaunchedEffect
+        }
+        imeWasVisible = imeVisible
+        if (imeVisible) pausesWhenShown = pauses
+        if (!left || !hasFocus || drawerHold?.isHeld(fieldKey) == true || isKeyboardHeld) return@LaunchedEffect
+        // A recreated window (dark mode, font size) first reports the old window's keys as shown,
+        // then as hidden while they rise for this field: keys on their way up aren't leaving.
+        if (imeTarget.getBottom(density) > 0) return@LaunchedEffect
+        // Keys the background took (Home, Recents) haven't left: the field keeps its focus and the
+        // keys come back with the app, as iOS's text view stays first responder (QA AG-02).
+        if (!windowInfo.isWindowFocused || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@LaunchedEffect
+        // After a quick return (QA AJ-01) the background's hide can reach the field only once the app
+        // is back in front: keys last seen up before the app left went with it, not with the reader.
+        if (pauses != pausesWhenShown) return@LaunchedEffect
+        // Keys that take no room (Gboard floating, or its toolbar over a hardware keyboard) keep
+        // the target at 0 and, as a recreated window re-attaches them, can flick hidden and straight
+        // back: only keys that stay down have left (a flick back restarts this effect). The wait
+        // can end only once the app is back from the background; then the keys went with it.
+        val pausesBefore = pauses
+        delay(KEYS_LEFT_SETTLE_MILLIS)
+        if (pauses != pausesBefore) return@LaunchedEffect
+        if (!hasFocus || drawerHold?.isHeld(fieldKey) == true || isKeyboardHeld) return@LaunchedEffect
+        if (!windowInfo.isWindowFocused || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@LaunchedEffect
+        // QA AF-02: on the drawer's card the drawer takes the focus (`releaseFocus`) instead of it
+        // being cleared. `clearFocus` also drops the window's view focus, and after a key (Back,
+        // or TalkBack's Back) the window gives it straight back: an input-focus event TalkBack
+        // follows to the screen's first element ("Open sessions"). VoiceOver stays on the text
+        // view as UIKit resigns it (iOS `dismissKeyboard`, ComposerTextInput.swift:802-805). The
+        // field still loses its focus: the caret goes and `onFocusedChange(false)` reaches the host.
+        if (drawerHold?.releaseFocus() != true) dismissKeyboard()
+    }
+
+    // A recreated window asks for the restored field's keys before it is the IME's target; when
+    // switches come quickly the system drops that request and the keys never come. The first time
+    // this window can control the keys, a field that already has focus asks for them again.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val controller = view.windowInsetsController
+        val listener = object : WindowInsetsController.OnControllableInsetsChangedListener {
+            override fun onControllableInsetsChanged(controller: WindowInsetsController, types: Int) {
+                if (types and android.view.WindowInsets.Type.ime() == 0) return
+                controller.removeOnControllableInsetsChangedListener(this)
+                if (hasFocus && !held) keyboard?.show()
+            }
+        }
+        controller?.addOnControllableInsetsChangedListener(listener)
+        onDispose { controller?.removeOnControllableInsetsChangedListener(listener) }
+    }
+
+    // The caret's drop handle, the selection handles and the text toolbar are popup windows over
+    // the app's, so they'd float above the + menu or the drawer (iOS keeps its caret in the field).
+    // While the field is covered it reads as in an unfocused window, which hides them (the field
+    // keeps its focus and keyboard); a hidden caret handle stays hidden until the next tap.
+    val covered by rememberUpdatedState(isCovered || held)
+    // A tap's drop handle that would hang below the field sits over the control row (+, the
+    // model chip, Send) and takes the next tap meant for them. iOS shows no caret handle; this
+    // hides that one the same way, for two frames, so it stays hidden until the next tap.
+    var hidesCaretHandle by remember { mutableStateOf(false) }
+    val coverableWindowInfo = remember(windowInfo) {
+        object : WindowInfo by windowInfo {
+            override val isWindowFocused: Boolean get() = windowInfo.isWindowFocused && !covered && !hidesCaretHandle
+        }
+    }
+    val caretHandleHeightPx = with(density) { 25.dp.toPx() }
+    // QA J-02: the + menu or the drawer taking the interaction ends the text toolbar (iOS's edit
+    // menu, Android's own fields), rather than just hiding it until it comes back over what moved in.
+    val toolbar = remember(windowInfo) { CoverDismissedTextToolbar({ covered }, { windowInfo.isWindowFocused }) }
+
+    /** Whether a caret's drop handle would hang past the bottom of the field's [viewportHeight] (px). */
+    fun caretHandleHangsOut(viewportHeight: Float): Boolean {
+        val selection = state.selection
+        if (!selection.collapsed || state.text.isEmpty()) return false
+        val layout = controller.layout ?: return false
+        val offset = selection.end.coerceIn(0, layout.layoutInput.text.length)
+        val caret = runCatching { layout.getCursorRect(offset) }.getOrNull() ?: return false
+        return caret.bottom + currentInsetPx - scroll.value + caretHandleHeightPx > viewportHeight
+    }
+
+    /** Hides a caret handle that would hang below the field, once the field has settled. */
+    suspend fun hideCaretHandleIfItHangsOut(viewportHeight: () -> Float) {
+        awaitFrame()
+        awaitFrame()
+        if (!caretHandleHangsOut(viewportHeight())) return
+        hidesCaretHandle = true
+        try {
+            awaitFrame()
+            awaitFrame()
+        } finally {
+            hidesCaretHandle = false
+        }
+    }
+
+    // The keyboard rising squeezes a field (A-10's cap): a handle that fit can end up hanging out.
+    // Checked once the field has settled and scrolled its caret back into view.
+    LaunchedEffect(scroll) {
+        snapshotFlow { scroll.viewportSize }.collectLatest { viewport ->
+            if (!hasFocus || viewport <= 0) return@collectLatest
+            delay(300)
+            snapshotFlow { scroll.isScrollInProgress }.first { !it }
+            hideCaretHandleIfItHangsOut { scroll.viewportSize.toFloat() }
+        }
     }
 
     fun focusKeyboard() {
@@ -868,6 +1135,14 @@ fun ComposerTextInput(
                 selectionClaims(coordinates.localPositionOf(coordinates.findRootCoordinates(), rootPoint), isFocused = hasFocus)
         }
         swipeInput.doubleTap = { takesDoubleTap(SystemClock.uptimeMillis()) }
+        // iOS reads the field's text, marked text included, and clears it before the keyboard's
+        // next commit (`finishCompositionIfNeeded`). Here an edit reaches the parent a frame late
+        // and the clear lands on the next composition, so a send in between sent a prefix and
+        // the next commit wrote the whole old text back: flush before the send, clear right after.
+        swipeInput.flush = { publishEdit(state.text.toString()) }
+        swipeInput.sync = {
+            if (controller.isPublishingText) controller.syncsAfterPublish = true else syncFromParent()
+        }
         sendTransition?.input = swipeInput
     }
     DisposableEffect(sendTransition, swipeInput) {
@@ -1039,7 +1314,12 @@ fun ComposerTextInput(
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (event.changes.size > 1 || (change.position - down.position).getDistance() > tapSlopPx) isTap = false
-                        if (isTap && !change.pressed) noteTap(down.position, down.uptimeMillis, change.uptimeMillis, size.height.toFloat())
+                        if (isTap && !change.pressed) {
+                            noteTap(down.position, down.uptimeMillis, change.uptimeMillis, size.height.toFloat())
+                            // The field places the caret and shows its handle on this up.
+                            val viewportHeight = size.height.toFloat()
+                            settleScope.launch { hideCaretHandleIfItHangsOut { viewportHeight } }
+                        }
                         tracker.addPosition(change.uptimeMillis, change.position)
                         controller.swipeLatestUptime = change.uptimeMillis
                         val heldFor = (change.uptimeMillis - down.uptimeMillis) / 1000.0
@@ -1096,7 +1376,14 @@ fun ComposerTextInput(
             }
             .verticalScroll(scroll, enabled = overflows),
     ) {
-        BasicTextField(
+        // The platform toolbar the field would set up for itself, read from an empty container.
+        SelectionContainer(Modifier.size(0.dp).focusProperties { canFocus = false }) {
+            toolbar.platform = LocalTextContextMenuToolbarProvider.current
+        }
+        CompositionLocalProvider(
+            LocalWindowInfo provides coverableWindowInfo,
+            LocalTextContextMenuToolbarProvider provides toolbar,
+        ) { BasicTextField(
             state = state,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1173,7 +1460,7 @@ fun ComposerTextInput(
                     if (autocompleteBridge != null) AutocompleteInlineChips(autocompleteBridge)
                 }
             },
-        )
+        ) }
     }
 }
 

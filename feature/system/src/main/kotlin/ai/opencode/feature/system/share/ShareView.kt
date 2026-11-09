@@ -664,7 +664,7 @@ private fun NewSessionChip(state: ShareModel.State, onChoose: (ShareComposition.
             Chip(
                 selected = true,
                 label = "New Session in ${destination.project.name}",
-                hint = "Chooses its project",
+                hint = "Choose its project",
                 onClick = { expanded = true },
             ) {
                 OpenCodeIcon(SFSymbol.Plus, contentDescription = null, size = 14.dp)

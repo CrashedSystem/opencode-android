@@ -55,6 +55,7 @@ import ai.opencode.server.ServerSharedKeys
 import ai.opencode.server.friendlyName
 import ai.opencode.server.model.OpenCodeHomeSnapshot
 import ai.opencode.server.model.OpenCodeSession
+import ai.opencode.server.model.keepingFirstPrompts
 import ai.opencode.server.remember
 import kotlinx.coroutines.launch
 
@@ -1019,7 +1020,10 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
         val keepsSettings = previous?.isSettingsShown == true && previous.switchingTo?.persistenceID == server.persistenceID
         val pairing = next.connectionAttempt?.pairing
         val reachability = previous?.serverReachability?.filterKeys { it != server.persistenceID }.orEmpty()
-        next = next.withHome(server, snapshot)
+        // Server copies don't carry the first prompt an unnamed session is shown by; keep what this
+        // server's cached list knew, or reconnecting would name them "Untitled session" again.
+        val known = state.cachedHomeSnapshots.value[server.persistenceID]?.snapshot?.sessions.orEmpty()
+        next = next.withHome(server, snapshot.copy(sessions = snapshot.sessions.keepingFirstPrompts(known)))
         next = next.copy(
             home = next.home
                 ?.let { if (keepsSettings) it.keepingSettings(previous) else it }

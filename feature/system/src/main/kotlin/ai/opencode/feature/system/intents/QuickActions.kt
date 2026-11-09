@@ -3,6 +3,7 @@ package ai.opencode.feature.system.intents
 import ai.opencode.core.log.SystemActionOrigin
 import ai.opencode.feature.system.SystemAction
 import ai.opencode.feature.system.SessionDirectory
+import ai.opencode.feature.system.share.ShareSuggestion
 import ai.opencode.core.ui.SFSymbol
 import android.content.Context
 import android.content.Intent
@@ -45,9 +46,9 @@ data class SystemQuickAction(
 
     /** A stable ID per slot, so updating the set replaces rather than piles up. */
     val shortcutID: String
-        get() = SHORTCUT_PREFIX + when (kind) {
-            Kind.OpenSession -> "session:" + (serverKey ?: "") + ":" + (sessionID ?: "")
-            else -> kind.rawValue
+        get() = when (kind) {
+            Kind.OpenSession -> ShareSuggestion.shortcutID(serverKey.orEmpty(), sessionID.orEmpty())
+            else -> SHORTCUT_PREFIX + kind.rawValue
         }
 
     fun shortcut(context: Context, rank: Int): ShortcutInfoCompat {
@@ -63,6 +64,12 @@ data class SystemQuickAction(
             .setIcon(IconCompat.createWithResource(context, symbol.drawable))
             .setIntent(intent)
             .setRank(rank)
+            .apply {
+                if (kind == Kind.OpenSession) {
+                    setCategories(setOf(ShareSuggestion.CATEGORY))
+                    setLongLived(true)
+                }
+            }
             .build()
     }
 
@@ -70,7 +77,7 @@ data class SystemQuickAction(
         const val LIMIT = 4
         /** New Session is declared in `shortcuts.xml`, so it shows before first launch. */
         const val STATIC_COUNT = 1
-        /** Quick actions' dynamic shortcut IDs; the share sheet's suggestions use another prefix. */
+        /** Quick actions' dynamic shortcut IDs. The session entries also serve Direct Share. */
         const val SHORTCUT_PREFIX = "qa:"
 
         /** The dynamic items for the server on screen. */
@@ -94,15 +101,17 @@ data class SystemQuickAction(
             return SystemQuickAction(kind, "", null, SFSymbol.BubbleLeft, userInfo?.get("server"), userInfo?.get("session")).action
         }
 
-        /**
-         * Replaces the launcher's dynamic quick actions with [items], leaving the share
-         * sheet's suggestions alone. Skips the work when nothing changed.
-         */
+        /** Publishes the launcher list once for both surfaces. Skips unchanged items. */
         fun apply(context: Context, items: List<SystemQuickAction>) {
-            val existing = ShortcutManagerCompat.getDynamicShortcuts(context).filter { it.id.startsWith(SHORTCUT_PREFIX) }
-            val wanted = items.mapIndexed { index, item -> item.shortcut(context, index + STATIC_COUNT) }
+            val shortcuts = ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED)
+            // Older builds published a second, launcher-visible session shortcut for each donation.
+            val obsolete = shortcuts.map { it.id }.filter { it.startsWith("share:") }
+            if (obsolete.isNotEmpty()) ShortcutManagerCompat.removeLongLivedShortcuts(context, obsolete)
+            val existing = shortcuts.filter { it.isDynamic && it.id.startsWith(SHORTCUT_PREFIX) }
+            // The platform numbers dynamic ranks from zero, separately from manifest shortcuts.
+            val wanted = items.mapIndexed { index, item -> item.shortcut(context, index) }
             val same = existing.size == wanted.size && existing.sortedBy { it.rank }.zip(wanted).all { (a, b) ->
-                a.id == b.id && a.shortLabel == b.shortLabel && a.longLabel == b.longLabel && a.rank == b.rank
+                a.id == b.id && a.shortLabel == b.shortLabel && a.longLabel == b.longLabel && a.rank == b.rank && a.categories == b.categories
             }
             if (same) return
             val stale = existing.map { it.id }.filter { id -> wanted.none { it.id == id } }

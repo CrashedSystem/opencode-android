@@ -10,10 +10,14 @@ import ai.opencode.feature.session.SessionTestSupport.testSession
 import ai.opencode.server.model.OpenCodeDelivery
 import ai.opencode.server.model.OpenCodePendingInput
 import ai.opencode.server.model.OpenCodeTranscriptItem
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.ui.node.RootForTest
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsNode
@@ -30,6 +34,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
@@ -88,6 +93,79 @@ class ComposerIdentityTests {
         } finally {
             activity.finish()
             scope.cancel()
+        }
+    }
+
+    /**
+     * K-01: recreating the activity for a theme or font-scale change keeps the retained store, so
+     * `SessionLifecycle` must neither re-send `Action.Task` (which reloads the transcript as
+     * `.open` and discards pending dictation) nor treat the recreated activity's `ON_START` as the
+     * screen leaving.
+     */
+    @Test fun activityRecreationDoesNotRestartSessionTaskOrDropVisibility() {
+        val recorded = mutableListOf<SessionFeature.Action>()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val initial = makeSessionState(id = "ses_recreate", title = "Streaming", isRunning = true)
+        val sessionStore = Store(initial, Reducer<SessionFeature.State, SessionFeature.Action> { current, action ->
+            if (action is SessionFeature.Action.PreviewStateReplaced) {
+                Reduced(action.state)
+            } else {
+                recorded += action
+                when (action) {
+                    is SessionFeature.Action.VisibilityChanged -> Reduced(current.copy(isVisible = action.isVisible))
+                    is SessionFeature.Action.SceneActiveChanged -> Reduced(current.copy(isSceneActive = action.isActive))
+                    else -> Reduced(current)
+                }
+            }
+        }, scope = scope)
+        val app = RuntimeEnvironment.getApplication()
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                (activity as? ComponentActivity)?.setContent { SessionLifecycle(sessionStore) }
+            }
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        app.registerActivityLifecycleCallbacks(callbacks)
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java)
+        try {
+            controller.setup()
+            pump()
+            assertEquals(1, recorded.count { it == SessionFeature.Action.Task })
+            assertEquals(true, sessionStore.state.isVisible)
+            assertEquals(
+                emptyList<SessionFeature.Action>(),
+                recorded.filter { it == SessionFeature.Action.VisibilityChanged(false) || it == SessionFeature.Action.SceneEnteredBackground },
+            )
+
+            recorded.clear()
+            controller.recreate()
+            pump()
+            assertEquals("Activity recreation must not re-send SessionFeature.Action.Task", 0, recorded.count { it == SessionFeature.Action.Task })
+            assertEquals(
+                "Activity recreation must not send VisibilityChanged(false) or SceneEnteredBackground",
+                emptyList<SessionFeature.Action>(),
+                recorded.filter {
+                    it == SessionFeature.Action.VisibilityChanged(false) ||
+                        it == SessionFeature.Action.SceneActiveChanged(false) ||
+                        it == SessionFeature.Action.SceneEnteredBackground
+                },
+            )
+
+            // Switching to a new visit on the same store still starts that screen's task.
+            recorded.clear()
+            sessionStore.send(SessionFeature.Action.PreviewStateReplaced(sessionStore.state.copy(visit = sessionStore.state.visit + 1)))
+            pump()
+            assertEquals("A new taskIdentity still starts Action.Task once", 1, recorded.count { it == SessionFeature.Action.Task })
+        } finally {
+            app.unregisterActivityLifecycleCallbacks(callbacks)
+            controller.pause().stop().destroy()
+            scope.cancel()
+            shadowOf(Looper.getMainLooper()).idle()
         }
     }
 

@@ -14,6 +14,7 @@ import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.RollingNumber
 import ai.opencode.core.ui.RollingNumberAlignment
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.composer.OpenCodeBottomSheet
 import ai.opencode.feature.session.header.BreathingTitleHold
 import ai.opencode.feature.session.header.SessionContextRing
@@ -167,7 +168,7 @@ object SessionSheetFormat {
     }
 
     /** iOS `cost.formatted(.currency(code: "USD"))`. */
-    fun cost(value: Double, locale: Locale = Locale.getDefault()): String =
+    fun cost(value: Double, locale: Locale = appFormattingLocale()): String =
         NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance("USD") }.format(value)
 }
 
@@ -774,7 +775,7 @@ private fun ContextRow(details: SessionSheetDetails) {
                 SessionContextRing(fraction, Modifier.size(ringSize), lineWidth = 2.2.dp)
                 RollingNumber("${SessionContextRing.percent(fraction)}%", style = OpenCodeTextStyles.callout, alignment = alignment)
             }
-            usage != null -> RollingNumber("${NumberFormat.getIntegerInstance().format(usage.tokens)} tokens", style = OpenCodeTextStyles.callout, alignment = alignment)
+            usage != null -> RollingNumber("${NumberFormat.getIntegerInstance(appFormattingLocale()).format(usage.tokens)} tokens", style = OpenCodeTextStyles.callout, alignment = alignment)
             else -> Text("—", style = OpenCodeTextStyles.callout, color = OpenCodeTheme.colors.secondaryText)
         }
     }

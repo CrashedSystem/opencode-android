@@ -66,6 +66,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.semantics.Role
@@ -74,7 +75,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -143,15 +143,21 @@ data class DraftProjectOrder(
  * slide-and-fade (iOS blur-replace) when it changes; a cross-fade under Reduce Motion.
  */
 @Composable
-fun ProjectHeaderSubtitle(project: String, modifier: Modifier = Modifier, content: @Composable (String) -> Unit = { Text(it) }) {
+fun ProjectHeaderSubtitle(
+    project: String,
+    modifier: Modifier = Modifier,
+    animates: Boolean = true,
+    content: @Composable (String) -> Unit = { Text(it) },
+) {
     val reducedMotion = rememberReduceMotion()
     val density = LocalDensity.current
     AnimatedContent(
         targetState = project,
         modifier = modifier,
         transitionSpec = {
-            // iOS `.titleRoll` on `Motion.swap`.
-            MotionTransition.roll(MotionRollDirection.Up, reducedMotion, density).content
+            // iOS `.titleRoll` on `Motion.swap`; a subtitle swapped in place without animation doesn't move.
+            if (!animates) (fadeIn(snap()) togetherWith fadeOut(snap())) using null
+            else MotionTransition.roll(MotionRollDirection.Up, reducedMotion, density).content
         },
         label = "projectHeaderSubtitle",
     ) { content(it) }
@@ -237,16 +243,17 @@ fun DraftProjectList(
             shown.forEachIndexed { index, project ->
                 val rowIsChosen = index == chosenIndex
                 if (!onlyKept || index == kept) {
-                    DraftProjectFade(isHidden = isComposing && index != kept, reducedMotion = reducedMotion) {
+                    DraftProjectFade(isHidden = isComposing && index != kept, reducedMotion = reducedMotion) { hidden ->
                         DraftProjectRow(
                             title = project.name,
                             symbol = if (rowIsChosen) SFSymbol.FolderFill else SFSymbol.Folder,
                             chosen = rowIsChosen,
                             ownHighlight = reducedMotion,
                             iconWidth = iconWidth,
-                            hint = if (isComposing) "Chooses where the session starts" else null,
+                            hint = if (isComposing) "Choose where the session starts" else null,
                             onClick = { if (isComposing) onAll() else onPick(project) },
                             tag = "draft-project-row",
+                            takesTouches = !hidden,
                         )
                     }
                 } else {
@@ -254,7 +261,7 @@ fun DraftProjectList(
                 }
             }
             if (!onlyKept || kept == shown.size) {
-                DraftProjectFade(isHidden = isComposing && kept != shown.size, reducedMotion = reducedMotion) {
+                DraftProjectFade(isHidden = isComposing && kept != shown.size, reducedMotion = reducedMotion) { hidden ->
                     DraftProjectRow(
                         title = if (shown.isEmpty()) "Choose Folder…" else "All Projects",
                         symbol = if (shown.isEmpty()) SFSymbol.FolderBadgePlus else SFSymbol.Magnifyingglass,
@@ -264,6 +271,7 @@ fun DraftProjectList(
                         hint = null,
                         onClick = onAll,
                         tag = "draft-projects-all",
+                        takesTouches = !hidden,
                     )
                 }
             } else {
@@ -277,7 +285,17 @@ private fun isChosen(project: OpenCodeProject, chosen: OpenCodeProject?): Boolea
     chosen != null && (project.id == chosen.id || project.directory == chosen.directory)
 
 @Composable
-private fun DraftProjectRow(title: String, symbol: SFSymbol, chosen: Boolean, ownHighlight: Boolean, iconWidth: androidx.compose.ui.unit.Dp, hint: String?, onClick: () -> Unit, tag: String) {
+private fun DraftProjectRow(
+    title: String,
+    symbol: SFSymbol,
+    chosen: Boolean,
+    ownHighlight: Boolean,
+    iconWidth: androidx.compose.ui.unit.Dp,
+    hint: String?,
+    onClick: () -> Unit,
+    tag: String,
+    takesTouches: Boolean,
+) {
     // Reduce Motion: the row's own highlight cross-fades in place (iOS `layout`, the reduced fade).
     val highlight by animateFloatAsState(if (chosen && ownHighlight) 1f else 0f, Motion.reduced.animation(reduceMotion = true), label = "draftProjectHighlight")
     Row(
@@ -285,11 +303,15 @@ private fun DraftProjectRow(title: String, symbol: SFSymbol, chosen: Boolean, ow
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .background(OpenCodeTheme.colors.text.copy(alpha = 0.06f * highlight), RoundedCornerShape(50))
-            .clickable(role = Role.Button, onClickLabel = hint, onClick = onClick)
+            // A hidden row has no pointer node at all: a disabled one would still be hit and end
+            // the search, eating taps meant for the chosen row folded under it.
+            .then(if (takesTouches) Modifier.clickable(role = Role.Button, onClickLabel = hint, onClick = onClick) else Modifier)
             .padding(start = 17.dp, end = 16.dp)
             .testTag(tag)
-            .semantics(mergeDescendants = true) {
-                selected = chosen
+            .clearAndSetSemantics {
+                // iOS's `.isSelected` trait as words: `selected` would make the row checkable,
+                // and TalkBack would offer "double-tap to toggle" on a row that picks.
+                if (chosen) stateDescription = "Selected"
                 contentDescription = title
             },
         verticalAlignment = Alignment.CenterVertically,
@@ -310,11 +332,12 @@ private fun DraftProjectRow(title: String, symbol: SFSymbol, chosen: Boolean, ow
 
 /**
  * A row folded away: it fades and blurs out where it is, quickly, so it's gone before the chosen
- * row glides past; unfolding, it comes back just behind. Hidden rows take no touches and leave
- * TalkBack.
+ * row glides past; unfolding, it comes back just behind. Hidden rows leave TalkBack, and [content]
+ * gets `hidden` to drop its touch handling (iOS `.allowsHitTesting(!isHidden)`): taps pass
+ * through to the chosen row, which sits in the last row's slot when folded.
  */
 @Composable
-private fun DraftProjectFade(isHidden: Boolean, reducedMotion: Boolean, content: @Composable () -> Unit) {
+private fun DraftProjectFade(isHidden: Boolean, reducedMotion: Boolean, content: @Composable (hidden: Boolean) -> Unit) {
     val alpha by animateFloatAsState(
         targetValue = if (isHidden) 0f else 1f,
         animationSpec = if (isHidden) Motion.swap.animation(MotionPhase.Exit, reducedMotion)
@@ -328,11 +351,7 @@ private fun DraftProjectFade(isHidden: Boolean, reducedMotion: Boolean, content:
             .transitionBlur(blur.dp)
             .then(if (isHidden) Modifier.clearAndSetSemantics { hideFromAccessibility() } else Modifier),
     ) {
-        content()
-        if (isHidden) {
-            // Hidden rows take no touches.
-            Box(Modifier.matchParentSize().clickable(enabled = false) {})
-        }
+        content(isHidden)
     }
 }
 
@@ -413,7 +432,11 @@ fun ProjectPickerSheet(
     onCancel: () -> Unit,
     folderBrowser: StoreOf<FolderBrowserFeature.State, FolderBrowserFeature.Action>?,
 ) {
-    ModalBottomSheet(onDismissRequest = onCancel, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)) {
+    // iOS's `[.medium, .large]` detents. In a compact-height window (a landscape phone) UIKit
+    // ignores detents and presents the sheet at full height; half of it there showed only the
+    // title, the search and a row under the gesture bar (QA F-36).
+    val compactHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() } < 480.dp
+    ModalBottomSheet(onDismissRequest = onCancel, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = compactHeight)) {
         val routes = folderBrowser?.let { browser -> browser.collectState().value.routes }.orEmpty()
         BackHandler(enabled = routes.isNotEmpty()) {
             folderBrowser?.send(FolderBrowserFeature.Action.RoutesChanged(routes.dropLast(1)))
@@ -495,8 +518,8 @@ private fun ProjectList(
                             .padding(horizontal = ProjectPickerTunables.rowInset, vertical = ProjectPickerTunables.rowPadding)
                             .clearAndSetSemantics {
                                 contentDescription = project.name
-                                stateDescription = project.directory
-                                selected = chosen
+                                // iOS's `.isSelected` trait as words, not a checkable `selected`.
+                                stateDescription = listOfNotNull(if (chosen) "Selected" else null, project.directory).joinToString(", ")
                                 role = Role.Button
                             },
                         verticalAlignment = Alignment.CenterVertically,

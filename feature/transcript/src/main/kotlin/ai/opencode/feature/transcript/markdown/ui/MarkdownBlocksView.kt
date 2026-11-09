@@ -9,13 +9,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.GraphicsContext
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.layer.CompositingStrategy
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.LocalGraphicsContext
+import kotlin.math.abs
 
 /**
  * iOS `MarkdownBlocksView`: a run of blocks with the transcript's spacing between them
@@ -103,28 +112,82 @@ fun agentImageGrowthDepth(height: Float, cut: Float, fade: Float): Float {
  * values come from media's `AgentImageRowGrowth`, converted to pixels by the caller.
  */
 fun Modifier.agentImageGrowthHold(lift: () -> Float, cut: () -> Float, clips: Boolean, softEdge: Boolean = true): Modifier =
-    graphicsLayer {
-        translationY = -lift()
-        if (clips) compositingStrategy = CompositingStrategy.Offscreen
-    }.then(
-        if (!clips) {
-            Modifier
-        } else {
-            Modifier.drawWithContent {
-                drawContent()
-                val c = cut()
-                if (c <= 0.5f) return@drawWithContent
-                val bottom = maxOf(0f, size.height - c)
-                val depth = agentImageGrowthDepth(size.height, c, if (softEdge) TranscriptTunables.growthSoftEdge * density else 0f)
+    this then AgentImageGrowthHoldElement(lift, cut, clips, softEdge)
+
+private data class AgentImageGrowthHoldElement(
+    val lift: () -> Float,
+    val cut: () -> Float,
+    val clips: Boolean,
+    val softEdge: Boolean,
+) : ModifierNodeElement<AgentImageGrowthHoldNode>() {
+    override fun create() = AgentImageGrowthHoldNode(lift, cut, clips, softEdge)
+    override fun update(node: AgentImageGrowthHoldNode) {
+        node.lift = lift
+        node.cut = cut
+        node.clips = clips
+        node.softEdge = softEdge
+    }
+}
+
+/**
+ * Pure [DrawModifierNode] so every Markdown block doesn't carry a `BlockGraphicsLayerModifier`
+ * (`SemanticsModifierNode` with an empty configuration, which fanned out scroll/growth subtree
+ * accessibility events per paragraph and returned `null` to TalkBack).
+ */
+private class AgentImageGrowthHoldNode(
+    var lift: () -> Float,
+    var cut: () -> Float,
+    var clips: Boolean,
+    var softEdge: Boolean,
+) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+    private var layer: GraphicsLayer? = null
+    private var layerOwner: GraphicsContext? = null
+
+    override fun ContentDrawScope.draw() {
+        val liftPx = lift()
+        val cutPx = if (clips) cut() else 0f
+        if ((abs(liftPx) <= 0.01f && cutPx <= 0.5f) || size.width <= 0f || size.height <= 0f) {
+            dropLayer()
+            drawContent()
+            return
+        }
+        val graphics = currentValueOf(LocalGraphicsContext)
+        if (layerOwner !== graphics) dropLayer()
+        val activeLayer = layer ?: graphics.createGraphicsLayer().also {
+            layer = it
+            layerOwner = graphics
+        }
+        activeLayer.translationY = -liftPx
+        activeLayer.compositingStrategy = if (cutPx > 0.5f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+        // Read outside `record`: its scope's `density` recursed into itself (StackOverflowError).
+        val softEdgePx = if (softEdge) TranscriptTunables.growthSoftEdge * density else 0f
+        activeLayer.record {
+            this@draw.drawContent()
+            if (cutPx > 0.5f) {
+                val bottom = maxOf(0f, size.height - cutPx)
+                val depth = agentImageGrowthDepth(size.height, cutPx, softEdgePx)
                 if (depth > 0f) {
                     drawRect(
                         Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = bottom - depth, endY = bottom),
                         topLeft = Offset(0f, bottom - depth),
-                        size = androidx.compose.ui.geometry.Size(size.width, depth),
+                        size = Size(size.width, depth),
                         blendMode = BlendMode.DstOut,
                     )
                 }
-                drawRect(Color.Black, topLeft = Offset(0f, bottom), size = androidx.compose.ui.geometry.Size(size.width, c), blendMode = BlendMode.DstOut)
+                drawRect(Color.Black, topLeft = Offset(0f, bottom), size = Size(size.width, cutPx), blendMode = BlendMode.DstOut)
             }
-        },
-    )
+        }
+        drawLayer(activeLayer)
+    }
+
+    override fun onReset() = dropLayer()
+
+    override fun onDetach() = dropLayer()
+
+    private fun dropLayer() {
+        val existing = layer ?: return
+        layer = null
+        layerOwner?.releaseGraphicsLayer(existing)
+        layerOwner = null
+    }
+}

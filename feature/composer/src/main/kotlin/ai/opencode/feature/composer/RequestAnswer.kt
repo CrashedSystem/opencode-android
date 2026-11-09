@@ -6,6 +6,7 @@ import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
@@ -21,7 +22,6 @@ import ai.opencode.server.replyForm
 import kotlinx.coroutines.CancellationException
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.util.Locale
 
 /**
  * Port of iOS `RequestDockFeature` (`OpenCode/Composer/RequestAnswer.swift`): the pending
@@ -720,6 +720,6 @@ object RequestReplies {
     }
 }
 
-/** Swift's `Double.formatted()` for a typed number: grouped, in the current locale. */
+/** Swift's `Double.formatted()` for a typed number: grouped, in the app's formatting locale. */
 private fun formattedNumber(value: Double): String =
-    DecimalFormat("#,##0.######", DecimalFormatSymbols.getInstance(Locale.getDefault())).format(value)
+    DecimalFormat("#,##0.######", DecimalFormatSymbols.getInstance(appFormattingLocale())).format(value)

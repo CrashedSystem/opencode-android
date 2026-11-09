@@ -5,8 +5,10 @@ import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
+import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.feature.media.withinNodeLimit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -90,7 +93,7 @@ fun RunErrorRow(
                 contentDescription = error.line
                 customActions = actions.drop(1).map { action ->
                     CustomAccessibilityAction(menuTitle(action)) { perform(action); true }
-                } + CustomAccessibilityAction("Copy Error") { copy(error.details); true }
+                }.plus(CustomAccessibilityAction("Copy Error") { copy(error.details); true }).withinNodeLimit()
             },
             horizontalArrangement = Arrangement.spacedBy(spacing),
         ) {
@@ -157,12 +160,16 @@ fun RunErrorRow(
     }
 }
 
-/** The line's one way forward, trailing it: glyph and title in secondary, its target in the row's halves. */
+/**
+ * The line's one way forward, trailing it: glyph and title in secondary, its target in the row's
+ * halves. Chromeless like iOS's `.plain` button; the press ripples in a capsule around the label
+ * (as a Material text button), not the target's bare rectangle.
+ */
 @Composable
 private fun RunErrorAction(action: OpenCodeRunError.Action, modifier: Modifier, onClick: () -> Unit) {
     val colors = OpenCodeTheme.colors
     Row(
-        modifier.rowHitTarget(target = Modifier.clickable(role = Role.Button, onClick = onClick)),
+        modifier.rowHitTarget(target = Modifier.clip(OpenCodeShape.capsule).clickable(role = Role.Button, onClick = onClick)),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -199,7 +206,7 @@ fun UndoneRow(redo: () -> Unit, modifier: Modifier = Modifier) {
             Modifier
                 .alignByBaseline()
                 .rowHitTarget(
-                    target = Modifier.clickable(
+                    target = Modifier.clip(OpenCodeShape.capsule).clickable(
                         role = Role.Button,
                         onClickLabel = "Restore the reverted messages and files until you send a new message",
                         onClick = redo,

@@ -1,14 +1,16 @@
 # Checks every pull request and push to main (scripts/check.sh: assemble, lint, unit tests).
-# Pushes to main and manual runs also:
-#   - publish the debug APK as the rolling `main-latest` pre-release (sideloading), and
-#   - build the release AAB signed with the Play upload key and ship it to Google Play's
-#     internal testing track, like iOS's push-to-main TestFlight builds (docs/releasing.md).
+# Pushes to main also publish the debug APK as the rolling `main-latest` pre-release
+# (sideloading). Releases go through GitHub Releases only, as on iOS: a `v*` tag (from
+# `gh release create`) builds the release AAB signed with the Play upload key, ships it to
+# Google Play's internal testing track, then promotes it to open testing once the
+# PLAY_OPEN_TESTING repo variable is `true` (docs/releasing.md).
 name: Android
 
 on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
@@ -28,7 +30,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Stamp the build
-        run: echo "OC_VERSION_SUFFIX=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+        run: |
+          echo "OC_VERSION_SUFFIX=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then echo "OC_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"; fi
 
       - uses: actions/setup-java@v4
         with:
@@ -60,7 +64,7 @@ jobs:
           retention-days: 30
 
       - name: Build the Play release bundle
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.ref_type == 'tag'
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
           OC_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
@@ -79,7 +83,7 @@ jobs:
           cp app/build/outputs/mapping/release/mapping.txt "opencode-android-${OC_VERSION_SUFFIX}-mapping.txt"
 
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.ref_type == 'tag'
         with:
           name: opencode-android-aab-${{ env.OC_VERSION_SUFFIX }}
           path: |
@@ -99,7 +103,7 @@ jobs:
 
   publish:
     needs: check
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -131,7 +135,7 @@ jobs:
 
   play:
     needs: check
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     concurrency:
       group: play-internal
@@ -141,6 +145,7 @@ jobs:
       - name: Short SHA
         run: |
           echo "SHORT=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
             echo "::notice::No Play service account secret; skipping the Play upload."
             echo "SHIP=false" >> "$GITHUB_ENV"
@@ -161,6 +166,28 @@ jobs:
           packageName: ai.opencode.mobilecode
           releaseFiles: opencode-android-${{ env.SHORT }}.aab
           mappingFile: opencode-android-${{ env.SHORT }}-mapping.txt
-          releaseName: 0.1.0-${{ env.SHORT }} (${{ github.run_number }})
+          releaseName: ${{ env.VERSION }} (${{ github.run_number }})
           track: internal
           status: completed
+
+      - uses: actions/checkout@v4
+        if: env.SHIP == 'true'
+        with:
+          path: source
+          sparse-checkout: scripts/play-promote.sh
+          sparse-checkout-cone-mode: false
+
+      # Open testing is the public opt-in track, like iOS's External TestFlight group. It stays
+      # off until the PLAY_OPEN_TESTING repo variable is `true`: Play needs the store listing,
+      # content rating, data safety form and privacy policy before it accepts the release.
+      - name: Promote to Google Play open testing
+        if: env.SHIP == 'true'
+        env:
+          PLAY_OPEN_TESTING: ${{ vars.PLAY_OPEN_TESTING }}
+        run: |
+          if [ "$PLAY_OPEN_TESTING" != true ]; then
+            echo "::notice::PLAY_OPEN_TESTING isn't true; the build stays on internal testing only."
+            exit 0
+          fi
+          source/scripts/play-promote.sh ai.opencode.mobilecode beta "${{ github.run_number }}" \
+            "${VERSION} (${{ github.run_number }})"

@@ -2,9 +2,12 @@
 
 A native Android port of the OpenCode iOS app (Kotlin, Jetpack Compose, Material 3 Expressive).
 Lives at github.com/anomalyco/opencode-android (private). Push only when Ryan asks.
-CI (`.github/workflows/android.yml`) runs `scripts/check.sh` on every PR and push; each push to
-`main` ships to Google Play internal testing and publishes the debug APK as the `main-latest`
-pre-release, so every push to main is a beta, as on iOS ([docs/releasing.md](docs/releasing.md)).
+CI (`.github/workflows/android.yml`) runs `scripts/check.sh` on every PR and push; a push to
+`main` only publishes the debug APK as the `main-latest` pre-release. As on iOS, releases go
+through GitHub Releases only: `gh release create "v$(scripts/version.sh <sha>)" --target
+"$(git rev-parse <sha>)" --generate-notes` ships to Google Play internal testing (and open
+testing once `PLAY_OPEN_TESTING` is on). Release only when Ryan asks
+([docs/releasing.md](docs/releasing.md)).
 
 ## The iOS app is the source of truth
 

@@ -3,7 +3,10 @@ package ai.opencode.core.ui
 import ai.opencode.core.motion.OpenCodeMotionScheme
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.sharing.shared
+import android.app.Activity
 import android.app.UiModeManager
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -22,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 
 /**
  * The app's theme: wraps [MaterialExpressiveTheme] with a [ColorScheme] built from the iOS
@@ -76,12 +81,41 @@ fun OpenCodeTheme(
 
 /**
  * [OpenCodeTheme] driven by the persisted [ThemeSharedKeys] (iOS `applyAppAppearance()`).
- * Use once at the root of each window/activity.
+ * Use once at the root of each window/activity. Like iOS's window
+ * `overrideUserInterfaceStyle`, the window's status and navigation bars follow the app's
+ * effective appearance rather than the system's night mode.
  */
 @Composable
 fun OpenCodeAppTheme(content: @Composable () -> Unit) {
     val appearance = rememberAppAppearance()
+    SystemBarAppearance(isDark = appearance.colorScheme.resolveIsDark(isSystemInDarkTheme()))
     OpenCodeTheme(theme = appearance.theme, appearance = appearance.colorScheme, content = content)
+}
+
+/**
+ * Light or dark status and navigation bar content for the hosting activity's window. Applied
+ * when the appearance changes (not on every recomposition), so a screen that restyles the bars
+ * for itself, such as the media viewer, keeps its style.
+ */
+@Composable
+private fun SystemBarAppearance(isDark: Boolean) {
+    val view = LocalView.current
+    val window = remember(view) { view.context.findActivity()?.window }
+    DisposableEffect(window, isDark) {
+        if (window != null) {
+            WindowCompat.getInsetsController(window, window.decorView).run {
+                isAppearanceLightStatusBars = !isDark
+                isAppearanceLightNavigationBars = !isDark
+            }
+        }
+        onDispose {}
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /** The persisted Settings → Appearance choice. */

@@ -1,6 +1,7 @@
 package ai.opencode.feature.composer
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +16,9 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Recording, one press at a time. The mic goes live first, so a press feels
@@ -28,7 +31,10 @@ import java.util.Locale
  * stop is still finalizing).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class LiveDictation(private val engine: DictationEngine) {
+class LiveDictation(
+    private val engine: DictationEngine,
+    private val actor: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1),
+) {
     /**
      * One press's resources. A stop or cancel only ever reaches its own
      * recording; a newer press has a new one. Touched only on [actor].
@@ -46,6 +52,7 @@ class LiveDictation(private val engine: DictationEngine) {
         /** The model load this press took, until its model is in hand. */
         var load: Deferred<DictationModel>? = null
         var results: Job? = null
+        var hasWords = false
         var isReleased = false
         private var micStopped = false
 
@@ -95,7 +102,6 @@ class LiveDictation(private val engine: DictationEngine) {
         }
     }
 
-    private val actor = Dispatchers.Default.limitedParallelism(1)
     private val scope = CoroutineScope(SupervisorJob() + actor)
     private var current: Recording? = null
 
@@ -156,6 +162,9 @@ class LiveDictation(private val engine: DictationEngine) {
                 engine.loadModel(true)
             }
         }
+        // This press owns the joined load now. A deadline must cancel the actual
+        // service wait, not just the coroutine awaiting it.
+        task.invokeOnCompletion { if (it is CancellationException) joined.cancel() }
         keepWarm(task)
         return task
     }
@@ -306,11 +315,11 @@ class LiveDictation(private val engine: DictationEngine) {
                 try {
                     for (result in results) {
                         DictationLatency.mark("first_words")
-                        if (result.isFinal) {
-                            finalized += result.text
-                            recording.output.trySend(finalized)
-                        } else {
-                            recording.output.trySend(finalized + result.text)
+                        val text = finalized + result.text
+                        if (result.isFinal) finalized = text
+                        if (text.isNotBlank()) {
+                            recording.hasWords = true
+                            recording.output.trySend(text)
                         }
                     }
                     deliver(recording)
@@ -341,13 +350,16 @@ class LiveDictation(private val engine: DictationEngine) {
 
     /** Ends [recording]'s stream; a failure means no hold after it. */
     private fun deliver(recording: Recording, failure: Throwable? = null) {
+        if (recording.delivered) return
         recording.delivered = true
-        if (failure == null) {
-            recording.output.close()
-            return
+        val error = when {
+            recording.input.isDiscarded -> null
+            !recording.hasWords && recording.model?.isInstallFallback == true &&
+                (failure == null || failure is DictationError.Recognizer) -> DictationError.LocaleUnsupported()
+            else -> failure
         }
-        if (!recording.input.isDiscarded) recording.failed = true
-        recording.output.close(failure)
+        if (error != null) recording.failed = true
+        recording.output.close(error.takeUnless { recording.hasWords })
     }
 
     /** Something outside stalled or changed the mic: what was heard is finalized, and the session isn't held after. */
@@ -401,15 +413,25 @@ class LiveDictation(private val engine: DictationEngine) {
     private suspend fun finish(recording: Recording) {
         finishing[recording.press] = recording
         try {
-            recording.stopCapture()
-            // No more audio. A model still loading gets everything heard so far:
-            // letting go right after speaking doesn't lose the words.
-            recording.input.end()
-            recording.recognition?.join()
-            recording.model?.finish?.invoke()
-            // Finishing ends the results; drain rather than cancel so a routine
-            // stop can't inject a cancellation into the transcript.
-            recording.results?.join()
+            // Android's speech service can hang during install as well as during
+            // recognition. Both share one deadline starting at Stop.
+            val finished = withTimeoutOrNull(FINISH_TIMEOUT) {
+                recording.stopCapture()
+                // A model still loading gets everything heard so far.
+                recording.input.end()
+                recording.recognition?.join()
+                recording.model?.finish?.invoke()
+                recording.results?.join()
+                true
+            }
+            if (finished == null && !recording.isReleased) {
+                deliver(recording, DictationError.LocaleUnsupported())
+                recording.load?.cancel()
+                recording.load = null // Don't hand the timed-out load to another press.
+                recording.recognition?.cancel()
+                recording.results?.cancel()
+                recording.model?.cancel?.invoke()
+            }
             release(recording)
         } finally {
             if (finishing[recording.press] === recording) finishing.remove(recording.press)
@@ -441,5 +463,9 @@ class LiveDictation(private val engine: DictationEngine) {
         // The next press starts warm. A load this press took and never used goes
         // back at once, so a press now joins it rather than preparing a second model.
         if (recording.load != null) handBack(recording) else warmModel(install = false)
+    }
+
+    private companion object {
+        val FINISH_TIMEOUT = 10.seconds
     }
 }

@@ -494,7 +494,7 @@ fun MediaAttachmentUnavailableView(
         testTag = "media-unavailable"
         if (retry != null) {
             role = Role.Button
-            onClick(label = "Tries again") { retry(); true }
+            onClick(label = "Try again") { retry(); true }
         }
     }
     if (compact) {

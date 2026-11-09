@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -43,9 +44,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
@@ -339,53 +340,67 @@ fun DrawerCatchUpFinishedLabel(
         Spacer(Modifier.width(8.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             val textStyle = OpenCodeTextStyles.body
+            val oldTitleLayer = rememberGraphicsLayer()
+            val newTitleLayer = rememberGraphicsLayer()
             Text(
                 "Catch Up",
                 style = textStyle,
                 maxLines = 1,
-                modifier = Modifier.graphicsLayer {
+                modifier = Modifier.drawWithContent {
                     val frame = frameState.value
-                    alpha = frame.oldTitleOpacity.toFloat().coerceIn(0f, 1f)
-                    translationY = frame.oldTitleOffset.toFloat().dp.toPx()
-                    renderEffect = transitionBlurEffect(frame.oldTitleBlur.toFloat().dp.toPx())
+                    val alpha = frame.oldTitleOpacity.toFloat().coerceIn(0f, 1f)
+                    if (alpha <= 0.001f) return@drawWithContent
+                    oldTitleLayer.alpha = alpha
+                    oldTitleLayer.translationY = frame.oldTitleOffset.toFloat().dp.toPx()
+                    oldTitleLayer.renderEffect = transitionBlurEffect(frame.oldTitleBlur.toFloat().dp.toPx())
+                    oldTitleLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(oldTitleLayer)
                 },
             )
             Text(
                 "All Caught Up",
                 style = textStyle,
                 maxLines = 1,
-                modifier = Modifier.graphicsLayer {
+                modifier = Modifier.drawWithContent {
                     val frame = frameState.value
-                    alpha = frame.newTitleOpacity.toFloat().coerceIn(0f, 1f)
-                    translationY = frame.newTitleOffset.toFloat().dp.toPx()
-                    renderEffect = transitionBlurEffect(frame.newTitleBlur.toFloat().dp.toPx())
+                    val alpha = frame.newTitleOpacity.toFloat().coerceIn(0f, 1f)
+                    if (alpha <= 0.001f) return@drawWithContent
+                    newTitleLayer.alpha = alpha
+                    newTitleLayer.translationY = frame.newTitleOffset.toFloat().dp.toPx()
+                    newTitleLayer.renderEffect = transitionBlurEffect(frame.newTitleBlur.toFloat().dp.toPx())
+                    newTitleLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(newTitleLayer)
                 },
             )
         }
         Spacer(Modifier.width(4.dp))
         Box(Modifier.widthIn(min = 18.dp), contentAlignment = Alignment.CenterEnd) {
+            val countLayer = rememberGraphicsLayer()
             RollingNumber(
                 value = if (showsZero) 0 else fromCount,
                 style = OpenCodeTextStyles.subheadline,
                 color = OpenCodeTheme.colors.secondaryText,
                 motion = rollStyle,
                 alignment = RollingNumberAlignment.End,
-                modifier = Modifier.graphicsLayer {
+                modifier = Modifier.drawWithContent {
                     val frame = frameState.value
+                    val alpha = frame.countOpacity.toFloat().coerceIn(0f, 1f)
+                    if (alpha <= 0.001f) return@drawWithContent
                     val scale = frame.countScale.toFloat()
-                    scaleX = scale
-                    scaleY = scale
-                    transformOrigin = TransformOrigin(1f, 0.5f)
-                    alpha = frame.countOpacity.toFloat().coerceIn(0f, 1f)
-                    renderEffect = transitionBlurEffect(frame.countBlur.toFloat().dp.toPx())
+                    countLayer.alpha = alpha
+                    countLayer.scaleX = scale
+                    countLayer.scaleY = scale
+                    countLayer.pivotOffset = Offset(size.width, size.height / 2f)
+                    countLayer.renderEffect = transitionBlurEffect(frame.countBlur.toFloat().dp.toPx())
+                    countLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(countLayer)
                 },
             )
             CatchUpFinishCheck(
                 tone = tone,
                 trim = { frameState.value.checkTrim.toFloat() },
-                modifier = Modifier
-                    .size(18.dp)
-                    .graphicsLayer { alpha = frameState.value.checkOpacity.toFloat().coerceIn(0f, 1f) },
+                opacity = { frameState.value.checkOpacity.toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -393,9 +408,11 @@ fun DrawerCatchUpFinishedLabel(
 
 /** The trailing checkmark the 0 becomes, drawn by trimming (iOS `CatchUpFinishCheckShape`). */
 @Composable
-private fun CatchUpFinishCheck(tone: Color, trim: () -> Float, modifier: Modifier = Modifier) {
+private fun CatchUpFinishCheck(tone: Color, trim: () -> Float, opacity: () -> Float, modifier: Modifier = Modifier) {
     Canvas(modifier) {
         // The prototype's `M5.2 12.6 l4.3 4.3 9.3-10` in a 24-point box.
+        val alpha = opacity()
+        if (alpha <= 0.001f) return@Canvas
         val sx = size.width / 24f
         val sy = size.height / 24f
         val path = Path().apply {
@@ -410,7 +427,7 @@ private fun CatchUpFinishCheck(tone: Color, trim: () -> Float, modifier: Modifie
         measure.getSegment(0f, measure.length * t, trimmed, true)
         drawPath(
             trimmed,
-            tone,
+            tone.copy(alpha = tone.alpha * alpha),
             style = Stroke(width = 1.95.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
     }

@@ -1,5 +1,6 @@
 package ai.opencode.feature.system.widgets
 
+import ai.opencode.feature.system.LeftToRight
 import ai.opencode.core.ui.OpenCodeAppTheme
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
@@ -10,6 +11,7 @@ import ai.opencode.feature.system.intents.SessionEntity
 import ai.opencode.feature.system.intents.sessionEntities
 import ai.opencode.feature.system.intents.suggestedSessionEntities
 import android.appwidget.AppWidgetManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -60,6 +62,11 @@ import kotlinx.coroutines.launch
  */
 class SessionWidgetConfigurationActivity : ComponentActivity() {
     private var appWidgetID = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        applyOverrideConfiguration(LeftToRight.configuration())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

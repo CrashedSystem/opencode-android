@@ -23,8 +23,10 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -300,6 +302,8 @@ class DictationModel(
     val finish: suspend () -> Unit,
     /** Ends at once, transcribing nothing more. */
     val cancel: suspend () -> Unit,
+    /** The default recognizer is trying to recover this press's failed language install. */
+    val isInstallFallback: Boolean = false,
 )
 
 /** Where [DictationInput] hands converted audio (iOS: the analyzer's input stream). */
@@ -420,8 +424,8 @@ class BufferConverter(private val source: DictationAudioFormat, target: Dictatio
 private class SpeechSetup(private val context: Context) {
     private val mutex = Mutex()
 
-    /** The resolved language and whether it's recognized on the device. */
-    private var resolved: Pair<String, Boolean>? = null
+    private data class Language(val tag: String, val onDevice: Boolean, val isInstallFallback: Boolean)
+    private var resolved: Language? = null
 
     /**
      * A new recognizer with its language ready, for one recording. Without
@@ -429,14 +433,14 @@ private class SpeechSetup(private val context: Context) {
      * with [DictationModelNotInstalled] and nothing is resolved yet.
      */
     suspend fun loadedModel(install: Boolean): LoadedSpeech {
-        val (language, onDevice) = setup(install)
+        val (language, onDevice, isInstallFallback) = setup(install)
         return withContext(Dispatchers.Main) {
             val recognizer = if (onDevice) {
                 SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             } else {
                 SpeechRecognizer.createSpeechRecognizer(context)
             }
-            LoadedSpeech(recognizer, language, onDevice)
+            LoadedSpeech(recognizer, language, onDevice, isInstallFallback)
         }
     }
 
@@ -444,34 +448,27 @@ private class SpeechSetup(private val context: Context) {
      * One shared resolution and install: every load joins the one under way. A
      * failure isn't kept, so a later attempt retries.
      */
-    private suspend fun setup(install: Boolean): Pair<String, Boolean> = mutex.withLock {
+    private suspend fun setup(install: Boolean): Language = mutex.withLock {
         resolved?.let { return it }
         val onDevice = withContext(Dispatchers.Main) { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }
         val available = withContext(Dispatchers.Main) { SpeechRecognizer.isRecognitionAvailable(context) }
         if (!onDevice && !available) throw DictationError.LocaleUnsupported()
-        val support = support(onDevice)
+        val support = withTimeoutOrNull(INSTALL_WAIT) { support(onDevice) }
         val supported = when {
             support == null -> null
             onDevice -> support.installedOnDeviceLanguages + support.pendingOnDeviceLanguages + support.supportedOnDeviceLanguages
             else -> support.onlineLanguages + support.installedOnDeviceLanguages
         }
         val language = bestLocale(supported)
-        var result = language to onDevice
         val needsInstall = onDevice && support != null && language !in support.installedOnDeviceLanguages
         // Warming up never downloads: `triggerModelDownload` shows a system
         // dialog, which belongs to the press that needs the language.
         if (needsInstall && !install) throw DictationModelNotInstalled()
-        val installed = !needsInstall || when (install(language)) {
-            true -> true
-            null -> awaitInstalled(language)
-            false -> false
-        }
-        if (!installed) {
-            // The on-device language can't be installed now: the default
-            // recognizer, offline where it can, still dictates.
-            if (!available) throw DictationError.LocaleUnsupported()
-            result = language to false
-        }
+        val installed = !needsInstall || withTimeoutOrNull(INSTALL_WAIT) {
+            install(language) ?: awaitInstalled(language)
+        } == true
+        if (!installed && !available) throw DictationError.LocaleUnsupported()
+        val result = Language(language, onDevice = installed && onDevice, isInstallFallback = !installed)
         resolved = result
         result
     }
@@ -504,27 +501,11 @@ private class SpeechSetup(private val context: Context) {
     private suspend fun install(language: String): Boolean? = withContext(Dispatchers.Main) {
         val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
         try {
-            suspendCancellableCoroutine { continuation ->
+            awaitModelDownload { listener ->
                 recognizer.triggerModelDownload(
                     Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE, language),
                     mainExecutor,
-                    object : ModelDownloadListener {
-                        override fun onProgress(completedPercent: Int) = Unit
-                        override fun onSuccess() {
-                            if (continuation.isActive) continuation.resume(true)
-                        }
-
-                        override fun onScheduled() {
-                            // Queued with the system's downloader (it asks the user first):
-                            // [awaitInstalled] waits for it to land.
-                            if (continuation.isActive) continuation.resume(null)
-                        }
-
-                        override fun onError(error: Int) {
-                            AppLog.voice.error("Couldn’t install the dictation language ($error)")
-                            if (continuation.isActive) continuation.resume(false)
-                        }
-                    },
+                    listener,
                 )
             }
         } finally {
@@ -535,14 +516,13 @@ private class SpeechSetup(private val context: Context) {
     /**
      * A scheduled download of [language]'s model (the system asked the user, then downloads
      * it): waits while dictation shows Preparing for it to be installed, as iOS's
-     * `downloadAndInstall()` does. False when it doesn't land within [INSTALL_WAIT], or is
-     * no longer pending (declined or failed) after [INSTALL_GRACE].
+     * `downloadAndInstall()` does. The caller bounds both the request and this polling by
+     * [INSTALL_WAIT]. False if no longer pending (declined or failed) after [INSTALL_GRACE].
      */
     private suspend fun awaitInstalled(language: String): Boolean {
         val started = SystemClock.uptimeMillis()
         while (true) {
             val elapsed = (SystemClock.uptimeMillis() - started).milliseconds
-            if (elapsed > INSTALL_WAIT) break
             delay(INSTALL_POLL)
             val support = support(onDevice = true) ?: break
             if (support.installedOnDeviceLanguages.any { it.equals(language, ignoreCase = true) }) {
@@ -573,11 +553,30 @@ private class SpeechSetup(private val context: Context) {
     }
 }
 
+/** The service can retain the listener after destroy(). Detach the waiting press even if it never calls back. */
+internal suspend fun awaitModelDownload(trigger: (ModelDownloadListener) -> Unit): Boolean? {
+    val result = CompletableDeferred<Boolean?>(currentCoroutineContext()[Job])
+    try {
+        trigger(object : ModelDownloadListener {
+            override fun onProgress(completedPercent: Int) = Unit
+            override fun onSuccess() { result.complete(true) }
+            override fun onScheduled() { result.complete(null) }
+            override fun onError(error: Int) {
+                if (result.complete(false)) AppLog.voice.error("Couldn’t install the dictation language ($error)")
+            }
+        })
+        return result.await()
+    } finally {
+        result.cancel()
+    }
+}
+
 /** A recognizer ready for one recording. Touched only on the main thread. */
 private class LoadedSpeech(
     private val recognizer: SpeechRecognizer,
     private val language: String,
     private val onDevice: Boolean,
+    private val isInstallFallback: Boolean,
 ) {
     private val done = CompletableDeferred<Unit>()
     private var results: Channel<DictationResult>? = null
@@ -587,16 +586,8 @@ private class LoadedSpeech(
 
     fun model(): DictationModel = DictationModel(
         start = { input, format -> withContext(Dispatchers.Main) { start(input, format) } },
-        finish = {
-            // Transcribes to the end of the input (its end closes the pipe). A
-            // recognizer that never ends is cancelled rather than hanging the press.
-            if (withTimeoutOrNull(FINISH_TIMEOUT) { done.await() } == null) {
-                withContext(Dispatchers.Main) {
-                    if (!destroyed) recognizer.cancel()
-                    end(null)
-                }
-            }
-        },
+        finish = { done.await() },
+        isInstallFallback = isInstallFallback,
         cancel = {
             withContext(Dispatchers.Main) {
                 writer?.close()
@@ -695,7 +686,6 @@ private class LoadedSpeech(
 
     private companion object {
         val TARGET = DictationAudioFormat(sampleRate = 16_000, channelCount = 1)
-        val FINISH_TIMEOUT = 10.seconds
     }
 }
 

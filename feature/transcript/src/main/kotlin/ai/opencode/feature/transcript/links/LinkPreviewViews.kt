@@ -17,6 +17,7 @@ import ai.opencode.feature.media.LocalLinkPreviewStore
 import ai.opencode.feature.media.RichLinkSource
 import ai.opencode.feature.media.SiteIcon
 import ai.opencode.feature.media.TranscriptMetrics
+import ai.opencode.feature.media.withinNodeLimit
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.TranscriptAction
 import ai.opencode.feature.transcript.TranscriptDisclosureState
@@ -305,7 +306,7 @@ fun LinkPreviewButton(preview: LinkPreview, label: @Composable () -> Unit) {
                 onClick { open(); true }
                 customActions = actions.map { action ->
                     CustomAccessibilityAction(action.title.replace("…", "")) { send(TranscriptAction.LinkMenu(action, url)); true }
-                }
+                }.withinNodeLimit()
             },
     ) {
         label()

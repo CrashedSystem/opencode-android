@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +56,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -225,7 +227,33 @@ internal class SessionSendFlights(
         flights.filter { it.itemID == itemID }.forEach { flights.remove(it); images.finish(itemID) }
         landing.hide(itemID)
         flights += SendFlight(itemID, source, awaitsImages = fliesImages, lift = SendLift(enabled = !reduceMotion))
+        startMotionLink()
         return true
+    }
+
+    /** The display's frame duration (s), for the motion link's first step. */
+    var frameInterval: Double = 1.0 / 60
+
+    private var motionLink: Job? = null
+
+    /**
+     * iOS `startMotionLink`: steps every flight from the next frame on, while any is in the air.
+     * Started here as the send lands, the frame the field empties under the words, not after the
+     * overlay's next composition. Like iOS's display link, each step runs to the frame's target
+     * time, so the first frame already carries the words one frame along.
+     */
+    private fun startMotionLink() {
+        if (motionLink?.isActive == true) return
+        motionLink = scope.launch {
+            var previous = 0L
+            while (flights.isNotEmpty()) {
+                withFrameNanos { now ->
+                    val raw = if (previous == 0L) frameInterval else (now - previous) / 1e9
+                    previous = now
+                    step(AnimationTimeScale.shared.scaledDelta(raw))
+                }
+            }
+        }
     }
 
     /** The overlay's root's place in the window (px): [SentImageFlight] works in root px, the markers in window px. */
@@ -313,8 +341,12 @@ internal class SessionSendFlights(
             val marker = landing.marker(flight.itemID)
             if (marker != null && marker.bounds.width > 0f) flight.destination = marker.bounds
             if (!flight.started) {
-                if (!begin(flight, markers)) landed += flight
-                continue
+                if (!begin(flight, markers)) {
+                    landed += flight
+                    continue
+                }
+                // Found its bubble: it moves on this frame (iOS starts the flight as it finds the cell).
+                if (!flight.started) continue
             }
             val progress = flight.advance(dt, bubbleGap(flight), listMoving, softness)
             if (progress == null) {
@@ -415,6 +447,7 @@ internal class SessionSendFlights(
     /** Everything, flights included (the screen is going away; iOS `cancel()`). */
     fun cancel() {
         transition.cancel()
+        motionLink?.cancel()
         flights.clear()
         fading.clear()
         pillFlights.forEach { it.departure.release() }
@@ -580,7 +613,9 @@ internal fun SessionSendFlightOverlay(host: SessionComposerHost, bridge: Session
     val style = ComposerTunables.textStyle.textStyle.copy(color = OpenCodeTheme.colors.text)
     val currentStyle by rememberUpdatedState(style)
 
+    val view = LocalView.current
     SideEffect {
+        flights.frameInterval = 1.0 / (view.display?.refreshRate?.takeIf { it > 0f } ?: 60f)
         bridge.sendLanding.isAwaitingSend = { host.sendTransition.isPrepared }
         bridge.sendLanding.onQueuedPill = { departure -> flights.flyIntoQueuedPill(departure, host.queuedPillFrame, density.density) }
         bridge.sendLanding.onSend = { send ->
@@ -628,17 +663,6 @@ internal fun SessionSendFlightOverlay(host: SessionComposerHost, bridge: Session
     val ime = WindowInsets.ime
     LaunchedEffect(flights, ime, density) {
         snapshotFlow { ime.getBottom(density) }.drop(1).collect { flights.interrupt() }
-    }
-    LaunchedEffect(flights, flights.isFlying) {
-        if (!flights.isFlying) return@LaunchedEffect
-        var previous = 0L
-        while (flights.isFlying) {
-            withFrameNanos { now ->
-                val raw = if (previous == 0L) 0.0 else (now - previous) / 1e9
-                previous = now
-                flights.step(AnimationTimeScale.shared.scaledDelta(raw))
-            }
-        }
     }
     Spacer(
         modifier

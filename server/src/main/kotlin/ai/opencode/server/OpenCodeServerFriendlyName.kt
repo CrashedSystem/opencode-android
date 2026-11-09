@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.core.sharing.shared
 import ai.opencode.server.internal.UrlParts
 
 /**
@@ -10,6 +11,24 @@ import ai.opencode.server.internal.UrlParts
  * and its last part, as a last resort.
  */
 val OpenCodeServer.friendlyName: String
+    get() = friendlyName(among = shared(ServerSharedKeys.savedServers).value)
+
+/**
+ * [friendlyName] among [among] (the saved servers): an unnamed server whose name another saved
+ * server also reads, on another port, gets its port (“Server 2 · 4197”), so two servers on one
+ * machine can be told apart. Android divergence (QA D-02): iOS names both alike.
+ */
+fun OpenCodeServer.friendlyName(among: List<OpenCodeServer>): String {
+    val base = baseFriendlyName
+    if (name?.trim().orEmpty().isNotEmpty()) return base
+    val port = port ?: return base
+    val collides = among.any { other ->
+        other.persistenceID != persistenceID && other.port != port && other.baseFriendlyName == base
+    }
+    return if (collides) "$base · $port" else base
+}
+
+private val OpenCodeServer.baseFriendlyName: String
     get() {
         val chosen = name?.trim().orEmpty()
         if (chosen.isNotEmpty()) return chosen
@@ -17,6 +36,17 @@ val OpenCodeServer.friendlyName: String
             .mapNotNull { UrlParts.parse(it)?.host?.lowercase() }
             .firstOrNull { it.endsWith(".ts.net") || it.endsWith(".local") }
         return friendlyServerName(named ?: url)
+    }
+
+/** The port of the address in use, or its scheme's. */
+private val OpenCodeServer.port: Int?
+    get() {
+        val parts = UrlParts.parse(url) ?: return null
+        return parts.port ?: when (parts.scheme?.lowercase()) {
+            "http" -> 80
+            "https" -> 443
+            else -> null
+        }
     }
 
 /** A friendly name for an address: a URL, `host`, `host:port`, `[v6]:port` or a bare IPv6 address. */

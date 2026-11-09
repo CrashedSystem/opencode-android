@@ -1,5 +1,6 @@
 package ai.opencode.feature.composer
 
+import android.speech.ModelDownloadListener
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -11,6 +12,8 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,7 +48,11 @@ class LiveDictationTests {
         fun append(item: T) = synchronized(items) { items += item }
     }
 
-    class Fake(loads: Boolean = true, finishes: Boolean = true, permits: Boolean = true) {
+    class Fake(
+        loads: Boolean = true, finishes: Boolean = true, permits: Boolean = true,
+        private val isInstallFallback: Boolean = false,
+        private val load: suspend (Boolean) -> Unit = {},
+    ) {
         /** The shared session's owner: dictation's claims and a call's both bump it. */
         val owner = AtomicInteger(0)
         val claims = AtomicInteger(0)
@@ -95,14 +102,16 @@ class LiveDictationTests {
                         releasedEnds.append(end)
                     }
                 },
-                loadModel = {
+                loadModel = { install ->
                     val id = loadsStarted.incrementAndGet()
                     loadGate.await()
+                    load(install)
                     model(id)
                 },
             )
 
         private fun model(id: Int) = DictationModel(
+            isInstallFallback = isInstallFallback,
             start = { _, _ ->
                 val channel = Channel<DictationResult>(Channel.UNLIMITED)
                 synchronized(results) { results[id] = channel }
@@ -117,8 +126,8 @@ class LiveDictationTests {
             cancel = { synchronized(results) { results[id] }?.close() },
         )
 
-        fun say(text: String, model: Int) {
-            synchronized(results) { results[model] }?.trySend(DictationResult(text, isFinal = true))
+        fun say(text: String, model: Int, isFinal: Boolean = true) {
+            synchronized(results) { results[model] }?.trySend(DictationResult(text, isFinal))
         }
 
         /** Mic on and not yet stopped. */
@@ -170,6 +179,72 @@ class LiveDictationTests {
             fail("Expected a CancellationException. $message")
         } catch (_: CancellationException) {
         }
+    }
+
+    @Test fun aStoppedInstallTimesOutAndIgnoresLateDownloadCallbacks() = runTest {
+        val listeners = mutableListOf<ModelDownloadListener>()
+        var activeInstalls = 0
+        val fake = Fake { install ->
+            if (!install) throw DictationModelNotInstalled()
+            activeInstalls++
+            try { awaitModelDownload { listeners += it } } finally { activeInstalls-- }
+        }
+        val dictation = LiveDictation(fake.engine, StandardTestDispatcher(testScheduler))
+        val (first, stream) = press(dictation)
+        testScheduler.advanceTimeBy(30_000) // The ten seconds start at Stop, not at the mic press.
+        assertEquals(1, activeInstalls)
+        val stopping = launch { dictation.stop(first) }
+        testScheduler.advanceTimeBy(9_999)
+        assertFalse(stopping.isCompleted)
+        testScheduler.advanceTimeBy(1)
+        testScheduler.runCurrent()
+        assertTrue(stopping.isCompleted)
+        assertEquals("Dictation isn’t available for your language yet.", stream.receiveCatching().exceptionOrNull()?.message)
+        assertEquals(0, activeInstalls)
+        assertEquals(listOf(DictationEnd.Failed), fake.releasedEnds.value)
+
+        val (second, nextStream) = press(dictation)
+        testScheduler.runCurrent()
+        assertEquals(2, listeners.size)
+        listeners.first().onError(1)
+        listeners.first().onSuccess()
+        testScheduler.runCurrent()
+        assertTrue(fake.started.value.isEmpty())
+        assertEquals(1, activeInstalls)
+        listeners.last().onSuccess()
+        testScheduler.runCurrent()
+        fake.say("next press", fake.started.value.single())
+        dictation.stop(second)
+        assertEquals("next press", nextStream.receive())
+        assertTrue(nextStream.receiveCatching().isClosed)
+    }
+
+    @Test fun aFallbacksPartialWordsSurviveTheSharedStopDeadline() = runTest {
+        lateinit var download: ModelDownloadListener
+        val fake = Fake(finishes = false, isInstallFallback = true) { install ->
+            if (install) awaitModelDownload { download = it }
+        }
+        val dictation = LiveDictation(fake.engine, StandardTestDispatcher(testScheduler))
+        val (press, stream) = press(dictation)
+        val stopping = launch { dictation.stop(press) }
+        testScheduler.advanceTimeBy(9_000)
+        download.onError(1)
+        testScheduler.runCurrent()
+        fake.say("buffered words", fake.started.value.single(), isFinal = false)
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+        assertTrue("Finishing the fallback must not start a second ten-second wait", stopping.isCompleted)
+        assertEquals("buffered words", stream.receive())
+        val end = stream.receiveCatching()
+        assertTrue(end.isClosed)
+        assertEquals(null, end.exceptionOrNull())
+    }
+
+    @Test fun anEmptyFallbackReportsTheFailedInstall() = runTest {
+        val dictation = LiveDictation(Fake(isInstallFallback = true).engine, StandardTestDispatcher(testScheduler))
+        val (press, stream) = press(dictation)
+        dictation.stop(press)
+        assertEquals("Dictation isn’t available for your language yet.", stream.receiveCatching().exceptionOrNull()?.message)
     }
 
     /**

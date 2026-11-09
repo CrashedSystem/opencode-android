@@ -175,6 +175,8 @@ private fun BlockText(
     tonesBody: Boolean = true,
 ) {
     val style = currentMarkdownStyle()
+    val muted = LocalMarkdownSecondary.current
+    val tint = if (muted) style.colors.secondaryText else color
     val density = LocalDensity.current
     val sessionLinks = LocalSessionLinks.current
     val linkStyle = LocalInlineLinkStyle.current
@@ -186,9 +188,9 @@ private fun BlockText(
     val siteIcon = remember(linkStore) { linkStore?.let { store -> { url: String -> store.inlineIcon(url) } } }
     val listener = rememberLinkListener()
     val options = PresentationOptions(
-        foreground = color,
+        foreground = tint,
         textSize = textStyle.fontSize,
-        secondary = secondary,
+        secondary = secondary || muted,
         headingLevel = headingLevel,
         tonesBody = tonesBody,
         linkStyle = linkStyle,
@@ -198,7 +200,7 @@ private fun BlockText(
         MarkdownPresentation.present(inline, options, style, sessionLinks.targets, density, listener, siteIcon)
     }
     QuoteSelectionContainer(kind, inReply = selection != null, modifier) {
-        ArrivingText(presented, presented.mapArrivals(grown), textStyle, color, selectionKey = selection)
+        ArrivingText(presented, presented.mapArrivals(grown), textStyle, tint, selectionKey = selection)
     }
     ReportsSessionLinks(presented.sessionIDs)
     val fetchable = presented.fetchableLinks

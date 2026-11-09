@@ -1,5 +1,6 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.ui.appFormattingLocale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -21,7 +22,7 @@ class RequestReviewTests {
         assertEquals(OpenCodeFormValue.Number(1.0), OpenCodeFormValue.typedNumber("1,", de))
         assertEquals(OpenCodeFormValue.Number(1234.5), OpenCodeFormValue.typedNumber("1.234,5", de))
         assertEquals(OpenCodeFormValue.Number(1234.5), OpenCodeFormValue.typedNumber(NumberFormat.getInstance(fr).format(1234.5), fr))
-        assertEquals(OpenCodeFormValue.Number(1234.5), OpenCodeFormValue.typedNumber(NumberFormat.getInstance().format(1234.5)))
+        assertEquals(OpenCodeFormValue.Number(1234.5), OpenCodeFormValue.typedNumber(NumberFormat.getInstance(appFormattingLocale()).format(1234.5)))
         assertNull(OpenCodeFormValue.typedNumber("", us))
         assertNull(OpenCodeFormValue.typedNumber("abc", us))
     }

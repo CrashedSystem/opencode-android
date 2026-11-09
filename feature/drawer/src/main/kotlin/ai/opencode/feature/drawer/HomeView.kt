@@ -15,6 +15,7 @@ import ai.opencode.core.store.PresentationAction
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.store.scope
+import ai.opencode.core.ui.LocalAccessibilityFocusMoves
 import ai.opencode.core.ui.OpenCodeIconButton
 import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import ai.opencode.core.ui.OpenCodeTheme
@@ -26,6 +27,7 @@ import ai.opencode.feature.drawer.catchup.CatchUpStageProxy
 import ai.opencode.feature.drawer.container.DrawerKeyboard
 import ai.opencode.feature.drawer.container.SessionDrawerContainer
 import ai.opencode.feature.drawer.container.SidebarMetrics
+import ai.opencode.feature.drawer.container.clearAndMergeSemantics
 import ai.opencode.feature.drawer.container.rememberSessionDrawerController
 import ai.opencode.feature.drawer.motion.DrawerButton
 import ai.opencode.feature.drawer.motion.rememberDrawerKeyboardHold
@@ -80,6 +82,7 @@ import ai.opencode.feature.settings.SettingsPresentation
 import ai.opencode.feature.settings.SettingsView
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -94,16 +97,16 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.retain.retain
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -538,12 +541,16 @@ private fun CatchUpPreviewCard(store: StoreOf<HomeFeature.State, HomeFeature.Act
     DisposableEffect(previews) { onDispose { previews.close() } }
     val preview = previews.store(session, home)
     SideEffect { previews.commit() }
-    SessionView(
-        preview,
-        Modifier.fillMaxSize().clearAndSetSemantics {},
-        listContext = remember(session, revision) { home.sessionListContext(session) },
-        onCatchUpOpen = {},
-    )
+    // A picture of the next session: nothing in it moves TalkBack's focus (QA W-05).
+    CompositionLocalProvider(LocalAccessibilityFocusMoves provides false) {
+        SessionView(
+            preview,
+            Modifier.fillMaxSize().clearAndMergeSemantics(),
+            listContext = remember(session, revision) { home.sessionListContext(session) },
+            onCatchUpOpen = {},
+            isInertPreview = true,
+        )
+    }
 }
 
 /**
@@ -638,7 +645,7 @@ private fun HomeSidebarEffects(store: StoreOf<HomeFeature.State, HomeFeature.Act
 
 /** iOS `homeLifecycle` and the body's `scenePhase` handling. */
 @Composable
-private fun HomeLifecycle(store: StoreOf<HomeFeature.State, HomeFeature.Action>, view: HomeViewState) {
+internal fun HomeLifecycle(store: StoreOf<HomeFeature.State, HomeFeature.Action>, view: HomeViewState) {
     val serverID by store.observe { it.server.persistenceID }
     val settingsShown by store.observe { it.isSettingsShown }
     val drawerCloseRequests by store.observe { it.drawerCloseRequests }
@@ -649,8 +656,13 @@ private fun HomeLifecycle(store: StoreOf<HomeFeature.State, HomeFeature.Action>,
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
     // Keyed by the server: a switch from the drawer swaps Home's state in place, and the new
-    // server's Home starts here like a fresh one.
+    // server's Home starts here like a fresh one. Retained across activity recreation (dark mode,
+    // font size, locale) so the running event stream stays on its socket instead of reconnecting
+    // and clearing in-flight `liveText` accumulators (K-01), where iOS never rebuilds `HomeView`.
+    val startedServerID = retain { arrayOfNulls<String>(1) }
     LaunchedEffect(serverID) {
+        if (startedServerID[0] == serverID) return@LaunchedEffect
+        startedServerID[0] = serverID
         store.send(HomeFeature.Action.Task)
         store.send(HomeFeature.Action.NotificationSettingsRequested)
     }
@@ -697,35 +709,44 @@ private fun HomeLifecycle(store: StoreOf<HomeFeature.State, HomeFeature.Action>,
         dependency(SessionNotificationsClient).setInAppNoticesProvider { settings.mode() != InAppNoticeMode.off }
     }
     // iOS `scenePhase`: RESUMED is active, STARTED inactive, below that the background.
-    LaunchedEffect(lifecycle) {
-        var first = true
-        lifecycle.currentStateFlow.scenePhases().collect { phase ->
-            view.isSceneActive = phase == ScenePhase.Active
-            if (first) {
-                first = false
-                return@collect
-            }
-            if (phase == ScenePhase.Active) {
-                store.send(HomeFeature.Action.SceneBecameActive)
-                store.send(HomeFeature.Action.NotificationSettingsRequested)
-            } else {
-                view.cancelPinDrag()
-                store.send(HomeFeature.Action.TranscriptCacheFlushRequested)
-                if (phase == ScenePhase.Background) store.send(HomeFeature.Action.SceneEnteredBackground)
+    // A configuration change recreates the activity while the reader stays in the scene, as an iOS
+    // appearance or Dynamic Type change never moves `scenePhase`: neither the leaving activity's
+    // stop nor the recreated activity's first resume is a leave/return cycle (K-01).
+    val activity = LocalActivity.current
+    val changingConfigurations = { activity?.isChangingConfigurations == true }
+    val currentStore by rememberUpdatedState(store)
+    val currentView by rememberUpdatedState(view)
+    val leftActive = retain { booleanArrayOf(false) }
+    DisposableEffect(lifecycle) {
+        currentView.isSceneActive = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        var catchingUp = true
+        val observer = LifecycleEventObserver { _, event ->
+            currentView.isSceneActive = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            if (catchingUp || changingConfigurations()) return@LifecycleEventObserver
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (!leftActive[0]) return@LifecycleEventObserver
+                    leftActive[0] = false
+                    currentStore.send(HomeFeature.Action.SceneBecameActive)
+                    currentStore.send(HomeFeature.Action.NotificationSettingsRequested)
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    leftActive[0] = true
+                    currentView.cancelPinDrag()
+                    currentStore.send(HomeFeature.Action.TranscriptCacheFlushRequested)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    leftActive[0] = true
+                    currentStore.send(HomeFeature.Action.SceneEnteredBackground)
+                }
+                else -> Unit
             }
         }
+        lifecycle.addObserver(observer)
+        catchingUp = false
+        onDispose { lifecycle.removeObserver(observer) }
     }
 }
-
-private enum class ScenePhase { Active, Inactive, Background }
-
-private fun Flow<Lifecycle.State>.scenePhases(): Flow<ScenePhase> = map { state ->
-    when {
-        state.isAtLeast(Lifecycle.State.RESUMED) -> ScenePhase.Active
-        state.isAtLeast(Lifecycle.State.STARTED) -> ScenePhase.Inactive
-        else -> ScenePhase.Background
-    }
-}.distinctUntilChanged()
 
 /**
  * The presented Settings ([HomeFeature.State.settings]) as `:feature:settings`' [SettingsView]. It

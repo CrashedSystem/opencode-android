@@ -5,6 +5,8 @@ import ai.opencode.server.model.OpenCodeRunError
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateSetOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
@@ -57,12 +59,29 @@ class TranscriptDisclosureState {
 
     fun isOpen(kind: Kind, id: String): Boolean = id in set(kind)
 
+    /** Closes everything (iOS replaces the state on a session change). */
+    fun clear() = Kind.entries.forEach { set(it).clear() }
+
     /** Opens or closes [id] in the row for [entryID] (iOS `toggle(_:_:in:crossFades:)`). */
     fun toggle(kind: Kind, id: String, entryID: String, crossFades: Boolean = false) {
         val target = set(kind)
         val opening = id !in target
         val toggle = { if (!target.remove(id)) target.add(id) }
         animateToggle?.invoke(entryID, opening, crossFades, toggle) ?: toggle()
+    }
+
+    companion object {
+        /**
+         * For the list's `rememberSaveable`: what the reader opened outlives the activity being
+         * recreated (a dark mode switch, font size, process death), where iOS's view just
+         * redraws. The list is keyed by session, so each session keeps its own.
+         */
+        val Saver: Saver<TranscriptDisclosureState, Any> = listSaver<TranscriptDisclosureState, ArrayList<String>>(
+            save = { state -> Kind.entries.map { ArrayList(state.set(it)) } },
+            restore = { saved ->
+                TranscriptDisclosureState().apply { Kind.entries.forEachIndexed { index, kind -> set(kind).addAll(saved[index]) } }
+            },
+        )
     }
 }
 

@@ -28,8 +28,10 @@ import ai.opencode.feature.composer.AttachmentMenuItem
 import ai.opencode.feature.composer.AttachmentMenuMeasure
 import ai.opencode.feature.composer.AttachmentMenuPhase
 import ai.opencode.feature.composer.AttachmentMenuPress
+import ai.opencode.feature.composer.AttachmentPickerButton
 import ai.opencode.feature.composer.ComposerAutocompleteAction
 import ai.opencode.feature.composer.ComposerPhotoViewer
+import ai.opencode.feature.composer.ComposerPickers
 import ai.opencode.feature.composer.LocationClientError
 import ai.opencode.feature.composer.LocationPermissionPrompt
 import ai.opencode.feature.composer.PastedTextViewer
@@ -67,6 +69,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -98,11 +101,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -111,8 +116,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
@@ -154,11 +161,21 @@ fun SessionView(
     onBack: (() -> Unit)? = null,
     onCatchUpOpen: (() -> Unit)? = null,
     hostedCall: VoiceStoreOf? = null,
+    /** Inert Catch Up preview behind the active card: renders visible chrome/transcript only, without sheet/picker prewarms. */
+    isInertPreview: Boolean = false,
 ) {
-    val scrollEdgeBridge = remember { SessionScrollEdgeBridge() }
+    val scrollEdgeBridge = rememberSaveable(saver = SessionScrollEdgeBridge.Saver) { SessionScrollEdgeBridge() }
     val backgroundWorkAnchor = rememberBackgroundWorkAnchor()
     // What the composer shares with the screen around it (the capsule's place, jump to latest, the + menu).
-    val composerHost = remember { SessionComposerHost() }
+    // The pill a session opens with (a cold launch's reconnect) is there from its first frame, as
+    // iOS's is, rather than rising in over the last row a frame later.
+    // So is the jump button a recreated screen showed (F-38).
+    val composerHost = remember {
+        SessionComposerHost().apply {
+            connection = listContext.connection
+            showsJumpButton = scrollEdgeBridge.reportedShowsJumpButton
+        }
+    }
     val importer = rememberSessionAttachmentImporter(store)
     val colors = OpenCodeTheme.colors
     val density = LocalDensity.current
@@ -167,7 +184,8 @@ fun SessionView(
     var rootOffset by remember { mutableStateOf(Offset.Zero) }
 
     // The header controls' laid-out height (dp); the backdrop follows it.
-    var headerHeight by remember { mutableFloatStateOf(SessionHeaderStyle.DEFAULT_HEADER_HEIGHT) }
+    // Saved with the composer's height (the bridge), so a recreated activity's first frame has the transcript's top inset.
+    var headerHeight by rememberSaveable { mutableFloatStateOf(SessionHeaderStyle.DEFAULT_HEADER_HEIGHT) }
     var showsBackgroundWork by remember { mutableStateOf(false) }
 
     val headerEnvironment = SessionHeaderStyle.Environment(
@@ -178,14 +196,20 @@ fun SessionView(
     )
     val resolvedHeader = remember(headerEnvironment) { HeaderBlurTunables.resolved(headerEnvironment) }
 
-    SessionLifecycle(store)
-    SessionVoiceLabTriggers(store, isEnabled = onCatchUpOpen == null)
+    if (!isInertPreview) {
+        SessionLifecycle(store)
+        SessionVoiceLabTriggers(store, isEnabled = onCatchUpOpen == null)
+    }
     val callStore = store.rememberCallStore(hostedCall)
     val ownsCall by store.observe { it.voice != null }
-    SessionCallTasks(store, callStore, hasCall = ownsCall || hostedCall != null)
+    if (!isInertPreview) {
+        SessionCallTasks(store, callStore, hasCall = ownsCall || hostedCall != null)
+    }
     val isCovered by store.observe { it.isCovered }
     // iOS `floatingCallCoverage(sessionLifecycle)`: what the Living Orb's card covers gives way.
-    SessionFloatingCallCoverage(store, callStore, composerHost, photoSheet)
+    if (!isInertPreview) {
+        SessionFloatingCallCoverage(store, callStore, composerHost, photoSheet)
+    }
     // iOS `clearOverClientToolCard()`: an agent's screen request or link came up, so the keyboard
     // and the composer's panels would stand over its card.
     val holdsClientToolCard by remember(callStore) { callStore?.let { call -> call.states.map { it.holdsClientToolCard } } ?: flowOf(false) }
@@ -212,6 +236,10 @@ fun SessionView(
     val agentScope by store.observe { "${it.server.persistenceID}|${it.session?.id ?: "draft"}" }
     val errorMessage by store.observe { it.errorMessage }
     val identity by store.observe { it.transcriptIdentity }
+    // Read in composition, not in the SideEffect: SideEffect reads aren't observed, so an import
+    // finishing would leave the host's copy stale.
+    val isImportingImages = importer.isLoadingImages
+    val isImportingAttachments = isImportingImages || importer.isLoadingFiles
 
     SideEffect {
         composerHost.backgroundWorkAnchor = backgroundWorkAnchor
@@ -220,13 +248,16 @@ fun SessionView(
         composerHost.onConnectionAction = onConnectionAction
         composerHost.onJumpToLatest = { scrollEdgeBridge.jumpRequest += 1 }
         composerHost.borrowedDrag = scrollEdgeBridge.borrowedDrag
-        composerHost.isImportingAttachments = importer.isLoadingImages || importer.isLoadingFiles
+        composerHost.isImportingAttachments = isImportingAttachments
+        composerHost.isImportingImages = isImportingImages
         composerHost.importer = importer
         composerHost.headerHeight = headerHeight
         if (composerHost.pendingAttachmentsRow == null) composerHost.pendingAttachmentsRow = { expanded -> SessionPendingAttachments(store, composerHost.sendTransition.images, expanded) }
     }
-    SessionPermissionPrompts(isCovered)
-    SessionPhotoSheetEnvironment(photoSheet, store, composerHost, importer, headerHeight, rootOffset)
+    if (!isInertPreview) {
+        SessionPermissionPrompts(isCovered)
+        SessionPhotoSheetEnvironment(photoSheet, store, composerHost, importer, headerHeight, rootOffset)
+    }
 
     SessionMediaHost {
     CompositionLocalProvider(
@@ -260,15 +291,32 @@ fun SessionView(
                 composerHost.dismissComposerKeyboard()
                 if (photoSheet.attachmentMenu != AttachmentMenuPhase.Closed) photoSheet.closeAttachmentMenu()
             },
+            // TalkBack reads the header, then the transcript, then the background-work capsule, then
+            // the composer, as VoiceOver reads iOS's top overlay first and the rest top to bottom: the
+            // header draws over the transcript, so it came after it (QA P-06). The group is the
+            // presentation's, not the screen's, so the capsule drawn over the screen sits in it by
+            // its place above the composer (iOS `SessionView+Composer.swift:209-241`), not after
+            // everything (QA AB-02).
+            // iOS: the + menu is an `.isModal` container in its own window, so VoiceOver reaches
+            // nothing beneath it. TalkBack has no modal, so the screen under it (the + too) hides.
+            modifier = Modifier
+                .semantics { isTraversalGroup = true }
+                .then(if (photoSheet.plusMenuIsOpen) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
             Box(Modifier.fillMaxSize().background(colors.canvas)) {
-                if (errorMessage != null) {
-                    LoadFailure(errorMessage.orEmpty(), onRetry = { store.send(Action.Task) })
-                } else {
-                    // A draft's transcript carries on into the session it became, so the first
-                    // send's bubble and Working never remount mid-flight.
-                    key(identity) {
-                        SessionTranscriptView(store, scrollEdgeBridge, resolvedHeader.transcriptTop, holdsWorking = listContext.connection != null)
+                ComposedAfterComposer {
+                    // Read while measuring, after the header has laid out: the first frame rests the
+                    // transcript under the header's real height, not the default's.
+                    val measuredHeader = headerEnvironment.copy(headerHeight = headerHeight)
+                    val transcriptTop = remember(measuredHeader) { HeaderBlurTunables.resolved(measuredHeader).transcriptTop }
+                    if (errorMessage != null) {
+                        LoadFailure(errorMessage.orEmpty(), onRetry = { store.send(Action.Task) })
+                    } else {
+                        // A draft's transcript carries on into the session it became, so the first
+                        // send's bubble and Working never remount mid-flight.
+                        key(identity) {
+                            SessionTranscriptView(store, scrollEdgeBridge, transcriptTop, holdsWorking = listContext.connection != null)
+                        }
                     }
                 }
                 SessionHeaderBackdrop(
@@ -277,11 +325,14 @@ fun SessionView(
                     header = resolvedHeader.header,
                     safeTop = WindowInsets.statusBarsIgnoringVisibility.inContainer().asPaddingValues().calculateTopPadding(),
                     scrolledUnderHeader = { scrollEdgeBridge.scrolledUnderHeader },
+                    transcriptPlaced = { scrollEdgeBridge.hasPlacedTranscript },
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
                 // Behind the composer, so its × stays reachable: a tap anywhere else or a downward
                 // drag dismisses the menu, or Composer Autocomplete's suggestions.
-                SessionComposerDismissArea(store, composerHost)
+                if (!isInertPreview) {
+                    SessionComposerDismissArea(store, composerHost)
+                }
                 SessionHeaderControls(
                     store = store,
                     listContext = listContext,
@@ -289,10 +340,19 @@ fun SessionView(
                     onBack = onBack,
                     onCatchUpOpen = onCatchUpOpen,
                     onHeaderHeight = { headerHeight = it.roundToInt().toFloat() },
-                    modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+                        .semantics {
+                            isTraversalGroup = true
+                            traversalIndex = -1f
+                        },
                 )
                 // One Picker's surface grows out of the composer, over the transcript and under the composer.
-                SessionOnePickerBackdrop(composerHost, Modifier.matchParentSize())
+                if (!isInertPreview) {
+                    SessionOnePickerBackdrop(composerHost, Modifier.matchParentSize())
+                }
+                val statusBar = WindowInsets.statusBarsIgnoringVisibility.inContainer()
                 Column(
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -300,6 +360,19 @@ fun SessionView(
                         .navigationBarsPadding()
                         .imePadding()
                         .padding(bottom = if (onCatchUpOpen == null) 0.dp else CATCH_UP_COMPOSER_CLEARANCE.dp)
+                        // The room between the status bar and the keyboard (iOS `requestPanelInputs.room`):
+                        // the composer never grows past it. Short of room (landscape with the keys up, a
+                        // split screen) the header gives way, then the field's lines, then the
+                        // attachments (`ComposerFoldLayout`), never the control row.
+                        .layout { measurable, constraints ->
+                            val room = if (constraints.hasBoundedHeight) {
+                                (constraints.maxHeight - statusBar.getTop(this)).coerceAtLeast(constraints.minHeight)
+                            } else {
+                                constraints.maxHeight
+                            }
+                            val placeable = measurable.measure(constraints.copy(maxHeight = room))
+                            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                        }
                         // The readable column (iOS `readableColumn()`): 720 wide at most.
                         .widthIn(max = TranscriptMetrics.readableColumnWidth)
                         // iOS `ComposerKeyboardStepHold`: the composer glides after a docked IME's unanimated step.
@@ -322,21 +395,27 @@ fun SessionView(
                     SessionCallCards(callStore)
                     SessionComposer(store, Modifier.modelPanelsComposer(composerHost), callStore = callStore)
                 }
-                // A send's words fly from the field into its bubble, over both.
-                SessionSendFlightOverlay(composerHost, scrollEdgeBridge, Modifier.matchParentSize())
-                // Its photos fly into their slots above the words (iOS installs the copies in the window).
-                SentImageFlightOverlay(composerHost.sendTransition.images, Modifier.matchParentSize())
-                RequestPanelRoomProbe(composerHost, Modifier.matchParentSize())
-                SessionModelPickerOverlays(store, headerHeight)
+                if (!isInertPreview) {
+                    // A send's words fly from the field into its bubble, over both.
+                    SessionSendFlightOverlay(composerHost, scrollEdgeBridge, Modifier.matchParentSize())
+                    // Its photos fly into their slots above the words (iOS installs the copies in the window).
+                    SentImageFlightOverlay(composerHost.sendTransition.images, Modifier.matchParentSize())
+                    RequestPanelRoomProbe(composerHost, Modifier.matchParentSize())
+                    SessionModelPickerOverlays(store, headerHeight)
+                }
             }
         }
-        SessionAttachmentMenu(store, composerHost, importer, photoSheet)
-        RecentPhotoPeekOverlay(photoSheet.recentPeek, photoSheet.library, photoSheet.flights, Modifier.matchParentSize())
-        PhotoFlightCanvas(photoSheet.flights, Modifier.matchParentSize())
+        if (!isInertPreview) {
+            SessionAttachmentMenu(store, composerHost, importer, photoSheet)
+            RecentPhotoPeekOverlay(photoSheet.recentPeek, photoSheet.library, photoSheet.flights, Modifier.matchParentSize())
+            PhotoFlightCanvas(photoSheet.flights, Modifier.matchParentSize())
         }
-        SessionSheets(store, listContext)
-        LocationErrorAlert(store)
-        SessionAttachmentAlerts(importer)
+        }
+        if (!isInertPreview) {
+            SessionSheets(store, listContext)
+            LocationErrorAlert(store)
+            SessionAttachmentAlerts(importer)
+        }
     }
     }
 }
@@ -369,7 +448,8 @@ private data class BackgroundWorkModel(
 
 /**
  * The + menu (iOS `attachmentMenuOverlay`, `toggleAttachmentMenu` and `chooseAttachment`) and what
- * it opens: Photos (the composer's photo sheet, growing out of the menu), Files (the system document picker) and Location (one at a time). The menu is
+ * it opens: Photos (the composer's photo sheet, growing out of the menu; on Android
+ * the system photo picker, since the app has no photo library access), Files (the system document picker) and Location (one at a time). The menu is
  * :feature:composer's [PlusMenuGlassSurface] (measured by [AttachmentMenuMeasure]), growing out of the + ([AttachmentPickerButton] in
  * the composer's row, which also chooses a row by sliding to it); it keeps the field's focus, and
  * choosing a picker gives the keyboard up, which returns once something is attached if the field
@@ -448,6 +528,9 @@ private fun SessionAttachmentMenu(
     val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) importer.importPickedFiles(uris, onFocus = host::focusComposer)
     }
+    val photos = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        importer.importPickedMedia(ComposerPickers.uris(result.resultCode, result.data), onAdded = host::focusComposer)
+    }
 
     // Another session in place: the menu closes at once, and the sheet with it.
     var shownIdentity by remember { mutableStateOf(taskIdentity) }
@@ -506,7 +589,19 @@ private fun SessionAttachmentMenu(
     fun choose(item: AttachmentMenuItem) {
         if (phase != AttachmentMenuPhase.Menu || sheet.morph.isOpening) return
         when (item) {
-            AttachmentMenuItem.Photos -> sheet.openPhotoSheet()
+            // Android: with no photo library access (Play policy) the system picker stands in for the sheet.
+            AttachmentMenuItem.Photos -> if (sheet.library.usesSystemPicker) {
+                sheet.attachmentMenuRestoresFocus = false
+                sheet.closeAttachmentMenu()
+                photos.launch(
+                    ComposerPickers.photosIntent(
+                        maxItems = AttachmentPickerButton.MAX_PHOTO_SELECTION,
+                        includesVideos = supportsFileUploads,
+                    ),
+                )
+            } else {
+                sheet.openPhotoSheet()
+            }
             AttachmentMenuItem.Files -> {
                 sheet.attachmentMenuRestoresFocus = false
                 sheet.closeAttachmentMenu()
@@ -571,7 +666,7 @@ private fun SessionAttachmentMenu(
     Box(Modifier.fillMaxSize().then(if (sheet.plusMenuRests) Modifier.clearAndSetSemantics {} else Modifier)) {
         PlusMenuGlassSurface(
             anchors = host.attachmentAnchors,
-            isOpen = phase == AttachmentMenuPhase.Menu && (!sheet.morph.isShown || sheet.menuTakesBack),
+            isOpen = sheet.plusMenuIsOpen,
             handsOff = sheet.morph.isShown && !sheet.menuTakesBack,
             items = items,
             highlighted = press.highlighted,
@@ -758,6 +853,23 @@ internal fun shareText(context: android.content.Context, text: String) {
     }
 }
 
+/**
+ * The transcript, composed while the screen measures, after the composer and the header: the
+ * parent Box measures a `matchParentSize` child after its other children, and their size callbacks
+ * have written [SessionScrollEdgeBridge.composerHeight] and the header's height by then. So the
+ * list's first frame already rests between them (on a cold launch its bottom inset used to be 0 and
+ * its top the default header's for the first frames: the last row sat under the composer, then the
+ * list jumped), as iOS lays the composer out before the list. Placement, and so drawing order,
+ * stays the parent's child order.
+ */
+@Composable
+private fun BoxScope.ComposedAfterComposer(content: @Composable BoxScope.() -> Unit) {
+    SubcomposeLayout(Modifier.matchParentSize()) { constraints ->
+        val placeables = subcompose(Unit) { Box(Modifier.fillMaxSize(), content = content) }.map { it.measure(constraints) }
+        layout(constraints.maxWidth, constraints.maxHeight) { placeables.forEach { it.place(0, 0) } }
+    }
+}
+
 /** iOS `ContentUnavailableView` for a session that couldn't load. */
 @Composable
 private fun LoadFailure(message: String, onRetry: () -> Unit) {
@@ -800,10 +912,18 @@ private fun SessionSheets(store: StoreOf<State, Action>, listContext: SessionLis
     val activePicker by store.observe { it.activePicker }
     val dismiss = { store.send(Action.Binding(BindingAction.ActivePicker(null))) }
 
-    // iOS `onDismiss`: whichever sheet leaves, the Project sheet's folders reset.
+    // iOS `onDismiss`: whichever sheet leaves, the Project sheet's folders reset, and the
+    // keyboard the model chip put away comes back.
+    val panels = LocalSessionComposerHost.current?.modelPanels
     var shownPicker by remember { mutableStateOf(activePicker) }
     LaunchedEffect(activePicker) {
-        if (shownPicker != null && shownPicker != activePicker) store.send(Action.ProjectPickerDismissed)
+        if (shownPicker != null && shownPicker != activePicker) {
+            store.send(Action.ProjectPickerDismissed)
+            if (panels?.sheetRestoresFocus == true) {
+                panels.sheetRestoresFocus = false
+                panels.restoreFocusAfterModelList(store.state.taskIdentity)
+            }
+        }
         shownPicker = activePicker
     }
 
@@ -836,7 +956,7 @@ private fun SessionSheets(store: StoreOf<State, Action>, listContext: SessionLis
                     ) {
                         AgentActivityGlyph(
                             AgentActivitySource.Subagent(activity),
-                            Modifier.semantics { contentDescription = "Status"; stateDescription = status.text },
+                            Modifier.clearAndSetSemantics { contentDescription = "Status"; stateDescription = status.text },
                             size = size,
                         )
                     }

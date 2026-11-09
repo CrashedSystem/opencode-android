@@ -5,6 +5,8 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.touch.TouchRecovery
 import ai.opencode.core.touch.rememberTouchRecovery
+import ai.opencode.core.ui.AccessibilityFocusRequest
+import ai.opencode.core.ui.rememberAccessibilityFocusRequest
 import ai.opencode.feature.composer.AttachmentMenuAnchors
 import ai.opencode.feature.composer.AttachmentMenuItem
 import ai.opencode.feature.composer.AttachmentMenuMetrics
@@ -48,6 +50,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.traversalIndex
@@ -145,8 +148,7 @@ fun PlusMenuGlassSurface(
                 origin = it.positionInRoot()
                 size = androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat())
                 rootHeight = it.findRootCoordinates().size.height.toFloat()
-            }
-            .clearAndSetSemantics {},
+            },
     ) {
         if (!hosted || !hasGeometry) return@Box
         val keyboardTop = if (imeBottom > 0) (rootHeight - imeBottom - origin.y).takeIf { it < size.height } else null
@@ -239,6 +241,8 @@ private fun PlusMenuWindowContent(
             Box(
                 Modifier
                     .fillMaxSize()
+                    // iOS `accessibilityHidden(true)`: TalkBack reaches only the menu.
+                    .clearAndSetSemantics {}
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
             )
         }
@@ -265,11 +269,19 @@ private fun PlusMenuWindowContent(
                         },
                     )
                 }
-                .semantics {
-                    isTraversalGroup = true
-                    testTag = "attachment-menu"
-                    traversalIndex = -1f
-                },
+                // iOS `accessibilityElement(children: .contain)` + `.isModal`, hidden unless open
+                // (`accessibilityHidden(!isOpen || (reduceMotion && !expanded))`). The screen hides
+                // what's behind it; announced as it appears, as TalkBack announces a dialog.
+                .then(
+                    if (interactive) {
+                        Modifier.semantics {
+                            isTraversalGroup = true
+                            testTag = "attachment-menu"
+                            traversalIndex = -1f
+                            paneTitle = "Attachment options"
+                        }
+                    } else Modifier.clearAndSetSemantics {},
+                ),
             shape = shape,
             // A raised M3 menu container that stands off the dark canvas; the shadow is the
             // menu's own elevation (level 2).
@@ -287,6 +299,8 @@ private fun PlusMenuWindowContent(
                     entranceProgress = expanded.value,
                     menuWidth = with(density) { menu.width.toDp() },
                     reduceMotion = reduceMotion,
+                    // Once its rows have arrived, TalkBack's focus moves onto the top one.
+                    focusRequest = rememberAccessibilityFocusRequest(if (isOpen && expanded.value > 0.99f) generation else null),
                     onChoose = onChoose,
                     onPaste = onPaste,
                     modifier = Modifier
@@ -332,6 +346,7 @@ fun PlusMenuRowsHost(
     isDragging: Boolean = false,
     menuWidth: androidx.compose.ui.unit.Dp? = null,
     reduceMotion: Boolean = rememberReduceMotion(),
+    focusRequest: AccessibilityFocusRequest? = null,
 ) {
     AttachmentMenuRows(
         items = items,
@@ -344,6 +359,7 @@ fun PlusMenuRowsHost(
         entranceScale = if (reduceMotion) 1f else PlusMenuTunables.MENU_SCALE,
         largeMenu = true,
         menuWidth = menuWidth,
+        focusRequest = focusRequest,
         onChoose = { item -> if (isInteractive && !isDragging) onChoose(item) },
         onPaste = { if (isInteractive && !isDragging) onPaste() },
     )
@@ -357,8 +373,19 @@ object PlusMenuPlacement {
         return menu.translate(0f, min(0f, keyboardTop - gap - menu.bottom))
     }
 
-    fun foot(composer: Rect, screenBottom: Float, keyboardTop: Float?, drop: Float, floor: Float = AttachmentMenuMetrics.overComposerFloor.value): Float =
-        min(composer.bottom + drop, screenBottom - floor)
+    /**
+     * [navigationBarInset] (Android only): the navigation bar's height over [screenBottom] while
+     * the keyboard is down. The foot stays out of it, since Android keeps that area for system
+     * gestures, whereas iOS draws its home indicator over the menu.
+     */
+    fun foot(
+        composer: Rect,
+        screenBottom: Float,
+        keyboardTop: Float?,
+        drop: Float,
+        floor: Float = AttachmentMenuMetrics.overComposerFloor.value,
+        navigationBarInset: Float = 0f,
+    ): Float = min(composer.bottom + drop, screenBottom - max(navigationBarInset, floor))
 
     /** A drag on the menu (dp) past either threshold puts it away. */
     fun dragDismisses(translation: Float, predicted: Float): Boolean = translation > 50 || predicted > 160

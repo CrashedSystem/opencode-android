@@ -119,9 +119,9 @@ object DrawerTitle {
                     issue = issue,
                     accessibilityValue = switchingTo?.let { "Connecting to $it" } ?: issue ?: "",
                     accessibilityHint = when {
-                        listsServers -> "Shows your servers"
-                        offersEdit -> "Offers to edit the server"
-                        hasMenu -> "Offers to try again"
+                        listsServers -> "Show your servers"
+                        offersEdit -> "Offer to edit the server"
+                        hasMenu -> "Offer to try again"
                         else -> null
                     },
                 )

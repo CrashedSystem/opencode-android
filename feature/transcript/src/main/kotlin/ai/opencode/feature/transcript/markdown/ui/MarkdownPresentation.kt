@@ -193,7 +193,9 @@ object MarkdownPresentation {
                         val target = targets[sessionID] ?: SessionLinkTarget.Resolving
                         val chipURL = MarkdownLinks.sessionURL(sessionID, target.resolvedTitle)
                         val start = length
-                        withLink(clickable(chipURL, null, links)) {
+                        // Empty, not null: Material's Text gives a link without styles its default
+                        // underline; the chip draws its own fill and press (iOS `SessionChipRenderer`).
+                        withLink(clickable(chipURL, TextLinkStyles(), links)) {
                             appendChip(sessionID, target, group.runs.first(), options, style)
                         }
                         val end = length

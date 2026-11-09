@@ -409,13 +409,25 @@ object ServerCardName {
 
     /**
      * The machine's name from a reverse lookup's answer: the first label of
-     * `my-mac.tail1234.ts.net.`; null for an empty or numeric answer.
+     * `my-mac.tail1234.ts.net.`; null for an empty or numeric answer, or a label that only spells
+     * out an IPv4 address (`ip-10-0-2-2`, `ec2-3-89-50-194`, `c-73-12-34-56`, cloud and ISP PTR
+     * records), so the card falls back to the friendly name the list and drawer use. Android
+     * divergence: iOS keeps such labels (QA A-08).
      */
     fun machineName(fromReverse: String): String? {
         val trimmed = fromReverse.trim('.', ' ', '\n')
         if (trimmed.isEmpty() || trimmed.all { it.isDigit() || it == '.' || it == ':' }) return null
         val first = trimmed.split('.').firstOrNull()?.takeIf { it.isNotEmpty() } ?: return null
+        if (spellsOutAddress(first)) return null
         return first
+    }
+
+    private val spelledAddress = Regex("""(?<!\d)(\d{1,3})[-_](\d{1,3})[-_](\d{1,3})[-_](\d{1,3})(?!\d)""")
+
+    /** Whether [label] is all digits or holds four dash-separated octets (`host-192-168-1-5`). */
+    private fun spellsOutAddress(label: String): Boolean {
+        if (label.all { it.isDigit() }) return true
+        return spelledAddress.findAll(label).any { match -> match.groupValues.drop(1).all { it.toInt() <= 255 } }
     }
 
     /** The IP to look up, when the address in use is one. */

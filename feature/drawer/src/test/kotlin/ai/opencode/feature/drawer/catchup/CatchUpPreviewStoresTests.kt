@@ -19,17 +19,37 @@ import org.junit.Assert.assertEquals
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DateClient
 import ai.opencode.core.dependencies.ImmediateClock
+import ai.opencode.core.store.Store
 import ai.opencode.core.store.TestStore
+import ai.opencode.feature.drawer.HomeLifecycle
 import ai.opencode.feature.drawer.HomeSnapshotDate
 import ai.opencode.feature.drawer.makeDetail
+import ai.opencode.feature.drawer.rememberHomeViewState
 import ai.opencode.feature.session.from
 import ai.opencode.feature.drawer.openingCatchUpCard
 import ai.opencode.feature.drawer.persistingTranscriptCache
 import ai.opencode.feature.drawer.publishingTranscript
 import ai.opencode.server.OpenCodeClient
+import ai.opencode.server.OpenCodeLiveContentEvent
+import ai.opencode.server.OpenCodeServerEvent
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
+import android.os.Looper
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -166,6 +186,126 @@ class CatchUpPreviewStoresTests {
             assertEquals("c2", unopened)
         } finally {
             previews.close()
+        }
+    }
+
+    /**
+     * K-01: recreating the activity mid-stream (dark/light switch or font-scale change) must keep
+     * the live SSE connection on `HomeLifecycle` instead of re-sending `HomeFeature.Action.Task` or
+     * `RetryConnectionTapped` (which start a new socket epoch, fire `EventStreamConnected`, clear
+     * `SessionFeature.State.liveText`, and freeze the streaming reply until `TextEnded`). A real
+     * background-to-foreground return after recreation still reconnects.
+     */
+    @Test
+    fun activityRecreationKeepsLiveStreamAndContinuesStreamingReply() {
+        val now = Instant.ofEpochSecond(100)
+        val streaming = session("ses_stream", 20)
+        val snapshot = OpenCodeHomeSnapshot(
+            projects = emptyList(),
+            sessions = listOf(streaming),
+            activeSessionIDs = setOf(streaming.id),
+        )
+        var subscriptions = 0
+        val stream = Channel<OpenCodeServerEvent>(Channel.UNLIMITED)
+        val deps = DependencyValues.testing().let { base ->
+            DependencyValues.withValues(base) {
+                DependencyValues.current
+                    .with(Clock, ImmediateClock())
+                    .with(DateClient, DateClient.constant(now))
+                    .with(HomeSnapshotDate, DateClient.constant(now))
+                    .with(
+                        OpenCodeClient,
+                        DependencyValues.current[OpenCodeClient].copy(
+                            homeSnapshot = { snapshot },
+                            getSession = { _, _ -> streaming },
+                            transcript = { _, _, _ -> emptyList() },
+                            events = {
+                                subscriptions += 1
+                                stream.receiveAsFlow()
+                            },
+                        ),
+                    )
+            }
+        }
+        val initial = DependencyValues.withValues(deps) {
+            val base = HomeFeature.State(server, snapshot)
+            val (next, detail) = base.makeDetail(streaming, cachedItems = emptyList())
+            next.copy(sessionDetail = detail)
+        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val store = Store(initial, HomeFeature(), dependencies = deps, scope = scope)
+        val app = RuntimeEnvironment.getApplication()
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                (activity as? ComponentActivity)?.setContent {
+                    val view = rememberHomeViewState(store, initiallyOpenDrawer = false)
+                    HomeLifecycle(store, view)
+                }
+            }
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        fun pump() = repeat(4) { shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(20)) }
+        app.registerActivityLifecycleCallbacks(callbacks)
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java)
+        try {
+            controller.setup()
+            pump()
+            assertEquals("Initial launch opens exactly one event stream", 1, subscriptions)
+
+            stream.trySend(OpenCodeServerEvent.Connected)
+            pump()
+
+            store.send(
+                HomeFeature.Action.detail(
+                    SessionFeature.Action.ContentBatch(
+                        sessionID = streaming.id,
+                        events = listOf(
+                            OpenCodeLiveContentEvent.TextStarted(messageID = "msg_1", ordinal = 0),
+                            OpenCodeLiveContentEvent.TextDelta(messageID = "msg_1", ordinal = 0, delta = "Line 1\n"),
+                        ),
+                    ),
+                ),
+            )
+            pump()
+            assertEquals("Line 1\n", store.state.sessionDetail?.liveText?.get("msg_1-text-0"))
+
+            // Simulate dark/light or font-scale recreation mid-stream.
+            controller.recreate()
+            pump()
+            assertEquals("Activity recreation must not reconnect the event stream", 1, subscriptions)
+            assertEquals("In-flight liveText accumulator survives activity recreation", "Line 1\n", store.state.sessionDetail?.liveText?.get("msg_1-text-0"))
+
+            // Subsequent streamed deltas continue updating the reply immediately instead of freezing.
+            store.send(
+                HomeFeature.Action.detail(
+                    SessionFeature.Action.ContentBatch(
+                        sessionID = streaming.id,
+                        events = listOf(OpenCodeLiveContentEvent.TextDelta(messageID = "msg_1", ordinal = 0, delta = "Line 2")),
+                    ),
+                ),
+            )
+            pump()
+            val reply = store.state.sessionDetail?.items?.filterIsInstance<OpenCodeTranscriptItem.AssistantMarkdown>()?.singleOrNull()
+            assertEquals("Line 1\nLine 2", reply?.text)
+
+            // A real background-to-foreground cycle still reconnects the stream.
+            controller.pause().stop()
+            pump()
+            controller.start().resume()
+            pump()
+            assertEquals("Returning from the background reconnects the stream", 2, subscriptions)
+        } finally {
+            app.unregisterActivityLifecycleCallbacks(callbacks)
+            controller.pause().stop().destroy()
+            store.close()
+            scope.cancel()
+            stream.close()
+            shadowOf(Looper.getMainLooper()).idle()
         }
     }
 }

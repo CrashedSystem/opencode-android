@@ -8,9 +8,11 @@ android {
         // Matches the iOS bundle identifier.
         applicationId = "ai.opencode.mobilecode"
         // CI stamps builds so testers can tell them apart: the workflow run number as the
-        // version code (each build installs over the last) and the short commit SHA in the name.
+        // version code (each build installs over the last), the release tag's version
+        // (OC_VERSION_NAME) for releases, else the short commit SHA in the name.
         versionCode = providers.environmentVariable("OC_VERSION_CODE").orNull?.toIntOrNull() ?: 1
-        versionName = "0.1.0" + (providers.environmentVariable("OC_VERSION_SUFFIX").orNull?.let { "-$it" } ?: "")
+        versionName = providers.environmentVariable("OC_VERSION_NAME").orNull
+            ?: ("0.1.0" + (providers.environmentVariable("OC_VERSION_SUFFIX").orNull?.let { "-$it" } ?: ""))
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Google Play upload key, from CI secrets only (Play App Signing holds the app signing key).
@@ -48,6 +50,11 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+    // The app is English only, as iOS's bundle: keep library (Material, AndroidX) translations
+    // out so their labels, e.g. a sheet's "Drag handle", read in English beside the app's own.
+    androidResources {
+        localeFilters += "en"
     }
 }
 

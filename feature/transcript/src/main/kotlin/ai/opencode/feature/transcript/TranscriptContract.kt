@@ -8,6 +8,7 @@ import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.AgentFileReference
 import ai.opencode.server.model.OpenCodeQueuedInput
 import ai.opencode.server.model.OpenCodeRunError
+import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.runtime.Immutable
 
 /**
@@ -104,6 +105,11 @@ data class TranscriptConfiguration(
     val isLoadingEarlier: Boolean = false,
     val earlierHistoryError: String? = null,
     val isLoading: Boolean = false,
+    /**
+     * Android: the server's transcript is in and every earlier page is listed. Unlike
+     * `!hasEarlierItems`, never true for a restored cache still waiting for its first read.
+     */
+    val listsAllHistory: Boolean = false,
     val showsEmptyState: Boolean = true,
     val isRunning: Boolean = false,
     /**
@@ -132,4 +138,45 @@ data class TranscriptConfiguration(
     val newMessages: NewMessagesPlacement? = null,
     /** `PerfTimeline`'s revision of the REST snapshot this was made from; null unless measuring. */
     val snapshotRevision: Int? = null,
-)
+) {
+    /**
+     * iOS `Configuration.differsOnlyInTailAssistantMarkdown(from:)`: while a run is active, only
+     * the tail `AssistantMarkdown` entry's text changed (same entry ID, same surrounding rows and
+     * list state).
+     */
+    fun differsOnlyInTailAssistantMarkdown(other: TranscriptConfiguration): Boolean {
+        if (!isRunning || !other.isRunning || entries.isEmpty() || entries.size != other.entries.size) return false
+        if (sessionID != other.sessionID ||
+            historyGeneration != other.historyGeneration ||
+            hasEarlierItems != other.hasEarlierItems ||
+            isLoadingEarlier != other.isLoadingEarlier ||
+            earlierHistoryError != other.earlierHistoryError ||
+            isLoading != other.isLoading ||
+            showsEmptyState != other.showsEmptyState ||
+            workingHandsOffToCopy != other.workingHandsOffToCopy ||
+            hasPendingRequests != other.hasPendingRequests ||
+            showsMoveToBackground != other.showsMoveToBackground ||
+            actionableRunErrorID != other.actionableRunErrorID ||
+            actionableRunErrorActions != other.actionableRunErrorActions ||
+            subagents != other.subagents ||
+            sessionLinks != other.sessionLinks ||
+            isDraft != other.isDraft ||
+            queuedInputs != other.queuedInputs ||
+            failedSends != other.failedSends ||
+            deliveryNotes != other.deliveryNotes ||
+            queuedPillTexts != other.queuedPillTexts ||
+            sentItemID != other.sentItemID ||
+            sendGeneration != other.sendGeneration ||
+            newMessages != other.newMessages ||
+            server != other.server ||
+            directory != other.directory
+        ) {
+            return false
+        }
+        val lastIndex = entries.lastIndex
+        val newLast = (entries[lastIndex] as? TranscriptEntry.Single)?.item as? OpenCodeTranscriptItem.AssistantMarkdown ?: return false
+        val oldLast = (other.entries[lastIndex] as? TranscriptEntry.Single)?.item as? OpenCodeTranscriptItem.AssistantMarkdown ?: return false
+        if (newLast.id != oldLast.id || newLast == oldLast) return false
+        return entries.subList(0, lastIndex) == other.entries.subList(0, lastIndex)
+    }
+}

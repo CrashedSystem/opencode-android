@@ -74,9 +74,11 @@ internal fun TranscriptFileChips(
     trailingCorners: UserSurfaceCorners = UserSurfaceCorners.round,
     modifier: Modifier = Modifier,
 ) {
+    // iOS anchors the row trailing only `for: .alignment`: a row that fits sits at the end, one
+    // that doesn't starts at its first card.
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Row(
-            Modifier.horizontalScroll(rememberScrollState(), reverseScrolling = true),
+            Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered),
         ) {
             for (file in files) {
@@ -157,9 +159,11 @@ internal fun PastedTextCard(id: String, text: String, summary: PastedTextSummary
                 style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium),
                 color = OpenCodeTheme.colors.text,
                 maxLines = 1,
-                modifier = Modifier.weight(1f, fill = false),
+                overflow = TextOverflow.Ellipsis,
+                // iOS `Spacer(minLength: 6)` gives way before the title does.
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f).width(6.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 summary.length,
                 style = OpenCodeTextStyles.caption1.copy(fontFeatureSettings = "tnum"),
@@ -266,7 +270,7 @@ internal fun SharedLocationCard(
 
 /**
  * A message's images, trailing: 200 alone, 130 each when several; up to three fit the column,
- * more scroll from the trailing end (iOS `TranscriptUserMessageView.images`).
+ * more scroll, starting at the first image (iOS `TranscriptUserMessageView.images`).
  */
 @Composable
 internal fun UserMessageImages(
@@ -295,6 +299,8 @@ internal fun UserMessageImages(
             .graphicsLayer { alpha = if (isPending) 0.6f else 1f },
         contentAlignment = Alignment.CenterEnd,
     ) {
-        if (images.size <= 3) strip(Modifier) else strip(Modifier.horizontalScroll(rememberScrollState(), reverseScrolling = true))
+        // iOS anchors the strip trailing only `for: .alignment`: a strip that fits sits at the end,
+        // one that doesn't starts at its first image.
+        if (images.size <= 3) strip(Modifier) else strip(Modifier.horizontalScroll(rememberScrollState()))
     }
 }

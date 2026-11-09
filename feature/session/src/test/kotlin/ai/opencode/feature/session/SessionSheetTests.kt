@@ -899,5 +899,11 @@ class SessionSheetFrameworkTests {
     @Test fun contextFractionUsesTheReplyModelsWindow() {
         assertEquals("32% of 400K", SessionContextText.summary(tokens = 128_000, limit = 400_000, locale = java.util.Locale.US))
         assertEquals("53,200 tokens", SessionContextText.summary(tokens = 53_200, limit = null, locale = java.util.Locale.US))
+        // English in the user's region, as iOS's `Locale.current` in an English-only bundle.
+        val german = ai.opencode.core.ui.appFormattingLocale(java.util.Locale.GERMANY)
+        assertEquals("53.200 tokens", SessionContextText.summary(tokens = 53_200, limit = null, locale = german))
+        assertEquals("32% used of 400.000 tokens", SessionContextText.accessibilityValue(tokens = 128_000, limit = 400_000, locale = german))
+        val arabic = ai.opencode.core.ui.appFormattingLocale(java.util.Locale.forLanguageTag("ar"))
+        assertEquals("53,200 tokens", SessionContextText.summary(tokens = 53_200, limit = null, locale = arabic))
     }
 }

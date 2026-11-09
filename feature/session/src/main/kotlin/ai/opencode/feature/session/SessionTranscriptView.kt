@@ -8,13 +8,14 @@ import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionRollDirection
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
-import ai.opencode.core.motion.transitionBlur
+import ai.opencode.core.motion.transitionBlurEffect
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.ProviderIcon
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.core.ui.inContainer
 import ai.opencode.feature.composer.PastedTextViewer
 import ai.opencode.feature.media.AgentFileViewer
@@ -94,12 +95,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -233,7 +234,13 @@ fun SessionTranscriptView(
         }
     }
     // A new screen starts without the jump button (iOS `resetShowsJumpButton`).
-    DisposableEffect(host) { onDispose { host?.showsJumpButton = false } }
+    DisposableEffect(host) {
+        onDispose {
+            host?.showsJumpButton = false
+            host?.veilsJumpButton = false
+            scrollEdgeBridge.reportedShowsJumpButton = false
+        }
+    }
 
     // Against a Catch Up card's own edges, not the window's ([inContainer]).
     val safeTop = WindowInsets.statusBarsIgnoringVisibility.inContainer().asPaddingValues().calculateTopPadding()
@@ -252,11 +259,15 @@ fun SessionTranscriptView(
                 bottom = bottomObstruction + scrollEdgeBridge.composerHeight.dp,
             ),
             jumpRequest = scrollEdgeBridge.jumpRequest,
-            onShowsJumpButtonChanged = { host?.showsJumpButton = it },
+            onShowsJumpButtonChanged = {
+                host?.showsJumpButton = it
+                scrollEdgeBridge.reportedShowsJumpButton = it
+            },
             slots = slots,
             layoutTuning = TranscriptTunables.layoutSnapshot(),
             onScrolledUnderHeader = { scrollEdgeBridge.scrolled(underHeader = it, revealDistance = top.revealDistance) },
             borrowedDrag = scrollEdgeBridge.borrowedDrag,
+            onHidesChanged = { host?.veilsJumpButton = it },
         )
     }
 
@@ -374,7 +385,7 @@ object SessionTranscriptView {
             mark: NewMessagesMark?,
             now: Instant = Instant.now(),
             zone: ZoneId = ZoneId.systemDefault(),
-            locale: Locale = Locale.getDefault(),
+            locale: Locale = appFormattingLocale(),
             hour24: Boolean? = null,
         ): Pair<List<TranscriptEntry>, NewMessagesPlacement?> {
             val nowSecond = now.epochSecond
@@ -506,6 +517,8 @@ object SessionTranscriptView {
             isLoadingEarlier = state.isLoadingEarlier,
             earlierHistoryError = state.earlierHistoryError,
             isLoading = state.isTranscriptLoading,
+            listsAllHistory = state.initialTranscriptIsFresh && state.earlierHistory == SessionFeature.State.EarlierHistory.Exhausted &&
+                !state.hasEarlierItems && !state.isTranscriptLoading,
             showsEmptyState = state.showsEmptyState,
             isRunning = showsWorking,
             workingHandsOffToCopy = working?.handsOffToCopy == true,
@@ -796,7 +809,7 @@ fun SyncingSessionTitle(
         modifier = modifier.titleBreathing(isSyncing),
         transitionSpec = {
             // iOS `.titleRoll` timed by `Motion.swap`; a title swapped in place without animation doesn't move.
-            if (!animates) fadeIn(snap()) togetherWith fadeOut(snap())
+            if (!animates) (fadeIn(snap()) togetherWith fadeOut(snap())) using null
             else MotionTransition.roll(MotionRollDirection.Up, reducedMotion, density, Motion.swap).content
         },
         label = "syncingSessionTitle",
@@ -869,23 +882,23 @@ fun WorkingLineRow(
     val active = lifecycle.isAtLeast(Lifecycle.State.RESUMED) && !LocalTranscriptTimelinePaused.current
     val offersMove = activity.finaleStartedAt == null && !activity.needsInput && showsMoveToBackground
     // One clock throughout, so the indicator keeps its identity (and its orb its pose) when the
-    // finale starts it. It ticks only during the finale, while the app is active.
-    var now by remember { mutableDoubleStateOf(AgentActivityClock.now()) }
+    // finale starts it. It ticks only during the finale, while the app is active; read in the
+    // draw phase so frames neither recompose nor invalidate layout/semantics bounds.
+    val now = remember { mutableDoubleStateOf(AgentActivityClock.now()) }
     LaunchedEffect(activity.finaleStartedAt, active) {
-        now = AgentActivityClock.now()
+        now.doubleValue = AgentActivityClock.now()
         if (activity.finaleStartedAt == null || !active) return@LaunchedEffect
         while (true) {
-            withFrameNanos { now = AgentActivityClock.now() }
-            if (activity.handoff(now) >= 1) break
+            withFrameNanos { now.doubleValue = AgentActivityClock.now() }
+            if (activity.handoff(now.doubleValue) >= 1) break
         }
     }
-    val pose = WorkingHandoffPose.of(activity.handoff(now), activity.handsOffToCopy, reduceMotion)
     Box(
         modifier
             .fillMaxWidth()
             .padding(top = TranscriptMetrics.flowHalf, bottom = TranscriptMetrics.turnHalf),
     ) {
-        WorkingLine(activity, pose, offersMove, onMoveToBackground)
+        WorkingLine(activity, { now.doubleValue }, reduceMotion, offersMove, onMoveToBackground)
         // An overlay, so offering it never changes the row's height.
         AnimatedVisibility(
             visible = offersMove,
@@ -906,32 +919,58 @@ fun WorkingLineRow(
 private val COPY_CENTRE = ReplyCopyGlyph.slot / 2 + ReplyCopyGlyph.leading
 
 @Composable
-private fun WorkingLine(activity: WorkingActivity, pose: WorkingHandoffPose, offersMove: Boolean, onMove: () -> Unit) {
+private fun WorkingLine(
+    activity: WorkingActivity,
+    now: () -> Double,
+    reduceMotion: Boolean,
+    offersMove: Boolean,
+    onMove: () -> Unit,
+) {
+    val copyLayer = rememberGraphicsLayer()
+    val indicatorLayer = rememberGraphicsLayer()
     Box {
         ReplyCopyGlyph.Glyph(
             Modifier
                 .offset(x = ReplyCopyGlyph.leading)
-                .alpha(pose.copyOpacity.toFloat())
-                .transitionBlur(pose.copyBlur.dp)
-                .graphicsLayer {
-                    scaleX = pose.copyScale.toFloat()
-                    scaleY = pose.copyScale.toFloat()
-                }
-                .clearAndSetSemantics {},
+                .drawWithContent {
+                    if (activity.finaleStartedAt == null) return@drawWithContent
+                    val pose = WorkingHandoffPose.of(activity.handoff(now()), activity.handsOffToCopy, reduceMotion)
+                    val alpha = pose.copyOpacity.toFloat()
+                    if (alpha <= 0.001f) return@drawWithContent
+                    val scale = pose.copyScale.toFloat()
+                    copyLayer.alpha = alpha
+                    copyLayer.scaleX = scale
+                    copyLayer.scaleY = scale
+                    copyLayer.renderEffect = transitionBlurEffect(pose.copyBlur.toFloat() * density)
+                    copyLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(copyLayer)
+                },
         )
-        // Shrinks about the copy glyph's centre, 9 dp in, where the orb sits.
-        val scale = pose.indicatorScale.toFloat()
+        // Shrinks about the copy glyph's centre, 9 dp in, where the orb sits. Drawn through a
+        // GraphicsLayer rather than Modifier.offset + Modifier.graphicsLayer so the finale never
+        // mutates layout bounds or fires per-frame subtree accessibility events.
         WorkingIndicator(
             activity,
             Modifier
                 .align(Alignment.CenterStart)
-                .offset(x = COPY_CENTRE * (1 - scale))
-                .transitionBlur(pose.indicatorBlur.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    alpha = pose.indicatorOpacity.toFloat()
+                .drawWithContent {
+                    if (activity.finaleStartedAt == null) {
+                        drawContent()
+                    } else {
+                        val pose = WorkingHandoffPose.of(activity.handoff(now()), activity.handsOffToCopy, reduceMotion)
+                        val alpha = pose.indicatorOpacity.toFloat()
+                        if (alpha > 0.001f) {
+                            val scale = pose.indicatorScale.toFloat()
+                            indicatorLayer.alpha = alpha
+                            indicatorLayer.scaleX = scale
+                            indicatorLayer.scaleY = scale
+                            indicatorLayer.pivotOffset = Offset(0f, size.height / 2f)
+                            indicatorLayer.translationX = (COPY_CENTRE * (1 - scale)).toPx()
+                            indicatorLayer.renderEffect = transitionBlurEffect(pose.indicatorBlur.toFloat() * density)
+                            indicatorLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(indicatorLayer)
+                        }
+                    }
                 }
                 .semantics(mergeDescendants = true) {
                     if (offersMove) customActions = listOf(CustomAccessibilityAction("Move to Background") { onMove(); true })
@@ -969,7 +1008,7 @@ private fun MoveToBackgroundAction(activity: WorkingActivity, onMove: () -> Unit
                 .clickable(
                     role = Role.Button,
                     // iOS `accessibilityHint`: TalkBack's click label.
-                    onClickLabel = "Keeps the running work going in the background so the agent reads your next message",
+                    onClickLabel = "Keep the running work going in the background so the agent reads your next message",
                     onClick = onMove,
                 )
                 .semantics { contentDescription = "Move to Background" }

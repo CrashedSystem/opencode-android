@@ -38,12 +38,12 @@ import kotlin.time.Duration.Companion.seconds
 /** The context reading and next cursor of the transcript window just decoded, for `transcriptWithContextUsageAndCursor`. */
 internal class TranscriptContextCapture {
     /** [messageCount]: messages in the page, so a short page reads as reaching the session's start. */
-    data class Captured(val reading: OpenCodeContextReading, val nextCursor: String?, val messageCount: Int = 0)
+    data class Captured(val reading: OpenCodeContextReading, val cursor: CursorPayload?, val messageCount: Int)
 
     @Volatile private var captured: Captured? = null
 
-    fun record(value: OpenCodeContextReading, nextCursor: String?, messageCount: Int = 0) {
-        captured = Captured(value, nextCursor, messageCount)
+    fun record(value: OpenCodeContextReading, cursor: CursorPayload?, messageCount: Int) {
+        captured = Captured(value, cursor, messageCount)
     }
 
     fun take(): Captured? = captured
@@ -99,9 +99,8 @@ fun decodeTranscript(data: ByteArray): List<OpenCodeTranscriptItem> =
 
 internal fun decodeTranscriptPage(data: ByteArray, capture: TranscriptContextCapture?): OpenCodeTranscriptPage {
     val payload = decoded(data, "transcript", MessagesPayload::decode)
-    val next = payload.cursor?.next
-    capture?.record(contextUsage(payload), next, payload.data.size)
-    return OpenCodeTranscriptPage(payload.data.asReversed().flatMap(::parsedItems), next)
+    capture?.record(contextUsage(payload), payload.cursor, payload.data.size)
+    return OpenCodeTranscriptPage(payload.data.asReversed().flatMap(::parsedItems), payload.cursor?.next)
 }
 
 /**

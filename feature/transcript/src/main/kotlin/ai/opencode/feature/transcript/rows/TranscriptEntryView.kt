@@ -3,6 +3,7 @@ package ai.opencode.feature.transcript.rows
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.RowProps
@@ -15,6 +16,7 @@ import ai.opencode.feature.transcript.markdown.rememberMarkdownBlocks
 import ai.opencode.feature.transcript.markdown.ui.DisclosedTransition
 import ai.opencode.feature.transcript.markdown.ui.LocalQuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.LocalSessionLinks
+import ai.opencode.feature.transcript.markdown.ui.LocalMarkdownSecondary
 import ai.opencode.feature.transcript.markdown.ui.MarkdownBlocksView
 import ai.opencode.feature.transcript.markdown.ui.QuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.SessionLinkContext
@@ -162,7 +164,7 @@ private fun CompactionView(entry: TranscriptEntry, id: String, info: OpenCodeCom
     }
     val usage = info.inputTokens?.let { input ->
         info.outputTokens?.let { output ->
-            val format = NumberFormat.getIntegerInstance()
+            val format = NumberFormat.getIntegerInstance(appFormattingLocale())
             "${format.format(input)} in · ${format.format(output)} out"
         }
     }
@@ -211,7 +213,7 @@ private fun CompactionView(entry: TranscriptEntry, id: String, info: OpenCodeCom
         }
         AnimatedVisibility(isExpanded, enter = DisclosedTransition.enter, exit = DisclosedTransition.exit) {
             val blocks = rememberMarkdownBlocks("$id-summary", info.summary)
-            CompositionLocalProvider(LocalContentColor provides colors.secondaryText) {
+            CompositionLocalProvider(LocalContentColor provides colors.secondaryText, LocalMarkdownSecondary provides true) {
                 MarkdownBlocksView(blocks, Modifier.fillMaxWidth().padding(start = 16.dp))
             }
         }

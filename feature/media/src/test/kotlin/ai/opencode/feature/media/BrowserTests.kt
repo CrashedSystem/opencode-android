@@ -8,6 +8,7 @@ import ai.opencode.core.testing.TestIsolationRule
 import ai.opencode.server.OpenCodePairingLink
 import ai.opencode.server.model.AgentFileReference
 import ai.opencode.server.model.PageShareRequest
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
@@ -437,6 +438,86 @@ class LinkMenuTests {
         assertEquals(listOf(docs, post), LinkMenuText.webLinks(text))
         assertEquals("Copy Link", LinkMenuText.accessibilityName(LinkMenuAction.Copy, url = docs, among = listOf(docs)))
         assertEquals("Share Link to example.com", LinkMenuText.accessibilityName(LinkMenuAction.Share, url = docs, among = listOf(docs, post)))
+    }
+
+    /** Android-only (AA-01): Android throws once a node has more than 32 custom actions; VoiceOver has no cap. */
+    @Test
+    fun manyLinksKeepEveryLinkReachableWithinTheNodeLimit() {
+        val browserOn = ExperimentalFeatures.enabling(setOf(ExperimentalFeature.inAppBrowser))
+        val actionsFor = { url: String -> LinkMenuAction.actions(url, browserOn) }
+        val links = List(50) { "https://example.net/n-$it" }
+
+        val plan = LinkMenuText.accessibilityActions(links, actionsFor)
+        val onNode = plan.actions.size + if (plan.more.isEmpty()) 0 else 1
+        assertTrue("$onNode actions on one node", onNode <= MAX_CUSTOM_ACCESSIBILITY_ACTIONS)
+        // The first links keep all their actions, in order; every other link is behind More Links.
+        val kept = plan.actions.map { it.second }.distinct()
+        assertEquals(links, kept + plan.more)
+        assertEquals(kept.flatMap { url -> actionsFor(url).map { it to url } }, plan.actions)
+        assertEquals(6, kept.size)
+
+        // A few links keep the flat list iOS has, with no More Links.
+        val few = links.take(6)
+        val fits = LinkMenuText.accessibilityActions(few, actionsFor)
+        assertEquals(few.flatMap { url -> actionsFor(url).map { it to url } }, fits.actions)
+        assertTrue(fits.more.isEmpty())
+
+        val guarded = List(50) { CustomAccessibilityAction("Action $it") { true } }.withinNodeLimit()
+        assertEquals(MAX_CUSTOM_ACCESSIBILITY_ACTIONS, guarded.size)
+        assertEquals("Action 0", guarded.first().label)
+    }
+
+    /** Android-only (F-73): TalkBack shows one of several actions with the same label, so links sharing a host need their own names. */
+    @Test
+    fun linksOnOneHostGetDistinctActionNames() {
+        val links = List(7) { "https://example.net/n-${it + 1}" }
+        // As a bare URL renders: the icon slot's word joiner, then the address without its scheme.
+        val shown = links.associateWith { "\u2060" + it.removePrefix("https://") }
+        val labels = links.flatMap { url ->
+            LinkMenuAction.actions(url, ExperimentalFeatures.testValue).map { LinkMenuText.accessibilityName(it, url, links, shown::get) }
+        }
+        assertEquals(28, labels.size)
+        assertEquals(28, labels.toSet().size)
+        assertEquals("Open example.net/n-4 in Browser", labels[12])
+        assertEquals("example.net/n-9", LinkMenuText.chooserTitle("https://example.net/n-9", links + "https://example.net/n-9"))
+
+        // A link's own text names it; the same text twice falls back to the path, then to its place.
+        val docs = "https://example.com/docs"
+        val api = "https://example.com/api"
+        val other = "https://x.com/post"
+        val texts = mapOf(docs to "docs", api to "API", other to "post")
+        assertEquals("Copy Link to docs on example.com", LinkMenuText.accessibilityName(LinkMenuAction.Copy, docs, listOf(docs, api, other), texts::get))
+        assertEquals("Copy Link to x.com", LinkMenuText.accessibilityName(LinkMenuAction.Copy, other, listOf(docs, api, other), texts::get))
+        val here = mapOf(docs to "here", api to "here")
+        assertEquals("example.com/api", LinkMenuText.accessibilityTarget(api, listOf(docs, api), here::get))
+        val root = "https://example.com"
+        val rootSlash = "https://example.com/"
+        assertEquals("example.com link 2", LinkMenuText.accessibilityTarget(rootSlash, listOf(root, rootSlash)))
+    }
+
+    /** Android-only (AL-01): the block's Quote shares the links' node, after their actions and inside the 32-action cap. */
+    @Test
+    fun quoteJoinsTheLinksActionsWithinTheNodeLimit() {
+        val quote = CustomAccessibilityAction("Quote") { true }
+        val browserOn = ExperimentalFeatures.enabling(setOf(ExperimentalFeature.inAppBrowser))
+        val many = List(50) { "https://example.net/n-$it" }
+        val crowded = LinkMenuText.accessibilityCustomActions(
+            many, { LinkMenuAction.actions(it, browserOn) }, { null }, listOf(quote), perform = { _, _ -> }, showMore = {},
+        ).map { it.label }
+        assertTrue("${crowded.size} actions on one node", crowded.size <= MAX_CUSTOM_ACCESSIBILITY_ACTIONS)
+        assertEquals(listOf(LinkMenuText.moreLinks, "Quote"), crowded.takeLast(2))
+        assertEquals(crowded.size, crowded.toSet().size)
+
+        val seven = List(7) { "https://example.net/n-${it + 1}" }
+        val shown = seven.associateWith { "\u2060" + it.removePrefix("https://") }
+        val labels = LinkMenuText.accessibilityCustomActions(
+            seven, { LinkMenuAction.actions(it, ExperimentalFeatures.testValue) }, shown::get, listOf(quote), perform = { _, _ -> }, showMore = {},
+        ).map { it.label }
+        assertEquals(29, labels.size)
+        assertEquals(29, labels.toSet().size)
+        assertEquals("Open example.net/n-4 in Browser", labels[12])
+        assertEquals("Quote", labels.last())
+        assertTrue(LinkMenuText.moreLinks !in labels)
     }
 }
 

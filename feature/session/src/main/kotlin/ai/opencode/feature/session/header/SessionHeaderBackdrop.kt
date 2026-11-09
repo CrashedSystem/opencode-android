@@ -1,15 +1,18 @@
 package ai.opencode.feature.session.header
 
 import ai.opencode.core.ui.OpenCodeTheme
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
@@ -19,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
 
 /**
@@ -45,6 +49,9 @@ import kotlin.math.max
  * @param header the header row's height below [safeTop] (dp; `Resolved.header`).
  * @param safeTop the screen's top inset (status bar) above the header; 0 in an inset card.
  * @param scrolledUnderHeader how far content has scrolled under the header (dp), read per frame.
+ * @param transcriptPlaced whether the transcript has reported where it sits. Until it has, and for
+ *   that first report, the bar follows the content without fading, so a cold launch's first frame
+ *   already has it behind the rows (iOS reveals by geometry and never fades it in at launch).
  */
 @Composable
 fun SessionHeaderBackdrop(
@@ -53,6 +60,7 @@ fun SessionHeaderBackdrop(
     header: Float,
     safeTop: Dp,
     scrolledUnderHeader: () -> Float,
+    transcriptPlaced: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     if (backdrop == null && appBlur == null) return
@@ -69,18 +77,27 @@ fun SessionHeaderBackdrop(
     val barHeight = top + max(header, 0f)
     val height = max(barHeight, top + (backdrop?.fadeEnd ?: 0f))
     // M3 `TopAppBar`: the scrolled colour turns on as soon as anything is under the bar.
-    val scrolledUnder by remember(scrolledUnderHeader) { derivedStateOf { scrolledUnderHeader() > 0.5f } }
-    val barAlpha by animateFloatAsState(
-        targetValue = if (appBlur != null && appBlur.radius > 0 && scrolledUnder) 1f else 0f,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "headerBar",
-    )
+    val showsBar = appBlur != null && appBlur.radius > 0
+    val barTarget = { if (showsBar && scrolledUnderHeader() > 0.5f) 1f else 0f }
+    val bar = remember { Animatable(0f) }
+    var barAnimates by remember { mutableStateOf(false) }
+    val barSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    LaunchedEffect(showsBar) {
+        snapshotFlow { barTarget() to transcriptPlaced() }.collectLatest { (target, placed) ->
+            if (barAnimates) bar.animateTo(target, barSpec)
+            else {
+                bar.snapTo(target)
+                barAnimates = placed
+            }
+        }
+    }
     Spacer(
         modifier
             .fillMaxWidth()
             .height(height.dp)
             .clearAndSetSemantics {}
             .drawBehind {
+                val barAlpha = if (barAnimates) bar.value else barTarget()
                 if (barAlpha > 0) {
                     drawRect(color = scrim, size = Size(size.width, barHeight.dp.toPx()), alpha = barAlpha)
                 }

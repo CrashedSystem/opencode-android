@@ -10,6 +10,7 @@ import ai.opencode.core.sharing.ExperimentalFeature
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
+import ai.opencode.core.ui.LocalDrawerKeyboardSignals
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -68,8 +69,11 @@ import ai.opencode.feature.voice.holdsClientToolCard
 import ai.opencode.server.model.OpenCodeProject
 import ai.opencode.server.model.OpenCodeQueuedInput
 import ai.opencode.server.model.PastedText
+import android.content.res.Configuration
+import android.os.Process
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -92,11 +96,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -118,7 +125,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
@@ -132,18 +142,20 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
@@ -155,6 +167,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -180,6 +193,11 @@ class SessionComposerHost {
     var onConnectionAction: (ServerConnectionNotice.Action) -> Unit by mutableStateOf({})
     /** iOS `scrollEdgeBridge.showsJumpButton`. */
     var showsJumpButton by mutableStateOf(false)
+    /**
+     * Android (V-01): the transcript stays invisible while a row saved across process death loads.
+     * The jump pill keeps its state but isn't drawn or touchable, so it shows with the rows (AI-01).
+     */
+    var veilsJumpButton by mutableStateOf(false)
     /** iOS `scrollEdgeBridge.jumpRequest += 1`. */
     var onJumpToLatest: () -> Unit by mutableStateOf({})
     /** iOS `passesDragsToTranscript(scrollEdgeBridge)`: the transcript a pill's drag scrolls. */
@@ -200,6 +218,8 @@ class SessionComposerHost {
     var isAttachmentMenuOpen by mutableStateOf(false)
     /** iOS `imageImporter.isLoading || fileImporter.isLoading`. */
     var isImportingAttachments by mutableStateOf(false)
+    /** iOS `imageImporter.isLoading`: only an image import holds Send and Return-key send. */
+    var isImportingImages by mutableStateOf(false)
     /** iOS `pendingAttachmentsRow` (VIEW-PICKERS): shown above the field when the composer has attachments. */
     var pendingAttachmentsRow: (@Composable (composerExpanded: Boolean) -> Unit)? by mutableStateOf(null)
     /** One Picker's panel (iOS `onePicker`), set by `SessionModelPickerOverlays`. */
@@ -254,6 +274,9 @@ class SessionComposerHost {
     /** The message field has the keyboard (iOS `messageFieldFocused`); the field follows it. */
     var messageFieldFocused by mutableStateOf(false)
         internal set
+
+    /** The trailing control pressed last (`true` Stop, `false` Send) and when ([System.nanoTime]); see `TrailingButton`. */
+    internal var trailingPress: Pair<Boolean, Long>? = null
     internal var focusAction: () -> Unit = {}
     internal var dismissAction: () -> Unit = {}
 
@@ -320,6 +343,63 @@ internal class SessionComposerViewState {
     var requestPanelLeaveJob: Job? = null
     /** iOS `isImageDropTargeted`. */
     var isImageDropTargeted by mutableStateOf(false)
+}
+
+/**
+ * Whether the message field had the keyboard when the activity was recreated, for the session it
+ * belonged to (a field the drawer holds with its keys down has none; on a hardware keyboard the
+ * focused field has it with no soft keys up, and the system keeps them down when it comes back).
+ * The field loses its focus as the old activity's views go, after the first save, so later saves
+ * of the same switch keep what that one saw. A field still being restored (its focus not
+ * yet back, or its keys not yet up) when the next switch comes keeps it too. Restored only within
+ * the same process: after process death iOS starts without the keyboard too.
+ */
+internal class ComposerKeyboardRestore(private val restored: SessionFeature.State.TaskIdentity? = null) {
+    var hadKeyboard: () -> Boolean = { false }
+    var changingConfigurations: () -> Boolean = { false }
+    var identity: SessionFeature.State.TaskIdentity? = null
+    /** The restored field still has its focus (and isn't held by the drawer). */
+    var keepsRestoredFocus: () -> Boolean = { false }
+    /** The field took the keyboard back and hasn't let go of its focus since. */
+    var isRestoring = false
+    private var pending = restored != null
+    private var savedKeyboard = false
+    /** The last save came while configurations were changing (the same switch saves more than once). */
+    private var savedWhileChanging = false
+
+    /** A recreation saving now, before or during this restore, keeps the field's keyboard. */
+    private fun stillRestoring(): Boolean =
+        (pending && restored == identity) || (isRestoring && keepsRestoredFocus())
+
+    /** Whether the field should take the keyboard back on [current]; true at most once. */
+    fun takeRestore(current: SessionFeature.State.TaskIdentity): Boolean {
+        val restores = pending && restored == current
+        pending = false
+        return restores
+    }
+
+    companion object {
+        private val process: String get() = "${Process.myPid()}:${Process.getStartUptimeMillis()}"
+
+        val Saver: Saver<ComposerKeyboardRestore, ArrayList<String>> = Saver(
+            save = { restore ->
+                // Only an earlier save of this same switch carries over, never one from before it
+                // (leaving the screen, going to the background).
+                val changing = restore.changingConfigurations()
+                val carries = restore.savedKeyboard && changing && restore.savedWhileChanging
+                restore.savedKeyboard = restore.hadKeyboard() || restore.stillRestoring() || carries
+                restore.savedWhileChanging = changing
+                val identity = restore.identity?.takeIf { restore.savedKeyboard }
+                identity?.let { arrayListOf(process, it.serverID, it.visit.toString(), it.sessionID.orEmpty()) }
+            },
+            restore = { saved ->
+                val identity = saved.takeIf { it.size == 4 && it[0] == process }?.let {
+                    SessionFeature.State.TaskIdentity(it[1], it[2].toInt(), it[3].ifEmpty { null })
+                }
+                ComposerKeyboardRestore(identity)
+            },
+        )
+    }
 }
 
 /** iOS `composerPresentation`'s tuple. */
@@ -516,6 +596,30 @@ fun SessionComposer(
         if (host.isCatchUpCard || snapshot.composerFocusRequest <= 0 || request == view.handledFocusRequest) return@LaunchedEffect
         view.handledFocusRequest = request
         env.focus()
+    }
+    // A dark/light or text size switch recreates the activity, where iOS's field only redraws and
+    // keeps the keyboard: the field that had it (a draft, or a question's answer) takes it back once.
+    val keyboardRestore = rememberSaveable(saver = ComposerKeyboardRestore.Saver) { ComposerKeyboardRestore() }
+    val activity = LocalActivity.current
+    val ime = WindowInsets.ime
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val drawerHold = LocalDrawerKeyboardSignals.current
+    // iOS keeps the first responder across a trait change with or without the software keyboard.
+    val typesOnHardwareKeys = configuration.keyboard != Configuration.KEYBOARD_NOKEYS &&
+        configuration.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO
+    keyboardRestore.hadKeyboard = {
+        host.messageFieldFocused && (ime.getBottom(density) > 0 || (typesOnHardwareKeys && drawerHold?.holdsCardField != true))
+    }
+    keyboardRestore.keepsRestoredFocus = { host.messageFieldFocused && drawerHold?.holdsCardField != true }
+    keyboardRestore.changingConfigurations = { activity?.isChangingConfigurations == true }
+    keyboardRestore.identity = snapshot.taskIdentity
+    LaunchedEffect(keyboardRestore) {
+        if (!keyboardRestore.takeRestore(snapshot.taskIdentity) || host.isCatchUpCard) return@LaunchedEffect
+        env.focus()
+        keyboardRestore.isRestoring = true
+        snapshotFlow { host.messageFieldFocused }.first { !it }
+        keyboardRestore.isRestoring = false
     }
     // iOS `resetDictationPresentation()` and the hold's `onChange`.
     val recordingNow = snapshot.isPreparingDictation || snapshot.isDictating || snapshot.dictationHold != null
@@ -735,6 +839,7 @@ internal class SessionComposerEnv(
 
     /** iOS `sendMessage(_:)`. */
     fun sendMessage(action: Action = Action.SendTapped) {
+        host.sendTransition.input?.flushEdits()
         if (action == Action.ReturnKeyTapped && !canSend) {
             store.send(action)
             return
@@ -767,6 +872,7 @@ internal class SessionComposerEnv(
             )
         }
         store.send(action)
+        host.sendTransition.input?.takeParentText()
         // Nothing went (a failed upload): the capture and the shrink mustn't linger (iOS scopes
         // the shrink to the send's own transaction).
         if (store.state.sendGeneration == generation) {
@@ -1002,7 +1108,12 @@ private fun SessionComposerEnv.ComposerAreaContent(modifier: Modifier) {
             ) {
                 // The call's open transcript covers where it would float.
                 val jumpShown = host.showsJumpButton && !holdsClientToolCard
-                JumpToLatestPill(isShown = jumpShown, onClick = host.onJumpToLatest, modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = jumpShown))
+                JumpToLatestPill(
+                    isShown = jumpShown,
+                    onClick = host.onJumpToLatest,
+                    veiled = { host.veilsJumpButton },
+                    modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = jumpShown && !host.veilsJumpButton),
+                )
             }
         }
         // A draft's recent projects stand above the composer as an overlay, so folding them, or
@@ -1038,11 +1149,16 @@ private fun HiddenUnderComposerPanel(covered: Boolean, modifier: Modifier = Modi
     Box(modifier.alpha(alpha).then(if (covered) Modifier.clearAndSetSemantics { }.blockTouches() else Modifier)) { content() }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun SessionComposerEnv.DraftProjectsOverlay(modifier: Modifier) {
     // The list arriving and leaving with the composer's column (`layout` opening, `collapse` closing).
+    // It leaves that way only when a draft's own first send creates its session; switching to another
+    // existing session or Catch Up card swaps at once so the draft list never ghosts over it.
+    val state = store.state
+    val animatesExit = !host.isCatchUpCard && (state.session == null || state.session.id == state.draftBecameSessionID)
     val enter = fadeIn(composerColumnAnimation(opening = true))
-    val exit = fadeOut(composerColumnAnimation(opening = false))
+    val exit = if (!animatesExit) ExitTransition.None else fadeOut(composerColumnAnimation(opening = false))
     // A zero-height edge at the area's top that the list stands on, a stack's spacing above.
     Box(
         modifier
@@ -1054,20 +1170,38 @@ private fun SessionComposerEnv.DraftProjectsOverlay(modifier: Modifier) {
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(visible = showsDraftProjects, enter = enter, exit = exit) {
-            HiddenUnderComposerPanel(host.composerPanelCovers) {
-                Column(verticalArrangement = Arrangement.spacedBy(StarterPromptTunables.listGap.dp)) {
-                    AnimatedVisibility(visible = showsStarterPrompts, enter = fadeIn(), exit = fadeOut()) {
-                        StarterPromptList(s.starterPrompts, onPick = { store.send(Action.StarterPromptTapped(it)) })
+            // Android: in a short window (landscape with the keys up, a split screen) the list
+            // would stand over the header and under the status bar. It gives way there, as the
+            // header gives way to the composer (its A-10 cap). iOS phones are portrait-only.
+            val density = LocalDensity.current
+            val headerBottom = WindowInsets.statusBarsIgnoringVisibility.getTop(density) + with(density) { host.headerHeight.dp.toPx() }
+            var listTop by remember { mutableFloatStateOf(Float.POSITIVE_INFINITY) }
+            val givesWay = listTop < headerBottom
+            val shown by animateFloatAsState(if (givesWay) 0f else 1f, Motion.easeOut(Motion.fadeFast), label = "givesWay")
+            // Faded out, it's measured but not placed, so taps reach the header under it (iOS
+            // `allowsHitTesting(false)`): the draft's title chooses the project there instead.
+            Layout(
+                content = {
+                    HiddenUnderComposerPanel(host.composerPanelCovers || givesWay) {
+                        Column(verticalArrangement = Arrangement.spacedBy(StarterPromptTunables.listGap.dp)) {
+                            AnimatedVisibility(visible = showsStarterPrompts, enter = fadeIn(), exit = fadeOut()) {
+                                StarterPromptList(s.starterPrompts, onPick = { store.send(Action.StarterPromptTapped(it)) })
+                            }
+                            DraftProjectList(
+                                identity = s.taskIdentity,
+                                projects = s.recentProjects,
+                                chosen = s.draftProject,
+                                isComposing = isComposingDraft,
+                                onPick = { store.send(Action.DraftProjectTapped(it)) },
+                                onAll = { store.send(Action.ProjectButtonTapped) },
+                            )
+                        }
                     }
-                    DraftProjectList(
-                        identity = s.taskIdentity,
-                        projects = s.recentProjects,
-                        chosen = s.draftProject,
-                        isComposing = isComposingDraft,
-                        onPick = { store.send(Action.DraftProjectTapped(it)) },
-                        onAll = { store.send(Action.ProjectButtonTapped) },
-                    )
-                }
+                },
+                modifier = Modifier.onGloballyPositioned { listTop = it.positionInWindow().y },
+            ) { measurables, constraints ->
+                val list = measurables.single().measure(constraints)
+                layout(list.width, list.height) { if (!givesWay || shown > 0f) list.place(0, 0) }
             }
         }
     }
@@ -1097,7 +1231,7 @@ private fun SessionComposerEnv.ComposerPills() {
             // Beside the queued pill the jump slot carries its own gap, so the queued pill slides over as it closes.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 QueuedActivity(hasQueued)
-                JumpToLatestPill(isShown = showsJump, onClick = host.onJumpToLatest, collapsesSlot = hasQueued, modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = showsJump))
+                JumpToLatestPill(isShown = showsJump, onClick = host.onJumpToLatest, collapsesSlot = hasQueued, veiled = { host.veilsJumpButton }, modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = showsJump && !host.veilsJumpButton))
             }
         }
     } else {
@@ -1106,7 +1240,7 @@ private fun SessionComposerEnv.ComposerPills() {
             if (hasQueued || showsJump) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     QueuedActivity(hasQueued)
-                    JumpToLatestPill(isShown = showsJump, onClick = host.onJumpToLatest, collapsesSlot = hasQueued, modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = showsJump))
+                    JumpToLatestPill(isShown = showsJump, onClick = host.onJumpToLatest, collapsesSlot = hasQueued, veiled = { host.veilsJumpButton }, modifier = Modifier.passesDragsToTranscript(host.borrowedDrag, isEnabled = showsJump && !host.veilsJumpButton))
                 }
             }
         }
@@ -1138,16 +1272,14 @@ private fun SessionComposerEnv.QueuedActivity(hasQueued: Boolean) {
             title = "$count queued",
             rolls = true,
             onClick = { view.showsQueuedMessages = true },
-            onClickLabel = "Shows messages waiting for this response to finish",
+            onClickLabel = "Show messages waiting for this response to finish",
+            accessibilityLabel = if (count == 1) "1 queued message" else "$count queued messages",
             modifier = Modifier
                 // A queued send's words shrink into it (iOS `scrollEdgeBridge.queuedPillFrame`).
                 .onGloballyPositioned { host.queuedPillFrame = it.boundsInWindow() }
                 .passesDragsToTranscript(host.borrowedDrag)
                 .coveredByBackgroundWork()
-                .semantics {
-                    contentDescription = if (count == 1) "1 queued message" else "$count queued messages"
-                    testTag = "queued-messages"
-                },
+                .semantics { testTag = "queued-messages" },
         ) {
             OpenCodeIcon(SFSymbol.TextBubble, contentDescription = null, size = 17.dp, modifier = Modifier.offset(y = ComposerTunables.queuedGlyphDrop.dp))
         }
@@ -1659,6 +1791,11 @@ private fun SessionComposerEnv.Composer() {
         label = "composerRowFade",
     )
     val bodyLine = with(density) { OpenCodeTextStyles.body.lineHeight.toDp().value }
+    // The field's one line (as `ComposerTextInput` measures it): its floor when short of room.
+    val fieldLine = with(density) {
+        val style = ComposerTunables.textStyle.textStyle
+        if (style.lineHeight.isSp) style.lineHeight.toDp().value else style.fontSize.toDp().value * 1.3f
+    }
     val morph = LocalComposerKeyboardMorph.current
     // The keyboard morph moves the row frame by frame; a size animation on top would trail the keys.
     val morphMoving by remember(morph) {
@@ -1735,6 +1872,7 @@ private fun SessionComposerEnv.Composer() {
                     // iOS `KeyboardDrivenComposerLayout`: the row's expansion frame by frame.
                     progress = { morph.layoutProgress(inline = bar != null) },
                     inline = bar?.let { ComposerLayoutInline(hasLeading = it is RequestBar.Answer, lineHeight = bodyLine) },
+                    inputLineHeight = fieldLine,
                     input = {
                         Box(
                             Modifier
@@ -1902,7 +2040,7 @@ private fun SessionComposerEnv.ComposerInput(expanded: Boolean, recording: Boole
             onCommandReturn = {
                 if (!recording) {
                     if (s.isAnsweringRequest) store.send(Action.CommandReturnTapped)
-                    else if (!host.isImportingAttachments) sendMessage(Action.CommandReturnTapped)
+                    else if (!host.isImportingImages) sendMessage(Action.CommandReturnTapped)
                 }
             },
             onNonSendNewline = { text -> if (!recording) store.send(Action.NonSendNewlineInserted(text)) },
@@ -1915,6 +2053,8 @@ private fun SessionComposerEnv.ComposerInput(expanded: Boolean, recording: Boole
             sendTransition = host.sendTransition,
             // One Picker in the keyboard's place keeps the field from taking it back.
             refusesFocus = { host.modelPanels?.onePicker?.isOpen == true },
+            // The + menu and its photo sheet draw over the field, which keeps the keyboard.
+            isCovered = host.isAttachmentMenuOpen,
         )
     }
 }

@@ -552,7 +552,7 @@ private fun TuningTab(side: TuningPlacement.Side, pullOut: () -> Unit, modifier:
                 contentDescription = "Tuning Panel"
                 role = Role.Button
                 // iOS `accessibilityHint`: TalkBack's click label (“Double tap to …”).
-                onClick(label = "Brings the panel back") { pullOut(); true }
+                onClick(label = "Bring the panel back") { pullOut(); true }
             },
         contentAlignment = if (leading) Alignment.CenterStart else Alignment.CenterEnd,
     ) {

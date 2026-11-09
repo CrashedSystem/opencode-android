@@ -65,9 +65,9 @@ fun ShellGlyph(
 ) {
     val modelKey = key ?: ("shell|" + shellIDs.joinToString(","))
     val model = remember(modelKey) { ShellGlyphModels.model(modelKey) }
-    val reduceMotion = rememberReduceMotion()
+    val still = rememberReduceMotion() || rememberTouchExplorationEnabled()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val active = !isPaused && lifecycle.isAtLeast(Lifecycle.State.RESUMED) && !reduceMotion
+    val active = !isPaused && lifecycle.isAtLeast(Lifecycle.State.RESUMED) && !still
     val dark = OpenCodeTheme.colors.isDark
     val currentIDs by rememberUpdatedState(shellIDs)
     // DEBUG glass trace: counts this glyph's steps under the surface's group.
@@ -75,9 +75,9 @@ fun ShellGlyph(
     var tick by remember { mutableLongStateOf(0L) }
     val field = remember(model) { arrayOfNulls<GyroField>(1) }
 
-    LaunchedEffect(model, active, reduceMotion) {
+    LaunchedEffect(model, active, still) {
         fun draw(now: Double) {
-            field[0] = model.advance(now, currentIDs, reduceMotion)
+            field[0] = model.advance(now, currentIDs, still)
             if (model.stepped && active) stepTrace?.let(GlyphAdvanceProbe::stepped)
             tick += 1
         }

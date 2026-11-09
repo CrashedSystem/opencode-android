@@ -355,6 +355,26 @@ class MarkdownBlockTests {
         assertEquals(listOf("runc", "weaker isolation"), table.rows[1].map { it.text })
     }
 
+    // Android divergence (G-02): iOS keeps `<br>` literal in cells; Android breaks the line there.
+    @Test fun tableCellBreakTagsBecomeLineBreaks() {
+        val blocks = OpenCodeMarkdownBlock.blocks(
+            "| Command | Output |\n|---|---|\n" +
+                "| list | `1. [ ] Beta`<br>`2. [ ] Gamma` |\n" +
+                "| stats | total: 2<br/>done: 0<BR />remaining: 2 |\n" +
+                "| code | `a<br>b` |",
+        )
+        val table = blocks.single().kind as? Kind.Table ?: return fail("expected table")
+        assertEquals("1. [ ] Beta\n2. [ ] Gamma", table.rows[0][1].text)
+        assertEquals("total: 2\ndone: 0\nremaining: 2", table.rows[1][1].text)
+        assertEquals("a<br>b", table.rows[2][1].text)
+    }
+
+    @Test fun breakTagsOutsideTablesStayLiteral() {
+        val blocks = OpenCodeMarkdownBlock.blocks("one<br>two")
+        val paragraph = blocks.single().kind as? Kind.Paragraph ?: return fail("expected paragraph")
+        assertEquals("one<br>two", paragraph.text.text)
+    }
+
     @Test fun pipeTableAppearsAndAddsRowsBeforeTheStreamEnds() {
         var streamed = ""
         val chunks = listOf("| Fruit | Color |\n", "|---|---|\n", "| Apple | Red |\n", "| Pear | Gre", "en |\n")

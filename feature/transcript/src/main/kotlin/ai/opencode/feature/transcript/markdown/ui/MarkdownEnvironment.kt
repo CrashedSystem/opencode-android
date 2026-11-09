@@ -39,6 +39,12 @@ val LocalLinkPreviewRow = staticCompositionLocalOf<String?> { null }
 /** iOS `transcriptLayoutTuning.linkStyle`: Clean Address in the transcript; surfaces outside it set Today. */
 val LocalInlineLinkStyle = staticCompositionLocalOf { InlineLinkStyle.Address }
 
+/**
+ * iOS `.foregroundStyle(.secondary)` around a `MarkdownBlocksView` (the expanded compaction
+ * summary): headings, prose and list items all draw in secondary text.
+ */
+val LocalMarkdownSecondary = staticCompositionLocalOf { false }
+
 /** iOS `QuoteTextHandler`: selected reply text offers Quote beside Copy. Null where quoting isn't offered. */
 @Stable
 class QuoteTextHandler(val quote: (String) -> Unit)

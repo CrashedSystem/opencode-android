@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionRole
@@ -209,6 +210,9 @@ class PlusPhotoLibrary(private val client: PhotoLibraryClient = dependency(Photo
     }
 
     val canRead: Boolean get() = access.canRead
+
+    /** Android only: no library to read ([PhotoLibraryAccess.Unavailable]), so Photos opens the system photo picker instead of the sheet. */
+    val usesSystemPicker: Boolean get() = client.access() == PhotoLibraryAccess.Unavailable
 
     fun cacheKey(id: String, side: Float, scale: Float): ThumbnailCacheKey {
         val pixelSide = (side * max(scale, 1f)).roundToInt()
@@ -1154,7 +1158,7 @@ private fun PlusPhotoTile(
         label = "tile-limit",
     )
     val washColor = MaterialTheme.colorScheme.background
-    val description = listOfNotNull(photo.formattedDuration, photo.created?.let(tileDateFormatter::format)).joinToString(", ")
+    val description = listOfNotNull(photo.formattedDuration, photo.created?.let(tileDateFormatter.withLocale(appFormattingLocale())::format)).joinToString(", ")
     Box(
         Modifier
             .aspectRatio(1f)

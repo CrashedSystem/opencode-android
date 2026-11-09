@@ -304,7 +304,7 @@ private fun DrawerButtonCapsule(
                                 Modifier
                                     .clickable(
                                         role = Role.Button,
-                                        onClickLabel = if (shown.target == InAppNotice.Target.Drawer) "Opens sessions" else "Opens the session",
+                                        onClickLabel = if (shown.target == InAppNotice.Target.Drawer) "Open sessions" else "Open the session",
                                         onClick = { onNoticeTapped(shown.target) },
                                     )
                                     .semantics { contentDescription = shown.announcement }

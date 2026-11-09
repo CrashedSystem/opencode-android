@@ -34,6 +34,9 @@ interface DrawerKeyboardSignals {
      */
     fun isHeld(key: Any): Boolean
 
+    /** A field on the card is held while the drawer moves or rests open (its keys are the drawer's). */
+    val holdsCardField: Boolean get() = false
+
     /**
      * A text field on the card gained or lost focus (iOS `textDidBegin/EndEditing` on the card).
      * [clearFocus] lets the drawer take the focus away when the card changes.
@@ -46,6 +49,14 @@ interface DrawerKeyboardSignals {
      * test), so the field keeps its own editing gestures.
      */
     fun cardFieldPlaced(key: Any, coordinates: LayoutCoordinates?) {}
+
+    /**
+     * Takes input focus off the card without dropping the window's own focus, by moving it to a
+     * target of the drawer's (QA AD-01, AF-02): `clearFocus` drops the view's focus too, and out
+     * of touch mode the window hands it straight back, an input-focus event TalkBack follows to
+     * the screen's first element. False if the focus couldn't move; then clear it.
+     */
+    fun releaseFocus(): Boolean = false
 }
 
 /** The drawer's keyboard hold, provided by the drawer container around the card. */

@@ -1,13 +1,13 @@
 package ai.opencode.feature.media
 
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.retry.NetworkPathMonitor
 import android.icu.number.Notation
 import android.icu.number.NumberFormatter
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import java.text.NumberFormat
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -121,14 +121,14 @@ data class LinkPreview(
         /** A repository's stars and language, as its facts read. */
         fun repositoryFacts(details: GitHubPreview): String? {
             val stars = details.stars?.let {
-                "★ " + NumberFormatter.withLocale(Locale.getDefault()).notation(Notation.compactShort()).format(it).toString()
+                "★ " + NumberFormatter.withLocale(appFormattingLocale()).notation(Notation.compactShort()).format(it).toString()
             }
             val parts = listOfNotNull(stars, details.language)
             return if (parts.isEmpty()) null else parts.joinToString(" · ")
         }
 
         /** Swift's `Int.formatted()`: grouped digits in the reader's locale (a GitHub issue's comments). */
-        fun formatted(value: Int): String = NumberFormat.getIntegerInstance(Locale.getDefault()).format(value)
+        fun formatted(value: Int): String = NumberFormat.getIntegerInstance(appFormattingLocale()).format(value)
 
         /**
          * A link without metadata, named from its path: `/guides/background-transfers` reads

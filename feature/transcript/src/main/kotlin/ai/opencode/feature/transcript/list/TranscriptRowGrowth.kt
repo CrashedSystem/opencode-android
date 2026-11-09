@@ -3,12 +3,24 @@ package ai.opencode.feature.transcript.list
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionTunables
 import ai.opencode.feature.transcript.TranscriptTunables
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.unit.Constraints
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -233,5 +245,49 @@ class GrowthSoftEdge {
         /** The faded line brightens as `Motion.swap` brings a change in. */
         val LEAVE_DURATION: Double get() = MotionTunables.swapInDuration.value
         private val LEAVE_EASING = Motion.EaseOut
+    }
+}
+
+/**
+ * A row laid out at its measured height but reported at the height [TranscriptListController]
+ * grows it to (iOS `TopAnchoredRow` + `fittedHeight`), clipped to that height in the same pass
+ * whenever its content stands taller (iOS `clipsToBounds = height < measured - 0.5` in
+ * `preferredLayoutAttributesFitting`). A growth starts inside this measure, before the frame loop
+ * ticks, so a clip read later from the controller missed the first frame of every wrap and the
+ * new line painted over the row below.
+ */
+internal fun Modifier.topAnchoredRow(controller: TranscriptListController, key: String): Modifier =
+    this then TopAnchoredRowElement(controller, key)
+
+private data class TopAnchoredRowElement(val controller: TranscriptListController, val key: String) :
+    ModifierNodeElement<TopAnchoredRowNode>() {
+    override fun create() = TopAnchoredRowNode(controller, key)
+    override fun update(node: TopAnchoredRowNode) {
+        node.controller = controller
+        node.key = key
+    }
+}
+
+private class TopAnchoredRowNode(var controller: TranscriptListController, var key: String) :
+    Modifier.Node(), LayoutModifierNode, DrawModifierNode {
+    /** The reported height in px while the content stands taller (-1: no clip). */
+    private var clipHeight = -1
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        val height = controller.fittedHeight(key, placeable.height / density, placeable.width / density)
+        val px = (height * density).roundToInt().coerceAtLeast(0)
+        val clip = if (placeable.height - px > 0.5f * density) px else -1
+        if (clip != clipHeight) {
+            clipHeight = clip
+            invalidateDraw()
+        }
+        return layout(placeable.width, px) { placeable.place(0, 0) }
+    }
+
+    // Drawn at the content's measured size, so the clip names the reported height.
+    override fun ContentDrawScope.draw() {
+        val clip = clipHeight
+        if (clip >= 0) clipRect(bottom = clip.toFloat()) { this@draw.drawContent() } else drawContent()
     }
 }

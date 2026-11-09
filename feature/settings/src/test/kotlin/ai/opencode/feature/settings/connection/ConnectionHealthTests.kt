@@ -382,6 +382,17 @@ class ConnectionHealthTests {
         assertNull(ServerCardName.machineName(fromReverse = ""))
     }
 
+    @Test fun reverseLabelsThatSpellOutTheAddressAreNotMachineNames() {
+        for (answer in listOf(
+            "ip-10-0-2-2.ec2.internal.", "10-0-2-2.example.net", "ec2-3-89-50-194.compute-1.amazonaws.com",
+            "host-192-168-1-5.lan", "c-73-12-34-56.hsd1.ca.comcast.net", "pool-71-191-23-4.washdc.fios.verizon.net",
+            "ip10-0-2-2.isp.net", "194.50.89.3.static.example.com",
+        )) assertNull(answer, ServerCardName.machineName(fromReverse = answer))
+        assertEquals("ryans-macbook", ServerCardName.machineName(fromReverse = "ryans-macbook.local"))
+        assertEquals("devbox-01", ServerCardName.machineName(fromReverse = "devbox-01.tail1234.ts.net"))
+        assertEquals("rack-2-node-300", ServerCardName.machineName(fromReverse = "rack-2-node-300.lab"))
+    }
+
     // MARK: Presentation
 
     @Test fun statusShowsAGlyphAndTheLiveNumber() {

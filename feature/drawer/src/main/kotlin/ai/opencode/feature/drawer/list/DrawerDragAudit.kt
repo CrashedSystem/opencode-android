@@ -3,6 +3,7 @@ package ai.opencode.feature.drawer.list
 import ai.opencode.core.diagnostics.MotionFinding
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import java.util.Locale
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -109,8 +110,8 @@ object DrawerDragAudit {
                 )
             }
             val (_, lag) = lag(frame, previous)
-            if (lag > followThreshold) add(MotionFinding.Kind.FollowLag, "%.1f pt from the finger after a frame".format(lag), lag)
-            if (frame.clipped > clipThreshold) add(MotionFinding.Kind.LiftedClipped, "%.1f pt cut off".format(frame.clipped), frame.clipped)
+            if (lag > followThreshold) add(MotionFinding.Kind.FollowLag, "%.1f pt from the finger after a frame".format(Locale.ROOT, lag), lag)
+            if (frame.clipped > clipThreshold) add(MotionFinding.Kind.LiftedClipped, "%.1f pt cut off".format(Locale.ROOT, frame.clipped), frame.clipped)
             if (frame.underChrome) add(MotionFinding.Kind.Underlap, "the drawer's chrome draws over it", frame.lifted.height)
             previous = frame
         }

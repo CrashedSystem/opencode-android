@@ -185,6 +185,12 @@ internal class SessionModelPanels(
     /** iOS `sessionSheetComposer`: where the focused composer sat as the session sheet opened (One Picker's space). */
     var sessionSheetComposer: Rect? = null
 
+    /**
+     * iOS `sheetRestoresFocus`: the model chip put the field's keyboard away for the picker sheet,
+     * so the sheet's dismissal hands it back ([SessionSheets]).
+     */
+    var sheetRestoresFocus = false
+
     /** iOS `canPresentOnePickerMorph` (`!docksRequest`): the composer is on screen to morph from. */
     val canPresentOnePickerMorph: Boolean get() = !store.state.isAnsweringRequest
 

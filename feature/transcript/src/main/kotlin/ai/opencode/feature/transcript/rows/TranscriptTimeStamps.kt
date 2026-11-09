@@ -1,5 +1,6 @@
 package ai.opencode.feature.transcript.rows
 
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import android.icu.text.DateFormat
@@ -58,7 +59,7 @@ object TranscriptTimeStamps {
         sentNow: Boolean? = null,
         now: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
-        locale: Locale = Locale.getDefault(),
+        locale: Locale = appFormattingLocale(),
         hour24: Boolean? = null,
     ): Map<String, String> {
         val promptIDs = items.map(TranscriptEntry::promptID)
@@ -238,7 +239,7 @@ object TranscriptTimeStamps {
         showsDay: Boolean,
         now: Instant,
         zone: ZoneId = ZoneId.systemDefault(),
-        locale: Locale = Locale.getDefault(),
+        locale: Locale = appFormattingLocale(),
         hour24: Boolean? = null,
     ): String {
         // The transcript asks on every update; the same minute reads the same until the day it
@@ -275,7 +276,7 @@ object TranscriptTimeStamps {
     }
 
     /** Today and Yesterday by calendar day, the weekday for the rest of the week, else “Mon, Oct 5”. */
-    fun day(time: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String {
+    fun day(time: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = appFormattingLocale()): String {
         val days = daysBetween(time, now, zone)
         val context = DisplayContext.CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE
         return when (days) {

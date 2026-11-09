@@ -774,7 +774,7 @@ private fun OnePickerGrabber(
                 contentDescription = "Sheet Grabber"
                 stateDescription = detent.accessibilityValue
                 role = Role.Button
-                onClick(if (detent == ModelListDetent.Large) "Makes the picker compact" else "Expands the picker") {
+                onClick(if (detent == ModelListDetent.Large) "Make the picker compact" else "Expand the picker") {
                     if (!isSheetFallback) controller.toggleDetent()
                     true
                 }

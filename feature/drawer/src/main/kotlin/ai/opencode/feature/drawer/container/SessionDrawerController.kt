@@ -171,7 +171,10 @@ class SessionDrawerController internal constructor(
      * fades that picture out over the new content (iOS `pendingExitSnapshot`).
      */
     fun captureCardThen(then: () -> Unit) {
-        if (reducedMotion || cardLayer == null) {
+        // Finishing Catch Up: the last card already handed over to its flying snapshot (`live.alpha == 0`),
+        // so there is no live card to snapshot (and reading `cardLayer` back would stall the flight).
+        val liveHidden = catchUp != null && catchUpStack.live.alpha <= 0.01f
+        if (reducedMotion || cardLayer == null || liveHidden) {
             pendingSnapshot = null
             pendingStageSnapshot = null
             then()
@@ -179,10 +182,12 @@ class SessionDrawerController internal constructor(
         }
         scope.launch {
             pendingSnapshot = captureCard()
-            pendingStageSnapshot = if (catchUp != null) capture(chromeLayer) else null
+            pendingStageSnapshot = null
             then()
         }
     }
+
+    internal val pendingCardSnapshot: ImageBitmap? get() = pendingSnapshot
 
     private var pendingSnapshot: ImageBitmap? = null
     private var pendingStageSnapshot: ImageBitmap? = null
@@ -417,6 +422,8 @@ class SessionDrawerController internal constructor(
     internal val drawerScale = mutableFloatStateOf(Float.NaN)
     internal val dimAlpha = mutableFloatStateOf(Float.NaN)
     internal val stackOffset = mutableFloatStateOf(0f)
+    internal val stackTy = mutableFloatStateOf(0f)
+    internal val stackAlpha = mutableFloatStateOf(1f)
     internal val scrimAlpha = mutableFloatStateOf(Float.NaN)
     internal val contentAlpha = mutableFloatStateOf(1f)
 
@@ -473,6 +480,9 @@ class SessionDrawerController internal constructor(
         }
         catchUp = stage
         if (stage != null) lastStage = stage
+        // iOS `wasShowingCard = cardView.alpha > 0.01`: once the last card hands over to its flying
+        // snapshot (`live.alpha == 0`), there is no live card left to linger as `outgoing`.
+        val wasShowingCard = previous != null && previous.cardID != null && catchUpStack.live.alpha > 0.01f
         // iOS `stack.end(...)` on leaving: a card drag under way is nobody's now. (The stack keeps
         // its stage until the exit morph unmounts it, so its preview fades with the stage.)
         if (previous != null && stage == null) catchUpStack.dropDrag()
@@ -484,8 +494,8 @@ class SessionDrawerController internal constructor(
         }
         when {
             previous == null && stage != null -> enter(animated, startOffset, startProgress, stage.cardID != null)
-            previous != null && stage == null && returnsToDrawer && sidebarShown == null -> returnToDrawer(animated, previous.cardID != null)
-            previous != null && stage == null -> exitIntoSession(animated, previous.cardID != null)
+            previous != null && stage == null && returnsToDrawer && sidebarShown == null -> returnToDrawer(animated, wasShowingCard)
+            previous != null && stage == null -> exitIntoSession(animated, wasShowingCard)
             else -> Unit
         }
     }
@@ -531,6 +541,9 @@ class SessionDrawerController internal constructor(
         catchUpStack.live.alpha = if (showsCard) 1f else 0f
         outgoing = snapshot
         outgoingRect = null
+        val modalFromDrawer = sidebarShown == null && startProgress > 0f
+        stackAlpha.floatValue = if (animated && modalFromDrawer) 0f else 1f
+        stackTy.floatValue = if (animated && modalFromDrawer) FINISH_RISE else 0f
         runMorph(
             kind = CatchUpModeMorph.EnterCatchUp,
             animated = animated,
@@ -540,18 +553,22 @@ class SessionDrawerController internal constructor(
                 val start = if (animated) PRERENDER_ALPHA else 0f
                 chromeAlpha.floatValue = start + (1f - start) * p
                 chromeScale.floatValue = 1f
-                // Android's modal drawer covers a card that never moved: the stack starts in place,
-                // and only a drawer that was open fades out over it.
+                // Android's modal drawer stays opaque over the background session while Catch Up's
+                // stage and card rise in above it.
                 val modal = sidebarShown == null
                 stackOffset.floatValue = if (modal) 0f else startOffset * (1f - p)
+                stackTy.floatValue = if (modal && startProgress > 0f) FINISH_RISE * (1f - p) else 0f
+                stackAlpha.floatValue = if (modal && startProgress > 0f) progress(t, SWAP_IN) else 1f
                 drawerScale.floatValue = startScale + (closedScale - startScale) * p
-                drawerAlpha.floatValue = if (modal && startProgress <= 0f) 0f else 1f - p
+                drawerAlpha.floatValue = if (modal) (if (startProgress <= 0f) 0f else 1f) else 1f - p
                 dimAlpha.floatValue = startDim + (endDim - startDim) * p
                 outgoingAlpha.floatValue = if (snapshot == null) 0f else 1f - progress(t, SWAP_OUT)
             },
             completion = {
                 outgoing = null
                 stackOffset.floatValue = 0f
+                stackTy.floatValue = 0f
+                stackAlpha.floatValue = 1f
                 chromeAlpha.floatValue = 1f
                 resetDrawerOverrides()
                 if (catchUp != null) catchUpStack.revealPreview(animated = animated)
@@ -726,30 +743,36 @@ class SessionDrawerController internal constructor(
             duration = SURFACE.duration,
             step = { t ->
                 val p = progress(t, SURFACE)
+                val modal = sidebarShown == null
                 drawerScale.floatValue = closed + (1f - closed) * p
                 // The open drawer's own dim is none; a black one fading out under the stage flashes in light mode.
                 dimAlpha.floatValue = 0f
-                drawerAlpha.floatValue = fadeIn(t)
+                // Modal drawer stays opaque over the full-screen session card while Catch Up fades out above it.
+                drawerAlpha.floatValue = if (modal) 1f else fadeIn(t)
                 maskProgress.floatValue = p
                 cardRadius.floatValue = stackRadius + (displayCornerRadius - stackRadius) * p
                 borderAlpha.floatValue = 1f - p
                 // Android's modal drawer opens over the card, so the card grows in place beneath it.
-                cardTx.floatValue = if (sidebarShown == null) 0f else target * p
+                cardTx.floatValue = if (modal) 0f else target * p
                 cardTy.floatValue = 0f
                 cardScale.floatValue = 1f
                 val startAlpha = if (wasShowingCard) 1f else PRERENDER_ALPHA
-                cardAlpha.floatValue = startAlpha + (1f - startAlpha) * p
-                scrimAlpha.floatValue = p
+                cardAlpha.floatValue = if (modal) 1f else startAlpha + (1f - startAlpha) * p
+                scrimAlpha.floatValue = if (modal) 1f else p
                 // What leaves goes on `swap`'s exit as the list comes forward on its entrance, on
                 // the same frame: the exit is the quicker, so the list never shows through them.
-                catchUpStack.preview.alpha = previewFrom * (1f - progress(t, SWAP_OUT))
-                chromeAlpha.floatValue = 1f - progress(t, SWAP_OUT)
+                val stageFade = progress(t, SWAP_OUT)
+                catchUpStack.preview.alpha = previewFrom * (1f - stageFade)
+                chromeAlpha.floatValue = 1f - stageFade
                 chromeScale.floatValue = 1f
+                stackAlpha.floatValue = 1f
+                stackTy.floatValue = 0f
                 if (snapshot != null) {
                     // The two sessions swap through the card's own background: the stack's leaves
-                    // quicker than the returning one arrives.
-                    outgoingAlpha.floatValue = 1f - progress(t, SWAP_OUT)
-                    contentAlpha.floatValue = fadeIn(t)
+                    // quicker than the returning one arrives. Over a modal drawer the leaving card
+                    // fades with the stage above it and the returning one is already there.
+                    outgoingAlpha.floatValue = 1f - stageFade
+                    contentAlpha.floatValue = if (modal) 1f else fadeIn(t)
                 } else {
                     outgoingAlpha.floatValue = 0f
                     contentAlpha.floatValue = 1f
@@ -781,6 +804,9 @@ class SessionDrawerController internal constructor(
         outgoing = null
         outgoingRect = null
         outgoingAlpha.floatValue = 0f
+        stackOffset.floatValue = 0f
+        stackTy.floatValue = 0f
+        stackAlpha.floatValue = 1f
         contentAlpha.floatValue = 1f
         scrimAlpha.floatValue = Float.NaN
         cardTx.floatValue = 0f
@@ -854,6 +880,8 @@ class SessionDrawerController internal constructor(
     private companion object {
         /** A mode change (entering, opening a card, returning) is a full-screen change: `Motion.surface`. */
         val SURFACE: MotionCurve get() = MotionRole.Surface.curve()
+        /** What arrives fades in on `swap`'s entrance. */
+        val SWAP_IN: MotionCurve get() = MotionRole.Swap.curve(MotionPhase.Enter)
         /** What leaves fades on `swap`'s exit. */
         val SWAP_OUT: MotionCurve get() = MotionRole.Swap.curve(MotionPhase.Exit)
         /** iOS `composerStripHeight` (68 pt): the stack card's composer strip that slides into the session. */

@@ -42,15 +42,16 @@ internal fun SessionFeature.Companion.mergeTranscript(
     projectedMessageIDs: Set<String> = emptySet(),
     echoedPromptIDs: Set<String> = emptySet(),
     pendingNoticeIDs: Set<String> = emptySet(),
+    complete: Boolean = false,
 ): List<OpenCodeTranscriptItem> {
-    if (fetched.isEmpty()) return existing
+    if (!complete && fetched.isEmpty()) return existing
     val windowIDs = fetched.mapTo(HashSet(fetched.size)) { it.id }
     fun isOptimistic(item: OpenCodeTranscriptItem): Boolean =
         optimisticPromptIDs.isNotEmpty() && TranscriptEntry.promptID(item)?.let { it in optimisticPromptIDs } == true
     // The usual watchdog/reconnect response is the same trailing window. Prove only that window's
     // content; the older prefix needs ID checks, not classification, copying, or deep equality.
     // Rewritten history and local rows that must move to the tail still take the general merge below.
-    if (existing.size >= fetched.size) {
+    if (existing.size == fetched.size || (!complete && existing.size > fetched.size)) {
         val prefixCount = existing.size - fetched.size
         var sameWindow = true
         for (index in fetched.indices) {
@@ -67,7 +68,8 @@ internal fun SessionFeature.Companion.mergeTranscript(
     // REST has no unfinished text/tool payload until its durable boundary. A page fetched while an
     // SSE projection is live must not erase a row merely because that message's part is still
     // absent from the snapshot.
-    val windowStart: Int? = existing.indexOfFirst { it.id == fetched[0].id }.takeIf { it >= 0 }
+    // A complete page covers the whole transcript, even when it shares no IDs with the cache.
+    val windowStart = if (complete) 0 else existing.indexOfFirst { it.id == fetched[0].id }.takeIf { it >= 0 }
     val older = ArrayList<OpenCodeTranscriptItem>()
     val trailing = ArrayList<OpenCodeTranscriptItem>()
     val retainedIDs = HashSet<String>()
@@ -527,6 +529,8 @@ private fun SessionFeature.refreshResponse(
     var observed = refresh.observed
     val current = s.session
     if (current != null && observed.id == current.id) {
+        // A message settlement carries the session it started with, not a title read from the server.
+        if (!refresh.observedIsRead) observed = observed.copy(serverTitle = current.serverTitle)
         if (!refresh.observedIsRead || inFlight.revertChanged) {
             observed = observed.copy(revertMessageID = current.revertMessageID)
         }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1630,23 +1631,25 @@ private suspend fun PointerInputScope.trackPointer(controller: MediaViewerContro
 /**
  * The dark room's status bar (iOS `preferredStatusBarStyle` / `prefersStatusBarHidden`): light
  * icons over the black backdrop, the session's own once it shows through, hidden while the
- * photo viewer's controls are hidden. Restored when the viewer goes.
+ * photo viewer's controls are hidden. When the viewer goes the bar follows the app's current
+ * appearance (as [ai.opencode.core.ui.OpenCodeAppTheme] sets it), not the one it opened over.
  */
 @Composable
 private fun StatusBarEffect(controller: MediaViewerController) {
     val activity = LocalContext.current.findActivity() ?: return
     val window = activity.window
     val insets = remember(window) { WindowCompat.getInsetsController(window, window.decorView) }
-    val originalLight = remember(window) { insets.isAppearanceLightStatusBars }
+    val appLight = !rememberAppAppearance().colorScheme.resolveIsDark(isSystemInDarkTheme())
+    val currentAppLight by rememberUpdatedState(appLight)
     val light = controller.statusBarLight
     val hidden = controller.statusBarHidden
-    LaunchedEffect(light, hidden) {
-        insets.isAppearanceLightStatusBars = if (light) false else originalLight
+    LaunchedEffect(light, hidden, appLight) {
+        insets.isAppearanceLightStatusBars = if (light) false else appLight
         if (hidden) insets.hide(WindowInsetsCompat.Type.statusBars()) else insets.show(WindowInsetsCompat.Type.statusBars())
     }
     DisposableEffect(window) {
         onDispose {
-            insets.isAppearanceLightStatusBars = originalLight
+            insets.isAppearanceLightStatusBars = currentAppLight
             insets.show(WindowInsetsCompat.Type.statusBars())
         }
     }

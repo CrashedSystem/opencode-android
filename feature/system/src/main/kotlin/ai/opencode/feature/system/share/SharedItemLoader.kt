@@ -42,10 +42,11 @@ object SharedItemLoader {
 
     /**
      * The items an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent carries: its streams
-     * (`EXTRA_STREAM`, else `ClipData` URIs), then its text (`EXTRA_TEXT`, else `ClipData`
+     * (`EXTRA_STREAM`, else payload `ClipData` URIs), then its text (`EXTRA_TEXT`, else `ClipData`
      * text, else `EXTRA_SUBJECT` when nothing else came).
      */
     fun providers(intent: Intent): List<Provider> {
+        if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return emptyList()
         val type = intent.type?.lowercase()?.takeIf { !it.contains('*') }
         val streams = mutableListOf<Uri>()
         when (intent.action) {
@@ -55,7 +56,9 @@ object SharedItemLoader {
                 IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let(streams::addAll)
         }
         val clip = intent.clipData
-        if (streams.isEmpty() && clip != null) {
+        // Text shares can grant the chooser a ClipData thumbnail. It isn't an attachment.
+        val clipCarriesStreams = !intent.hasExtra(Intent.EXTRA_TEXT) || intent.type?.startsWith("text/", ignoreCase = true) == false
+        if (streams.isEmpty() && clip != null && clipCarriesStreams) {
             for (index in 0 until clip.itemCount) clip.getItemAt(index).uri?.let(streams::add)
         }
         val texts = mutableListOf<String>()

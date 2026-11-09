@@ -1,12 +1,14 @@
 package ai.opencode.feature.drawer.list
 
 import ai.opencode.core.motion.transitionBlurEffect
+import ai.opencode.core.ui.AccessibilityFocusRequest
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.RollingNumber
 import ai.opencode.core.ui.RollingNumberAlignment
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.accessibilityFocusRequest
 import ai.opencode.feature.drawer.DrawerListFooter
 import ai.opencode.feature.drawer.catchup.DrawerCatchUpFinishedLabel
 import ai.opencode.feature.drawer.motion.DrawerMotionTunables
@@ -20,7 +22,6 @@ import ai.opencode.feature.drawer.style.DrawerTunables
 import ai.opencode.feature.drawer.style.RecentRowMenu
 import ai.opencode.feature.drawer.style.drawerSurface
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,8 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -146,7 +145,7 @@ fun DrawerListShortcutRow(
     openWhatsNew: () -> Unit,
     hideWhatsNew: () -> Unit,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null,
+    returnFocus: AccessibilityFocusRequest? = null,
 ) {
     val showsCatchUp = shortcuts.showsCatchUp
     val showsWhatsNew = shortcuts.showsWhatsNew
@@ -174,7 +173,7 @@ fun DrawerListShortcutRow(
                         cornerRadius = DrawerMetrics.rowCornerRadius,
                     )
                 } else {
-                    CatchUpButton(count, canMarkAllRead, openCatchUp, markAllRead, focusRequester)
+                    CatchUpButton(count, canMarkAllRead, openCatchUp, markAllRead, returnFocus)
                 }
             }
         }
@@ -200,7 +199,7 @@ private fun CatchUpButton(
     canMarkAllRead: Boolean,
     openCatchUp: () -> Unit,
     markAllRead: () -> Unit,
-    focusRequester: FocusRequester?,
+    returnFocus: AccessibilityFocusRequest?,
 ) {
     val shape = RoundedCornerShape(DrawerMetrics.rowCornerRadius)
     val canvas = drawerSurface()
@@ -208,8 +207,9 @@ private fun CatchUpButton(
         enabled = canMarkAllRead,
         onClick = openCatchUp,
         modifier = Modifier
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester).focusable() else Modifier)
             .testTag("drawer-catch-up")
+            // Ahead of the clearing below, which would drop its marker.
+            .accessibilityFocusRequest(returnFocus)
             .clearAndSetSemantics {
                 contentDescription = "Catch Up"
                 stateDescription = if (count == 1) "1 session" else "$count sessions"

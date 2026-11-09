@@ -76,9 +76,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -139,12 +139,12 @@ fun ServerFlowTitle(
                             role = Role.DropdownList,
                             onClickLabel = presentation.accessibilityHint,
                         ) { expanded = true }
-                        .semantics(mergeDescendants = true) {
+                        .clearAndSetSemantics {
                             contentDescription = shown.friendlyName
                             stateDescription = accessibilityValue
                             heading()
-                        }
-                        .testTag(DrawerTitle.TAG),
+                            testTag = DrawerTitle.TAG
+                        },
                 )
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     if (presentation.listsServers) {
@@ -169,7 +169,8 @@ fun ServerFlowTitle(
                                     expanded = false
                                     if (!isShown) onSwitch(server)
                                 },
-                                modifier = Modifier.semantics { selected = isShown },
+                                // Picking a server switches to it, so it reads as chosen, not as a toggle.
+                                modifier = Modifier.semantics { if (isShown) stateDescription = "Selected" },
                             )
                         }
                         HorizontalDivider()

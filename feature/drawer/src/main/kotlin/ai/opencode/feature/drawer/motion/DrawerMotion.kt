@@ -513,6 +513,7 @@ class DrawerMotionState(
     private val offsetState = mutableFloatStateOf(if (initiallyPresented) drawerWidth else 0f)
     private val widthState = mutableFloatStateOf(drawerWidth)
     private val movingState = mutableStateOf(false)
+    private val draggingState = mutableStateOf(false)
     private val presentedState = mutableStateOf(initiallyPresented)
     private val drawerAvailableState = mutableStateOf(initiallyPresented)
     private val contentSuspendedState = mutableStateOf(initiallyPresented)
@@ -551,11 +552,15 @@ class DrawerMotionState(
     /** The scrim over the card takes taps (iOS `dimmingView.isUserInteractionEnabled`). Changes only at the edges. */
     val isScrimInteractive: State<Boolean> = derivedStateOf { progress > 0 }
 
-    /** The card's content is hidden from TalkBack while the drawer shows. */
-    val isContentHiddenFromAccessibility: State<Boolean> = derivedStateOf { progress > 0 }
+    /** The card's content is hidden from TalkBack while the drawer is open or being dragged open. */
+    val isContentHiddenFromAccessibility: State<Boolean> = derivedStateOf {
+        if (draggingState.value) progress > 0f else presentedState.value
+    }
 
-    /** The drawer is hidden from TalkBack while shut. */
-    val isDrawerHiddenFromAccessibility: State<Boolean> = derivedStateOf { progress == 0f }
+    /** The drawer is hidden from TalkBack while shut or closing. */
+    val isDrawerHiddenFromAccessibility: State<Boolean> = derivedStateOf {
+        if (draggingState.value) progress == 0f else !presentedState.value
+    }
 
     /** The open drawer is modal for TalkBack (iOS `accessibilityViewIsModal`). */
     val isModal: State<Boolean> = derivedStateOf { progress >= 1f }
@@ -564,7 +569,11 @@ class DrawerMotionState(
     private var dragStartOffset = 0f
     private var spring: DrawerSpring? = null
     private var job: Job? = null
-    private var isDragging = false
+    private var isDragging: Boolean
+        get() = draggingState.value
+        set(value) {
+            draggingState.value = value
+        }
     private var ignoresDragUntilItEnds = false
 
     /**

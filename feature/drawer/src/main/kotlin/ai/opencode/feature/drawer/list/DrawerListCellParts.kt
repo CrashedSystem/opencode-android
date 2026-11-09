@@ -5,6 +5,7 @@ import ai.opencode.core.motion.AmbientClock
 import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.feature.drawer.catchup.rememberTouchExplorationEnabled
 import ai.opencode.feature.drawer.icons.ProjectAvatarPalette
 import ai.opencode.feature.drawer.icons.ProjectIcon
 import ai.opencode.feature.drawer.icons.ProjectIconClient
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
@@ -101,18 +103,20 @@ object DrawerListFonts {
 
 /**
  * The Working ring (iOS `DrawerListActivityRing`): an open arc (72 % of the circle, 1.8 dp,
- * round caps) with a fading tail, turned once every 0.8 s in the layer (no recomposition per
- * frame). Pass `isSpinning = running && !reduceMotion`: it stops under reduce motion.
- * [opaqueTail] (high contrast) draws the tail at full strength. Size it with [modifier].
+ * round caps) with a fading tail, turned once every 0.8 s in the draw phase (no recomposition or
+ * positional layer invalidation per frame). Pass `isSpinning = running && !reduceMotion`: it stops
+ * under reduce motion and while the drawer is hidden. [opaqueTail] (high contrast) draws the tail
+ * at full strength. Size it with [modifier].
  */
 @Composable
 fun DrawerListActivityRing(isSpinning: Boolean, opaqueTail: Boolean, modifier: Modifier = Modifier) {
     val color = OpenCodeTheme.colors.secondaryText
     val tail = if (opaqueTail) color else color.copy(alpha = 0f)
     // Half an ambient sweep per turn (iOS 03adf07a: `AmbientClock`, so every ring turns in step).
-    // A hidden drawer's ring holds still: no frame ticks for a drawer nobody sees.
+    // A hidden drawer's ring holds still: no frame ticks for a drawer nobody sees; nor does it
+    // while TalkBack explores by touch (W-06).
     val hidden = LocalDrawerHidden.current.value
-    val spins = isSpinning && !hidden
+    val spins = isSpinning && !hidden && !rememberTouchExplorationEnabled()
     val rotation = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(spins) {
         if (!spins) return@LaunchedEffect
@@ -120,11 +124,7 @@ fun DrawerListActivityRing(isSpinning: Boolean, opaqueTail: Boolean, modifier: M
             withFrameNanos { rotation.floatValue = 360f * AmbientClock.sweep(AmbientClock.mediaTime(), fraction = 0.5).toFloat() }
         }
     }
-    Canvas(
-        modifier
-            .clearAndSetSemantics {}
-            .graphicsLayer { rotationZ = if (spins) rotation.floatValue else 0f },
-    ) {
+    Canvas(modifier.clearAndSetSemantics {}) {
         val inset = 0.9.dp.toPx()
         val brush = Brush.sweepGradient(
             0f to tail,
@@ -133,15 +133,17 @@ fun DrawerListActivityRing(isSpinning: Boolean, opaqueTail: Boolean, modifier: M
             0.9f to tail,
             center = center,
         )
-        drawArc(
-            brush = brush,
-            startAngle = 0f,
-            sweepAngle = 360f * 0.72f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = Size(size.width - inset * 2, size.height - inset * 2),
-            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round),
-        )
+        rotate(degrees = if (spins) rotation.floatValue else 0f) {
+            drawArc(
+                brush = brush,
+                startAngle = 0f,
+                sweepAngle = 360f * 0.72f,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - inset * 2, size.height - inset * 2),
+                style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round),
+            )
+        }
     }
 }
 

@@ -92,7 +92,8 @@ fun RollingNumber(
     val reduceMotion = rememberReduceMotion()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val layoutDirection = LocalLayoutDirection.current
-    val locale = LocalConfiguration.current.locales[0]
+    val configurationLocale = LocalConfiguration.current.locales[0]
+    val locale = remember(configurationLocale) { appFormattingLocale(configurationLocale) }
     val semantics = Modifier.clearAndSetSemantics { contentDescription = accessibilityLabel ?: text }
 
     val canRoll = !reduceMotion &&
@@ -145,7 +146,7 @@ fun RollingNumber(
     }
 }
 
-/** [RollingNumber] for an integer, formatted with grouping for the current locale. */
+/** [RollingNumber] for an integer, grouped as [appFormattingLocale] writes it. */
 @Composable
 fun RollingNumber(
     value: Int,
@@ -156,8 +157,8 @@ fun RollingNumber(
     alignment: RollingNumberAlignment = RollingNumberAlignment.Start,
     accessibilityLabel: String? = null,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
-    val text = remember(value, locale) { NumberFormat.getIntegerInstance(locale).format(value) }
+    val configurationLocale = LocalConfiguration.current.locales[0]
+    val text = remember(value, configurationLocale) { NumberFormat.getIntegerInstance(appFormattingLocale(configurationLocale)).format(value) }
     RollingNumber(text, modifier, style, color, motion, alignment, accessibilityLabel = accessibilityLabel)
 }
 

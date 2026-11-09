@@ -10,6 +10,7 @@ import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
+import ai.opencode.core.ui.AccessibilityFocusTarget
 import ai.opencode.core.ui.OpenCodeColors
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
@@ -17,7 +18,11 @@ import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.accessibilityFocusRequest
+import ai.opencode.core.ui.accessibilityFocusTarget
 import ai.opencode.core.ui.openCodeTapTarget
+import ai.opencode.core.ui.rememberAccessibilityFocusRequest
+import ai.opencode.feature.composer.EscapeHandler
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.State
 import ai.opencode.feature.session.header.BreathingTitleHold
@@ -26,6 +31,9 @@ import ai.opencode.feature.session.header.SessionContextGauge
 import ai.opencode.feature.session.header.SessionContextText
 import ai.opencode.server.model.OpenCodeExportFormat
 import ai.opencode.server.model.isUntitled
+import android.view.View
+import android.view.accessibility.AccessibilityManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.animateContentSize
@@ -40,11 +48,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -53,20 +65,30 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -76,6 +98,11 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 import kotlin.math.max
 
 // Port of iOS `Session/SessionView+Header.swift`: the header row (drawer or Back, the title
@@ -292,16 +319,31 @@ private fun HeaderTitle(
     val project = listContext.project?.name ?: model.draftProjectName
     val projectColor = headerProjectColor(OpenCodeTheme.colors)
     val fontScale = LocalDensity.current.fontScale
+    // TalkBack goes back to the title once Session Info, opened from it, closes, as VoiceOver
+    // returns to the button that presented the sheet; with the keyboard up it landed on the
+    // drawer button (QA F-57).
+    var returnsFocusAfterInfo by remember { mutableStateOf(false) }
+    var infoCloses by remember { mutableIntStateOf(0) }
+    val showsInfo by store.observe { it.activePicker == State.ActivePicker.session }
+    LaunchedEffect(showsInfo) {
+        if (showsInfo || !returnsFocusAfterInfo) return@LaunchedEffect
+        returnsFocusAfterInfo = false
+        infoCloses++
+    }
+    val infoFocus = rememberAccessibilityFocusRequest(infoCloses.takeIf { it > 0 })
     // Auto Rename's new title waits for the breath to ease back to full; another session switched
     // in place shows its own title at once.
     BreathingTitleHold(identity = model.identity, title = latestTitle, isBreathing = model.isSyncing) { title, animates ->
         val subtitle = if (model.autoRenameFailed) "Couldn’t rename" else project
         val onClick: () -> Unit = onCatchUpOpen
-            ?: { store.send(if (model.isDraft) Action.ProjectButtonTapped else Action.SessionInfoTapped) }
+            ?: {
+                if (!model.isDraft) returnsFocusAfterInfo = true
+                store.send(if (model.isDraft) Action.ProjectButtonTapped else Action.SessionInfoTapped)
+            }
         val hint = when {
-            onCatchUpOpen != null -> "Opens the session and leaves Catch Up"
-            model.isDraft -> if (model.canChooseProject) "Chooses where the session starts" else null
-            else -> "Shows session details"
+            onCatchUpOpen != null -> "Open the session and leave Catch Up"
+            model.isDraft -> if (model.canChooseProject) "Choose where the session starts" else null
+            else -> "Show session details"
         }
         val value = if (model.isDraft) {
             ""
@@ -322,6 +364,8 @@ private fun HeaderTitle(
                 .clickable(role = Role.Button, onClickLabel = hint, onClick = onClick)
                 .openCodeTapTarget()
                 .testTag(if (model.isDraft) "draft-title" else "session-title")
+                // Ahead of the clearing below, which would drop its marker.
+                .accessibilityFocusRequest(infoFocus)
                 .clearAndSetSemantics {
                     contentDescription = listOfNotNull(title, subtitle).joinToString(", ")
                     if (value.isNotEmpty()) stateDescription = value
@@ -330,7 +374,7 @@ private fun HeaderTitle(
             Column(
                 Modifier
                     // The header doesn't carry the screen's transactions: the capsule animates its own width.
-                    .animateContentSize(if (!animates) snap() else Motion.layout.animation(reduceMotion = reducedMotion))
+                    .then(if (!reducedMotion && animates) Modifier.animateContentSize(Motion.layout.animation(reduceMotion = false)) else Modifier)
                     .heightIn(min = headerButtonSize)
                     .padding(horizontal = 8.dp, vertical = if (isAccessibilityFontScale(fontScale)) 8.dp else 3.dp),
                 horizontalAlignment = Alignment.Start,
@@ -363,7 +407,7 @@ private fun HeaderTitle(
                             maxLines = 1,
                         )
                     } else {
-                        ProjectHeaderSubtitle(shown) {
+                        ProjectHeaderSubtitle(shown, animates = animates) {
                             Text(
                                 it,
                                 style = MaterialTheme.typography.labelMedium,
@@ -384,7 +428,28 @@ private fun HeaderTitle(
 private fun SessionMenuButton(store: StoreOf<State, Action>, model: SessionHeaderModel, listContext: SessionListContext) {
     var expanded by remember { mutableStateOf(false) }
     val value = model.contextTokens?.let { SessionContextText.accessibilityValue(it, model.contextLimit) } ?: ""
-    Box {
+    var anchorBottom by remember { mutableIntStateOf(0) }
+    val view = LocalView.current
+    // TalkBack goes back to More once Session Info, opened from the menu, closes (as VoiceOver
+    // returns to the menu's button); otherwise the sheet leaving dropped it into the transcript.
+    var returnsFocusAfterInfo by remember { mutableStateOf(false) }
+    val showsInfo by store.observe { it.activePicker == State.ActivePicker.session }
+    val more = remember { AccessibilityFocusTarget() }
+    // Likewise once a dialog the menu opened (Rename, Delete) closes, as VoiceOver returns to the
+    // button behind an alert; with the keyboard up it landed on the title (QA F-57).
+    var returnsFocusAfterDialog by remember { mutableStateOf(false) }
+    val showsDialog by store.observe { it.sessionSheet?.let { sheet -> sheet.isRenaming || sheet.confirmsDeletion } == true }
+    LaunchedEffect(showsDialog) {
+        if (showsDialog || !returnsFocusAfterDialog) return@LaunchedEffect
+        returnsFocusAfterDialog = false
+        view.focusSessionMenuButtonForAccessibility(more)
+    }
+    LaunchedEffect(showsInfo) {
+        if (showsInfo || !returnsFocusAfterInfo) return@LaunchedEffect
+        returnsFocusAfterInfo = false
+        view.focusSessionMenuButtonForAccessibility(more)
+    }
+    Box(Modifier.onGloballyPositioned { anchorBottom = it.boundsInWindow().bottom.toInt() }) {
         OpenCodeIconButton(
             symbol = SFSymbol.Ellipsis,
             contentDescription = "More",
@@ -393,6 +458,7 @@ private fun SessionMenuButton(store: StoreOf<State, Action>, model: SessionHeade
             style = OpenCodeIconButtonStyle.Standard,
             modifier = Modifier
                 .testTag("session-menu")
+                .accessibilityFocusTarget(more)
                 .semantics { if (value.isNotEmpty()) stateDescription = value },
         )
         val fraction = model.contextFraction
@@ -404,33 +470,109 @@ private fun SessionMenuButton(store: StoreOf<State, Action>, model: SessionHeade
         }
         SessionMenu(
             expanded = expanded,
+            anchorBottom = { anchorBottom },
             onDismiss = { expanded = false },
             title = model.sessionTitle ?: "Session",
             renameTitle = model.renameTitle,
             listContext = listContext,
+            more = more,
             send = {
                 expanded = false
+                if (it == Action.SessionInfoTapped) returnsFocusAfterInfo = true
+                val opensDialog = (it as? Action.SessionMenu)?.action
+                if (opensDialog is SessionSheetFeature.Action.RenameTapped || opensDialog == SessionSheetFeature.Action.DeleteTapped) {
+                    returnsFocusAfterDialog = true
+                }
                 store.send(it)
             },
         )
     }
 }
 
+/** The system lists a shown window for accessibility on its 100 ms accessibility event interval; twice that, to be sure. */
+private const val MENU_WINDOW_LISTED_MS = 200L
+
+/** How long More waits for TalkBack's focus, so it isn't lost with the menu or what the menu opened. */
+private const val MENU_FOCUS_DELAY_MS = 150L
+
+/** Material's menu margin from the window's edge (`MenuVerticalMargin`). */
+private val sessionMenuMargin = 48.dp
+
 /** iOS `sessionMenuItems`: the session's own actions, its work, and deletion. */
 @Composable
 private fun SessionMenu(
     expanded: Boolean,
+    anchorBottom: () -> Int,
     onDismiss: () -> Unit,
     title: String,
     renameTitle: String,
     listContext: SessionListContext,
+    more: AccessibilityFocusTarget,
     send: (Action) -> Unit,
 ) {
     val developerMode by remember { shared(SharedKeys.developerMode) }.flow.collectAsState()
     var exportOpen by remember(expanded) { mutableStateOf(false) }
     fun menu(action: SessionSheetFeature.Action) = send(Action.SessionMenu(action))
     // No title heading: the header already shows it (6bbf321d); exports still name the file by it.
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    // Not focusable: the composer keeps the keyboard while the menu is open, as iOS's Menu leaves
+    // the text view first responder. A focusable popup took focus, so the keyboard left as the
+    // menu was placed against the room above it, and the menu stayed up over the ⋮ (QA D-03).
+    // With the keyboard up the menu still hangs from the ⋮, capped to the room above the keys
+    // (it scrolls), rather than moving up over the button to fit.
+    // A non-focusable popup gets neither Back nor a hardware Escape (QA L-04): both close it here.
+    BackHandler(enabled = expanded, onBack = onDismiss)
+    EscapeHandler(enabled = expanded, onEscape = onDismiss)
+    // Accessibility focus isn't input focus, so TalkBack still treats the open menu as a pane, as
+    // VoiceOver does iOS's Menu: the menu takes TalkBack's focus as it opens, the screen behind
+    // then leaves the accessibility tree so swipes stay in the menu (its window otherwise came
+    // after the whole composer), and More gets the focus back as it closes (QA P-02).
+    val hostView = LocalView.current
+    val context = LocalContext.current
+    val talkBack = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    val isOpen by rememberUpdatedState(expanded)
+    val firstRow = remember { AccessibilityFocusTarget() }
+    DisposableEffect(expanded, hostView) {
+        if (!expanded || talkBack?.isTouchExplorationEnabled != true) return@DisposableEffect onDispose { }
+        val previous = hostView.importantForAccessibility
+        onDispose {
+            hostView.importantForAccessibility = previous
+            hostView.focusSessionMenuButtonForAccessibility(more)
+        }
+    }
+    val density = LocalDensity.current
+    val windowHeight = LocalWindowInfo.current.containerSize.height
+    // Insets are read only while open, so the keyboard's animation doesn't recompose the header.
+    val room = if (expanded) {
+        val keyboard = WindowInsets.ime.getBottom(density)
+        if (keyboard > WindowInsets.navigationBars.getBottom(density)) {
+            val bottom = windowHeight - keyboard - WindowInsets.statusBars.getTop(density)
+            with(density) { (bottom - anchorBottom()).toDp() } - sessionMenuMargin
+        } else {
+            Dp.Unspecified
+        }
+    } else {
+        Dp.Unspecified
+    }
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = if (room != Dp.Unspecified) Modifier.heightIn(max = room.coerceAtLeast(headerButtonSize)) else Modifier,
+        properties = PopupProperties(focusable = false),
+    ) {
+        if (talkBack?.isTouchExplorationEnabled == true) {
+            val menuView = LocalView.current
+            LaunchedEffect(menuView) {
+                // Focus sent before the system lists the popup's window for accessibility is
+                // dropped (TalkBack stayed on More): the window is listed once shown.
+                while (!menuView.isAttachedToWindow) withFrameNanos { }
+                withTimeoutOrNull(MENU_WINDOW_LISTED_MS) { menuView.awaitFrameCommit() }
+                delay(MENU_WINDOW_LISTED_MS)
+                val focused = firstRow.focus()
+                // Hidden only once the menu has the focus: TalkBack otherwise recovers from losing
+                // More by focusing the keyboard.
+                if (focused && isOpen) hostView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            }
+        }
         // Android divergence: Export's formats take the menu's place behind a back row, the way
         // Android's own overflow submenus and Google's apps open them, instead of iOS's inline
         // section with a chevron.
@@ -447,11 +589,19 @@ private fun SessionMenu(
             return@DropdownMenu
         }
         listContext.isPinned?.let { isPinned ->
-            MenuItem(if (isPinned) "Unpin" else "Pin", if (isPinned) SFSymbol.PinSlash else SFSymbol.Pin) {
+            MenuItem(
+                if (isPinned) "Unpin" else "Pin",
+                if (isPinned) SFSymbol.PinSlash else SFSymbol.Pin,
+                Modifier.accessibilityFocusTarget(firstRow),
+            ) {
                 menu(SessionSheetFeature.Action.PinTapped)
             }
         }
-        MenuItem("Rename", SFSymbol.Pencil) { menu(SessionSheetFeature.Action.RenameTapped(currentTitle = renameTitle)) }
+        MenuItem(
+            "Rename",
+            SFSymbol.Pencil,
+            if (listContext.isPinned == null) Modifier.accessibilityFocusTarget(firstRow) else Modifier,
+        ) { menu(SessionSheetFeature.Action.RenameTapped(currentTitle = renameTitle)) }
         MenuItem("Copy Session ID", SFSymbol.SquareOnSquare) { menu(SessionSheetFeature.Action.CopySessionIDTapped) }
         if (listContext.isPinned != null) {
             MenuItem(
@@ -488,6 +638,23 @@ private fun SessionMenu(
             )
         }
     }
+}
+
+/** Resumes once this view's window commits its next frame. */
+private suspend fun View.awaitFrameCommit() = suspendCancellableCoroutine { continuation ->
+    val observer = viewTreeObserver
+    val callback = Runnable { if (continuation.isActive) continuation.resume(Unit) }
+    observer.registerFrameCommitCallback(callback)
+    continuation.invokeOnCancellation { if (observer.isAlive) observer.unregisterFrameCommitCallback(callback) }
+    invalidate()
+}
+
+/** TalkBack back on More, once the menu or what it opened has gone, unless a dialog it opened (Rename, Delete) has the focus. */
+private fun View.focusSessionMenuButtonForAccessibility(more: AccessibilityFocusTarget) {
+    if (context.getSystemService(AccessibilityManager::class.java)?.isTouchExplorationEnabled != true) return
+    postDelayed({
+        if (hasWindowFocus()) more.focus()
+    }, MENU_FOCUS_DELAY_MS)
 }
 
 @Composable

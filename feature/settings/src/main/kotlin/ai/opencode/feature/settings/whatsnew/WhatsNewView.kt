@@ -15,6 +15,7 @@ import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.core.ui.sfSymbol
 import ai.opencode.feature.settings.SettingsDivider
 import ai.opencode.feature.settings.SettingsFeature
@@ -91,7 +92,6 @@ import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -165,7 +165,7 @@ fun WhatsNewListPage(store: SettingsStore) {
                 SettingsRow(
                     "Smaller Changes",
                     symbol = null,
-                    value = NumberFormat.getIntegerInstance().format(whatsNew.smallerChanges.size),
+                    value = NumberFormat.getIntegerInstance(appFormattingLocale()).format(whatsNew.smallerChanges.size),
                 ) { push(SettingsPage.WhatsNewSmallerChanges) }
             }
         }
@@ -196,8 +196,9 @@ private fun WhatsNewOptionsMenu(isButtonEnabled: Boolean, onEnabledChange: (Bool
 
 /** A section's day header (iOS `.dateTime.month(.wide).day()`, e.g. “October 21”). */
 private fun whatsNewDayTitle(day: LocalDate): String {
-    val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMd")
-    return day.format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+    val locale = appFormattingLocale()
+    val pattern = DateFormat.getBestDateTimePattern(locale, "MMMMd")
+    return day.format(DateTimeFormatter.ofPattern(pattern, locale))
 }
 
 /** The entry's tint as a Settings tile colour. */

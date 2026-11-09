@@ -1,6 +1,9 @@
 package ai.opencode.feature.composer
 
+import android.view.KeyEvent
+import android.view.Window
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.WeakHashMap
 
 private class SheetPresentation(val content: @Composable () -> Unit)
 private val LocalSheetPresentations = staticCompositionLocalOf<MutableList<SheetPresentation>?> { null }
@@ -60,17 +64,39 @@ fun OpenCodeSheetHost(content: @Composable () -> Unit) {
         if (covered) focusManager.clearFocus()
         onDispose { if (saved) focus.restoreFocusedChild() }
     }
+    val ime = WindowInsets.ime
+    val coveredIme = remember(covered, ime) { if (covered) KeyboardLeavingInsets(ime) else null }
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize().focusRequester(focus)
                 .focusProperties { onEnter = { if (covered) cancelFocusChange() } }.focusGroup()
-                .then(if (covered) Modifier.clearAndSetSemantics { }.consumeWindowInsets(WindowInsets.ime) else Modifier),
+                .then(if (coveredIme != null) Modifier.clearAndSetSemantics { }.consumeWindowInsets(coveredIme) else Modifier),
         ) {
             CompositionLocalProvider(LocalSheetPresentations provides presentations, content = content)
         }
         presentations.forEach { presentation ->
             androidx.compose.runtime.key(presentation) { presentation.content() }
         }
+    }
+}
+
+/**
+ * What a covered screen doesn't see of [ime]: the keys above the lowest they've been since the
+ * sheet came up. A keyboard leaving as the sheet opens is still seen to its end, so a composer
+ * docked on it rides down with it (iOS: the keyboard and the composer leave together, the sheet
+ * rises over them) instead of dropping behind the keys at once; a keyboard the sheet's own field
+ * raises is never seen, as a Dialog's window wouldn't let it be.
+ */
+private class KeyboardLeavingInsets(private val ime: WindowInsets) : WindowInsets {
+    private var lowest = Int.MAX_VALUE
+
+    override fun getLeft(density: Density, layoutDirection: LayoutDirection) = 0
+    override fun getTop(density: Density) = 0
+    override fun getRight(density: Density, layoutDirection: LayoutDirection) = 0
+    override fun getBottom(density: Density): Int {
+        val bottom = ime.getBottom(density)
+        if (bottom < lowest) lowest = bottom
+        return bottom - lowest
     }
 }
 
@@ -154,8 +180,52 @@ private fun InWindowSheet(
             content = content,
         )
     }
+    EscapeHandler { scope.launch { sheetState.hide(); if (!sheetState.isVisible) dismiss() } }
     LaunchedEffect(sheetState) {
         snapshotFlow { sheetState.hasExpandedState }.first { it }
         sheetState.show()
+    }
+}
+
+private class EscapeHandlers(val original: Window.Callback) {
+    val handlers = mutableListOf<() -> Unit>()
+}
+
+private val escapeHandlers = WeakHashMap<Window, EscapeHandlers>()
+
+/**
+ * A hardware Escape calls [onEscape] while [enabled], as iOS dismisses menus and sheets on Esc;
+ * the newest handler takes it. Compose sends keys only to the focused node, and the sheet host
+ * clears focus while a non-focusable popup (the session ⋮ menu) never gets keys, so the window
+ * sees Escape first, ahead of its views. With no handler Escape goes on as before.
+ */
+@Composable
+fun EscapeHandler(enabled: Boolean = true, onEscape: () -> Unit) {
+    val window = LocalActivity.current?.window ?: return
+    val current by rememberUpdatedState(onEscape)
+    DisposableEffect(window, enabled) {
+        if (!enabled) return@DisposableEffect onDispose { }
+        val handler = { current() }
+        val entry = escapeHandlers.getOrPut(window) {
+            val original = window.callback
+            EscapeHandlers(original).also { entry ->
+                window.callback = object : Window.Callback by original {
+                    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                        val top = entry.handlers.lastOrNull()
+                        if (top == null || event.keyCode != KeyEvent.KEYCODE_ESCAPE) return original.dispatchKeyEvent(event)
+                        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) top()
+                        return true
+                    }
+                }
+            }
+        }
+        entry.handlers += handler
+        onDispose {
+            entry.handlers.remove(handler)
+            if (entry.handlers.isEmpty()) {
+                window.callback = entry.original
+                escapeHandlers.remove(window)
+            }
+        }
     }
 }

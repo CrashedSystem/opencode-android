@@ -1,5 +1,7 @@
 package ai.opencode.feature.transcript.list
 
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import kotlin.math.max
 
 /**
@@ -20,6 +22,12 @@ class TranscriptScrollBehavior {
         val canRequestEarlierHistory: Boolean,
         /** The reader's finger (or its deceleration) owns the list. */
         val isUserScrolling: Boolean = false,
+        /**
+         * Android: a browsing reader's row, saved across process death, isn't listed yet (its
+         * history page is still to load). The list clamped short of it is not the reader at the
+         * end, and earlier history is read until the row is there.
+         */
+        val holdsRestoredRow: Boolean = false,
     )
 
     sealed interface Event {
@@ -251,7 +259,7 @@ class TranscriptScrollBehavior {
      * before they reach the top.
      */
     private fun requestEarlierHistoryIfNeeded(viewport: Viewport, commands: MutableList<Command>, lookahead: Float = 1f) {
-        if (!viewport.canRequestEarlierHistory || holdsEarlierHistory || viewport.offsetY >= viewport.visibleHeight * lookahead ||
+        if (!viewport.canRequestEarlierHistory || holdsEarlierHistory || (viewport.offsetY >= viewport.visibleHeight * lookahead && !viewport.holdsRestoredRow) ||
             requestedEarlierHistory
         ) {
             return
@@ -267,13 +275,29 @@ class TranscriptScrollBehavior {
 
     /** A browsing reader the end came up to is at the bottom now: they follow again. */
     private fun followIfPastTheEnd(viewport: Viewport, commands: MutableList<Command>) {
-        if (distanceFromBottom(viewport) > REST_DISTANCE) return
+        if (viewport.holdsRestoredRow || distanceFromBottom(viewport) > REST_DISTANCE) return
         mode = Mode.Following
         setJumpButton(false, commands)
         commands += Command.ScrollToBottom(animated = false)
     }
 
     companion object {
+        /**
+         * For the list's `rememberSaveable`: a browsing reader stays browsing when the activity is
+         * recreated, where iOS's list only redraws, and Jump to latest stays as it was (the screen
+         * saves what it showed too, so the pill is there from the first frame, F-38). The rest
+         * belongs to one gesture and starts over.
+         */
+        val Saver: Saver<TranscriptScrollBehavior, Any> = listSaver(
+            save = { listOf(it.mode == Mode.Browsing, it.showsJumpButton) },
+            restore = { saved ->
+                TranscriptScrollBehavior().apply {
+                    if (saved[0] as Boolean) mode = Mode.Browsing
+                    showsJumpButton = saved[1] as Boolean
+                }
+            },
+        )
+
         /** A drag farther than this from the bottom, or from where a following reader started it, leaves the bottom. */
         const val LEAVE_DISTANCE = 120f
         /** Coming to rest within this of the bottom is following again. */

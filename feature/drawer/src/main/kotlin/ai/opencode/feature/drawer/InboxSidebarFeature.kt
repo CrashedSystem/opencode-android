@@ -12,6 +12,7 @@ import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.drawer.icons.resolved
 import ai.opencode.feature.transcript.markdown.OpenCodeMarkdownBlock
 import ai.opencode.server.OpenCodeClient
@@ -149,7 +150,7 @@ data class InboxSidebarRow(
         }
 
         /** A short age: “now”, “5m”, “3h”, “2d”, then the date. */
-        fun age(date: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String {
+        fun age(date: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = appFormattingLocale()): String {
             val seconds = maxOf(Duration.between(date, now).toMillis() / 1_000.0, 0.0)
             return when {
                 seconds < 60 -> "now"

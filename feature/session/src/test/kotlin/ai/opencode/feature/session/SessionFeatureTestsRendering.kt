@@ -18,6 +18,7 @@ import ai.opencode.feature.session.SessionTestSupport.LockIsolated
 import ai.opencode.feature.session.SessionTestSupport.append
 import ai.opencode.feature.session.SessionTestSupport.date
 import ai.opencode.feature.session.SessionTestSupport.increment
+import ai.opencode.feature.session.SessionTestSupport.receive
 import ai.opencode.feature.session.SessionTestSupport.sessionTest
 import ai.opencode.feature.session.SessionTestSupport.testSession
 import ai.opencode.feature.transcript.markdown.MarkdownQuote
@@ -95,6 +96,44 @@ class SessionFeatureTestsRendering {
         val window = listOf<OpenCodeTranscriptItem>(user("m9", "nine"), user("m10", "ten"))
 
         assertEquals(existing + window, SessionFeature.mergeTranscript(fetched = window, existing = existing))
+    }
+
+    @Test
+    fun androidDivergenceOnlyAnExplicitlyCompletePageReplacesDisjointCachedRows() = sessionTest { h ->
+        val cached = user("old", "Cached")
+        val session = testSession()
+        for ((cursor, expected) in listOf(
+            "" to listOf("old", "new"),
+            ""","cursor":{"next":"older"}""" to listOf("old", "new"),
+            ""","cursor":{}""" to listOf("new"),
+        )) {
+            val payload = """{"data":[{"id":"new","type":"user","text":"Server"}]$cursor}""".toByteArray()
+            val store = h.store(h.makeState(session = session, cachedItems = listOf(cached))) {
+                this[OpenCodeClient] = this[OpenCodeClient].copy(
+                    getSession = { _, _ -> session },
+                    transcript = { _, _, _ -> OpenCodeClient.decodeTranscript(payload) },
+                )
+            }
+            store.exhaustive = false
+            store.send(Action.RefreshRequested(RefreshReason.Open))
+            store.receive(Action.RefreshResponse::class)
+            store.receive(Action.AcceptedTranscriptUpdated::class)
+            assertEquals(expected, store.state.items.map { it.id })
+            store.finish()
+        }
+    }
+
+    @Test
+    fun androidDivergenceEmptyCompletePageKeepsOnlyPendingAndProtectedRows() = sessionTest { h ->
+        val stale = user("old", "Cached")
+        val live = assistant("msg_reply-text-0", "Streaming")
+        val pending = user("msg_pending", "Sending")
+        val state = h.makeState(cachedItems = listOf(stale, live, pending), isRunning = true).copy(
+            optimisticPromptIDs = setOf(pending.id), projectedMessageIDs = setOf("msg_reply"),
+        )
+        val refreshed = SessionFeature().acceptWindow(emptyList(), SessionFeature.AuthoritativeRefresh.PageCursor(null), state)
+        assertEquals(listOf(live, pending), refreshed.items)
+        assertEquals(State.EarlierHistory.Exhausted, refreshed.earlierHistory)
     }
 
     @Test

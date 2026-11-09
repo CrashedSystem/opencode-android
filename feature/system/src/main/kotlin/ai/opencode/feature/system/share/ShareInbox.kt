@@ -86,12 +86,11 @@ class ShareInboxClient(
                         val file = File(context.filesDir, "share-targets.json")
                         if (ShareTargets.load(file)?.serverID == serverID) ShareTargets.remove(file)
                     }
-                    // Suggestions can't be found by server; they come back as sessions open.
-                    suggestionsQueue.execute { ShareSuggestion.removeAll(context) }
+                    suggestionsQueue.execute { ShareSuggestion.removeAll(context, ShareConversation.serverKey(serverID)) }
                 },
-                donateSuggestion = { serverID, sessionID, title ->
+                donateSuggestion = { serverID, sessionID, _ ->
                     suggestionsQueue.execute {
-                        ShareSuggestion.donate(context, ShareConversation.serverKey(serverID), sessionID, title)
+                        ShareSuggestion.donate(context, ShareConversation.serverKey(serverID), sessionID)
                     }
                 },
                 removeSuggestions = { serverID, sessionIDs ->

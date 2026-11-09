@@ -1,5 +1,6 @@
 package ai.opencode.feature.voice
 
+import ai.opencode.core.ui.appFormattingLocale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import ai.opencode.core.dependencies.dependency
@@ -80,6 +81,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.drawText
@@ -89,6 +91,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.NumberFormat
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -134,7 +138,7 @@ fun VoiceCallLogList(
         modifier = modifier,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("History", style = OpenCodeTextStyles.headline) },
+                title = { Text("History", style = OpenCodeTextStyles.headline, modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = "Back") }
                 },
@@ -270,7 +274,8 @@ private fun VoiceCallLogRow(log: VoiceCallLog, onOpen: () -> Unit, onDelete: () 
 object VoiceCallLogFormat {
     private val started = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 
-    fun startedAt(log: VoiceCallLog): String = started.format(log.startedAt.atZone(ZoneId.systemDefault()))
+    fun startedAt(log: VoiceCallLog, locale: Locale = appFormattingLocale()): String =
+        started.withLocale(locale).format(log.startedAt.atZone(ZoneId.systemDefault()))
 
     /** “42s”, or “3m 5s” from a minute. */
     fun duration(seconds: Double): String {
@@ -279,7 +284,7 @@ object VoiceCallLogFormat {
     }
 
     /** Swift's `Double.formatted()` for the playback speeds: “0.5”, “1”, “2”. */
-    fun speed(value: Double): String = if (value == floor(value)) value.toInt().toString() else value.toString()
+    fun speed(value: Double, locale: Locale = appFormattingLocale()): String = NumberFormat.getInstance(locale).format(value)
 }
 
 /**
@@ -313,7 +318,7 @@ fun VoiceCallReplayView(log: VoiceCallLog, onBack: () -> Unit, modifier: Modifie
         modifier = modifier,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(log.title, style = OpenCodeTextStyles.headline, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(log.title, style = OpenCodeTextStyles.headline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = "Back") }
                 },
@@ -596,7 +601,7 @@ private fun ReplayEvents(log: VoiceCallLog, playback: VoiceCallReplayPlayback, r
                     verticalAlignment = Alignment.Top,
                 ) {
                     Text(
-                        "%.1fs".format(event.t),
+                        "%.1fs".format(Locale.ROOT, event.t),
                         style = OpenCodeTextStyles.caption1.copy(fontFeatureSettings = "tnum"),
                         color = OpenCodeTheme.colors.secondaryText,
                         modifier = Modifier.width(44.dp),

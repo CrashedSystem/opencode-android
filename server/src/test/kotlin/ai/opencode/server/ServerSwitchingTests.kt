@@ -46,6 +46,27 @@ class ServerSwitchingTests {
     }
 
     @Test
+    fun unnamedServersThatWouldShareANameAddTheirPort() {
+        fun server(url: String, name: String? = null) = OpenCodeServer(url = url, username = "opencode", password = "", name = name)
+        val first = server("http://10.0.2.2:4196")
+        val second = server("http://10.0.2.2:4197")
+        val saved = listOf(first, second, server("http://192.168.1.20:4096"))
+        assertEquals("Server 2 · 4196", first.friendlyName(among = saved))
+        assertEquals("Server 2 · 4197", second.friendlyName(among = saved))
+        // No collision: the name is unchanged.
+        assertEquals("Server 20", saved[2].friendlyName(among = saved))
+        assertEquals("Server 2", first.friendlyName(among = listOf(first)))
+        // The same address and port (another user) has nothing to add.
+        assertEquals("Server 2", first.friendlyName(among = listOf(first, first.copy(username = "kit"))))
+        // A chosen name stays as given; the unnamed one still says which it is.
+        val named = server("http://10.0.2.2:4197", name = "Server 2")
+        assertEquals("Server 2", named.friendlyName(among = listOf(first, named)))
+        assertEquals("Server 2 · 4196", first.friendlyName(among = listOf(first, named)))
+        // A port the address leaves out is its scheme's.
+        assertEquals("Devbox · 443", server("https://devbox.example.com").friendlyName(among = listOf(server("https://devbox.example.com"), server("http://devbox.example.com:4096"))))
+    }
+
+    @Test
     fun defaultNameComesFromATailnetOrBonjourAddressBeforeTheOneInUse() {
         val paired = OpenCodeServer(
             url = "https://k7q2m9x4.opentunnel.xyz", username = "opencode", password = "",

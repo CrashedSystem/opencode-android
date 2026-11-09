@@ -222,7 +222,7 @@ fun VoiceSettingsView(store: SettingsStore) {
                     },
                     // iOS `accessibilityHint`: TalkBack's click label (“Double tap to …”).
                     modifier = Modifier.semantics {
-                        onClick(label = "Raise your phone to your ear on a session to start a call through the earpiece") {
+                        onClick(label = "Toggle starting a call through the earpiece when you raise your phone to your ear on a session") {
                             val on = !state.raiseToTalk
                             voice.send(VoiceSettingsFeature.Action.RaiseToTalkChanged(on))
                             settings(HomeSettingsFeature.Action.RaiseToTalkChanged(on))

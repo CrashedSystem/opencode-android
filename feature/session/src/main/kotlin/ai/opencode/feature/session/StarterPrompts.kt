@@ -72,7 +72,7 @@ fun StarterPromptList(prompts: List<String>, onPick: (String) -> Unit, modifier:
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
-                    .clickable(role = Role.Button, onClickLabel = "Types it into the message") { onPick(prompt) }
+                    .clickable(role = Role.Button, onClickLabel = "Type it into the message") { onPick(prompt) }
                     // The bubble lines up with the project folders and the composer's +.
                     .padding(start = 17.dp, end = 16.dp)
                     .testTag("starter-prompt"),

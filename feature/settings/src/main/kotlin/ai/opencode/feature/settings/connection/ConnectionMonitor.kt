@@ -358,7 +358,7 @@ class ConnectionMonitor(server: OpenCodeServer, link: ConnectionHealth.Link) {
         private val namesKey = SharedKey.appStorage<Map<String, String>>("connection-card-machine-names", emptyMap())
 
         private fun savedName(server: OpenCodeServer): String? =
-            ServerCardName.lookupAddress(server)?.let { shared(namesKey).value[it] }
+            ServerCardName.lookupAddress(server)?.let { shared(namesKey).value[it] }?.let(ServerCardName::machineName)
 
         /**
          * The card's link from Home's: a switch in progress wins, and a refused password is
