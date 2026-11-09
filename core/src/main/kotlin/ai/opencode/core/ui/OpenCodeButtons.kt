@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package ai.opencode.core.ui
 
 import androidx.compose.foundation.layout.PaddingValues
@@ -5,36 +7,56 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 
 /** A button's role (iOS `ButtonRole`). Red is only for [Destructive]. */
 enum class OpenCodeButtonRole { Normal, Destructive }
 
-object OpenCodeButtonDefaults {
-    /**
-     * Height every peer button shares (iOS `.controlSize(.large)` ≈ 50 pt). Hierarchy comes
-     * from style, never size.
-     */
-    val height: Dp = 52.dp
+/**
+ * Material 3 button sizes (https://m3.material.io/components/buttons/specs): [Small] is the
+ * 40 dp default for dialogs, forms and paired actions; [Medium] is the 56 dp hero CTA that
+ * carries a screen (onboarding, connect). Both keep a 48 dp touch target.
+ */
+enum class OpenCodeButtonSize { Small, Medium }
 
-    val contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+object OpenCodeButtonDefaults {
+    /** The default button height (M3 small button, `ButtonDefaults.MinHeight`, 40 dp). */
+    val height: Dp = ButtonDefaults.MinHeight
+
+    /** The hero CTA height (M3 medium button, 56 dp). */
+    val heroHeight: Dp = ButtonDefaults.MediumContainerHeight
+
+    /** Padding for the default size (`ButtonDefaults.ContentPadding`). */
+    val contentPadding: PaddingValues = ButtonDefaults.ContentPadding
+
+    /** Padding for the hero size (`ButtonDefaults.MediumContentPadding`). */
+    val heroContentPadding: PaddingValues = ButtonDefaults.MediumContentPadding
+
+    fun height(size: OpenCodeButtonSize): Dp = if (size == OpenCodeButtonSize.Medium) heroHeight else height
+
+    fun contentPadding(size: OpenCodeButtonSize): PaddingValues =
+        if (size == OpenCodeButtonSize.Medium) heroContentPadding else contentPadding
+
+    /** The label style for a size (labelLarge at 40 dp, titleMedium at 56 dp). */
+    @Composable
+    fun textStyle(size: OpenCodeButtonSize): TextStyle = ButtonDefaults.textStyleFor(height(size))
 }
 
 /**
- * The primary action: Next, Send, Connect, Done (iOS `openCodePrimaryButton()`:
- * `.glassProminent`, large). A Material filled button in the theme accent, or red for a
- * [OpenCodeButtonRole.Destructive] action.
+ * The primary action: Next, Send, Connect, Done (iOS `openCodePrimaryButton()`). A Material
+ * filled button in the theme's primary colour, or `error`/`onError` for a
+ * [OpenCodeButtonRole.Destructive] action. Pressing morphs the corners (M3 Expressive shapes).
  *
- * Pair with [OpenCodeSecondaryButton] at the same width; both share
- * [OpenCodeButtonDefaults.height].
+ * Pair with [OpenCodeSecondaryButton] at the same size.
  */
 @Composable
 fun OpenCodePrimaryButton(
@@ -42,23 +64,28 @@ fun OpenCodePrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     role: OpenCodeButtonRole = OpenCodeButtonRole.Normal,
+    size: OpenCodeButtonSize = OpenCodeButtonSize.Small,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = if (role == OpenCodeButtonRole.Destructive) {
-        val red = OpenCodeTheme.colors.destructive
-        // systemRed in every theme; iOS labels destructive prominent buttons white.
-        ButtonDefaults.buttonColors(containerColor = red, contentColor = Color.White)
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+        )
     } else {
         ButtonDefaults.buttonColors()
     }
+    val height = OpenCodeButtonDefaults.height(size)
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = OpenCodeButtonDefaults.height),
+        shapes = ButtonDefaults.shapesFor(height),
+        modifier = modifier.heightIn(min = height),
         enabled = enabled,
         colors = colors,
-        contentPadding = OpenCodeButtonDefaults.contentPadding,
-        content = content,
-    )
+        contentPadding = OpenCodeButtonDefaults.contentPadding(size),
+    ) {
+        ProvideTextStyle(OpenCodeButtonDefaults.textStyle(size)) { content() }
+    }
 }
 
 /** [OpenCodePrimaryButton] with a text label. */
@@ -69,12 +96,13 @@ fun OpenCodePrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     role: OpenCodeButtonRole = OpenCodeButtonRole.Normal,
-) = OpenCodePrimaryButton(onClick, modifier, enabled, role) { ButtonLabel(text) }
+    size: OpenCodeButtonSize = OpenCodeButtonSize.Small,
+) = OpenCodePrimaryButton(onClick, modifier, enabled, role, size) { ButtonLabel(text) }
 
 /**
- * The neutral companion: Back, Skip, Cancel, Not Now (iOS `openCodeSecondaryButton()`:
- * `.glass`, large). A Material tonal button on the neutral `secondaryContainer`; a
- * [OpenCodeButtonRole.Destructive] secondary keeps the neutral fill with red text.
+ * The neutral companion: Back, Skip, Cancel, Not Now (iOS `openCodeSecondaryButton()`). A
+ * Material tonal button on `secondaryContainer`; a [OpenCodeButtonRole.Destructive] secondary
+ * keeps the tonal fill with `error` text.
  */
 @Composable
 fun OpenCodeSecondaryButton(
@@ -82,21 +110,25 @@ fun OpenCodeSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     role: OpenCodeButtonRole = OpenCodeButtonRole.Normal,
+    size: OpenCodeButtonSize = OpenCodeButtonSize.Small,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = if (role == OpenCodeButtonRole.Destructive) {
-        ButtonDefaults.filledTonalButtonColors(contentColor = OpenCodeTheme.colors.destructive)
+        ButtonDefaults.filledTonalButtonColors(contentColor = MaterialTheme.colorScheme.error)
     } else {
         ButtonDefaults.filledTonalButtonColors()
     }
+    val height = OpenCodeButtonDefaults.height(size)
     FilledTonalButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = OpenCodeButtonDefaults.height),
+        shapes = ButtonDefaults.shapesFor(height),
+        modifier = modifier.heightIn(min = height),
         enabled = enabled,
         colors = colors,
-        contentPadding = OpenCodeButtonDefaults.contentPadding,
-        content = content,
-    )
+        contentPadding = OpenCodeButtonDefaults.contentPadding(size),
+    ) {
+        ProvideTextStyle(OpenCodeButtonDefaults.textStyle(size)) { content() }
+    }
 }
 
 /** [OpenCodeSecondaryButton] with a text label. */
@@ -107,9 +139,10 @@ fun OpenCodeSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     role: OpenCodeButtonRole = OpenCodeButtonRole.Normal,
-) = OpenCodeSecondaryButton(onClick, modifier, enabled, role) { ButtonLabel(text) }
+    size: OpenCodeButtonSize = OpenCodeButtonSize.Small,
+) = OpenCodeSecondaryButton(onClick, modifier, enabled, role, size) { ButtonLabel(text) }
 
 @Composable
 private fun ButtonLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }

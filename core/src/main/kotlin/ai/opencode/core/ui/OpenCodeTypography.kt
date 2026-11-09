@@ -8,8 +8,6 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.sp
 
 /** Font families. Everything is the system sans (Roboto / the device font); iOS uses SF. */
 object OpenCodeFonts {
@@ -36,80 +34,54 @@ object OpenCodeFonts {
 }
 
 /**
- * iOS Dynamic Type text styles at the default size (Large), in sp. iOS points and Android
- * dp are within 2 % physically (163 vs 160 per inch), so the sizes port 1:1 and keep iOS's
- * relative scale; sp also follows the system font scale like Dynamic Type.
- *
- * Use these by name when porting a view that says `.font(.footnote)`; Material components
- * pick them up through [OpenCodeTypography]'s role mapping.
+ * The Material 3 type scale (https://m3.material.io/styles/typography/type-scale-tokens) on the
+ * system sans. Material components read it through `MaterialTheme.typography`, including the
+ * M3 Expressive `*Emphasized` styles.
  */
-object OpenCodeTextStyles {
-    private fun style(size: Int, lineHeight: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-        fontFamily = OpenCodeFonts.system,
-        fontWeight = weight,
-        fontSize = size.sp,
-        lineHeight = lineHeight.sp,
-        letterSpacing = TextUnit.Unspecified,
-    )
-
-    /** `.largeTitle` 34/41. */
-    val largeTitle = style(34, 41)
-    /** `.title` (title1) 28/34. */
-    val title1 = style(28, 34)
-    /** `.title2` 22/28. */
-    val title2 = style(22, 28)
-    /** `.title3` 20/25. */
-    val title3 = style(20, 25)
-    /** `.headline` 17/22 semibold. */
-    val headline = style(17, 22, FontWeight.SemiBold)
-    /** `.body` 17/22. */
-    val body = style(17, 22)
-    /** `.callout` 16/21. */
-    val callout = style(16, 21)
-    /** `.subheadline` 15/20. */
-    val subheadline = style(15, 20)
-    /** `.footnote` 13/18. */
-    val footnote = style(13, 18)
-    /** `.caption` (caption1) 12/16. */
-    val caption1 = style(12, 16)
-    /** `.caption2` 11/13. */
-    val caption2 = style(11, 13)
-}
+val OpenCodeTypography: Typography = Typography()
 
 /**
- * Material 3 type roles mapped onto iOS text styles:
+ * The iOS Dynamic Type style names, each mapped to its nearest Material 3 role so a view ported
+ * from `.font(.footnote)` keeps its place in the hierarchy but renders at the Android size
+ * (iOS's 17 pt body reads heavy on Android). Sizes are sp, so they follow the system font scale.
  *
- * | M3 role | iOS style | Typical use |
+ * | iOS style | M3 role | size/line |
  * | --- | --- | --- |
- * | displayLarge, displayMedium | largeTitle 34 | large screen titles |
- * | displaySmall, headlineLarge | title1 28 | |
- * | headlineMedium, titleLarge* | title2 22 / title3 20 | *titleLarge = title3: top app bar titles |
- * | headlineSmall | title3 20 | section and sheet titles |
- * | titleMedium | headline 17 semibold | inline nav titles, list row titles that are emphasised |
- * | titleSmall | subheadline 15 semibold | small group headers |
- * | bodyLarge | body 17 | primary text, transcript prose, list row titles |
- * | bodyMedium | subheadline 15 | secondary text, list supporting text, RollingNumber default |
- * | bodySmall | footnote 13 | footers, timestamps |
- * | labelLarge | body 17 semibold | buttons (iOS `.controlSize(.large)` label) |
- * | labelMedium | caption1 12 medium | chips, badges |
- * | labelSmall | caption2 11 medium | tiny badges |
+ * | largeTitle | headlineLarge | 32/40 |
+ * | title1 | headlineMedium | 28/36 |
+ * | title2 | headlineSmall | 24/32 |
+ * | title3 | titleLarge | 22/28 |
+ * | headline | titleMedium | 16/24 medium |
+ * | body, callout | bodyLarge | 16/24 |
+ * | subheadline | bodyMedium | 14/20 |
+ * | footnote, caption1 | bodySmall | 12/16 |
+ * | caption2 | labelSmall | 11/16 medium |
+ *
+ * Buttons, menu items and dialog actions use labelLarge (14/20 medium) through their Material
+ * components; reach for the `*Emphasized` roles in `MaterialTheme.typography` where iOS bolds
+ * for emphasis.
  */
-val OpenCodeTypography: Typography = with(OpenCodeTextStyles) {
-    Typography(
-        displayLarge = largeTitle,
-        displayMedium = largeTitle,
-        displaySmall = title1,
-        headlineLarge = title1,
-        headlineMedium = title2,
-        headlineSmall = title3,
-        titleLarge = title3,
-        titleMedium = headline,
-        titleSmall = subheadline.copy(fontWeight = FontWeight.SemiBold),
-        bodyLarge = body,
-        bodyMedium = subheadline,
-        bodySmall = footnote,
-        labelLarge = body.copy(fontWeight = FontWeight.SemiBold),
-        labelMedium = caption1.copy(fontWeight = FontWeight.Medium),
-        labelSmall = caption2.copy(fontWeight = FontWeight.Medium),
-    )
+object OpenCodeTextStyles {
+    /** `.largeTitle` → headlineLarge 32/40. */
+    val largeTitle: TextStyle = OpenCodeTypography.headlineLarge
+    /** `.title` (title1) → headlineMedium 28/36. */
+    val title1: TextStyle = OpenCodeTypography.headlineMedium
+    /** `.title2` → headlineSmall 24/32. */
+    val title2: TextStyle = OpenCodeTypography.headlineSmall
+    /** `.title3` → titleLarge 22/28. */
+    val title3: TextStyle = OpenCodeTypography.titleLarge
+    /** `.headline` → titleMedium 16/24 medium. */
+    val headline: TextStyle = OpenCodeTypography.titleMedium
+    /** `.body` → bodyLarge 16/24. */
+    val body: TextStyle = OpenCodeTypography.bodyLarge
+    /** `.callout` → bodyLarge 16/24 (M3 has no step between body and bodyMedium). */
+    val callout: TextStyle = OpenCodeTypography.bodyLarge
+    /** `.subheadline` → bodyMedium 14/20. */
+    val subheadline: TextStyle = OpenCodeTypography.bodyMedium
+    /** `.footnote` → bodySmall 12/16. */
+    val footnote: TextStyle = OpenCodeTypography.bodySmall
+    /** `.caption` (caption1) → bodySmall 12/16. */
+    val caption1: TextStyle = OpenCodeTypography.bodySmall
+    /** `.caption2` → labelSmall 11/16 medium. */
+    val caption2: TextStyle = OpenCodeTypography.labelSmall
 }

@@ -9,26 +9,26 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Corner radii the iOS app uses (surveyed from its `cornerRadius:` / `.rect(cornerRadius:)`
- * call sites). iOS draws `.continuous` (squircle) corners; Compose's rounded corners are
- * circular, which reads the same at these sizes.
+ * The Material 3 corner radius scale (https://m3.material.io/styles/shape/corner-radius-scale),
+ * named for the roles the iOS radii played so ported call sites keep their meaning. iOS's
+ * 6/10/14/20/22/26/28 continuous corners land on M3's 4/8/12/16/20/28/28.
  */
 object OpenCodeRadius {
-    /** Tiny marks: inline code, checkbox insets (6). */
-    val xs: Dp = 6.dp
-    /** Small fills and thumbnails (10). */
-    val sm: Dp = 10.dp
-    /** Tertiary-fill fields and rows (`tertiarySystemFill` boxes, 14). */
-    val fill: Dp = 14.dp
-    /** Inline controls and trays (16). */
+    /** extraSmall (4): tiny marks, inline code, checkbox insets. */
+    val xs: Dp = 4.dp
+    /** small (8): small fills and thumbnails. */
+    val sm: Dp = 8.dp
+    /** medium (12): filled fields and rows. */
+    val fill: Dp = 12.dp
+    /** large (16): inline controls and trays. */
     val control: Dp = 16.dp
-    /** Cards and glass cards (server list, error report, 20). */
-    val card: Dp = 20.dp
-    /** Attachment chips, clipped media, settings tiles (22). */
-    val tile: Dp = 22.dp
-    /** Large panels: connect, server details, What's New cards (26). */
-    val panel: Dp = 26.dp
-    /** Sheets, scanner frame, model list, voice panel (28). */
+    /** large (16): cards (server list, error report). */
+    val card: Dp = 16.dp
+    /** largeIncreased (20): attachment chips, clipped media, settings tiles. */
+    val tile: Dp = 20.dp
+    /** extraLarge (28): large panels (connect, server details, What's New cards). */
+    val panel: Dp = 28.dp
+    /** extraLarge (28): sheets, scanner frame, model list, voice panel. */
     val sheet: Dp = 28.dp
 }
 
@@ -46,17 +46,11 @@ object OpenCodeShape {
 }
 
 /**
- * Material shape scale from the iOS radii: extraSmall 6, small 10, medium 14, large 20,
- * extraLarge 28. Material components read these (menus small, cards medium, dialogs and
- * sheets extraLarge).
+ * The Material 3 shape scale: extraSmall 4, small 8, medium 12, large 16, largeIncreased 20,
+ * extraLarge 28, extraLargeIncreased 32, extraExtraLarge 48. Material components read these
+ * (menus extraSmall/large, cards medium, dialogs and sheets extraLarge).
  */
-val OpenCodeShapes = Shapes(
-    extraSmall = RoundedCornerShape(OpenCodeRadius.xs),
-    small = RoundedCornerShape(OpenCodeRadius.sm),
-    medium = RoundedCornerShape(OpenCodeRadius.fill),
-    large = RoundedCornerShape(OpenCodeRadius.card),
-    extraLarge = RoundedCornerShape(OpenCodeRadius.sheet),
-)
+val OpenCodeShapes = Shapes()
 
 /**
  * Port of `GlassGeometry` (`Glass.swift`): a rounded rectangle's radius must be at most half its

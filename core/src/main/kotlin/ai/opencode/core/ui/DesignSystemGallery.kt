@@ -175,17 +175,16 @@ private fun Swatch(name: String, color: Color) {
 private fun TypeSection() = Section("Type (iOS text style → M3 role)") {
     val t = MaterialTheme.typography
     listOf(
-        Triple("largeTitle", "displayLarge", t.displayLarge),
-        Triple("title1", "headlineLarge", t.headlineLarge),
-        Triple("title2", "headlineMedium", t.headlineMedium),
+        Triple("largeTitle", "headlineLarge", t.headlineLarge),
+        Triple("title1", "headlineMedium", t.headlineMedium),
+        Triple("title2", "headlineSmall", t.headlineSmall),
         Triple("title3", "titleLarge", t.titleLarge),
         Triple("headline", "titleMedium", t.titleMedium),
-        Triple("body", "bodyLarge", t.bodyLarge),
-        Triple("callout", "OpenCodeTextStyles.callout", OpenCodeTextStyles.callout),
+        Triple("body, callout", "bodyLarge", t.bodyLarge),
         Triple("subheadline", "bodyMedium", t.bodyMedium),
-        Triple("footnote", "bodySmall", t.bodySmall),
-        Triple("caption1", "labelMedium", t.labelMedium),
+        Triple("footnote, caption1", "bodySmall", t.bodySmall),
         Triple("caption2", "labelSmall", t.labelSmall),
+        Triple("buttons", "labelLarge", t.labelLarge),
     ).forEach { (ios, m3, style) -> TypeRow(ios, m3, style) }
     Text("opencode", style = TextStyle(fontFamily = OpenCodeFonts.berkeleyMono, fontWeight = FontWeight.Bold, fontSize = 44.sp))
     Text("opencode pair --remote", style = OpenCodeTextStyles.callout.copy(fontFamily = OpenCodeFonts.berkeleyMono))
