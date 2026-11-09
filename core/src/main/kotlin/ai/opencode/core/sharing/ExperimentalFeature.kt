@@ -52,7 +52,7 @@ enum class ExperimentalFeature(
         // button; the switch lets the Start Voice Call in Background shortcut and App Action
         // (`SystemActionOrigin.backgroundShortcut`) call without opening the app.
         "background-call-intent", "Background Call Shortcut", ExperimentalGroup.calls, "button.programmable",
-        "The call shortcut starts calls without opening the app",
+        "Calls start without opening the app",
         // Starts the microphone with the app in the background.
         joinsAll = false,
     ),
