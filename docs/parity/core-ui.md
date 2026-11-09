@@ -211,6 +211,7 @@ and `ellipsis` (every overflow menu) is the vertical `more_vert`, as on other An
 | `macstudio` | `desktop_mac` | `ms_desktop_mac` | `SFSymbol.Macstudio` | ServerTitleView |
 | `macwindow.badge.plus` | `add_to_queue` | `ms_add_to_queue` | `SFSymbol.MacwindowBadgePlus` | HomeView+Drawer |
 | `magnifyingglass` | `search` | `ms_search` | `SFSymbol.Magnifyingglass` | DraftProjects, DrawerSearchPill, ModelListContent, ShareView |
+| `mappin` | `location_on` | `ms_location_on` | `SFSymbol.Mappin` | AttachmentPicker (Android: the + menu's Location uses Material's place pin, not iOS's `location` arrow) |
 | `mappin.circle.fill` | `location_on` (fill) | `ms_location_on_fill` | `SFSymbol.MappinCircleFill` | SharedLocation |
 | `mic` | `mic` | `ms_mic` | `SFSymbol.Mic` | ComposerViews, SessionSwitcher, WhatsNewList |
 | `mic.fill` | `mic` (fill) | `ms_mic_fill` | `SFSymbol.MicFill` | DictationLiveActivity, DictationViews, FloatingCall, VoiceCallLiveActivity, VoiceView, WhatsNewList |

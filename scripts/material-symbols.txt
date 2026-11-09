@@ -135,6 +135,7 @@ layers                              # square.stack
 left_panel_open                     # sidebar.left
 link                                # link
 list_alt                            # list.bullet.rectangle
+location_on                         # mappin (Android: the + menu's Location)
 location_on fill                    # mappin.circle.fill
 lock fill                           # lock.fill
 lock_open fill                      # lock.open.fill

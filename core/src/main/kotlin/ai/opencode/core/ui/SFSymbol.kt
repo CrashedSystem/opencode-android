@@ -288,6 +288,8 @@ enum class SFSymbol(val sfName: String, @DrawableRes val drawable: Int) {
     Xmark("xmark", R.drawable.ms_close),
     XmarkCircle("xmark.circle", R.drawable.ms_cancel),
     XmarkCircleFill("xmark.circle.fill", R.drawable.ms_cancel_fill),
+    /** Android: Material's place pin, for Location where iOS shows its `location` arrow. */
+    Mappin("mappin", R.drawable.ms_location_on),
     ;
 
     companion object {

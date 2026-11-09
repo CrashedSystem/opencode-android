@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -270,9 +271,10 @@ private fun PlusMenuWindowContent(
                     traversalIndex = -1f
                 },
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
+            // A raised M3 menu container that stands off the dark canvas; the shadow is the
+            // menu's own elevation (level 2).
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = MenuDefaults.ShadowElevation,
         ) {
             Box(contentAlignment = Alignment.TopStart) {
                 // Carry the rows with the growing surface: cropping full-size rows with the frame

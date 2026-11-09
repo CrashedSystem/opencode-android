@@ -415,7 +415,7 @@ enum class AttachmentMenuItem(val title: String, val systemImage: SFSymbol) {
     Camera("Camera", SFSymbol.Camera),
     Photos("Photos", SFSymbol.PhotoOnRectangle),
     Files("Files", SFSymbol.Folder),
-    Location("Location", SFSymbol.Location),
+    Location("Location", SFSymbol.Mappin),
     Paste("Paste", SFSymbol.DocOnClipboard);
 
     val isDragSelectable: Boolean get() = this != Paste
