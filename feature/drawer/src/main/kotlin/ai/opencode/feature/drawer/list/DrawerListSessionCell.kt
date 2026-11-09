@@ -1,7 +1,7 @@
 package ai.opencode.feature.drawer.list
 
-import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.motion.MotionPhase
+import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -13,10 +13,12 @@ import ai.opencode.feature.drawer.style.DrawerRowEmphasis
 import ai.opencode.feature.drawer.style.DrawerSelectionStyle
 import ai.opencode.feature.drawer.style.DrawerTone
 import ai.opencode.feature.drawer.style.DrawerTunables
+import ai.opencode.feature.drawer.style.drawerSurface
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,7 +45,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -153,7 +154,8 @@ fun DrawerListSessionCell(
     val selection = if (row.selected) DrawerTunables.selection else null
     val onTint = selection == DrawerSelectionStyle.Tint
     val titleColor = when {
-        onTint -> Color.White
+        onTint -> MaterialTheme.colorScheme.onPrimary
+        selection == DrawerSelectionStyle.Fill -> MaterialTheme.colorScheme.onSecondaryContainer
         row.muted -> colors.secondaryText
         emphasis == DrawerRowEmphasis.Active && DrawerTunables.unreadTone != DrawerTone.Primary -> DrawerTunables.unreadTone.color
         else -> colors.text.copy(alpha = colors.text.alpha * emphasis.opacity(row.increasedContrast, DrawerTunables.readOpacity))
@@ -193,7 +195,7 @@ fun DrawerListSessionCell(
     }
 
     val held = hold.isHeld || row.isLifted
-    val raisedSurface = if (colors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else colors.canvas
+    val raisedSurface = if (colors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else drawerSurface()
     // The raised surface leaves on swap's exit once a hold lets go (iOS `settleAfterMenu`), and a
     // dropped row puts its surface down the same way, shadowless (iOS `land()`).
     val surface = remember { Animatable(0f) }

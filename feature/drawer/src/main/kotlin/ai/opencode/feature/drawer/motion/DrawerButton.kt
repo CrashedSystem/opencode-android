@@ -87,14 +87,17 @@ import kotlin.math.min
 /** Cross-fades the label when another event updates it in place (iOS `.id(shown.events.map { "\($0.sessionID)|\($0.kind)" })`). */
 private val InAppNotice.identity: String get() = events.joinToString(",") { "${it.sessionID}|${it.kind}" }
 
-/** iOS `.orange` / `.blue` (systemOrange / systemBlue), light and dark. */
+/**
+ * The dot's colours. iOS draws systemOrange (needs input) and systemBlue (unread); Android uses
+ * the M3 badge roles instead: `error` for the urgent dot, `primary` for the quiet unread one.
+ */
 private object DrawerBadgeColors {
-    fun orange(isDark: Boolean) = if (isDark) Color(0xFFFF9F0A) else Color(0xFFFF9500)
-    fun blue(isDark: Boolean) = if (isDark) Color(0xFF0A84FF) else Color(0xFF007AFF)
-}
+    @Composable
+    fun attention(): Color = MaterialTheme.colorScheme.error
 
-@Composable
-private fun isDarkTheme(): Boolean = OpenCodeTheme.colors.isDark
+    @Composable
+    fun unread(): Color = MaterialTheme.colorScheme.primary
+}
 
 /**
  * The capsule grows from the button on `MotionRole.PanelOpen` and folds back on its exit
@@ -337,18 +340,21 @@ private fun Modifier.layoutWidth(widthDp: () -> Float): Modifier = layout { meas
     layout(width, placeable.height) { placeable.place(0, 0) }
 }
 
-/** “Upload tests · Needs your input”: orange while it needs you, quiet when done (iOS `DrawerNoticeLabel`). */
+/**
+ * “Upload tests · Needs your input”: the attention colour while it needs you, quiet when done
+ * (iOS `DrawerNoticeLabel`, orange; Android: the M3 badge's `error`).
+ */
 @Composable
 fun DrawerNoticeLabel(notice: InAppNotice, modifier: Modifier = Modifier) {
-    val isDark = isDarkTheme()
-    val orange = DrawerBadgeColors.orange(isDark)
+    val orange = DrawerBadgeColors.attention()
+    val unread = DrawerBadgeColors.unread()
     val colors = OpenCodeTheme.colors
     Row(
         modifier.padding(start = 2.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Canvas(Modifier.size(8.dp)) {
-            drawCircle(if (notice.needsInput) orange else DrawerBadgeColors.blue(isDark))
+            drawCircle(if (notice.needsInput) orange else unread)
         }
         Spacer(Modifier.width(6.dp))
         Text(
@@ -372,8 +378,8 @@ fun DrawerNoticeLabel(notice: InAppNotice, modifier: Modifier = Modifier) {
 }
 
 /**
- * The drawer button's dot (iOS `DrawerBadgeDot`): another session needs input (orange) or is
- * unread (blue). It arrives on `MotionRole.MicroIn` and leaves on `microOut`; one already showing
+ * The drawer button's dot (iOS `DrawerBadgeDot`): another session needs input (orange; Android:
+ * the M3 badge's `error`) or is unread (blue; Android: `primary`). It arrives on `MotionRole.MicroIn` and leaves on `microOut`; one already showing
  * when the button appears (opening or restoring a session) is simply there, and a change of
  * colour while it shows lands in place.
  */
@@ -381,7 +387,8 @@ fun DrawerNoticeLabel(notice: InAppNotice, modifier: Modifier = Modifier) {
 fun DrawerBadgeDot(badge: DrawerBadge?, modifier: Modifier = Modifier) {
     val reducedMotion = rememberReduceMotion()
     val highContrast = rememberHighContrast()
-    val isDark = isDarkTheme()
+    val attention = DrawerBadgeColors.attention()
+    val unread = DrawerBadgeColors.unread()
     val background = MaterialTheme.colorScheme.background
     // The last colour shown, so the dot keeps it while it leaves.
     var lastBadge by remember { mutableStateOf(badge) }
@@ -397,7 +404,7 @@ fun DrawerBadgeDot(badge: DrawerBadge?, modifier: Modifier = Modifier) {
                 scaleOut(MotionRole.MicroIn.animation(MotionPhase.Exit, reducedMotion), targetScale = scale),
         ) {
             Canvas(Modifier.size(10.dp)) {
-                val color = if (lastBadge == DrawerBadge.Attention) DrawerBadgeColors.orange(isDark) else DrawerBadgeColors.blue(isDark)
+                val color = if (lastBadge == DrawerBadge.Attention) attention else unread
                 val radius = size.minDimension / 2
                 drawCircle(color, radius = radius)
                 if (highContrast) {

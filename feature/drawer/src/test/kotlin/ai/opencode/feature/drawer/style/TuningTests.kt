@@ -49,12 +49,12 @@ class DrawerSpacingTests {
     @Test
     fun defaultsAreWhatShipped() {
         val shipped: List<Triple<String, Dp, Float>> = listOf(
-            Triple("drawer.row.height", DrawerTunables.rowHeight, 44f),
+            Triple("drawer.row.height", DrawerTunables.rowHeight, 56f),
             Triple("drawer.row.gap", DrawerTunables.rowGap, 0f),
-            Triple("drawer.row.edge", DrawerTunables.rowEdge, 10f),
-            Triple("drawer.row.textInset", DrawerTunables.textInset, 10f),
-            Triple("drawer.row.trailingInset", DrawerTunables.trailingInset, 12f),
-            Triple("drawer.row.cornerRadius", DrawerTunables.rowCornerRadius, 10f),
+            Triple("drawer.row.edge", DrawerTunables.rowEdge, 12f),
+            Triple("drawer.row.textInset", DrawerTunables.textInset, 16f),
+            Triple("drawer.row.trailingInset", DrawerTunables.trailingInset, 24f),
+            Triple("drawer.row.cornerRadius", DrawerTunables.rowCornerRadius, 28f),
             Triple("drawer.section.above", DrawerTunables.sectionAbove, 18f),
             Triple("drawer.section.height", DrawerTunables.sectionHeight, 34f),
             Triple("drawer.section.below", DrawerTunables.sectionBelow, 4f),
@@ -63,8 +63,8 @@ class DrawerSpacingTests {
             Triple("drawer.shortcuts.below", DrawerTunables.shortcutsBelow, 0f),
             Triple("drawer.header.bottom", DrawerTunables.headerBottom, 4f),
             Triple("drawer.header.searchGap", DrawerTunables.searchGap, 12f),
-            Triple("drawer.footer.height", DrawerTunables.footerHeight, 50f),
-            Triple("drawer.footer.padding", DrawerTunables.footerPadding, 18f),
+            Triple("drawer.footer.height", DrawerTunables.footerHeight, 56f),
+            Triple("drawer.footer.padding", DrawerTunables.footerPadding, 16f),
             Triple("drawer.edge.topGap", DrawerTunables.topGap, 4f),
             Triple("drawer.edge.bottomGap", DrawerTunables.bottomGap, 12f),
             Triple("drawer.edge.fade", DrawerTunables.fade, 19f),
@@ -95,12 +95,14 @@ class DrawerSpacingTests {
         assertEquals(DrawerTextStyle.Headline.font, DrawerTextStyle.Headline.heading)
 
         // The metrics are those values, the one leading edge among them.
-        assertEquals(10.dp, DrawerMetrics.rowEdge)
-        assertEquals(10.dp, DrawerMetrics.textInset)
-        assertEquals(12.dp, DrawerMetrics.trailingInset)
-        assertEquals(20.dp, DrawerMetrics.leadingEdge)
-        assertEquals(10.dp, DrawerMetrics.rowCornerRadius)
-        assertEquals(44.dp, DrawerMetrics.rowHeight)
+        // Android: M3 navigation drawer items (56 dp, 12 dp inset, 16/24 dp label padding,
+        // full-round indicator) where iOS ships 44/10/10/12/10.
+        assertEquals(12.dp, DrawerMetrics.rowEdge)
+        assertEquals(16.dp, DrawerMetrics.textInset)
+        assertEquals(24.dp, DrawerMetrics.trailingInset)
+        assertEquals(28.dp, DrawerMetrics.leadingEdge)
+        assertEquals(28.dp, DrawerMetrics.rowCornerRadius)
+        assertEquals(56.dp, DrawerMetrics.rowHeight)
     }
 
     @Test

@@ -1,6 +1,5 @@
 package ai.opencode.feature.drawer.style
 
-import ai.opencode.core.ui.OpenCodeTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -73,7 +72,7 @@ fun DrawerHeaderBackdrop(
     modifier: Modifier = Modifier,
     revealed: Float = 1f,
     scrollState: DrawerHeaderScrollState? = null,
-    background: Color = OpenCodeTheme.colors.canvas,
+    background: Color = drawerSurface(),
 ) {
     Spacer(
         modifier
@@ -151,7 +150,7 @@ fun DrawerFooterBackdrop(
     reach: Dp,
     insetBottom: Dp,
     modifier: Modifier = Modifier,
-    background: Color = OpenCodeTheme.colors.canvas,
+    background: Color = drawerSurface(),
 ) {
     Spacer(
         modifier

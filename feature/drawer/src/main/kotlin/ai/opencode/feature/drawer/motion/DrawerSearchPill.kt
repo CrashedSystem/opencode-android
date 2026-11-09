@@ -8,11 +8,9 @@ import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeMinTapTarget
-import ai.opencode.feature.drawer.style.DrawerMetrics
 import ai.opencode.feature.drawer.style.DrawerTunables
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
-import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -22,20 +20,18 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -73,16 +71,19 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
 /**
- * Port of `OpenCode/Drawer/DrawerSearchPill.swift`: the drawer's search. One circle at rest that
- * stretches leftward into the search field while a circular × button buds off its trailing
- * edge. Tapping × or pressing Escape clears the query, dismisses the keyboard and merges the ×
- * back into the search button. Under Reduce Motion the two states cross-fade in place.
+ * Port of `OpenCode/Drawer/DrawerSearchPill.swift`: the drawer's search. A search button at rest
+ * that stretches leftward into the search field. Closing it (the field's back arrow, or Escape)
+ * clears the query, dismisses the keyboard and folds the field back into the button. Under Reduce
+ * Motion the two states cross-fade in place.
  *
  * Liquid Glass and its morph (`GlassEffectContainer`, `glassEffectID`) become a tonal M3
- * capsule whose width springs on [DrawerSearchPillDefaults.morph].
+ * capsule whose width springs on [DrawerSearchPillDefaults.morph]. Android divergence: opened,
+ * it is an M3 search bar (https://m3.material.io/components/search): a leading back arrow inside
+ * the field closes search, where iOS buds a separate round × ("Cancel Search") off its end; at
+ * rest it is a standard icon button, filling in as it opens.
  */
 object DrawerSearchPillDefaults {
-    /** The circle at rest and the field's height (`DrawerTunables.searchSize`, at least Android's 48 dp target). */
+    /** The button at rest and the field's height (`DrawerTunables.searchSize`, at least Android's 48 dp target). */
     val size: Dp get() = maxOf(DrawerTunables.searchSize, OpenCodeMinTapTarget)
     /**
      * The capsule grows from its circle on `MotionRole.PanelOpen` and folds back on its exit;
@@ -90,12 +91,6 @@ object DrawerSearchPillDefaults {
      */
     fun <T> morph(opening: Boolean, reduceMotion: Boolean = false): FiniteAnimationSpec<T> =
         MotionRole.PanelOpen.animation(if (opening) MotionPhase.Enter else MotionPhase.Exit, reduceMotion)
-    /** The magnifier's box, centred in the circle and, opened, starting on the drawer's text inset. */
-    val glyphWidth: Dp = 20.dp
-    /** Between the open field and the × button. */
-    val cancelGap: Dp = 10.dp
-    /** Opened, the magnifier starts on the drawer's one leading edge (`DrawerMetrics.textInset`). */
-    val textInset: Dp get() = DrawerMetrics.textInset
 }
 
 /**
@@ -126,14 +121,13 @@ fun DrawerSearchPill(
     modifier: Modifier = Modifier,
     keyboardHold: DrawerKeyboardHold? = null,
     size: Dp = DrawerSearchPillDefaults.size,
-    textInset: Dp = DrawerSearchPillDefaults.textInset,
 ) {
     val haptics = remember { dependency(HapticsClient) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val fieldKey = remember { Any() }
     val isSearching = state.isSearching
-    /** 0 at rest, 1 open; springs the capsule's width and the × button. */
+    /** 0 at rest, 1 open; springs the capsule's width and fill. */
     val open = remember { Animatable(if (isSearching) 1f else 0f) }
     var syncedSearching by remember { mutableStateOf(isSearching) }
 
@@ -174,8 +168,8 @@ fun DrawerSearchPill(
             value = text,
             onValueChange = onTextChange,
             singleLine = true,
-            textStyle = OpenCodeTextStyles.body.copy(color = OpenCodeTheme.colors.text),
-            cursorBrush = SolidColor(OpenCodeTheme.colors.accent),
+            textStyle = OpenCodeTextStyles.body.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = {}),
             modifier = fieldModifier
@@ -194,11 +188,11 @@ fun DrawerSearchPill(
                     }
                 }
                 .semantics { contentDescription = "Search sessions" }
-                .padding(end = 12.dp),
+                .padding(end = 16.dp),
             decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (text.isEmpty()) {
-                        Text("Search", style = OpenCodeTextStyles.body, color = OpenCodeTheme.colors.tertiaryText, maxLines = 1)
+                        Text("Search", style = OpenCodeTextStyles.body, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     inner()
                 }
@@ -206,88 +200,58 @@ fun DrawerSearchPill(
         )
     }
 
-    val restPadding = (size - DrawerSearchPillDefaults.glyphWidth) / 2
-
     if (reducedMotion) {
         // A new identity per state, so they cross-fade rather than stretch.
         Crossfade(isSearching, modifier.fillMaxWidth(), animationSpec = Motion.reducedFadeSpec(), label = "drawer-search") { searching ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 SearchCapsule(
                     isSearching = searching,
+                    progress = { if (searching) 1f else 0f },
                     size = size,
-                    leadingPadding = if (searching) textInset else restPadding,
-                    trailingPadding = if (searching) 8.dp else restPadding,
                     onTap = begin,
+                    onClose = { end(true) },
                     modifier = if (searching) Modifier.weight(1f) else Modifier,
                     field = field,
                 )
-                if (searching) {
-                    Spacer(Modifier.width(DrawerSearchPillDefaults.cancelGap))
-                    CancelButton(size) { end(true) }
-                }
             }
         }
     } else {
         BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             val full = maxWidth
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SearchCapsule(
-                    isSearching = isSearching,
-                    size = size,
-                    leadingPadding = if (isSearching) textInset else restPadding,
-                    trailingPadding = if (isSearching) 8.dp else restPadding,
-                    onTap = begin,
-                    modifier = Modifier.animatedWidth {
-                        val p = open.value
-                        val openWidth = (full - size - DrawerSearchPillDefaults.cancelGap).value
-                        size.value + (openWidth - size.value) * p
-                    },
-                    field = field,
-                )
-                if (isSearching || open.value > 0.001f) {
-                    // The × buds off the capsule's trailing edge.
-                    Box(
-                        Modifier
-                            .animatedWidth { (DrawerSearchPillDefaults.cancelGap + size).value * open.value.coerceIn(0f, 1f) }
-                            .clipToBounds(),
-                        contentAlignment = Alignment.CenterEnd,
-                    ) {
-                        Box(
-                            Modifier.graphicsLayer {
-                                val p = open.value.coerceIn(0f, 1f)
-                                alpha = p
-                                scaleX = 0.6f + 0.4f * p
-                                scaleY = 0.6f + 0.4f * p
-                            },
-                        ) {
-                            CancelButton(size, enabled = isSearching) { end(true) }
-                        }
-                    }
-                }
-            }
+            SearchCapsule(
+                isSearching = isSearching,
+                progress = { open.value.coerceIn(0f, 1f) },
+                size = size,
+                onTap = begin,
+                onClose = { end(true) },
+                modifier = Modifier.animatedWidth { size.value + (full.value - size.value) * open.value },
+                field = field,
+            )
         }
     }
 }
 
+/**
+ * The button at rest, the search bar open. [progress] (0 rest, 1 open) fills the capsule and turns
+ * the magnifier into the back arrow; it is read in draw, so the morph never recomposes.
+ */
 @Composable
 private fun SearchCapsule(
     isSearching: Boolean,
+    progress: () -> Float,
     size: Dp,
-    leadingPadding: Dp,
-    trailingPadding: Dp,
     onTap: () -> Unit,
+    onClose: () -> Unit,
     modifier: Modifier,
     field: @Composable (Modifier) -> Unit,
 ) {
-    val leading by animateFloatAsState(leadingPadding.value, DrawerSearchPillDefaults.morph(isSearching), label = "search-leading")
-    val trailing by animateFloatAsState(trailingPadding.value, DrawerSearchPillDefaults.morph(isSearching), label = "search-trailing")
-    Surface(
-        shape = OpenCodeShape.capsule,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = OpenCodeTheme.colors.text,
-        modifier = modifier
+    val fill = MaterialTheme.colorScheme.surfaceContainerHigh
+    Box(
+        modifier
             .height(size)
-            // The button at rest; opened, the magnifier and the field's padding focus the field.
+            .clip(OpenCodeShape.capsule)
+            .drawBehind { drawRect(fill.copy(alpha = fill.alpha * progress())) }
+            // The button at rest; opened, a tap on the bar focuses the field.
             .clickable(role = if (isSearching) null else Role.Button, onClick = onTap)
             .then(
                 if (isSearching) {
@@ -298,20 +262,29 @@ private fun SearchCapsule(
                         .testTag("drawer-search")
                 },
             ),
+        contentAlignment = Alignment.CenterStart,
     ) {
         Row(Modifier.clipToBounds(), verticalAlignment = Alignment.CenterVertically) {
+            // The leading slot: the magnifier at rest, the back arrow that closes search open.
             Box(
                 Modifier
-                    .padding(start = leading.dp, end = trailing.dp)
-                    .size(DrawerSearchPillDefaults.glyphWidth, size)
-                    .clearAndSetSemantics {},
+                    .size(size)
+                    .then(
+                        if (isSearching) {
+                            Modifier
+                                .clip(OpenCodeShape.circle)
+                                .clickable(role = Role.Button, onClick = onClose)
+                                .semantics { contentDescription = "Cancel Search" }
+                                .testTag("drawer-search-cancel")
+                        } else {
+                            Modifier.clearAndSetSemantics {}
+                        },
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                OpenCodeIcon(
-                    SFSymbol.Magnifyingglass,
-                    contentDescription = null,
-                    tint = if (isSearching) OpenCodeTheme.colors.secondaryText else OpenCodeTheme.colors.text,
-                )
+                val tint = MaterialTheme.colorScheme.onSurfaceVariant
+                OpenCodeIcon(SFSymbol.Magnifyingglass, contentDescription = null, tint = tint, modifier = Modifier.graphicsLayer { alpha = 1f - progress() })
+                OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.graphicsLayer { alpha = progress() })
             }
             // iOS `.transition(.opacity)` inside the morph's `withAnimation`: the field fades on the morph spring.
             AnimatedVisibility(
@@ -322,24 +295,6 @@ private fun SearchCapsule(
             ) {
                 field(Modifier.fillMaxWidth())
             }
-        }
-    }
-}
-
-@Composable
-private fun CancelButton(size: Dp, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(
-        shape = OpenCodeShape.circle,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = OpenCodeTheme.colors.text,
-        modifier = Modifier
-            .size(size)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = "Cancel Search" }
-            .testTag("drawer-search-cancel"),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            OpenCodeIcon(SFSymbol.Xmark, contentDescription = null)
         }
     }
 }

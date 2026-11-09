@@ -1,7 +1,6 @@
 package ai.opencode.feature.drawer.list
 
 import ai.opencode.core.motion.transitionBlurEffect
-
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -19,6 +18,7 @@ import ai.opencode.feature.drawer.style.DrawerSectionTitle
 import ai.opencode.feature.drawer.style.DrawerShortcutLabel
 import ai.opencode.feature.drawer.style.DrawerTunables
 import ai.opencode.feature.drawer.style.RecentRowMenu
+import ai.opencode.feature.drawer.style.drawerSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -203,7 +203,7 @@ private fun CatchUpButton(
     focusRequester: FocusRequester?,
 ) {
     val shape = RoundedCornerShape(DrawerMetrics.rowCornerRadius)
-    val canvas = OpenCodeTheme.colors.canvas
+    val canvas = drawerSurface()
     RecentRowMenu(
         enabled = canMarkAllRead,
         onClick = openCatchUp,
@@ -250,7 +250,7 @@ private fun CatchUpButton(
 @Composable
 fun DrawerWhatsNewButton(action: () -> Unit, onHide: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(DrawerMetrics.rowCornerRadius)
-    val canvas = OpenCodeTheme.colors.canvas
+    val canvas = drawerSurface()
     RecentRowMenu(
         enabled = true,
         onClick = action,

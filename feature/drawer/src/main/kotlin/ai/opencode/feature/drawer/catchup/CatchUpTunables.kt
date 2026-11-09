@@ -214,6 +214,11 @@ object CatchUpMetrics {
     val readColor = Color(red = 0.08f, green = 0.57f, blue = 0.42f, alpha = 1f)
     val readControlColor = Color(red = 0.06f, green = 0.46f, blue = 0.34f, alpha = 1f)
     val keepColor = Color(red = 0.34f, green = 0.38f, blue = 0.52f, alpha = 1f)
+    /**
+     * Ink on the [readColor] and [keepColor] washes. They are fixed mid-dark tones in both
+     * themes (not theme roles), so their on-colour is white: 28 sp bold labels at ≥ 3:1.
+     */
+    val onToneColor = Color.White
     val headerHeight: Dp = 52.dp
     val footerHeight: Dp = 74.dp
     val sideInset: Dp get() = CatchUpTunables.sideInset.dp

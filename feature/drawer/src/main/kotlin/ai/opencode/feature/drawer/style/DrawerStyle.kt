@@ -31,6 +31,7 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -61,8 +63,8 @@ import androidx.compose.ui.unit.sp
  * The drawer's grid (iOS `DrawerMetrics`). Row surfaces (highlights, search, the floating
  * controls) stand [rowEdge] in from the drawer's sides, and everything at a row's start
  * (titles, headers, shortcut symbols) begins [textInset] inside that, on one leading edge
- * 20 dp in. Status sits at the trailing end, [trailingInset] inside the row, under the
- * search button.
+ * 28 dp in (Android: M3 navigation drawer insets; iOS 20). Status sits at the trailing end,
+ * [trailingInset] inside the row.
  */
 object DrawerMetrics {
     val rowEdge: Dp get() = DrawerTunables.rowEdge
@@ -220,18 +222,18 @@ object DrawerTunables {
     }
 
     // Spacing (DrawerStyle.swift). The leading edge is derived (`rowEdge + textInset`).
-    /** Row height. */
-    val rowHeight: Dp = 44.dp
+    /** Row height. Android: M3's navigation drawer item height (iOS 44). */
+    val rowHeight: Dp = 56.dp
     /** Gap between rows. */
     val rowGap: Dp = 0.dp
-    /** Highlight from the sides. */
-    val rowEdge: Dp = 10.dp
-    /** Text inside the highlight. */
-    val textInset: Dp = 10.dp
-    /** Status inside the highlight. */
-    val trailingInset: Dp = 12.dp
-    /** Highlight corner radius. */
-    val rowCornerRadius: Dp = 10.dp
+    /** Highlight from the sides. Android: M3's 12 dp drawer item inset (iOS 10). */
+    val rowEdge: Dp = 12.dp
+    /** Text inside the highlight. Android: M3's 16 dp label start padding (iOS 10). */
+    val textInset: Dp = 16.dp
+    /** Status inside the highlight. Android: M3's 24 dp trailing padding (iOS 12). */
+    val trailingInset: Dp = 24.dp
+    /** Highlight corner radius. Android: half the row, M3's full-round indicator (iOS 10). */
+    val rowCornerRadius: Dp = 28.dp
     /** Row text. */
     val rowFont: DrawerTextStyle = DrawerTextStyle.Body
     /** Room above a header. */
@@ -258,22 +260,18 @@ object DrawerTunables {
     val shortcutsBelow: Dp = 0.dp
     /** Title band below. */
     val headerBottom: Dp = 4.dp
-    /** Title to search. */
+    /** Title to its action buttons (Android: the call, Settings and search buttons). */
     val searchGap: Dp = 12.dp
     /** Title text. */
     val titleFont: DrawerTextStyle = DrawerTextStyle.Title
-    /** New Session button height. */
-    val footerHeight: Dp = 50.dp
-    /** New Session padding. */
-    val footerPadding: Dp = 18.dp
+    /** New Session button height. Android: the M3 extended FAB's 56 dp (iOS 50). */
+    val footerHeight: Dp = 56.dp
     /**
-     * New Session's symbol starts as far from the pill's end as it sits from the top:
-     * `(height − glyph) / 2` less the symbol's own side bearing, both scaled with the text
-     * (OC-477).
+     * New Session's margin from the drawer's end and bottom. Android: the M3 FAB's 16 dp margin
+     * (iOS 18, the pill's trailing padding; its glyph bearing and lift are n/a, the FAB lays out
+     * its own icon).
      */
-    val footerGlyphBearing: Dp = 2.75.dp
-    /** New Session glyph lift. */
-    val footerGlyphRise: Dp = 0.75.dp
+    val footerPadding: Dp = 16.dp
 
     // The list's style beyond spacing (Sidebar Style). Each default is what shipped.
     /** Header weight. */
@@ -294,8 +292,8 @@ object DrawerTunables {
     val selection: DrawerSelectionStyle = DrawerSelectionStyle.Fill
     /** Selected fill. */
     const val selectionOpacity: Float = 0.14f
-    /** Search button size. */
-    val searchSize: Dp = 44.dp
+    /** Search button size. Android: the 48 dp icon button (iOS 44). */
+    val searchSize: Dp = 48.dp
     /** Project icon size. */
     val projectIconSize: Dp = 20.dp
     /** Project icon corner radius (at a 20 dp tile; scales with the tile). */
@@ -600,6 +598,19 @@ private fun EmptyPinHeader(progress: Float, headerHeight: Dp) {
 
 /** A row highlight's shape at [DrawerMetrics.rowCornerRadius]. */
 val DrawerRowShape: RoundedCornerShape get() = RoundedCornerShape(DrawerMetrics.rowCornerRadius)
+
+/**
+ * The drawer's container colour, provided by `SessionDrawerContainer`. Android: the phone's
+ * modal drawer is an M3 `ModalDrawerSheet` (`surfaceContainerLow`), so it stands off the session
+ * under its scrim in dark mode too; the sidebar beside a session leaves it unspecified and keeps
+ * the canvas (iOS draws both on the canvas).
+ */
+val LocalDrawerSurface = compositionLocalOf { Color.Unspecified }
+
+/** [LocalDrawerSurface], or the canvas where nothing provides one. */
+@Composable
+@ReadOnlyComposable
+fun drawerSurface(): Color = LocalDrawerSurface.current.takeOrElse { OpenCodeTheme.colors.canvas }
 
 /** iOS XXXL body (23 pt) over Large (17 pt): where shortcut symbols stop growing. */
 internal const val XXXL_FONT_SCALE = 23f / 17f

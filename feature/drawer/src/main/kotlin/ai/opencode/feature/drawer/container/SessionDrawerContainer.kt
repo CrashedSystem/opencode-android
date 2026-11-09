@@ -26,6 +26,7 @@ import ai.opencode.feature.drawer.motion.drawerPanCard
 import ai.opencode.feature.drawer.motion.drawerPanDrawer
 import ai.opencode.feature.drawer.motion.rememberDisplayCornerRadius
 import ai.opencode.feature.drawer.motion.rememberDrawerMotionState
+import ai.opencode.feature.drawer.style.LocalDrawerSurface
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.Image
@@ -323,7 +324,10 @@ fun SessionDrawerContainer(
                     }
                     .then(if (hiddenFromAccessibility) Modifier.clearAndSetSemantics {} else Modifier),
             ) {
-                CompositionLocalProvider(LocalDrawerHidden provides drawerHidden) { drawer() }
+                CompositionLocalProvider(
+                    LocalDrawerHidden provides drawerHidden,
+                    LocalDrawerSurface provides if (modal) MaterialTheme.colorScheme.surfaceContainerLow else Color.Unspecified,
+                ) { drawer() }
                 if (sidebarShown != null) {
                     // The sidebar's edge against the session.
                     Box(

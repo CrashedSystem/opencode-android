@@ -10,6 +10,7 @@ import ai.opencode.core.ui.RollingNumber
 import ai.opencode.core.ui.RollingNumberAlignment
 import ai.opencode.core.ui.RollingNumberStyle
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.feature.drawer.style.drawerSurface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -36,16 +37,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -295,7 +294,7 @@ fun DrawerCatchUpFinishedLabel(
     val showsZero by remember(frameState) { derivedStateOf { frameState.value.showsZero } }
 
     val tone = CatchUpMetrics.readColor
-    val background = OpenCodeTheme.colors.canvas
+    val background = drawerSurface()
     val shape = RoundedCornerShape(cornerRadius)
     val rollStyle = remember(timeline) { RollingNumberStyle.Native.copy(duration = timeline.roll, bounce = 0.0) }
 
@@ -315,7 +314,8 @@ fun DrawerCatchUpFinishedLabel(
                     val brush = Brush.linearGradient(
                         0f to tone.copy(alpha = 0f),
                         0.38f to tone.copy(alpha = 0.30f * alpha),
-                        0.5f to Color.White.copy(alpha = 0.16f * alpha),
+                        // Android: the band's crest is the tone itself, not iOS's white sheen.
+                        0.5f to tone.copy(alpha = 0.42f * alpha),
                         0.62f to tone.copy(alpha = 0.30f * alpha),
                         1f to tone.copy(alpha = 0f),
                         start = Offset(x, size.height * 0.41f),
@@ -323,22 +323,8 @@ fun DrawerCatchUpFinishedLabel(
                     )
                     drawRect(brush, topLeft = Offset(x, 0f), size = Size(bandWidth, size.height))
                 }
-                if (frame.glintOpacity > 0.001) {
-                    // A 30-wide band twice the row's height, leaning 18°, lightening what's under it.
-                    val glintWidth = 30.dp.toPx()
-                    val x = -40.dp.toPx() + (size.width + 50.dp.toPx()) * frame.glintPosition.toFloat()
-                    val alpha = frame.glintOpacity.toFloat().coerceIn(0f, 1f)
-                    val brush = Brush.horizontalGradient(
-                        0f to Color.White.copy(alpha = 0f),
-                        0.5f to Color.White.copy(alpha = 0.7f * alpha),
-                        1f to Color.White.copy(alpha = 0f),
-                        startX = x,
-                        endX = x + glintWidth,
-                    )
-                    rotate(18f, pivot = Offset(x + glintWidth / 2, size.height / 2)) {
-                        drawRect(brush, topLeft = Offset(x, -size.height / 2), size = Size(glintWidth, size.height * 2), blendMode = BlendMode.Plus)
-                    }
-                }
+                // iOS adds a white glint across the row here; Android leaves it out (a glass
+                // highlight, not a Material surface), so the timeline's glint values go unused.
             }
             .padding(start = 10.dp, end = 12.dp)
             .clearAndSetSemantics { contentDescription = "All Caught Up" },

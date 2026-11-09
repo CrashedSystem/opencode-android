@@ -19,6 +19,7 @@ import ai.opencode.feature.drawer.motion.DrawerPanRegions
 import ai.opencode.feature.drawer.motion.drawerPanRow
 import ai.opencode.feature.drawer.style.DrawerHeaderScrollState
 import ai.opencode.feature.drawer.style.DrawerTunables
+import ai.opencode.feature.drawer.style.drawerSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,12 +65,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * iOS `InboxSidebarList.swift` (Inbox Sidebar, experimental): the drawer's sessions as an inbox,
@@ -209,17 +210,22 @@ private fun InboxSidebarSwipeRow(
         enableDismissFromStartToEnd = row.unread,
         backgroundContent = {
             val toArchive = swipe.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            // iOS tints Mark as Read blue and Archive indigo with white labels; Android uses
+            // the theme's primary and tertiary roles with their on-colours.
+            val scheme = MaterialTheme.colorScheme
+            val fill = if (toArchive) scheme.tertiary else scheme.primary
+            val onFill = if (toArchive) scheme.onTertiary else scheme.onPrimary
             Row(
                 Modifier
                     .fillMaxSize()
-                    .background(if (toArchive) InboxSidebarMetrics.archiveTint else InboxSidebarMetrics.markReadTint)
+                    .background(fill)
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = if (toArchive) Arrangement.End else Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OpenCodeIcon(if (toArchive) SFSymbol.Archivebox else SFSymbol.EnvelopeOpen, null, size = 20.dp, tint = Color.White)
+                OpenCodeIcon(if (toArchive) SFSymbol.Archivebox else SFSymbol.EnvelopeOpen, null, size = 20.dp, tint = onFill)
                 Spacer(Modifier.width(6.dp))
-                Text(if (toArchive) "Archive" else "Mark as Read", color = Color.White, style = OpenCodeTextStyles.subheadline)
+                Text(if (toArchive) "Archive" else "Mark as Read", color = onFill, style = OpenCodeTextStyles.subheadline)
             }
         },
         onDismiss = { value ->
@@ -242,7 +248,7 @@ private fun InboxSidebarSwipeRow(
     ) {
         Box(
             Modifier
-                .background(colors.canvas)
+                .background(drawerSurface())
                 .background(if (selected) colors.text.copy(alpha = 0.08f) else Color.Transparent)
                 .clickable(role = Role.Button, onClick = onSelect)
                 .openCodeTapTarget(),
@@ -326,10 +332,6 @@ internal fun rememberInboxSidebarOn(): Boolean {
 
 private object InboxSidebarMetrics {
     val edge = 20.dp
-    /** iOS `.tint(.blue)` on Mark as Read. */
-    val markReadTint = Color(0xFF0A84FF)
-    /** iOS `.tint(.indigo)` on Archive. */
-    val archiveTint = Color(0xFF5E5CE6)
     /** iOS `.orange` beside Needs your input. */
     val needsInputTint = Color(0xFFFF9F0A)
 }

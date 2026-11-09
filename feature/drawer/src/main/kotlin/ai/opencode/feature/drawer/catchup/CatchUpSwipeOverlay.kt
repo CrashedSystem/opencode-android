@@ -138,7 +138,7 @@ internal fun CatchUpSwipeOverlay(state: CatchUpBadgeState, opaque: Boolean, modi
             Text(
                 text = if (isRead) "Mark as\nRead" else "Keep\nUnread",
                 style = OpenCodeTextStyles.title1.copy(fontWeight = FontWeight.Bold, fontSize = 28.sp),
-                color = Color.White,
+                color = CatchUpMetrics.onToneColor,
                 textAlign = if (isRead) TextAlign.Start else TextAlign.End,
             )
         }
@@ -159,14 +159,14 @@ private fun CatchUpProgressCircle(state: CatchUpBadgeState, tone: Color, isRead:
         val scale = size.width / 100f
         val center = Offset(size.width / 2, size.height / 2)
         val full = state.isFull
-        drawCircle(if (full) Color.White else Color.Black.copy(alpha = 0.18f), radius = 44 * scale, center = center)
+        drawCircle(if (full) CatchUpMetrics.onToneColor else Color.Black.copy(alpha = 0.18f), radius = 44 * scale, center = center)
         val ringRadius = 46 * scale
         val ringStroke = Stroke(width = 6.5f * scale, cap = StrokeCap.Round)
-        drawCircle(Color.White.copy(alpha = 0.32f), radius = ringRadius, center = center, style = Stroke(width = 6.5f * scale))
+        drawCircle(CatchUpMetrics.onToneColor.copy(alpha = 0.32f), radius = ringRadius, center = center, style = Stroke(width = 6.5f * scale))
         val progress = state.ringProgress
         if (progress > 0f) {
             drawArc(
-                color = Color.White,
+                color = CatchUpMetrics.onToneColor,
                 startAngle = -90f,
                 sweepAngle = 360f * progress,
                 useCenter = false,
@@ -175,7 +175,7 @@ private fun CatchUpProgressCircle(state: CatchUpBadgeState, tone: Color, isRead:
                 style = ringStroke,
             )
         }
-        val glyphColor = if (full) tone else Color.White
+        val glyphColor = if (full) tone else CatchUpMetrics.onToneColor
         if (isRead) {
             val path = Path().apply {
                 moveTo(33 * scale, 51.5f * scale)
