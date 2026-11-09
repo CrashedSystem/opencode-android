@@ -53,6 +53,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -902,26 +903,38 @@ fun SessionActionPresentations(sheet: StoreOf<SessionSheetFeature.State, Session
             onDismissRequest = { sheet.send(SessionSheetFeature.Action.IsRenamingChanged(false)) },
             title = { Text("Rename Session") },
             text = {
-                OutlinedTextField(
-                    value = state.renameDraft,
-                    onValueChange = { sheet.send(SessionSheetFeature.Action.RenameDraftChanged(it)) },
-                    placeholder = { Text("Title") },
-                    trailingIcon = AlertTextFields.clearButton(state.renameDraft) {
-                        sheet.send(SessionSheetFeature.Action.RenameDraftChanged(""))
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { sheet.send(SessionSheetFeature.Action.RenameSubmitted) }),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
-                )
-            },
-            // Three actions stack, Cancel last, as an iOS alert with more than two buttons does.
-            confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    TextButton(onClick = { sheet.send(SessionSheetFeature.Action.AutoRenameTapped) }) { Text("Auto Rename") }
-                    TextButton(onClick = { sheet.send(SessionSheetFeature.Action.RenameSubmitted) }) { Text("Rename") }
-                    TextButton(onClick = { sheet.send(SessionSheetFeature.Action.IsRenamingChanged(false)) }) { Text("Cancel") }
+                Column {
+                    OutlinedTextField(
+                        value = state.renameDraft,
+                        onValueChange = { sheet.send(SessionSheetFeature.Action.RenameDraftChanged(it)) },
+                        placeholder = { Text("Title") },
+                        trailingIcon = AlertTextFields.clearButton(state.renameDraft) {
+                            sheet.send(SessionSheetFeature.Action.RenameDraftChanged(""))
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { sheet.send(SessionSheetFeature.Action.RenameSubmitted) }),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                    )
+                    // Android divergence: Auto Rename sits under the field as a text button, leaving
+                    // Cancel and Rename as the dialog's two actions (M3 dialog), where iOS's alert
+                    // stacks all three.
+                    TextButton(
+                        onClick = { sheet.send(SessionSheetFeature.Action.AutoRenameTapped) },
+                        contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        OpenCodeIcon(SFSymbol.Sparkles, contentDescription = null, size = ButtonDefaults.IconSize)
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Auto Rename")
+                    }
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = { sheet.send(SessionSheetFeature.Action.RenameSubmitted) }) { Text("Rename") }
+            },
+            dismissButton = {
+                TextButton(onClick = { sheet.send(SessionSheetFeature.Action.IsRenamingChanged(false)) }) { Text("Cancel") }
             },
         )
     }

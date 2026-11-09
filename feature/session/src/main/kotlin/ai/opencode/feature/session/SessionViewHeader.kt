@@ -38,7 +38,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -451,26 +450,26 @@ private fun SessionMenu(
         HorizontalDivider()
         MenuItem("Compact", SFSymbol.RectangleCompressVertical) { menu(SessionSheetFeature.Action.CompactTapped) }
         MenuItem("Fork", SFSymbol.ArrowTriangleBranch) { menu(SessionSheetFeature.Action.ForkTapped) }
-        DropdownMenuItem(
-            text = { Text("Export") },
-            leadingIcon = { OpenCodeIcon(SFSymbol.SquareAndArrowUp, contentDescription = null, size = OpenCodeIconSize.small) },
-            trailingIcon = {
-                OpenCodeIcon(if (exportOpen) SFSymbol.ChevronUp else SFSymbol.ChevronDown, contentDescription = null, size = OpenCodeIconSize.small)
-            },
-            onClick = { exportOpen = !exportOpen },
-            modifier = Modifier.semantics { stateDescription = if (exportOpen) "Expanded" else "Collapsed" },
-        )
-        if (exportOpen) {
+        // Android divergence: Export opens an M3 cascading submenu (trailing arrow_right) instead
+        // of iOS's inline section with a chevron.
+        Box {
             DropdownMenuItem(
-                text = { Text("Markdown") },
-                onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Markdown, title)) },
-                contentPadding = PaddingWithIndent,
+                text = { Text("Export") },
+                leadingIcon = { OpenCodeIcon(SFSymbol.SquareAndArrowUp, contentDescription = null, size = OpenCodeIconSize.small) },
+                trailingIcon = { OpenCodeIcon(SFSymbol.ArrowtriangleRightFill, contentDescription = null, size = OpenCodeIconSize.medium) },
+                onClick = { exportOpen = true },
+                modifier = Modifier.semantics { stateDescription = if (exportOpen) "Expanded" else "Collapsed" },
             )
-            DropdownMenuItem(
-                text = { Text("JSON") },
-                onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Json, title)) },
-                contentPadding = PaddingWithIndent,
-            )
+            DropdownMenu(expanded = exportOpen, onDismissRequest = { exportOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Markdown") },
+                    onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Markdown, title)) },
+                )
+                DropdownMenuItem(
+                    text = { Text("JSON") },
+                    onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Json, title)) },
+                )
+            }
         }
         MenuItem("Session Info", SFSymbol.InfoCircle) { send(Action.SessionInfoTapped) }
         if (developerMode) {
@@ -489,8 +488,6 @@ private fun SessionMenu(
         }
     }
 }
-
-private val PaddingWithIndent = PaddingValues(start = 48.dp, end = 12.dp)
 
 @Composable
 private fun MenuItem(label: String, symbol: SFSymbol, modifier: Modifier = Modifier, onClick: () -> Unit) {

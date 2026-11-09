@@ -129,6 +129,7 @@ and `ellipsis` (every overflow menu) is the vertical `more_vert`, as on other An
 | `chevron.up` | `keyboard_arrow_up` | `ms_keyboard_arrow_up` | `SFSymbol.ChevronUp` | DictationViews, LinkPreviewViews, OnboardingPlaygroundView, TranscriptUserMessage |
 | `chevron.up.chevron.down` | `unfold_more` | `ms_unfold_more` | `SFSymbol.ChevronUpChevronDown` | AttachmentMenu, ModelPickerOverlays, ModelPickerSheet, SessionView+ModelPicker, SettingsRows, SettingsView, TuningPanelView |
 | `arrowtriangle.down.fill` | `arrow_drop_down` | `ms_arrow_drop_down` | `SFSymbol.ArrowtriangleDownFill` | SettingsRows (Android: Settings menu rows end in Material's dropdown arrow instead of iOS's up-and-down chevron) |
+| `arrowtriangle.right.fill` | `arrow_right` | `ms_arrow_right` | `SFSymbol.ArrowtriangleRightFill` | SessionViewHeader (Android: the session menu's Export row opens an M3 cascading submenu marked with `arrow_right` instead of iOS's inline chevron-down section) |
 | `circle` | `radio_button_unchecked` | `ms_radio_button_unchecked` | `SFSymbol.Circle` | ProjectIcon, RequestDockView |
 | `circle.dotted.circle` | `motion_photos_on` | `ms_motion_photos_on` | `SFSymbol.CircleDottedCircle` | WhatsNewList |
 | `circle.fill` | `circle` (fill) | `ms_circle_fill` | `SFSymbol.CircleFill` | DrawerListSessionCell, WhatsNewView |

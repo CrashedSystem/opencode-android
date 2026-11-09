@@ -20,6 +20,7 @@ arrow_circle_up fill                # arrow.up.circle.fill
 arrow_back mirror                   # chevron.backward (Android back arrow)
 arrow_downward                      # arrow.down
 arrow_drop_down                     # arrowtriangle.down.fill (Android: a menu row's dropdown indicator)
+arrow_right mirror                  # arrowtriangle.right.fill (Android: a menu row's cascading submenu indicator)
 arrow_forward mirror                # arrow.right
 arrow_outward mirror                # arrow.up.right
 arrow_range                         # arrow.left.and.right.text.vertical
