@@ -42,13 +42,21 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import ai.opencode.core.ui.SFSymbol
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -65,7 +73,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -94,23 +101,24 @@ import androidx.compose.ui.viewinterop.AndroidView
 import java.util.UUID
 import kotlin.math.roundToInt
 
-/** Port of iOS `BrowserMetrics`. */
+/** Port of iOS `BrowserMetrics` (Android: a top app bar instead of iOS's floating back button). */
 object BrowserMetrics {
-    /** The controls, like the session header's. */
-    val controlSize = 44.dp
-    /** The back button's row at the top, where the session header's sits. */
-    val headerClearance = TranscriptMetrics.clustered + controlSize + 8.dp
-    /** The bottom bar's height. */
+    /** The controls' touch target (M3's 48 dp). */
+    val controlSize = 48.dp
+    /** The top app bar's height (M3 small top app bar), under the status bar. */
+    val headerClearance = 64.dp
+    /** The Ask composer's minimum height. */
     val barHeight = 52.dp
 }
 
 /**
- * The page pushed over the session (D-40, Push In): the web view edge to edge, a back button
- * where the drawer button sits, and a bar at the bottom (the page's back and forward, its title
- * and host, Share, Open in Browser, and Ask). Ask raises a composer over the bar; the question goes to the
- * session with the page attached, and a capsule shows the reply's progress. Going back from the
- * first page closes it: the back button, or the stack's back gesture (which steps back through
- * the page's history first: see [browserBackAction]). Port of iOS `BrowserPage`: the session
+ * The page pushed over the session (D-40, Push In). Android lays it out like a Chrome Custom
+ * Tab rather than iOS's Safari-style chrome: a top app bar (close, the page's title and host, an
+ * overflow menu with Back, Forward, Share and Open in Browser) over the web view, and Ask as an
+ * extended FAB at the bottom. Ask raises a composer beside it; the question goes to the session
+ * with the page attached, and a capsule shows the reply's progress. Close, or the stack's back
+ * gesture (which steps back through the page's history first: see [browserBackAction]), returns
+ * to the session. Port of iOS `BrowserPage`: the session
  * passes its scoped browser store and how the reply to the last question is going.
  *
  * @param replyStatus the reply capsule's state (iOS `SessionFeature.State.browserReplyStatus`);
@@ -163,7 +171,7 @@ fun BrowserPage(
             .testTag("browser"),
     ) {
         if (page != null) {
-            // Edge to edge; the back button above and the bar below are the page's obscured
+            // Edge to edge; the top app bar above and Ask below are the page's obscured
             // insets, so it scrolls under them and fixed elements' first/last pixels clear them.
             BrowserWebViewHost(
                 pageID = page.pageID,
@@ -178,59 +186,38 @@ fun BrowserPage(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        // Legibility behind the status bar and the back button, like the session header's wash.
-        val surface = canvas
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(safeTop + BrowserMetrics.headerClearance)
-                .background(Brush.verticalGradient(0f to surface, 0.5f to surface.copy(alpha = 0.85f), 1f to surface.copy(alpha = 0f)))
-                .clearAndSetSemantics {},
-        )
-        // Where the drawer button sits on the session: back to it.
-        Surface(
-            onClick = ::close,
-            shape = CircleShape,
-            contentColor = OpenCodeTheme.colors.text,
-            tonalElevation = 3.dp,
-            shadowElevation = 2.dp,
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.statusBars))
-                .padding(start = 12.dp, top = TranscriptMetrics.clustered)
-                .size(BrowserMetrics.controlSize)
-                .semantics { contentDescription = "Back to Session" }
-                .testTag("browser-pop"),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                OpenCodeIcon("chevron.backward", contentDescription = null)
-            }
-        }
-        // The bar and Ask rise with the keyboard; the page stays put beneath.
-        Column(
+        TopBar(store, page, onClose = ::close)
+        // Ask and the reply rise with the keyboard; the page stays put beneath.
+        Row(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .onSizeChanged { bottomHeight = with(density) { it.height.toDp() } }
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            AnimatedVisibility(
-                visible = replyStatus != null && !isAsking,
-                enter = appear(reduceMotion),
-                exit = disappear(reduceMotion),
-            ) {
-                if (replyStatus != null) ReplyCapsule(replyStatus, ::close, workingIndicator)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.BottomStart) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = replyStatus != null && !isAsking,
+                    enter = appear(reduceMotion),
+                    exit = disappear(reduceMotion),
+                ) {
+                    if (replyStatus != null) ReplyCapsule(replyStatus, ::close, workingIndicator)
+                }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isAsking,
+                    enter = appear(reduceMotion),
+                    exit = disappear(reduceMotion),
+                ) {
+                    if (page != null) AskComposer(store, page, onSend = { focusManager.clearFocus() })
+                }
             }
-            AnimatedVisibility(
-                visible = isAsking,
-                enter = appear(reduceMotion),
-                exit = disappear(reduceMotion),
-            ) {
-                if (page != null) AskComposer(store, page, onSend = { focusManager.clearFocus() })
+            AskButton(isAsking) {
+                store.send(if (isAsking) BrowserFeature.Action.AskDismissed else BrowserFeature.Action.AskTapped)
             }
-            Bar(store, page)
         }
     }
 }
@@ -269,71 +256,90 @@ private fun disappear(reduceMotion: Boolean): ExitTransition {
         fadeOut(role.animation(MotionPhase.Exit))
 }
 
+/**
+ * The Custom Tab bar (Android in place of iOS's floating back button and bottom bar): close,
+ * the page's title and host, and an overflow menu with the page's Back, Forward, Share and Open
+ * in Browser.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Bar(store: StoreOf<BrowserFeature.State, BrowserFeature.Action>, page: BrowserFeature.State.Snapshot?) {
-    val isAsking = page?.isAsking == true
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            shape = OpenCodeShape.capsule,
-            tonalElevation = 3.dp,
-            shadowElevation = 2.dp,
-            modifier = Modifier
-                .weight(1f)
-                .height(BrowserMetrics.barHeight),
-        ) {
-            Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                BarButton("chevron.left", "Back", "browser-back", page?.canGoBack == true) {
-                    store.send(BrowserFeature.Action.BackTapped)
-                }
-                BarButton("chevron.right", "Forward", "browser-forward", page?.canGoForward == true) {
-                    store.send(BrowserFeature.Action.ForwardTapped)
-                }
-                Address(page, onTap = { store.send(BrowserFeature.Action.AddressTapped) }, Modifier.weight(1f))
-                if (page != null) {
-                    // iOS `ShareLink`: the system's share sheet, presented by the button itself.
-                    BarButton("square.and.arrow.up", "Share", "browser-share", enabled = true) {
-                        dependency(LinkShareSheet).present(page.url)
-                    }
-                    BarButton("safari", "Open in Browser", "browser-safari", enabled = true) {
-                        store.send(BrowserFeature.Action.SafariTapped)
-                    }
-                }
+private fun TopBar(
+    store: StoreOf<BrowserFeature.State, BrowserFeature.Action>,
+    page: BrowserFeature.State.Snapshot?,
+    onClose: () -> Unit,
+) {
+    TopAppBar(
+        title = { Address(page, onTap = { store.send(BrowserFeature.Action.AddressTapped) }, Modifier.fillMaxWidth()) },
+        navigationIcon = {
+            IconButton(onClick = onClose, modifier = Modifier.testTag("browser-pop")) {
+                OpenCodeIcon(SFSymbol.Xmark, contentDescription = "Back to Session")
             }
+        },
+        actions = {
+            if (page != null) PageMenu(store, page)
+        },
+        windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    )
+}
+
+@Composable
+private fun PageMenu(store: StoreOf<BrowserFeature.State, BrowserFeature.Action>, page: BrowserFeature.State.Snapshot) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.testTag("browser-menu")) {
+            OpenCodeIcon(SFSymbol.Ellipsis, contentDescription = "More Options")
         }
-        Surface(
-            onClick = { store.send(if (isAsking) BrowserFeature.Action.AskDismissed else BrowserFeature.Action.AskTapped) },
-            shape = CircleShape,
-            tonalElevation = 3.dp,
-            shadowElevation = 2.dp,
-            modifier = Modifier
-                .size(BrowserMetrics.barHeight)
-                .semantics { contentDescription = if (isAsking) "Cancel" else "Ask About This Page" }
-                .testTag("browser-ask"),
-        ) {
-            // iOS `.contentTransition(.symbolEffect(.replace))`.
-            Crossfade(isAsking, Modifier.fillMaxSize(), animationSpec = tween((Motion.fadeStandard * 1000).toInt()), label = "browser-ask") { asking ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    OpenCodeIcon(if (asking) "xmark" else "text.bubble", contentDescription = null, tint = OpenCodeTheme.colors.text)
-                }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            MenuItem(SFSymbol.ChevronBackward, "Back", "browser-back", enabled = page.canGoBack) {
+                expanded = false
+                store.send(BrowserFeature.Action.BackTapped)
+            }
+            MenuItem(SFSymbol.ArrowRight, "Forward", "browser-forward", enabled = page.canGoForward) {
+                expanded = false
+                store.send(BrowserFeature.Action.ForwardTapped)
+            }
+            // iOS `ShareLink`: the system's share sheet.
+            MenuItem(SFSymbol.SquareAndArrowUp, "Share", "browser-share", enabled = true) {
+                expanded = false
+                dependency(LinkShareSheet).present(page.url)
+            }
+            MenuItem(SFSymbol.ArrowUpForwardApp, "Open in Browser", "browser-safari", enabled = true) {
+                expanded = false
+                store.send(BrowserFeature.Action.SafariTapped)
             }
         }
     }
 }
 
 @Composable
-private fun BarButton(systemImage: String, label: String, tag: String, enabled: Boolean, action: () -> Unit) {
-    Box(
-        Modifier
-            .size(BrowserMetrics.controlSize)
-            .clickable(enabled = enabled, role = Role.Button, onClickLabel = null, onClick = action)
-            .semantics { contentDescription = label }
-            .testTag(tag),
-        contentAlignment = Alignment.Center,
-    ) {
-        // iOS `.primary` / `.tertiary`.
-        val colors = OpenCodeTheme.colors
-        OpenCodeIcon(systemImage, contentDescription = null, tint = if (enabled) colors.text else colors.tertiaryText)
-    }
+private fun MenuItem(symbol: SFSymbol, label: String, tag: String, enabled: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label) },
+        onClick = onClick,
+        leadingIcon = { OpenCodeIcon(symbol, contentDescription = null) },
+        enabled = enabled,
+        modifier = Modifier.testTag(tag),
+    )
+}
+
+/** Ask as an extended FAB; while asking it folds to a Cancel FAB beside the composer. */
+@Composable
+private fun AskButton(isAsking: Boolean, onClick: () -> Unit) {
+    ExtendedFloatingActionButton(
+        text = { Text("Ask") },
+        icon = {
+            // iOS `.contentTransition(.symbolEffect(.replace))`.
+            Crossfade(isAsking, animationSpec = tween((Motion.fadeStandard * 1000).toInt()), label = "browser-ask") { asking ->
+                OpenCodeIcon(if (asking) SFSymbol.Xmark else SFSymbol.TextBubble, contentDescription = null)
+            }
+        },
+        onClick = onClick,
+        expanded = !isAsking,
+        modifier = Modifier
+            .semantics { contentDescription = if (isAsking) "Cancel" else "Ask About This Page" }
+            .testTag("browser-ask"),
+    )
 }
 
 /** The page's title over its host; a tap scrolls to the top. */
@@ -355,13 +361,12 @@ private fun Address(page: BrowserFeature.State.Snapshot?, onTap: () -> Unit, mod
                 }
             }
             .testTag("browser-address"),
-        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
     ) {
         Text(
             title,
-            style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold),
-            color = OpenCodeTheme.colors.text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -507,7 +512,7 @@ private fun ReplyCapsule(
 fun BrowserWebViewHost(
     pageID: UUID,
     url: String,
-    /** The back button above and the bar below; the page scrolls under them, clear at either end. */
+    /** The top app bar above and Ask below; the page scrolls under them, clear at either end. */
     insets: BrowserInsets,
     onEvent: (BrowserFeature.Action) -> Unit,
     modifier: Modifier = Modifier,
