@@ -431,6 +431,21 @@ private fun SessionMenu(
     fun menu(action: SessionSheetFeature.Action) = send(Action.SessionMenu(action))
     // No title heading: the header already shows it (6bbf321d); exports still name the file by it.
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        // Android divergence: Export's formats take the menu's place behind a back row, the way
+        // Android's own overflow submenus and Google's apps open them, instead of iOS's inline
+        // section with a chevron.
+        if (exportOpen) {
+            DropdownMenuItem(
+                text = { Text("Export", style = MaterialTheme.typography.titleSmall) },
+                leadingIcon = { OpenCodeIcon(SFSymbol.ChevronBackward, contentDescription = "Back", size = OpenCodeIconSize.small) },
+                onClick = { exportOpen = false },
+                contentPadding = MenuDefaults.DropdownMenuItemContentPadding,
+            )
+            HorizontalDivider()
+            MenuItem("Markdown", SFSymbol.DocPlaintext) { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Markdown, title)) }
+            MenuItem("JSON", SFSymbol.DocText) { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Json, title)) }
+            return@DropdownMenu
+        }
         listContext.isPinned?.let { isPinned ->
             MenuItem(if (isPinned) "Unpin" else "Pin", if (isPinned) SFSymbol.PinSlash else SFSymbol.Pin) {
                 menu(SessionSheetFeature.Action.PinTapped)
@@ -450,27 +465,13 @@ private fun SessionMenu(
         HorizontalDivider()
         MenuItem("Compact", SFSymbol.RectangleCompressVertical) { menu(SessionSheetFeature.Action.CompactTapped) }
         MenuItem("Fork", SFSymbol.ArrowTriangleBranch) { menu(SessionSheetFeature.Action.ForkTapped) }
-        // Android divergence: Export opens an M3 cascading submenu (trailing arrow_right) instead
-        // of iOS's inline section with a chevron.
-        Box {
-            DropdownMenuItem(
-                text = { Text("Export") },
-                leadingIcon = { OpenCodeIcon(SFSymbol.SquareAndArrowUp, contentDescription = null, size = OpenCodeIconSize.small) },
-                trailingIcon = { OpenCodeIcon(SFSymbol.ArrowtriangleRightFill, contentDescription = null, size = OpenCodeIconSize.medium) },
-                onClick = { exportOpen = true },
-                modifier = Modifier.semantics { stateDescription = if (exportOpen) "Expanded" else "Collapsed" },
-            )
-            DropdownMenu(expanded = exportOpen, onDismissRequest = { exportOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Markdown") },
-                    onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Markdown, title)) },
-                )
-                DropdownMenuItem(
-                    text = { Text("JSON") },
-                    onClick = { menu(SessionSheetFeature.Action.ExportTapped(OpenCodeExportFormat.Json, title)) },
-                )
-            }
-        }
+        DropdownMenuItem(
+            text = { Text("Export") },
+            leadingIcon = { OpenCodeIcon(SFSymbol.SquareAndArrowUp, contentDescription = null, size = OpenCodeIconSize.small) },
+            trailingIcon = { OpenCodeIcon(SFSymbol.ArrowtriangleRightFill, contentDescription = null, size = OpenCodeIconSize.medium) },
+            onClick = { exportOpen = true },
+            contentPadding = MenuDefaults.DropdownMenuItemContentPadding,
+        )
         MenuItem("Session Info", SFSymbol.InfoCircle) { send(Action.SessionInfoTapped) }
         if (developerMode) {
             MenuItem("Report a Problem", SFSymbol.ExclamationmarkBubble, Modifier.testTag("session-menu-report-problem")) {

@@ -10,19 +10,25 @@ import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.server.model.AgentDisplayName
 import ai.opencode.server.model.OpenCodeAutocompleteAgent
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -42,7 +49,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -107,6 +113,7 @@ fun ComposerAgentChip(
 
 /**
  * iOS `AgentChip`: the current agent's name, opening a menu of the server's primary agents.
+ * Android: an outlined M3 assist chip without iOS's chevron, like the model chip beside it.
  * [targetDrop]: how far its target sits below its ink (the composer's `pickerTargetDrop`).
  */
 @Composable
@@ -124,12 +131,15 @@ fun AgentChip(
     // Mounted as the composer expands: the list is fresh before it opens.
     LaunchedEffect(Unit) { onOpen() }
     val secondary = OpenCodeTheme.colors.secondaryText
+    // One press source for the 48 dp target and the 32 dp chip, so the ripple stays on the chip.
+    val interaction = remember { MutableInteractionSource() }
+    val chipShape = AssistChipDefaults.shape
     // The whole menu moves its target down and its ink back up (iOS e16d3e8e), so the menu
     // drops from the lowered target too.
     Box(modifier.offset(y = targetDrop)) {
-        Row(
+        Box(
             Modifier
-                .clickable(enabled = enabled, role = Role.Button) { open = true }
+                .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) { open = true }
                 .heightIn(min = 48.dp)
                 .clearAndSetSemantics {
                     contentDescription = "Choose agent"
@@ -138,12 +148,26 @@ fun AgentChip(
                 }
                 .testTag("composer-agent")
                 .offset(y = -targetDrop),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            contentAlignment = Alignment.CenterStart,
         ) {
-            val style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium)
-            Text(name, style = style, color = secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            OpenCodeIcon(SFSymbol.ChevronDown, null, size = 12.dp, tint = secondary)
+            // Android: an M3 assist chip (32 dp outlined, `labelLarge`), matching the model chip.
+            Box(
+                Modifier
+                    .height(AssistChipDefaults.Height)
+                    .clip(chipShape)
+                    .border(AssistChipDefaults.assistChipBorder(enabled = enabled), chipShape)
+                    .indication(interaction, ripple())
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (agents.isEmpty()) {

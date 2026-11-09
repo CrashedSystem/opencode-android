@@ -4,9 +4,7 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionRollDirection
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
-import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTheme
-import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.ui.excludedFromDrawerPan
 import ai.opencode.core.ui.openCodeTapTarget
 import androidx.compose.animation.AnimatedContent
@@ -66,7 +64,8 @@ import kotlin.math.roundToInt
  * TalkBack: one "Choose model" button whose value is the name and level; on an adjustable model
  * it is also a slider whose steps send [ModelPickerEvent.ModelRowLevelChanged] (iOS
  * `accessibilityAdjustableAction`). Android: drawn as an M3 assist chip (32 dp outlined
- * container, `labelLarge`, an 18 dp drop-down arrow) inside its 48 dp target.
+ * container, `labelLarge`) inside its 48 dp target, matching the agent chip beside it. It shows
+ * no provider mark and no arrow, so the name and level fit a 384 dp screen at large font sizes.
  *
  * [targetDrop]: how far its target sits below its ink (the composer's `pickerTargetDrop`).
  */
@@ -140,8 +139,7 @@ fun OnePickerChip(
                 .border(AssistChipDefaults.assistChipBorder(enabled = isEnabled), chipShape)
                 .indication(interaction, ripple())
                 .animateContentSize(if (animates) Motion.layout.animation(reduceMotion = reduceMotion) else snap())
-                // The drop-down arrow's glyph carries its own side bearing, so the end inset is smaller.
-                .padding(start = 8.dp, end = 4.dp),
+                .padding(horizontal = ChipHorizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -183,8 +181,6 @@ fun OnePickerChip(
                     }
                 }
             }
-            // Android: always the M3 drop-down arrow (iOS hides its chevron, `CHIP_SHOWS_CHEVRON`).
-            OpenCodeIcon(SFSymbol.ArrowtriangleDownFill, null, size = AssistChipDefaults.IconSize, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -206,6 +202,9 @@ object OnePickerChip {
         )
     }
 }
+
+/** Inside the outline; M3's text-only assist chip uses 16 dp, trimmed to leave the name room. */
+private val ChipHorizontalPadding = 12.dp
 
 /** M3 chip label (`labelLarge`); iOS uses `.subheadline.weight(.medium)`. */
 private val ChipTextStyle: TextStyle

@@ -89,8 +89,11 @@ object OnePickerTunables {
     /** "Show providers below Recent". */
     const val SHOWS_ALL_MODELS = true
 
-    /** "Provider logo on chip". */
-    const val CHIP_SHOWS_LOGO = true
+    /**
+     * "Provider logo on chip". Android: off (iOS on). The composer row runs out of room on a
+     * 384 dp phone at large font sizes; One Picker's rows still show each provider's mark.
+     */
+    const val CHIP_SHOWS_LOGO = false
 
     /** "Arc glyph on chip". */
     const val CHIP_SHOWS_ARC = false
