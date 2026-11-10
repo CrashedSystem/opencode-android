@@ -57,14 +57,21 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- Ask OpenCode: sends a message without opening the app. -->
+        <!-- Ask OpenCode: sends a message without opening the app. Handling ASSIST lets OpenCode
+             be chosen as the digital assistant app (Settings › Apps › Default apps), so the
+             assist gesture (hold power or home) opens it over the current screen. -->
         <activity
             android:name=".intents.AskOpenCodeActivity"
             android:excludeFromRecents="true"
             android:exported="true"
             android:taskAffinity=""
             android:theme="@style/Theme.OpenCode.SystemDialog"
-            android:windowSoftInputMode="adjustResize|stateVisible" />
+            android:windowSoftInputMode="adjustResize|stateVisible">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- The share sheet (iOS OpenCodeShare). -->
         <activity
