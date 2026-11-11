@@ -130,11 +130,13 @@ fun AppearanceSettingsView(store: SettingsStore) {
                             Text(appTheme.title, style = SettingsText.title, color = OpenCodeTheme.colors.secondaryText)
                         }
                     }
+                    SettingsChevron()
                 } else {
                     Text("Theme", style = SettingsText.title, color = OpenCodeTheme.colors.text, modifier = Modifier.weight(1f))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         swatch()
                         Text(appTheme.title, style = SettingsText.title, color = OpenCodeTheme.colors.secondaryText, maxLines = 1)
+                        SettingsChevron()
                     }
                 }
             }

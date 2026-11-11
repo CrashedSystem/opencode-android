@@ -279,9 +279,8 @@ fun SettingsRowText(title: String, summary: String?, modifier: Modifier = Modifi
 
 /**
  * iOS `SettingsRow`: a symbol, the title, and a quiet value; with [onClick] it is a navigation
- * row (iOS `NavigationLink`). Android divergence: the value is the summary under the title, and
- * there's no chevron (Material lists don't mark navigation rows); [showsChevron] is kept so the
- * call sites stay as on iOS.
+ * row (iOS `NavigationLink`) and ends in [SettingsChevron] unless [showsChevron] is false.
+ * Android divergence: the value is the summary under the title.
  */
 @Composable
 fun SettingsRow(
@@ -296,7 +295,17 @@ fun SettingsRow(
     SettingsRowFrame(modifier, onClick = onClick) {
         if (symbol != null) SettingsIcon(symbol, tint)
         SettingsRowText(title, value, Modifier.weight(1f))
+        if (onClick != null && showsChevron) SettingsChevron()
     }
+}
+
+/**
+ * The muted chevron that ends a row opening another page, as the desktop's touch layout marks
+ * rows that open a panel (`chevron-right`, muted icon colour). A value sits before it.
+ */
+@Composable
+fun SettingsChevron() {
+    OpenCodeIcon(SFSymbol.ChevronRight, contentDescription = null, size = 16.dp, tint = OpenCodeTheme.colors.tertiaryText)
 }
 
 /** iOS `LabeledContent(title, value:)`: a non-interactive title/value row; on Android the value is the summary. */

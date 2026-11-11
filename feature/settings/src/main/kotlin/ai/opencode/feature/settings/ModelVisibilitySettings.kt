@@ -29,6 +29,7 @@ import ai.opencode.server.model.OpenCodeModelCatalog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -225,7 +226,10 @@ fun ModelVisibilitySettingsView(store: SettingsStore) {
                         }) {
                             ProviderIcon(provider.id, Modifier.size(20.dp), provider.canonicalID, tint = OpenCodeTheme.colors.secondaryText)
                             Text(provider.title, style = SettingsText.title, color = OpenCodeTheme.colors.text, modifier = Modifier.weight(1f))
-                            Text(state.summary(provider, visibility), style = SettingsText.title, color = OpenCodeTheme.colors.secondaryText)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(state.summary(provider, visibility), style = SettingsText.title, color = OpenCodeTheme.colors.secondaryText)
+                                SettingsChevron()
+                            }
                         }
                     }
                 }

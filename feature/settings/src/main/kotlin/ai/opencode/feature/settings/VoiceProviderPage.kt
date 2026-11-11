@@ -77,6 +77,7 @@ internal fun VoiceProviderSettingsRow(state: VoiceSettingsFeature.State, onClick
                 VoiceProviderStatus(active.state)
             }
         }
+        SettingsChevron()
     }
 }
 
