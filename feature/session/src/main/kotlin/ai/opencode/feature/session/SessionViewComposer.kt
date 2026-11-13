@@ -121,6 +121,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -163,6 +164,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.max
 import kotlinx.coroutines.Job
@@ -1818,7 +1820,26 @@ private fun SessionComposerEnv.Composer() {
         if (holdsRow) rowReveal.snapTo(0f)
         else if (rowReveal.value < 1f) rowReveal.animateTo(1f, PhotoFlightTunables.rowAnimation())
     }
-    val attachmentReveal = if (holdsRow) 0f else rowReveal.value
+    // iOS: a send's photos leave their row at once, and the composer shrinks on their clock with
+    // its controls riding its bottom edge. The row's place stays and closes like a folding row.
+    val sendsImages = host.sendTransition.images.isSending
+    var rowHeight by remember { mutableIntStateOf(0) }
+    val showsRow = host.pendingAttachmentsRow != null && hasComposerAttachments
+    val closesSentRow = sendsImages && !showsRow && rowHeight > 0 && !reducedMotion
+    val sentRowClose = remember { Animatable(1f) }
+    LaunchedEffect(closesSentRow) {
+        if (closesSentRow) {
+            // The photos' critical spring: 7.43 / duration is its ω.
+            sentRowClose.animateTo(0f, MotionSpring(duration = 2 * PI * SendImageTunables.duration / 7.43).spec())
+        } else {
+            sentRowClose.snapTo(1f)
+        }
+    }
+    val attachmentReveal = when {
+        holdsRow -> 0f
+        closesSentRow -> sentRowClose.value
+        else -> rowReveal.value
+    }
     val current by rememberUpdatedState(this)
     Box(
         Modifier
@@ -1836,7 +1857,7 @@ private fun SessionComposerEnv.Composer() {
             // transaction): the card hugs it, so the controls ride its bottom edge. Its own resize
             // spring would chase the field's, lifting the controls off that edge.
             .then(
-                if (reducedMotion || morphMoving || holdsRow || rowReveal.isRunning || host.sendTransition.isShrinking) Modifier
+                if (reducedMotion || morphMoving || holdsRow || rowReveal.isRunning || host.sendTransition.isShrinking || sendsImages) Modifier
                 else Modifier.animateContentSize(MotionSpring(0.25).spec()),
             )
             // iOS `ComposerKeyboardSpacing(top: true, recording:)`: the top inset is taken back as
@@ -1861,15 +1882,18 @@ private fun SessionComposerEnv.Composer() {
         ComposerFoldLayout(foldProgress = fold, attachmentRevealProgress = attachmentReveal) {
             val row = host.pendingAttachmentsRow
             // Reserved photo slots (the New Plus Menu's picks still decoding) count too.
-            if (row != null && hasComposerAttachments) {
+            if (row != null && showsRow) {
                 Box(
                     Modifier
                         .composerFolds()
+                        .onSizeChanged { rowHeight = it.height }
                         .alpha(rowAlpha)
                         .then(if (recording) Modifier.clearAndSetSemantics { }.blockTouches() else Modifier)
                         // iOS `SentImageDeparture`: the sent photos leave as their copies take off.
                         .sentImageDeparture(host.sendTransition.images),
                 ) { row(composerExpanded) }
+            } else if (closesSentRow) {
+                Spacer(Modifier.composerFolds().height(with(LocalDensity.current) { rowHeight.toDp() }))
             }
             Box {
                 ComposerLayout(
@@ -2012,7 +2036,8 @@ private fun SessionComposerEnv.ComposerInput(expanded: Boolean, recording: Boole
                 maxLines = 1,
                 modifier = Modifier
                     .padding(top = ComposerTunables.expandedTopInset.dp * (topInsetFraction ?: if (expanded) 1f else 0f))
-                    .alpha(placeholderAlpha)
+                    // The snap lands a frame late, so the send's own frame reads the flag itself.
+                    .alpha(if (imagesSending) 0f else placeholderAlpha)
                     .clearAndSetSemantics { },
             )
         }

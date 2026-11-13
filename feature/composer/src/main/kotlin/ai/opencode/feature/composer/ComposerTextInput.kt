@@ -72,6 +72,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -1389,6 +1390,12 @@ fun ComposerTextInput(
                 .fillMaxWidth()
                 .padding(top = appliedTopInset)
                 .onGloballyPositioned { coordinates -> sendTransition?.textOrigin = coordinates.positionInWindow() }
+                // iOS clears the field in the send's own transaction: until the clear lands here,
+                // the captured words are the only copy drawn.
+                .graphicsLayer {
+                    val sent = sendTransition?.prepared
+                    alpha = if (sent != null && sent.fromComposer && sent.text == state.text.toString()) 0f else 1f
+                }
                 .focusRequester(focusRequester)
                 .drawerKeyboardField(fieldKey)
                 .onFocusChanged { focus ->

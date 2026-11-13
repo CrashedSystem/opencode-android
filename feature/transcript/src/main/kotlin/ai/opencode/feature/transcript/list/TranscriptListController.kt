@@ -928,11 +928,7 @@ class TranscriptListController(
             handleBehavior(TranscriptScrollBehavior.Event.UserScrolled(viewport))
             return
         }
-        if (pendingCut) {
-            pendingCut = false
-            beginCutGlide(viewport)
-            return
-        }
+        if (pendingCut) return
         if (jumpGlide != null || revealGlide != null) return
         pendingNewMessagesLanding?.let { generation ->
             if (landOnNewMessages(generation, info)) return
@@ -1265,9 +1261,19 @@ class TranscriptListController(
         }
         val lastVisible = lastLayout?.visibleItemsInfo?.lastOrNull()?.index == snapshot.items.lastIndex
         if (distance > viewport.visibleHeight * JumpGlide.REACH || !lastVisible) {
-            // Cut: put the end in view, then step back to the lead and glide from there.
+            // Cut: put the end in view, then step back to the lead and glide from there. Both
+            // remeasure at once, before the next frame (iOS sizes the rows from the cut in one
+            // pass), so the end is never drawn on its own.
             pendingCut = true
-            state.requestScrollToItem(snapshot.items.lastIndex, Int.MAX_VALUE / 4)
+            scope.launch {
+                // A finger taking the list cancels the cut, and then no glide starts.
+                try {
+                    state.scrollToItem(snapshot.items.lastIndex, Int.MAX_VALUE / 4)
+                } finally {
+                    pendingCut = false
+                }
+                beginCutGlide(viewport())
+            }
             return
         }
         jumpGlide = JumpGlide(distance, JumpGlide.Curve.FromRest)

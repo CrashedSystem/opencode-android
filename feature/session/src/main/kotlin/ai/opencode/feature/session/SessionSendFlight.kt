@@ -90,7 +90,8 @@ internal class SendFlight(
     var elapsed: Double = 0.0
     /** The bubble was found and the flight is under way (iOS: `sendFlights[item]` exists). */
     var started = false
-    var waitingFrames = 0
+    /** How long (s) it has waited for its bubble's first layout. */
+    var waited = 0.0
     var progress: Float = 0f
     /** The bubble's last known place (window px); a bubble scrolled away keeps it. */
     var destination: Rect? = null
@@ -341,7 +342,7 @@ internal class SessionSendFlights(
             val marker = landing.marker(flight.itemID)
             if (marker != null && marker.bounds.width > 0f) flight.destination = marker.bounds
             if (!flight.started) {
-                if (!begin(flight, markers)) {
+                if (!begin(flight, markers, dt)) {
                     landed += flight
                     continue
                 }
@@ -379,14 +380,15 @@ internal class SessionSendFlights(
      * Finds [flight]'s bubble and its photos' slots (iOS `beginLanding`, which lays the cell out
      * first). Returns false when it gives up: it then fades where it is.
      */
-    private fun begin(flight: SendFlight, markers: (String) -> Rect?): Boolean {
+    private fun begin(flight: SendFlight, markers: (String) -> Rect?, dt: Double): Boolean {
         if (flight.source != null && flight.destination == null) predictedDestination(flight)?.let { flight.destination = it }
         val wordsReady = flight.source == null || flight.destination != null
         val imagesReady = !flight.awaitsImages || images.hasDestination(flight.itemID, markers)
         if (!wordsReady || !imagesReady) {
-            // The bubble hasn't been laid out yet: a few frames for the follower to bring it.
-            flight.waitingFrames += 1
-            if (flight.waitingFrames <= MAXIMUM_WAITING_FRAMES) return true
+            // The bubble hasn't been laid out yet: a moment for the follower to bring it (iOS
+            // `sendBubbleWaitMax`), however fast the display's frames come.
+            flight.waited += dt
+            if (flight.waited <= SendFlight.MAXIMUM_HOLD) return true
             // The photos' slots never came: the words fly alone, and the copies fade where they are.
             if (!wordsReady || flight.source == null) return false
             transition.dissolvePreparedImages()
@@ -509,13 +511,15 @@ internal class SessionSendFlights(
             val aim = destination.translate(0f, -lift)
             // The words shrink into the bubble's text as the bubble grows out of them.
             val text = Rect(aim.left + gutter, aim.top + vertical, aim.right - gutter, aim.bottom - vertical)
-            scope.drawWords(source, ComposerSendTransition.interpolate(from, text, p), 1 - p, origin)
+            // The words are gone by a third of the way and the bubble only fades in after a fifth,
+            // so they and the bubble's own lines (wrapped at another width) are never both readable.
+            scope.drawWords(source, ComposerSendTransition.interpolate(from, text, p), max(0f, 1 - 3 * p), origin)
             val bubble = landing.marker(flight.itemID)
             if (bubble != null) {
                 val landingRect = ComposerSendTransition.interpolate(
                     Rect(from.left - gutter, from.top - vertical, from.right + gutter, from.bottom + vertical), aim, p,
                 )
-                bubble.layer.alpha = p
+                bubble.layer.alpha = max(0f, (p - 0.2f) / 0.8f)
                 scope.withTransform({
                     translate(landingRect.left - origin.x, landingRect.top - origin.y)
                     scale(landingRect.width / max(destination.width, 1f), landingRect.height / max(destination.height, 1f), Offset.Zero)
@@ -571,11 +575,6 @@ internal class SessionSendFlights(
             path.addRect(slot.translate(-origin).translate(0f, -lift))
         }
         clipPath(path, ClipOp.Difference) { block() }
-    }
-
-    companion object {
-        /** How long a flight waits for its bubble's first layout before it fades where it is. */
-        const val MAXIMUM_WAITING_FRAMES = 6
     }
 }
 
