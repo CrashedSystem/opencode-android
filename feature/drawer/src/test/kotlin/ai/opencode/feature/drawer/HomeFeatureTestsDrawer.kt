@@ -8,6 +8,9 @@ import ai.opencode.core.dependencies.UuidClient
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.sharing.SharedKeys
+import ai.opencode.core.store.TestStore
+import ai.opencode.feature.composer.ComposerAttachmentsFeature
+import ai.opencode.feature.composer.ComposerFileAttachment
 import ai.opencode.feature.drawer.HomeFeature.Action
 import ai.opencode.feature.drawer.HomeFeatureTestSupport.Gate
 import ai.opencode.feature.drawer.HomeFeatureTestSupport.LockIsolated
@@ -25,12 +28,14 @@ import ai.opencode.feature.drawer.list.DrawerPinDragItem
 import ai.opencode.feature.session.SessionFeature
 import ai.opencode.feature.session.isDraft
 import ai.opencode.feature.session.withDraft
+import ai.opencode.feature.session.withPendingFiles
 import ai.opencode.server.CachedTranscriptSnapshots
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.OpenCodeServerEvent
 import ai.opencode.server.ServerSharedKeys
+import ai.opencode.server.model.OpenCodeDelivery
 import ai.opencode.server.model.OpenCodeSession
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.runtime.BroadcastFrameClock
@@ -47,6 +52,7 @@ import org.junit.Rule
 import org.junit.Test
 import ai.opencode.core.testing.TestIsolationRule
 import java.time.Instant
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.seconds
 
@@ -616,6 +622,59 @@ class HomeFeatureTestsDrawer {
         assertEquals(caughtUp.updatedAt, store.state.sessions.first { it.id == open.id }.updatedAt)
         assertTrue(store.state.localActivity.isEmpty())
         h.skipInFlightEffects()
+    }
+
+    /** Dictation's Send (and release-to-send) goes out through `DeferredSendReady`, not `SendTapped`; a queued send through `QueueTapped`. */
+    @Test
+    fun everySendPathMovesTheSessionToTheTopOfRecents() {
+        val paths = listOf(
+            SessionFeature.Action.DeferredSendReady(OpenCodeDelivery.Steer),
+            SessionFeature.Action.DeferredSendReady(OpenCodeDelivery.Queue),
+            SessionFeature.Action.QueueTapped,
+        )
+        for (send in paths) {
+            homeTest { h ->
+                val open = session("ses_open", "Open", date(10))
+                val newer = session("ses_newer", "Newer", date(50))
+                val store = recentsSendStore(h, open, newer, SessionFeature.State.session(server, open, cachedItems = emptyList()).withDraft("Ship it"))
+
+                store.send(detail(send))
+                assertEquals("$send", listOf(open.id, newer.id), store.state.recentSessions.map { it.id })
+                h.skipInFlightEffects()
+            }
+        }
+    }
+
+    @Test
+    fun aSendWaitingOnUploadsMovesTheSessionOnceItGoes() = homeTest { h ->
+        val open = session("ses_open", "Open", date(10))
+        val newer = session("ses_newer", "Newer", date(50))
+        val file = ComposerFileAttachment(id = UUID(0, 1), name = "notes.txt", mime = "text/plain", size = 4, localPath = "/tmp/notes.txt")
+        val running = SessionFeature.State.session(server, open, cachedItems = emptyList())
+            .withPendingFiles(listOf(file))
+            .copy(isAwaitingReply = true)
+        val store = recentsSendStore(h, open, newer, running)
+
+        store.send(detail(SessionFeature.Action.SendTapped))
+        assertTrue("A send still waiting on its uploads hasn't gone", store.state.localActivity.isEmpty())
+        assertEquals(listOf(newer.id, open.id), store.state.recentSessions.map { it.id })
+
+        store.send(detail(SessionFeature.Action.fileUploadFinished(file.id, ComposerAttachmentsFeature.Outcome.Success("/tmp/opencode/uploads/notes.txt"))))
+        store.skipReceivedActions()
+        assertEquals(listOf(open.id, newer.id), store.state.recentSessions.map { it.id })
+        h.skipInFlightEffects()
+    }
+
+    private fun recentsSendStore(h: HomeFeatureTestSupport.Harness, open: OpenCodeSession, newer: OpenCodeSession, detail: SessionFeature.State): TestStore<HomeFeature.State, Action> {
+        val state = h.state { HomeFeature.State(server, snapshot(listOf(newer, open))).copy(sessionDetail = detail) }
+        val store = h.store(state) {
+            this[Clock] = ImmediateClock()
+            this[DateClient] = DateClient.constant(date(100))
+            this[UuidClient] = UuidClient.incrementing()
+            this[OpenCodeClient] = sendClient(open)
+        }
+        store.exhaustive = false
+        return store
     }
 
     @Test

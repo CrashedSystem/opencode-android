@@ -34,7 +34,8 @@ import ai.opencode.server.OpenCodeLiveContentEvent
 internal fun HomeFeature.reduceSubagent(state: State, id: Int, action: SessionFeature.Action): HomeReduced {
     val now = { dependency(DateClient).now() }
     return when (action) {
-        SessionFeature.Action.SendTapped, is SessionFeature.Action.Browser -> {
+        is SessionFeature.Action.Browser, SessionFeature.Action.SendTapped, SessionFeature.Action.QueueTapped,
+        is SessionFeature.Action.DeferredSendReady, SessionFeature.Action.SharedSendRequested -> {
             // The drawer lists the root, which is where the activity shows.
             val s = state.notingScreenSendIfAccepted(state.subagentStack.firstOrNull { it.navigationID == id }, action, now).first
             val detail = s.subagentStack.firstOrNull { it.navigationID == id }
@@ -137,11 +138,12 @@ internal fun HomeFeature.reduceSessionDetail(state: State, action: SessionFeatur
             }
         }
 
-        SessionFeature.Action.SendTapped, is SessionFeature.Action.Browser -> {
+        is SessionFeature.Action.Browser, SessionFeature.Action.SendTapped, SessionFeature.Action.QueueTapped,
+        is SessionFeature.Action.DeferredSendReady, SessionFeature.Action.SharedSendRequested -> {
             // The session reducer has already run: an accepted send cleared the draft and is
             // awaiting its reply. Recents lists roots.
             val (s, sessionID) = state.notingScreenSendIfAccepted(state.sessionDetail, action, now)
-            if (sessionID != null && action == SessionFeature.Action.SendTapped) {
+            if (sessionID != null && action !is SessionFeature.Action.Browser) {
                 s.sessions.firstOrNull { it.id == sessionID }?.let { session ->
                     dependency(ShareInboxClient).donateSuggestion(s.server.persistenceID, sessionID, session.title)
                 }

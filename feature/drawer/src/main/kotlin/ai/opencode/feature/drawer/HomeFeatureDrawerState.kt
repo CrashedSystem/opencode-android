@@ -671,8 +671,9 @@ fun HomeFeature.State.drawerBadge(excluding: String?): DrawerBadge? {
 }
 
 /**
- * Records local activity on the family root when [action] was an accepted send on [detail] (draft
- * cleared and awaiting reply); returns the state and the root ID.
+ * Records local activity on the family root when [action] was an accepted send on [detail] (composer
+ * emptied and awaiting reply); returns the state and the root ID. Mid-run `isAwaitingReply` is
+ * already true, so a send still waiting on uploads or an answer to a docked request doesn't count.
  */
 fun HomeFeature.State.notingScreenSendIfAccepted(
     detail: SessionFeature.State?,
@@ -680,8 +681,11 @@ fun HomeFeature.State.notingScreenSendIfAccepted(
     at: () -> Instant,
 ): Pair<HomeFeature.State, String?> {
     if (detail == null || !detail.isAwaitingReply) return this to null
-    val accepted = (action == SessionFeature.Action.SendTapped && detail.draft.isEmpty()) ||
-        (action == SessionFeature.Action.Browser(BrowserFeature.Action.AskSent) && detail.browser.askDraft.isEmpty())
+    val accepted = if (action == SessionFeature.Action.Browser(BrowserFeature.Action.AskSent)) {
+        detail.browser.askDraft.isEmpty()
+    } else {
+        action.sendsComposer && !detail.hasPromptContent && !detail.isAnsweringRequest
+    }
     if (!accepted) return this to null
     val rootID = sessionDetail?.familyRootID ?: sessionDetail?.session?.id ?: detail.familyRootID ?: detail.session?.id
         ?: return this to null
@@ -729,3 +733,8 @@ fun HomeFeature.State.syncingBusyAncestryFromFamily(deletedSessionID: String? = 
     if (s.activeSessionIDs.isEmpty()) return s
     return s.recordingActiveAncestry(s.activeSessionIDs)
 }
+
+/** Every way the composer's draft goes out: Send and Queue, dictation's Send and release-to-send, a send that waited on uploads, and a share. */
+internal val SessionFeature.Action.sendsComposer: Boolean
+    get() = this == SessionFeature.Action.SendTapped || this == SessionFeature.Action.QueueTapped ||
+        this is SessionFeature.Action.DeferredSendReady || this == SessionFeature.Action.SharedSendRequested
