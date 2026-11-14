@@ -208,7 +208,7 @@ fun SessionView(
     val callStore = store.rememberCallStore(hostedCall)
     val ownsCall by store.observe { it.voice != null }
     if (!isInertPreview) {
-        SessionCallTasks(store, callStore, hasCall = ownsCall || hostedCall != null)
+        SessionCallTasks(store, callStore, hasCall = ownsCall || hostedCall != null, isCatchUpCard = onCatchUpOpen != null)
     }
     val isCovered by store.observe { it.isCovered }
     // iOS `floatingCallCoverage(sessionLifecycle)`: what the Living Orb's card covers gives way.

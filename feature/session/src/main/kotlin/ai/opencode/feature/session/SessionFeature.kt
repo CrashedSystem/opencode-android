@@ -48,6 +48,7 @@ import ai.opencode.feature.composer.SharedDraftTarget
 import ai.opencode.feature.composer.SharedLocation
 import ai.opencode.feature.composer.LocationClientError
 import ai.opencode.feature.media.UniversalLinkClient
+import ai.opencode.feature.voice.LiveSocketWarmerClient
 import ai.opencode.feature.voice.VoiceFeature
 import ai.opencode.feature.voice.VoiceServerChoice
 import ai.opencode.feature.voice.ServerVoiceProvider
@@ -1001,6 +1002,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
     internal val universalLinks by Dependency(UniversalLinkClient)
     internal val experimentalFeatures by Dependency(ExperimentalFeatures)
     internal val sessionTimers by Dependency(SessionTimers)
+    internal val liveSocketWarmer by Dependency(LiveSocketWarmerClient)
 
     // endregion
 

@@ -316,6 +316,19 @@ private fun SessionFeature.startCall(state: State): Reduced<State, Action> {
         val yielded = yieldDictation(state)
         return Reduced(yielded.state, Effect.merge(yielded.effect, Effect.send(Action.Delegate(SessionFeature.Delegate.CallRequested))))
     }
+    val own = startOwnCall(state)
+    return Reduced(own.state, Effect.merge(warmPhoneConnection(state), own.effect))
+}
+
+/** A phone-key GPT-Live call warms its connection as it starts; the screen stops warming after a quiet minute. */
+private fun SessionFeature.warmPhoneConnection(state: State): Effect<Action> {
+    if (!state.voiceRoute.warmsPhoneConnection) return Effect.none()
+    val key = state.openAIAPIKey.value?.trim()?.takeIf { it.isNotEmpty() } ?: return Effect.none()
+    val warmer = liveSocketWarmer
+    return Effect.run { warmer.warm(key) }
+}
+
+private fun SessionFeature.startOwnCall(state: State): Reduced<State, Action> {
     val session = state.session
     if (session != null) {
         // The call takes the mic: like any interruption, the words heard so far wait in the draft.

@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** Commands/events are encoded/decoded here; nothing above this layer sees JSON/base64. */
 class LiveConnection(
@@ -120,13 +122,20 @@ class LiveTransportChoice(private val date: DateClient = dependency(DateClient))
 }
 
 /** One bare socket opened ahead of a call; taking it transfers exclusive ownership. */
-class LiveSocketWarmer(private val date: DateClient = dependency(DateClient)) {
+class LiveSocketWarmer(
+    private val date: DateClient = dependency(DateClient),
+    private val warmRTC: (String) -> Job = { LiveRTC.warmConnection(it) },
+) {
     private data class Warm(val url: String, val apiKey: String, val socket: VoiceWebSocket, val openedAt: Instant)
     private var current: Warm? = null
     private var warming: Job? = null
+    private var rtcWarmed: Pair<String, Instant>? = null
     @Synchronized fun warm(apiKey: String, url: String = liveURL, now: Instant = date.now()) {
         if (dependency(LiveTransportChoice).prefersWebRTC) {
-            warming?.cancel(); warming = LiveRTC.warmConnection(apiKey); return
+            val last = rtcWarmed
+            if (last != null && last.first == apiKey && secondsBetween(last.second, now) < rtcWarmGap) return
+            rtcWarmed = apiKey to now
+            warming?.cancel(); warming = warmRTC(apiKey); return
         }
         val old = current
         if (old != null && old.url == url && old.apiKey == apiKey && age(old, now) < maxAge / 2 && old.socket.isRunning) return
@@ -140,10 +149,25 @@ class LiveSocketWarmer(private val date: DateClient = dependency(DateClient)) {
         taken.socket.discard(); return null
     }
     @Synchronized fun cool() { current?.socket?.discard(); current = null; warming?.cancel(); warming = null }
-    private fun age(warm: Warm, now: Instant) = java.time.Duration.between(warm.openedAt, now).toMillis() / 1000.0
+    private fun age(warm: Warm, now: Instant) = secondsBetween(warm.openedAt, now)
+    private fun secondsBetween(from: Instant, to: Instant) = java.time.Duration.between(from, to).toMillis() / 1000.0
     companion object {
         const val maxAge = 20.0
         const val liveURL = "wss://api.openai.com/v1/live/sessions"
+        val rewarmEvery = (maxAge / 2).seconds
+        /** How long the connection stays warm with nobody heading for a call. */
+        val window = 60.seconds
+        /** A WebRTC warm-up this soon after the last one is skipped: its connection is still open. */
+        const val rtcWarmGap = maxAge / 4
+
+        /** Warms now and every [rewarmEvery] until [window] has passed; the caller decides whether to cool. */
+        suspend fun warmWindow(warm: () -> Unit) {
+            val passes = maxOf(1, ceil(window / rewarmEvery).toInt())
+            repeat(passes) {
+                warm()
+                delay(rewarmEvery)
+            }
+        }
     }
 }
 class LiveSocketWarmerClient(

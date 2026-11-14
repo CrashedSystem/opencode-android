@@ -35,9 +35,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.seconds
 
 // The session screen's call: which store is the screen's call (`callStore`), its presentation
 // (`callPresentation`/`voiceStore`), the failed and ended cards above the composer, and the tasks
@@ -58,11 +56,11 @@ internal fun StoreOf<State, Action>.rememberCallStore(hostedCall: VoiceStoreOf?)
  * - once per call, the call starts (`.startIfNeeded`): it keeps running while the drawer swaps sessions;
  * - Raise to Talk listens while the setting is on, Voice is available and the app is active; the
  *   reducer decides what a raise does;
- * - a GPT-Live socket kept open (no session started, so free) while a call could start here, so a
- *   tap skips the connection setup.
+ * - a GPT-Live socket kept open (no session started, so free) for a minute after a call could start
+ *   here, so a tap skips the connection setup.
  */
 @Composable
-internal fun SessionCallTasks(store: StoreOf<State, Action>, callStore: VoiceStoreOf?, hasCall: Boolean) {
+internal fun SessionCallTasks(store: StoreOf<State, Action>, callStore: VoiceStoreOf?, hasCall: Boolean, isCatchUpCard: Boolean) {
     val currentCall by rememberUpdatedState(callStore)
     LaunchedEffect(hasCall) { currentCall?.send(VoiceFeature.Action.StartIfNeeded) }
 
@@ -84,21 +82,20 @@ internal fun SessionCallTasks(store: StoreOf<State, Action>, callStore: VoiceSto
         )
     }
 
-    val warmsPhoneConnection by store.observe { it.voiceRoute.warmsPhoneConnection }
+    val routeWarms by store.observe { it.voiceRoute.warmsPhoneConnection }
+    val isCovered by store.observe { it.isCovered }
     val currentHasCall by rememberUpdatedState(hasCall)
-    LaunchedEffect(warmsPhoneConnection && isVoiceAvailable && !hasCall && active) {
-        if (!(warmsPhoneConnection && isVoiceAvailable && !hasCall && active)) return@LaunchedEffect
+    val warmsPhoneConnection = routeWarms && isVoiceAvailable && !hasCall && active && !isCovered && !isCatchUpCard
+    LaunchedEffect(warmsPhoneConnection) {
+        if (!warmsPhoneConnection) return@LaunchedEffect
         // VoiceLabEnvironment answers null in release ones.
         val stored = store.state.openAIAPIKey.value ?: withContext(Dispatchers.IO) { VoiceLabDemo.labAPIKey }
         val key = stored?.trim()?.takeIf { it.isNotEmpty() } ?: return@LaunchedEffect
         val warmer = dependency(LiveSocketWarmerClient)
         try {
-            while (true) {
-                warmer.warm(key)
-                delay((LiveSocketWarmer.maxAge / 2).seconds)
-            }
+            LiveSocketWarmer.warmWindow { warmer.warm(key) }
         } finally {
-            // Still here means the screen left or a call began (and took it).
+            // A call takes the warm connection; otherwise it goes cold.
             if (!currentHasCall) warmer.cool()
         }
     }
