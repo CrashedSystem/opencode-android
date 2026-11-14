@@ -116,8 +116,8 @@ private fun BlockContent(kind: Kind, grown: List<TranscriptTextReveal.Arrival>, 
             HairlineRule(Modifier.clearAndSetSemantics {})
         is Kind.PullRequest -> PullRequestCard(kind.title, kind.url) { send(TranscriptAction.LinkTapped(kind.url)) }
         is Kind.Files -> FileCards(kind.files)
-        // A Markdown image outside the session's folder loads through that folder's location once
-        // it's on screen; a file that can't be shown inline falls back to its card.
+        // A Markdown image outside the session's folder waits for a tap, then loads through that
+        // folder's location; a file that can't be shown inline falls back to its card.
         is Kind.Image -> MarkdownImage(kind.source, kind.alt, fallbackFile = AgentFileReference.fromLink(kind.source))
         is Kind.Heading -> BlockText(
             kind, kind.text, style.headingStyle(kind.level), colors.strongText, grown, isGrowingTail, selection,

@@ -2,6 +2,8 @@ package ai.opencode.feature.transcript.rows
 
 import ai.opencode.feature.media.MermaidDiagramMetrics
 import ai.opencode.feature.transcript.markdown.ui.MarkdownImage
+import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.model.AgentFileReference
 import ai.opencode.server.model.OpenCodeImageAttachment
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
@@ -117,6 +119,19 @@ class JustifiedImageRowsTests {
         assertNull(again.record)
         assertFalse(again.revisesRow)
         assertNull(ToolImageMosaic.change(IntSize.Zero, known = null, laidOutAt = 1f).record)
+    }
+
+    @Test
+    fun aMarkdownImageOutsideTheFolderWaitsForATap() {
+        val server = OpenCodeServer(url = "https://example.invalid", username = "user", password = "secret")
+        val directory = "/work/repo"
+        val outside = "/tmp/shots/a.png"
+        assertEquals("a.png", MarkdownImage.outsideFile(outside, AgentFileReference.fromLink(outside), server, directory)?.name)
+        for (inside in listOf("/work/repo/docs/a.png", "docs/a.png")) {
+            assertNull(MarkdownImage.outsideFile(inside, AgentFileReference.fromLink(inside), server, directory))
+        }
+        val remote = "https://example.com/a.png"
+        assertNull(MarkdownImage.outsideFile(remote, AgentFileReference.fromLink(remote), server, directory))
     }
 
     @Test
