@@ -35,6 +35,8 @@ import ai.opencode.server.internal.opt
 import ai.opencode.server.internal.str
 import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodeProjectIcon
+import ai.opencode.server.model.OpenCodeToolBounds
+import ai.opencode.server.model.bounded
 import ai.opencode.server.model.utf8Length
 import ai.opencode.server.retry.NetworkRetry
 import ai.opencode.server.retry.ServerContact
@@ -418,7 +420,8 @@ internal data class EventPayload(
     @Serializable data class Content(val type: String, val text: String? = null)
     @Serializable data class InboxItem(val type: String, val payload: PendingInputsPayload.Payload? = null, val delivery: String? = null)
 
-    val textOutput: List<String> get() = content?.filter { it.type == "text" }?.mapNotNull { it.text } ?: emptyList()
+    val textOutput: List<String> get() = OpenCodeToolBounds.output(content?.filter { it.type == "text" }?.mapNotNull { it.text } ?: emptyList())
+    val boundedMetadata: Map<String, OpenCodeJSONValue> get() = metadata?.let(OpenCodeToolBounds::metadata) ?: emptyMap()
 }
 
 internal object LenientLocationSerializer : ElementSerializer<EventPayload.Location?>(
@@ -586,20 +589,20 @@ private fun serverEvent(type: String, data: EventPayload?): OpenCodeServerEvent?
         "session.tool.input.delta" ->
             toolContent { messageID, toolID, payload -> OpenCodeLiveContentEvent.ToolInputDelta(messageID, toolID, payload.delta ?: "") }
         "session.tool.input.ended" ->
-            toolContent { messageID, toolID, payload -> OpenCodeLiveContentEvent.ToolInputEnded(messageID, toolID, payload.text ?: "") }
+            toolContent { messageID, toolID, payload -> OpenCodeLiveContentEvent.ToolInputEnded(messageID, toolID, (payload.text ?: "").bounded(OpenCodeToolBounds.TEXT_LIMIT)) }
         "session.tool.called" -> toolContent { messageID, toolID, payload ->
-            OpenCodeLiveContentEvent.ToolCalled(messageID, toolID, payload.input ?: OpenCodeJSONValue.Object(emptyMap()))
+            OpenCodeLiveContentEvent.ToolCalled(messageID, toolID, payload.input?.bounded() ?: OpenCodeJSONValue.Object(emptyMap()))
         }
         "session.tool.progress" -> toolContent { messageID, toolID, payload ->
-            OpenCodeLiveContentEvent.ToolProgress(messageID, toolID, payload.metadata ?: emptyMap())
+            OpenCodeLiveContentEvent.ToolProgress(messageID, toolID, payload.boundedMetadata)
         }
         "session.tool.success" -> toolContent { messageID, toolID, payload ->
-            OpenCodeLiveContentEvent.ToolSucceeded(messageID, toolID, payload.textOutput, payload.metadata ?: emptyMap())
+            OpenCodeLiveContentEvent.ToolSucceeded(messageID, toolID, payload.textOutput, payload.boundedMetadata)
         }
         "session.tool.failed" -> toolContent { messageID, toolID, payload ->
             OpenCodeLiveContentEvent.ToolFailed(
                 messageID, toolID, payload.error?.message ?: localized(R.string.server_tool_failed), payload.error?.type,
-                payload.textOutput, payload.metadata ?: emptyMap(),
+                payload.textOutput, payload.boundedMetadata,
             )
         }
         "session.message.content.updated", "session.synthetic", "session.instructions.updated",

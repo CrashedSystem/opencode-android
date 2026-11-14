@@ -24,6 +24,7 @@ import ai.opencode.server.model.OpenCodePromptPresentation
 import ai.opencode.server.model.OpenCodePromptSource
 import ai.opencode.server.model.OpenCodeRunError
 import ai.opencode.server.model.OpenCodeRunRetry
+import ai.opencode.server.model.OpenCodeToolBounds
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptFile
 import ai.opencode.server.model.OpenCodeTranscriptItem
@@ -242,12 +243,10 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
                             name = part.name ?: "tool",
                             status = OpenCodeToolCall.Status.tool(state?.status),
                             input = (state?.input ?: OpenCodeJSONValue.Null).bounded(),
-                            output = state?.content?.mapNotNull { if (it.type == "text") it.text?.bounded(20_000) else null } ?: emptyList(),
+                            output = OpenCodeToolBounds.output(state?.content?.mapNotNull { if (it.type == "text") it.text else null } ?: emptyList()),
                             error = state?.error?.message,
                             errorType = state?.error?.type,
-                            metadata = state?.metadata?.let { meta ->
-                                if (meta.values.any { it.needsBounding(20_000, 100) }) meta.mapValues { it.value.bounded() } else meta
-                            } ?: emptyMap(),
+                            metadata = state?.metadata?.let(OpenCodeToolBounds::metadata) ?: emptyMap(),
                             images = toolImages(state?.content, partID),
                             startedAt = (part.time?.ran ?: part.time?.created)?.let(::instantFromMillis),
                             completedAt = part.time?.completed?.let(::instantFromMillis),

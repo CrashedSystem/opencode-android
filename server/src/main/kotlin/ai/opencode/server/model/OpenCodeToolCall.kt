@@ -160,6 +160,18 @@ data class OpenCodeToolCall(
     }
 }
 
+/** How much of a tool call the transcript keeps, from a REST window or the live stream alike, so a live call matches its settled read. */
+object OpenCodeToolBounds {
+    const val TEXT_LIMIT = 20_000
+
+    fun output(texts: List<String>): List<String> = texts.map { it.bounded(TEXT_LIMIT) }
+
+    fun metadata(metadata: Map<String, OpenCodeJSONValue>): Map<String, OpenCodeJSONValue> {
+        if (metadata.values.any { it.needsBounding(TEXT_LIMIT, 100) }) return metadata.mapValues { it.value.bounded() }
+        return metadata
+    }
+}
+
 data class OpenCodeQuestion(val question: String, val header: String) {
     companion object {
         internal fun fromToolInput(input: OpenCodeJSONValue): OpenCodeQuestion? {

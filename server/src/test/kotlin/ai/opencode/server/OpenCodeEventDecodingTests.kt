@@ -6,6 +6,11 @@ import ai.opencode.server.OpenCodeLiveContentEvent.TextDelta
 import ai.opencode.server.OpenCodeLiveContentEvent.TextEnded
 import ai.opencode.server.OpenCodeLiveContentEvent.ToolInputDelta
 import ai.opencode.server.live.decodeStreamFrame
+import ai.opencode.server.live.decodeTranscriptPage
+import ai.opencode.server.model.OpenCodeJSONValue
+import ai.opencode.server.model.OpenCodeToolBounds
+import ai.opencode.server.model.OpenCodeTranscriptItem
+import kotlinx.serialization.json.JsonPrimitive
 import ai.opencode.server.model.OpenCodeDelivery
 import ai.opencode.server.model.OpenCodeShell
 import org.junit.Assert.assertEquals
@@ -149,6 +154,36 @@ class OpenCodeEventDecodingTests {
                 assertEquals(failure, error)
             }
         }
+    }
+
+    /** A tool's live payloads are bounded as REST bounds them, so the settled read of the same call matches the live row. */
+    @Test
+    fun liveToolPayloadsAreBoundedLikeTheSettledRead() {
+        val big = "0123456789\n".repeat(20_000)
+        val bigJSON = JsonPrimitive(big).toString()
+        val content = """[{"type":"text","text":$bigJSON}]"""
+        val metadata = """{"diff":$bigJSON,"title":"ok"}"""
+        val input = """{"command":$bigJSON}"""
+        fun live(type: String, data: String): OpenCodeLiveContentEvent? {
+            val frame = """{"type":"$type","data":{"sessionID":"s","assistantMessageID":"m","id":"t",$data}}"""
+            return (decodeStreamFrame(frame) as? OpenCodeServerEvent.ContentBatch)?.events?.firstOrNull()
+        }
+        val state = """{"status":"completed","input":$input,"content":$content,"metadata":$metadata}"""
+        val page = decodeTranscriptPage(
+            """{"data":[{"id":"m","type":"assistant","content":[{"type":"tool","id":"t","name":"shell","state":$state}]}]}""".toByteArray(),
+            null,
+        )
+        val settled = (page.items.first() as OpenCodeTranscriptItem.Tool).call
+        val succeeded = live("session.tool.success", """"content":$content,"metadata":$metadata""") as OpenCodeLiveContentEvent.ToolSucceeded
+        val called = live("session.tool.called", """"input":$input""") as OpenCodeLiveContentEvent.ToolCalled
+        val inputEnded = live("session.tool.input.ended", """"text":$bigJSON""") as OpenCodeLiveContentEvent.ToolInputEnded
+        assertEquals(settled.output, succeeded.output)
+        assertEquals(settled.metadata, succeeded.metadata)
+        assertEquals(settled.input, called.input)
+        assertEquals(OpenCodeJSONValue.Str("ok"), succeeded.metadata["title"])
+        val truncated = OpenCodeToolBounds.TEXT_LIMIT + "\n… output truncated".toByteArray().size
+        assertEquals(listOf(truncated), succeeded.output.map { it.toByteArray().size })
+        assertEquals(truncated, inputEnded.text.toByteArray().size)
     }
 
     @Test
