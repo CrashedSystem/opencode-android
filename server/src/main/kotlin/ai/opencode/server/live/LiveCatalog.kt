@@ -115,13 +115,17 @@ internal suspend fun requestModelCatalog(server: OpenCodeServer, directory: Stri
     OpenCodeReadCache.shared.modelCatalog(key)?.let { return it }
     // V2 ignores a bare `directory`; one catalog per opened session keeps the location set bounded.
     val query = locationQuery(directory)
-    val payload = request<DataPayload<List<ModelInfoPayload>>>("/api/model", query = query, timeout = LOCATION_BOOT_TIMEOUT, server = server)
-    val models = payload.data.filter { it.enabled && it.status == "active" }.map { it.model }
-    // Older V2 servers do not expose the default-model route; keep the catalog usable there.
-    val defaultPayload = try {
-        request<DataPayload<ModelInfoPayload?>>("/api/model/default", query = query, timeout = LOCATION_BOOT_TIMEOUT, server = server)
-    } catch (_: OpenCodeClientError) { null }
-    val catalog = OpenCodeModelCatalog(models, defaultPayload?.data?.model)
+    val catalog = coroutineScope {
+        // Older V2 servers do not expose the default-model route; keep the catalog usable there.
+        val defaultPayload = async {
+            try {
+                request<DataPayload<ModelInfoPayload?>>("/api/model/default", query = query, timeout = LOCATION_BOOT_TIMEOUT, server = server)
+            } catch (_: OpenCodeClientError) { null }
+        }
+        val payload = request<DataPayload<List<ModelInfoPayload>>>("/api/model", query = query, timeout = LOCATION_BOOT_TIMEOUT, server = server)
+        val models = payload.data.filter { it.enabled && it.status == "active" }.map { it.model }
+        OpenCodeModelCatalog(models, defaultPayload.await()?.data?.model)
+    }
     OpenCodeReadCache.shared.storeModelCatalog(catalog, key)
     return catalog
 }

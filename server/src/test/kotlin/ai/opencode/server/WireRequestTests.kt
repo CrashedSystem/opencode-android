@@ -15,6 +15,10 @@ import ai.opencode.server.model.OpenCodeShellOutputPage
 import ai.opencode.server.model.PromptContext
 import ai.opencode.server.testing.WireFixture
 import ai.opencode.server.testing.WireFixture.Reply
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -463,9 +467,37 @@ class WireRequestTests {
             val catalog = OpenCodeClient.liveValue.modelCatalog(fixture.server, "/work/cold-boot")
             assertEquals(listOf("gpt-5.4"), catalog.models.map { it.modelID })
             assertEquals("gpt-5.4", catalog.defaultModel?.modelID)
-            assertEquals(listOf("GET /api/model", "GET /api/model/default"), fixture.requests.map { it.route })
+            assertEquals(listOf("GET /api/model", "GET /api/model/default"), fixture.requests.map { it.route }.sorted())
             assertTrue(fixture.requests.all { it.queryValue("location[directory]") == "/work/cold-boot" })
             assertTrue(fixture.requests.all { it.timeoutInterval == LOCATION_BOOT_TIMEOUT.inWholeMilliseconds / 1000.0 })
+        }
+    }
+
+    /** A cold catalog costs one round trip: the default is asked for while the list is still loading, and failing it leaves the list. */
+    @Test fun modelCatalogReadsTheListAndDefaultTogether() = runBlocking {
+        // Held open: the list never finishes, so only a concurrent read asks for the default.
+        val fixture = WireFixture { request -> if (request.route == "GET /api/model") Reply.Open(200, "") else Reply.Json(200, "{}") }
+        withFixture(fixture) {
+            val held = launch(Dispatchers.Default) { OpenCodeClient.liveValue.modelCatalog(fixture.server, "/work/held") }
+            for (attempt in 0 until 500) {
+                if (fixture.requests.size >= 2) break
+                delay(10)
+            }
+            held.cancel()
+            assertEquals(setOf("GET /api/model", "GET /api/model/default"), fixture.requests.map { it.route }.toSet())
+        }
+
+        val failing = WireFixture { request ->
+            if (request.route == "GET /api/model") {
+                Reply.Json(200, """{"data":[{"id":"gpt-5.4","modelID":"gpt-5.4","providerID":"openai","name":"GPT-5.4","enabled":true,"status":"active"}]}""")
+            } else {
+                Reply.Json(404, "{}")
+            }
+        }
+        withFixture(failing) {
+            val catalog = OpenCodeClient.liveValue.modelCatalog(failing.server, "/work/no-default")
+            assertEquals(listOf("gpt-5.4"), catalog.models.map { it.modelID })
+            assertNull(catalog.defaultModel)
         }
     }
 
