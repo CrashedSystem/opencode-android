@@ -220,7 +220,7 @@ private fun AskOpenCodeView(
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OpenCodeIcon(SFSymbol.TextBubble, contentDescription = null)
-                    Text(AskOpenCodeIntent.TITLE, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                    Text(stringResource(R.string.system_ask_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
                 }
                 val result = state.result
                 if (result != null) {
@@ -241,8 +241,8 @@ private fun AskOpenCodeView(
                 OpenCodeTextField(
                     value = state.message,
                     onValueChange = { text -> onUpdate { it.copy(message = text) } },
-                    label = AskOpenCodeIntent.MESSAGE_TITLE,
-                    placeholder = AskOpenCodeIntent.REQUEST_VALUE_DIALOG,
+                    label = stringResource(R.string.system_ask_message_title),
+                    placeholder = stringResource(R.string.system_ask_message_placeholder),
                     minLines = 2,
                     maxLines = 6,
                     enabled = !state.isSending,
@@ -294,7 +294,7 @@ private fun SessionPicker(
         ) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(AskOpenCodeIntent.SESSION_TITLE, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.system_ask_session_title), style = MaterialTheme.typography.labelMedium)
                     Text(state.session?.title ?: stringResource(R.string.system_last_viewed_session), style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                     state.session?.detail?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)

@@ -1,7 +1,9 @@
 package ai.opencode.server.live
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.ConnectionRoute
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.internal.ElementSerializer
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.internal.bool
@@ -467,7 +469,7 @@ internal data class FilePayload(
                     val cleanName = (placeholder.name ?: "").split("/").last()
                     return@mapIndexedNotNull OpenCodeTranscriptFile(
                         id = "$messageID-file-inline-$index",
-                        name = cleanName.ifEmpty { "File" },
+                        name = cleanName.ifEmpty { localized(R.string.server_transcript_file_fallback) },
                         mime = placeholder.mime,
                         isUnavailable = true,
                     )
@@ -478,7 +480,7 @@ internal data class FilePayload(
                 val text = file.data?.let(::decodeBase64)?.let { PastedText.text(mime, it) }
                 OpenCodeTranscriptFile(
                     id = "$messageID-file-inline-$index",
-                    name = name.ifEmpty { if (text == null) "File" else PastedText.NAME },
+                    name = name.ifEmpty { if (text == null) localized(R.string.server_transcript_file_fallback) else PastedText.NAME },
                     mime = mime,
                     text = text,
                     mediaHash = file.mediaHash,

@@ -3,6 +3,7 @@ package ai.opencode.feature.media
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.core.tuning.Tunable
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeImageAttachment
@@ -85,6 +86,8 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>, val ser
         val name: String? = null,
         val isUnavailable: Boolean = false,
         val loadFailed: Boolean = false,
+        /** The app wrote [label] itself ("Image 1 of 3"), so it isn't a name worth showing as a title. */
+        val labelIsPlaceholder: Boolean = false,
     ) {
         // iOS `Page: Equatable`: every field, and the image by identity or by its pixels.
         override fun equals(other: Any?): Boolean =
@@ -96,13 +99,14 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>, val ser
                 other.name == name &&
                 other.isUnavailable == isUnavailable &&
                 other.loadFailed == loadFailed &&
+                other.labelIsPlaceholder == labelIsPlaceholder &&
                 (other.image === image || (other.image != null && image != null && other.image.sameAs(image)))
 
         override fun hashCode(): Int = id.hashCode() * 31 + label.hashCode()
     }
 
-    constructor(id: String, image: Bitmap, label: String, server: OpenCodeServer? = null) :
-        this(id, listOf(Page(id, image, label)), server)
+    constructor(id: String, image: Bitmap, label: String, server: OpenCodeServer? = null, labelIsPlaceholder: Boolean = false) :
+        this(id, listOf(Page(id, image, label, labelIsPlaceholder = labelIsPlaceholder)), server)
 
     companion object {
         /**
@@ -131,10 +135,11 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>, val ser
                     Page(
                         id = attachment.id,
                         image = image,
-                        label = attachment.name ?: "$label ${index + 1} of ${items.size}",
+                        label = attachment.name ?: localized(R.string.media_image_page_label, label, index + 1, items.size),
                         mediaHash = attachment.mediaHash,
                         name = attachment.name,
                         isUnavailable = attachment.isUnavailable || MediaReferenceResolver.isUnavailable(attachment, server),
+                        labelIsPlaceholder = attachment.name == null,
                     )
                 },
                 server,
@@ -151,7 +156,7 @@ data class TranscriptImagePreview(val id: String, val pages: List<Page>, val ser
             if (decoded.none { it.first == selectedID }) return null
             return TranscriptImagePreview(
                 selectedID,
-                decoded.mapIndexed { index, (id, image) -> Page(id, image, "$label ${index + 1} of ${decoded.size}") },
+                decoded.mapIndexed { index, (id, image) -> Page(id, image, localized(R.string.media_image_page_label, label, index + 1, decoded.size), labelIsPlaceholder = true) },
             )
         }
     }

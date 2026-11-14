@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -42,9 +43,9 @@ object StarterPromptTunables {
  */
 val SessionFeature.State.Companion.firstSessionStarters: List<String>
     get() = listOf(
-        "What does this project do?",
-        "Give me a quick tour of the code",
-        "What changed here recently?",
+        localized(R.string.session_starter_project_purpose),
+        localized(R.string.session_starter_code_tour),
+        localized(R.string.session_starter_recent_changes),
     )
 
 /**

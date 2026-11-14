@@ -10,6 +10,8 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.StoreOf
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.drawerPanHorizontalScroller
 import ai.opencode.core.ui.openCodeTapTarget
 import ai.opencode.feature.composer.AttachmentCameraView
@@ -156,13 +158,13 @@ class SessionAttachmentImporter internal constructor(
 ) {
     /** Files over [LARGE_UPLOAD_BYTES] wait for this confirmation (iOS `SessionView.LargeUpload`). */
     data class LargeUpload(val files: List<ComposerStagedFile>, val onStaged: (() -> Unit)?) {
-        val title: String get() = "Upload ${AttachmentFileType.byteCount(files.sumOf { it.size })}?"
+        val title: String get() = localized(R.string.session_large_upload_title, AttachmentFileType.byteCount(files.sumOf { it.size }))
 
         val message: String
             get() {
                 val large = files.filter { it.size > LARGE_UPLOAD_BYTES }
-                val subject = if (large.size == 1) "“${large[0].name}” is a large file" else "${large.size} files are large"
-                return "$subject. The message sends once the upload to your server finishes."
+                if (large.size == 1) return localized(R.string.session_large_upload_message_one, large[0].name)
+                return localizedPlural(R.plurals.session_large_upload_message_many, large.size, large.size)
             }
     }
 
@@ -216,9 +218,9 @@ class SessionAttachmentImporter internal constructor(
                     onAdded?.invoke()
                 } else {
                     attachmentError = if (result.sawOversizedSource) {
-                        "Choose an image smaller than 20 MB."
+                        localized(R.string.session_attachment_image_too_large)
                     } else {
-                        "This image couldn’t be loaded. Try another photo."
+                        localized(R.string.session_attachment_image_load_failed)
                     }
                 }
             },
@@ -263,7 +265,7 @@ class SessionAttachmentImporter internal constructor(
             onFailure = { failures ->
                 if (!sameComposer(identity)) return@start
                 onFailed?.invoke()
-                attachmentError = if (failures == 1) "This file couldn’t be added. Try another file." else "$failures files couldn’t be added."
+                attachmentError = if (failures == 1) localized(R.string.session_attachment_file_add_failed) else localizedPlural(R.plurals.session_attachment_files_add_failed, failures, failures)
             },
         )
     }
@@ -623,7 +625,7 @@ fun PendingAttachmentsRow(
                     }
                 }
                 text != null && summary != null -> RemovableAttachment(
-                    label = stringResource(R.string.session_attachment_remove_description, PastedText.NAME),
+                    label = stringResource(R.string.session_attachment_remove_description, PastedText.title),
                     identifier = "remove-pasted-text-$index",
                     reduceMotion = reduceMotion,
                     onRemove = removing(key) { onRemoveAttachment(index) },
@@ -644,18 +646,19 @@ fun PendingAttachmentsRow(
                 }
                 else -> {
                     // A PDF the selected model reads natively: sent inline, no upload.
-                    val name = attachment.name ?: "File"
+                    val fileName = attachment.name ?: "File"
+                    val name = attachment.name ?: stringResource(R.string.session_attachment_file_fallback_name)
                     val fileDescription = stringResource(R.string.session_attachment_file_description, name)
                     RemovableAttachment(
                         label = stringResource(R.string.session_attachment_remove_description, name),
-                        identifier = "remove-pending-file-$name",
+                        identifier = "remove-pending-file-$fileName",
                         reduceMotion = reduceMotion,
                         onRemove = removing(key) { onRemoveAttachment(index) },
                         modifier = item,
                     ) {
                         FileAttachmentCard(
                             name = name,
-                            symbolName = AttachmentFileType.symbolName(name, attachment.mime),
+                            symbolName = AttachmentFileType.symbolName(fileName, attachment.mime),
                             width = ComposerFileChip.width,
                             height = ComposerFileChip.height,
                             modifier = Modifier

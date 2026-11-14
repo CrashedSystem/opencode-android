@@ -8,6 +8,8 @@ import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.observe
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.tuning.Tunable
 import ai.opencode.core.tuning.TunableChoice
 import ai.opencode.core.tuning.TuningPreset
@@ -758,7 +760,7 @@ private class FloatingCallSurfaceModel(
     /** The voice agent moved the call: say where it talks now. The user's own switches stay quiet. */
     fun sessionMoved(title: String) {
         if (store.state.phase.isTerminal) return
-        showTag("Now talking in $title")
+        showTag(localized(R.string.voice_floating_now_talking_in, VoiceFeature.State.displayTitle(title)))
     }
 
     private fun showTag(text: String) {
@@ -1878,10 +1880,12 @@ internal fun FloatingCallDuration(connectedAt: Instant?, status: String, modifie
 internal fun floatingCallSpokenDuration(seconds: Long): String {
     val minutes = seconds / 60
     val rest = seconds % 60
-    val secondsText = if (rest == 1L) "1 second" else "$rest seconds"
-    if (minutes == 0L) return secondsText
-    val minutesText = if (minutes == 1L) "1 minute" else "$minutes minutes"
-    return "$minutesText, $secondsText"
+    if (minutes == 0L) return localizedPlural(R.plurals.voice_floating_spoken_seconds, rest.toInt(), rest.toInt())
+    return localized(
+        R.string.voice_floating_spoken_duration,
+        localizedPlural(R.plurals.voice_floating_spoken_minutes, minutes.toInt(), minutes.toInt()),
+        localizedPlural(R.plurals.voice_floating_spoken_seconds, rest.toInt(), rest.toInt()),
+    )
 }
 
 private fun lerp(a: Double, b: Double, t: Double): Double = a + (b - a) * t

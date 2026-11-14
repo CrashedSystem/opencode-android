@@ -1,5 +1,8 @@
 package ai.opencode.core.ui
 
+import ai.opencode.core.R
+import ai.opencode.core.strings.localized
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -19,8 +22,8 @@ import kotlinx.serialization.Serializable
  * palette, not Material You. Serialized by iOS's raw values so the stored choice reads the same.
  */
 @Serializable
-enum class AppTheme(val rawValue: String, val title: String) {
-    @SerialName("system") System("system", "System"),
+enum class AppTheme(val rawValue: String, private val brandTitle: String?) {
+    @SerialName("system") System("system", null),
     @SerialName("oc-2") OpenCode("oc-2", "OpenCode"),
     @SerialName("tokyonight") TokyoNight("tokyonight", "Tokyo Night"),
     @SerialName("catppuccin") Catppuccin("catppuccin", "Catppuccin"),
@@ -31,6 +34,9 @@ enum class AppTheme(val rawValue: String, val title: String) {
 
     val id: String get() = rawValue
 
+    /** Brand names stay as they are; only System is translated. */
+    val title: String get() = brandTitle ?: localized(R.string.core_theme_system_title)
+
     companion object {
         fun fromRawValue(rawValue: String): AppTheme? = entries.firstOrNull { it.rawValue == rawValue }
     }
@@ -38,11 +44,13 @@ enum class AppTheme(val rawValue: String, val title: String) {
 
 /** System / Light / Dark appearance override in Settings → Appearance (iOS `AppearanceColorScheme`). */
 @Serializable
-enum class AppearanceColorScheme(val rawValue: String, val title: String) {
-    @SerialName("system") System("system", "System"),
-    @SerialName("light") Light("light", "Light"),
-    @SerialName("dark") Dark("dark", "Dark"),
+enum class AppearanceColorScheme(val rawValue: String, @StringRes private val titleRes: Int) {
+    @SerialName("system") System("system", R.string.core_appearance_color_scheme_system_title),
+    @SerialName("light") Light("light", R.string.core_appearance_color_scheme_light_title),
+    @SerialName("dark") Dark("dark", R.string.core_appearance_color_scheme_dark_title),
     ;
+
+    val title: String get() = localized(titleRes)
 
     /** `null` follows the system (iOS `colorScheme == nil`). */
     val isDark: Boolean? get() = when (this) {

@@ -2,6 +2,7 @@ package ai.opencode.feature.settings
 
 import ai.opencode.core.ui.OpenCodeSearchField
 import ai.opencode.core.R as CoreR
+import ai.opencode.core.strings.localized
 import ai.opencode.core.dependencies.Dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
@@ -88,9 +89,9 @@ class ModelVisibilityFeature : Reducer<ModelVisibilityFeature.State, ModelVisibi
 
         /** “4 of 12”, or “Hidden” for a hidden provider. */
         fun summary(provider: Provider, visibility: ModelVisibility = this.visibility): String {
-            if (provider.id in visibility.hiddenProviderIDs) return "Hidden"
+            if (provider.id in visibility.hiddenProviderIDs) return localized(R.string.settings_models_summary_hidden)
             val shown = visibility.visible(models, null).count { it.providerID == provider.id }
-            return if (shown == provider.models.size) "All" else "$shown of ${provider.models.size}"
+            return if (shown == provider.models.size) localized(R.string.settings_models_summary_all) else localized(R.string.settings_models_summary_count, shown, provider.models.size)
         }
     }
 

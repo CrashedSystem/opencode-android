@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,15 +12,15 @@ internal val WhatsNewShipped.sessionIdLinks: WhatsNewEntry
     get() = feature(
         id = "session-id-links",
         day = "2026-10-21",
-        title = "Session Links",
+        title = localized(R.string.settings_whatsnew_entry_session_id_links_title),
         symbol = "link",
         tint = Tint.blue,
-        summary = "A session ID in a reply shows as that session’s title. Tap it to open the session.",
+        summary = localized(R.string.settings_whatsnew_entry_session_id_links_summary),
         details = listOf(
-            "A subagent’s ID opens over the session you’re in, and Back returns.",
-            "Hold one to copy its ID.",
-            "An ID this server doesn’t know shows shortened.",
+            localized(R.string.settings_whatsnew_entry_session_id_links_detail_1),
+            localized(R.string.settings_whatsnew_entry_session_id_links_detail_2),
+            localized(R.string.settings_whatsnew_entry_session_id_links_detail_3),
         ),
-        example = "Ask the agent to name another session by its ID, then tap the title.",
-        tryIt = Destination.Prompt("List my five most recent OpenCode sessions with their session IDs."),
+        example = localized(R.string.settings_whatsnew_entry_session_id_links_example),
+        tryIt = Destination.Prompt(localized(R.string.settings_whatsnew_entry_session_id_links_prompt)),
     )

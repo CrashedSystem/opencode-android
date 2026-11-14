@@ -439,13 +439,20 @@ private fun ImitationTranscriptPreview(theme: AppTheme, isDark: Boolean) {
             }
         }
         Spacer(Modifier.height(14.dp))
+        val fileName = "SessionView.swift"
+        val reply = stringResource(R.string.settings_themes_preview_reply, fileName)
+        val fileNameStart = reply.indexOf(fileName)
         Text(
             buildAnnotatedString {
-                append("I found the layout issue in ")
-                withStyle(SpanStyle(fontFamily = mono, background = v.surfaceStrong.color, fontSize = 15.sp)) {
-                    append("SessionView.swift")
+                if (fileNameStart < 0) {
+                    append(reply)
+                } else {
+                    append(reply.substring(0, fileNameStart))
+                    withStyle(SpanStyle(fontFamily = mono, background = v.surfaceStrong.color, fontSize = 15.sp)) {
+                        append(fileName)
+                    }
+                    append(reply.substring(fileNameStart + fileName.length))
                 }
-                append(". The transcript and composer share the available height, so the keyboard is a useful stress test.")
             },
             style = SettingsText.title,
             color = v.bodyText.color,

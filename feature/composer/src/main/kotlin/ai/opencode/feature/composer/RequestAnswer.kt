@@ -1,11 +1,13 @@
 package ai.opencode.feature.composer
 
+import ai.opencode.core.R as CoreR
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeClientError
@@ -19,6 +21,7 @@ import ai.opencode.server.model.OpenCodePendingRequests
 import ai.opencode.server.model.OpenCodePermissionReply
 import ai.opencode.server.model.OpenCodePermissionRequest
 import ai.opencode.server.replyForm
+import androidx.annotation.StringRes
 import kotlinx.coroutines.CancellationException
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -108,8 +111,8 @@ class RequestDockFeature<Draft> : Reducer<RequestDockFeature.State<Draft>, Reque
         /** What the request's error line leads with when its last reply or dismissal failed; null when its error is something else. */
         fun replyFailureTitle(id: String, isForm: Boolean): String? {
             return when (requestFailures[id]) {
-                RequestFailure.Dismissal, RequestFailure.SettledDismissal -> "Couldn’t dismiss request"
-                RequestFailure.Reply, RequestFailure.Settled -> if (isForm) "Couldn’t send answer" else "Couldn’t send reply"
+                RequestFailure.Dismissal, RequestFailure.SettledDismissal -> localized(R.string.composer_request_dismiss_failed)
+                RequestFailure.Reply, RequestFailure.Settled -> if (isForm) localized(R.string.composer_request_answer_failed) else localized(R.string.composer_request_reply_failed)
                 null -> null
             }
         }
@@ -451,19 +454,22 @@ sealed interface RequestBar {
         override val isLast: Boolean get() = true
     }
 
-    enum class Verb(val title: String) {
-        Deny("Deny"),
-        Dismiss("Dismiss"),
+    enum class Verb(@StringRes private val titleRes: Int) {
+        Deny(R.string.composer_request_deny),
+        Dismiss(CoreR.string.common_dismiss),
+        ;
+
+        val title: String get() = localized(titleRes)
     }
 
     val placeholder: String
         get() = when (this) {
-            is Answer -> if (multiple) "Add your own" else "Answer in your own words"
-            is Choose, is Decline -> "Tell it what to do instead"
+            is Answer -> if (multiple) localized(R.string.composer_review_add_own_placeholder) else localized(R.string.composer_review_own_words_placeholder)
+            is Choose, is Decline -> localized(R.string.composer_request_decline_placeholder)
         }
 
     /** The field's accessibility label. */
-    val fieldLabel: String get() = if (this is Answer) "Your answer" else "Reason"
+    val fieldLabel: String get() = if (this is Answer) localized(R.string.composer_review_answer_description) else localized(R.string.composer_request_reason_description)
 
     val isReady: Boolean
         get() = when (this) {
@@ -712,7 +718,7 @@ object RequestReplies {
             } catch (error: OpenCodeClientError) {
                 error
             } catch (error: Exception) {
-                OpenCodeClientError(error.message ?: "The request failed")
+                OpenCodeClientError(error.message ?: localized(R.string.composer_request_failed))
             }
             send(RequestDockFeature.Action.ResponseFinished(sessionID, requestID, error, dismissal))
         }

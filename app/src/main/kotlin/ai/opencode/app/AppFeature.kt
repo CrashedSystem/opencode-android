@@ -21,6 +21,7 @@ import ai.opencode.core.store.combine
 import ai.opencode.core.store.ifLet
 import ai.opencode.core.store.onChange
 import ai.opencode.core.store.scope
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.ThisDevice
 import ai.opencode.feature.drawer.HomeConnectionFeature
 import ai.opencode.feature.drawer.HomeFeature
@@ -188,8 +189,8 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
         /** Why the form's headers can't be sent, if they can't. */
         val headerProblem: String?
             get() {
-                server.headers.firstOrNull { !it.hasValidName }?.let { return "“${it.name}” isn’t a valid header name" }
-                server.headers.firstOrNull { !it.hasValidValue }?.let { return "The value of ${it.name} can’t contain a line break" }
+                server.headers.firstOrNull { !it.hasValidName }?.let { return localized(R.string.app_server_form_header_invalid_name, it.name) }
+                server.headers.firstOrNull { !it.hasValidValue }?.let { return localized(R.string.app_server_form_header_invalid_value, it.name) }
                 return null
             }
 
@@ -197,7 +198,7 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
         val credentialNamePrompt: String
             get() {
                 val address = withDefaultScheme(serverURL.trim())
-                if (address.isEmpty()) return "Optional"
+                if (address.isEmpty()) return localized(R.string.app_server_form_name_placeholder)
                 var target = server.copy(name = null, url = address)
                 val original = editingSavedServer
                 if (original != null && address != original.url) target = target.copy(alternateURLs = emptyList(), preferredURLs = emptyList())
@@ -213,9 +214,9 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
 
         val connectionProgressLabel: String?
             get() = when (connection) {
-                Connection.Pairing -> "Pairing"
-                Connection.Connecting -> "Connecting"
-                is Connection.LoadingHome -> "Loading sessions"
+                Connection.Pairing -> localized(R.string.app_connection_progress_pairing)
+                Connection.Connecting -> localized(R.string.app_connection_progress_connecting)
+                is Connection.LoadingHome -> localized(R.string.app_connection_progress_loading_sessions)
                 else -> null
             }
 
@@ -354,25 +355,25 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
                     .filter { seen.add(it.lowercase()) }
             }
 
-        val title: String get() = "Pair with $host?"
+        val title: String get() = localized(R.string.app_pairing_confirm_title, host)
 
         val message: String
             get() {
                 val allHosts = hosts
                 val action = when (allHosts.size) {
                     0, 1 -> if (link.redeemOrigins.size > 1) {
-                        "OpenCode will try $host and switch to the first address that answers."
+                        localized(R.string.app_pairing_confirm_try_one, host)
                     } else {
-                        "OpenCode will pair with $host and switch to it."
+                        localized(R.string.app_pairing_confirm_pair_one, host)
                     }
-                    2 -> "OpenCode will try ${allHosts[0]} and ${allHosts[1]} and switch to the first that answers."
+                    2 -> localized(R.string.app_pairing_confirm_try_two, allHosts[0], allHosts[1])
                     else -> {
                         val leading = allHosts.dropLast(1).joinToString(", ")
-                        "OpenCode will try $leading, and ${allHosts.last()} and switch to the first that answers."
+                        localized(R.string.app_pairing_confirm_try_many, leading, allHosts.last())
                     }
                 }
                 if (replacedServerNames.isEmpty()) return action
-                return "$action Saved credentials for ${replacedServerNames.joinToString(", ")} may be replaced."
+                return localized(R.string.app_pairing_confirm_replaces, action, replacedServerNames.joinToString(", "))
             }
     }
 
@@ -396,27 +397,39 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
         val details: List<ConnectionFailureDetail>,
         val friendlyName: String,
     ) {
-        enum class Phase(val rawValue: String) { Pair("Pair"), Connect("Connect"), LoadSessions("Load sessions") }
+        enum class Phase(val rawValue: String) {
+            Pair("Pair"), Connect("Connect"), LoadSessions("Load sessions");
+
+            /** The phase as the error card shows it; [rawValue] stays English for the copied report. */
+            val title: String
+                get() = when (this) {
+                    Pair -> localized(R.string.app_error_phase_pair)
+                    Connect -> localized(R.string.app_error_phase_connect)
+                    LoadSessions -> localized(R.string.app_error_phase_load_sessions)
+                }
+        }
 
         /** For the error card: the name with the address, or just the address. */
         val serverLabel: String get() = name?.let { "$it ($target)" } ?: target
 
         val detailText: String
             get() = details.withIndex().joinToString("\n\n") { (index, detail) ->
-                (if (details.size > 1) "Candidate ${index + 1}: " else "") + detail.text
+                if (details.size > 1) localized(R.string.app_error_candidate_detail, index + 1, detail.text) else detail.text
             }
 
         companion object {
             private val ALLOWED_HOST = Regex("^[A-Za-z0-9.\\-:\\[\\]]+$")
-            private const val INVALID = "Unavailable (invalid address)"
 
             /** Host and port only; anything else reads "Unavailable (invalid address)". */
-            fun safeTarget(address: String): String {
-                val uri = runCatching { java.net.URI(address) }.getOrNull() ?: return INVALID
-                if (uri.scheme?.lowercase() !in setOf("http", "https")) return INVALID
-                val host = uri.host?.takeIf { it.isNotEmpty() && ALLOWED_HOST.matches(it) } ?: return INVALID
+            fun safeTarget(address: String): String = validTarget(address) ?: localized(R.string.app_error_invalid_address)
+
+            /** Host and port only, or null when the address isn't a valid one. */
+            private fun validTarget(address: String): String? {
+                val uri = runCatching { java.net.URI(address) }.getOrNull() ?: return null
+                if (uri.scheme?.lowercase() !in setOf("http", "https")) return null
+                val host = uri.host?.takeIf { it.isNotEmpty() && ALLOWED_HOST.matches(it) } ?: return null
                 val port = uri.port.takeIf { it != -1 }
-                if (port != null && port !in 1..65535) return INVALID
+                if (port != null && port !in 1..65535) return null
                 val hostname = if (host.contains(":") && !host.startsWith("[")) "[$host]" else host
                 return port?.let { "$hostname:$it" } ?: hostname
             }
@@ -424,15 +437,15 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
             fun of(server: OpenCodeServer, phase: Phase, attempt: Int, details: List<ConnectionFailureDetail> = emptyList()): FailureContext {
                 val target = safeTarget(server.url)
                 val chosen = server.name?.trim().orEmpty()
-                val valid = target != INVALID
-                val name = if (chosen.isNotEmpty()) chosen else if (valid) server.displayName else "server"
+                val valid = validTarget(server.url) != null
+                val name = if (chosen.isNotEmpty()) chosen else if (valid) server.displayName else localized(R.string.app_server_fallback_name)
                 return FailureContext(
                     phase = phase,
                     target = target,
                     attempt = attempt,
                     name = if (name == OpenCodeServer.machineName(target)) null else name,
                     details = details.sortedBy { it.endpoint },
-                    friendlyName = if (chosen.isNotEmpty()) chosen else if (valid) server.friendlyName else "server",
+                    friendlyName = if (chosen.isNotEmpty()) chosen else if (valid) server.friendlyName else localized(R.string.app_server_fallback_name),
                 )
             }
         }
@@ -1116,12 +1129,12 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
             return "http://$address"
         }
 
-        const val EMPTY_CLIPBOARD_MESSAGE = "Your clipboard is empty"
-        const val NOT_A_PAIRING_LINK_MESSAGE = "That isn’t a pairing link"
+        val EMPTY_CLIPBOARD_MESSAGE: String get() = localized(R.string.app_paste_clipboard_empty)
+        val NOT_A_PAIRING_LINK_MESSAGE: String get() = localized(R.string.app_paste_not_a_pairing_link)
     }
 }
 
 internal val serverNoLongerSavedMessage: String
-    get() = "This server is no longer saved on this ${ThisDevice.name}. Connect to it again to open the session."
+    get() = localized(R.string.app_server_no_longer_saved, ThisDevice.name)
 
-internal const val sessionNoLongerAvailableMessage = "It may have been deleted, or the server may be unavailable."
+internal val sessionNoLongerAvailableMessage: String get() = localized(R.string.app_session_no_longer_available)

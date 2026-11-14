@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.ComposerAutocompleteChip
 import ai.opencode.feature.composer.ComposerFileAttachment
 import ai.opencode.feature.composer.SharedComposerDraft
@@ -19,7 +20,7 @@ fun State.absorb(shared: SharedComposerDraft): State {
     // recording keeps the share as a draft beside them.
     val composerWasEmpty = !hasPromptContent && !hasLiveDictation && parkedComposer == null
     val newFiles = shared.parkedFiles.map { file ->
-        if (!file.isUploading) file else file.copy(status = ComposerFileAttachment.Status.Failed("Couldn’t upload"))
+        if (!file.isUploading) file else file.copy(status = ComposerFileAttachment.Status.Failed(localized(R.string.session_attachment_upload_failed)))
     } + shared.files.map { ComposerFileAttachment(it) }
     val parked = parkedComposer
     var next = if (parked != null) {

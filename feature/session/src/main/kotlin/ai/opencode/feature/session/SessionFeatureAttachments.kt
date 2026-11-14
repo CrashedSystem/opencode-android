@@ -4,6 +4,7 @@ import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.map
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.State
 import ai.opencode.core.files.AttachmentFileType
@@ -102,7 +103,7 @@ internal fun SessionFeature.reduceAttachments(state: State, action: Action): Red
                     state.uploadUnsupportedServerIDs.update { it + serverID }
                 }
                 var next = updateFile(id, state) {
-                    it.copy(status = ComposerFileAttachment.Status.Failed(if (isUnsupported) "Server doesn’t support files" else "Couldn’t upload"))
+                    it.copy(status = ComposerFileAttachment.Status.Failed(if (isUnsupported) localized(R.string.session_attachment_files_unsupported) else localized(R.string.session_attachment_upload_failed)))
                 }
                 if (next.pendingFiles.any { it.id == id } || next.parkedComposer?.files?.any { it.id == id } == true) {
                     next = forgetSharedSend(next.withSendAfterUploads(null))

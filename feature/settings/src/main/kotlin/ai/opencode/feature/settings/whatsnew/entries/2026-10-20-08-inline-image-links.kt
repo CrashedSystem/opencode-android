@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.SettingsDestination
@@ -9,7 +11,7 @@ internal val WhatsNewShipped.inlineImageLinks: WhatsNewEntry
     get() = smaller(
         id = "inline-image-links",
         day = "2026-10-20",
-        title = "Image Link Previews",
+        title = localized(R.string.settings_whatsnew_entry_inline_image_links_title),
         symbol = "photo",
-        summary = "Turn on Image Link Previews in Settings › Experimental › Transcript to preview linked images in replies. Tap a thumbnail to open it full screen and zoom.",
+        summary = localized(R.string.settings_whatsnew_entry_inline_image_links_summary),
     )

@@ -9,6 +9,7 @@ import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionReduce
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeShape
@@ -652,7 +653,7 @@ fun AttachmentFocusIndicator(mark: AttachmentFocusMark?) {
  * object): only the camera's own state lives here; the parent owns attachments.
  */
 private class AttachmentCameraState(private val context: Context, private val scope: CoroutineScope) {
-    var message: String? by mutableStateOf("Opening camera…")
+    var message: String? by mutableStateOf(localized(R.string.composer_camera_opening))
     var needsSettings by mutableStateOf(false)
     var canRetry by mutableStateOf(false)
     var canCapture by mutableStateOf(false)
@@ -729,7 +730,7 @@ private class AttachmentCameraState(private val context: Context, private val sc
         canCapture = false
         canRetry = false
         needsSettings = false
-        message = "Opening camera…"
+        message = localized(R.string.composer_camera_opening)
         scope.launch {
             val prefs = context.getSharedPreferences("opencode.camera", Context.MODE_PRIVATE)
             if (!isAuthorized() && !isRestricted() && !prefs.getBoolean(ASKED, false)) {
@@ -744,7 +745,7 @@ private class AttachmentCameraState(private val context: Context, private val sc
             if (!isAuthorized()) {
                 isActivating = false
                 needsSettings = true
-                message = if (isRestricted()) "Camera access is restricted." else "Allow camera access in Settings to take a photo."
+                message = if (isRestricted()) localized(R.string.composer_camera_access_restricted) else localized(R.string.composer_camera_access_needed)
                 return@launch
             }
             val owner = lifecycle ?: return@launch
@@ -908,7 +909,7 @@ private class AttachmentCaptureSession(
             val cameras = provider ?: runCatching { ProcessCameraProvider.awaitInstance(context) }.getOrNull()
             if (this@AttachmentCaptureSession.generation != generation) return@launch
             if (cameras == null) {
-                emit(Event.Failure("Couldn’t open the camera.", retry = true))
+                emit(Event.Failure(localized(R.string.composer_camera_open_failed), retry = true))
                 return@launch
             }
             provider = cameras
@@ -917,13 +918,13 @@ private class AttachmentCaptureSession(
                     has(cameras, CameraDeviceDescription.Position.Back) -> CameraDeviceDescription.Position.Back
                     has(cameras, CameraDeviceDescription.Position.Front) -> CameraDeviceDescription.Position.Front
                     else -> {
-                        emit(Event.Failure("No camera available on this device.", retry = false))
+                        emit(Event.Failure(localized(R.string.composer_camera_none_available), retry = false))
                         return@launch
                     }
                 }
             }
             if (!bind(cameras, owner, position)) {
-                emit(Event.Failure("Camera is unavailable.", retry = true))
+                emit(Event.Failure(localized(R.string.composer_camera_unavailable), retry = true))
                 return@launch
             }
             reportReadiness()
@@ -967,7 +968,7 @@ private class AttachmentCaptureSession(
     fun takePhoto(generation: UUID, flash: AttachmentCameraFlash, rotation: Int) {
         if (this.generation != generation) return
         if (pending || camera == null || interrupted) {
-            emit(Event.Failure("Camera is temporarily unavailable.", retry = true))
+            emit(Event.Failure(localized(R.string.composer_camera_temporarily_unavailable), retry = true))
             return
         }
         output.targetRotation = rotation
@@ -993,7 +994,7 @@ private class AttachmentCaptureSession(
                     if (data.isNotEmpty()) {
                         emit(Event.Photo(data))
                     } else {
-                        emit(Event.CaptureFailed("Couldn’t capture the photo. Try again."))
+                        emit(Event.CaptureFailed(localized(R.string.composer_camera_capture_failed)))
                     }
                 }
 
@@ -1002,9 +1003,9 @@ private class AttachmentCaptureSession(
                     pending = false
                     AppLog.app.error { "Photo capture failed: code ${exception.imageCaptureError}" }
                     if (camera != null && !interrupted) {
-                        emit(Event.CaptureFailed("Couldn’t capture the photo. Try again."))
+                        emit(Event.CaptureFailed(localized(R.string.composer_camera_capture_failed)))
                     } else {
-                        emit(Event.Failure("Camera is temporarily unavailable.", retry = true))
+                        emit(Event.Failure(localized(R.string.composer_camera_temporarily_unavailable), retry = true))
                     }
                 }
             },
@@ -1016,16 +1017,16 @@ private class AttachmentCaptureSession(
         if (this.generation != generation || pending || camera == null) return
         val target = if (position == CameraDeviceDescription.Position.Front) CameraDeviceDescription.Position.Back else CameraDeviceDescription.Position.Front
         if (!has(cameras, target)) {
-            emit(Event.CaptureFailed("Couldn’t switch cameras."))
+            emit(Event.CaptureFailed(localized(R.string.composer_camera_switch_failed)))
             return
         }
         val previous = position
         if (!bind(cameras, owner, target)) {
             if (!bind(cameras, owner, previous)) {
-                emit(Event.Failure("Camera is unavailable.", retry = true))
+                emit(Event.Failure(localized(R.string.composer_camera_unavailable), retry = true))
                 return
             }
-            emit(Event.CaptureFailed("Couldn’t switch cameras."))
+            emit(Event.CaptureFailed(localized(R.string.composer_camera_switch_failed)))
         }
         reportReadiness()
     }
@@ -1185,7 +1186,7 @@ private class AttachmentCaptureSession(
     private fun reportReadiness() {
         val bound = camera
         if (bound == null || interrupted) {
-            emit(Event.Failure("Camera is temporarily unavailable.", retry = true))
+            emit(Event.Failure(localized(R.string.composer_camera_temporarily_unavailable), retry = true))
             return
         }
         if (pending) return
@@ -1213,8 +1214,8 @@ private class AttachmentCaptureSession(
                 CameraState.ERROR_MAX_CAMERAS_IN_USE,
                 CameraState.ERROR_DO_NOT_DISTURB_MODE_ENABLED,
                 CameraState.ERROR_CAMERA_DISABLED,
-                -> emit(Event.Failure("Camera interrupted. It will resume when available.", retry = false))
-                else -> emit(Event.Failure("Camera stopped. Try again.", retry = true))
+                -> emit(Event.Failure(localized(R.string.composer_camera_interrupted), retry = false))
+                else -> emit(Event.Failure(localized(R.string.composer_camera_stopped), retry = true))
             }
             AppLog.app.notice { "Camera state error ${error.code}" }
             return

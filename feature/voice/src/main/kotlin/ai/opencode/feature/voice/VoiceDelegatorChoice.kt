@@ -1,5 +1,6 @@
 package ai.opencode.feature.voice
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeSession
 import kotlinx.serialization.KSerializer
@@ -38,7 +39,11 @@ sealed interface VoiceDelegatorChoice {
         val title: String,
         val projectName: String? = null,
     ) {
-        val displayTitle: String get() = VoiceFeature.State.usableTitle(title) ?: "Session"
+        /** The title the delegator and the voice agent read; it stays English. */
+        val modelTitle: String get() = VoiceFeature.State.usableTitle(title) ?: "Session"
+
+        val displayTitle: String
+            get() = VoiceFeature.State.usableTitle(title)?.let { VoiceFeature.State.displayTitle(it) } ?: localized(R.string.voice_delegator_session_fallback)
 
         companion object {
             operator fun invoke(session: OpenCodeSession, server: OpenCodeServer): Picked {
@@ -46,7 +51,7 @@ sealed interface VoiceDelegatorChoice {
                 return Picked(
                     serverID = voiceServerID(server),
                     sessionID = session.id,
-                    title = VoiceFeature.State.usableTitle(session.title) ?: "New session",
+                    title = VoiceFeature.State.usableTitle(session.title) ?: VoiceFeature.State.newSessionTitle,
                     projectName = if (folder.isEmpty() || folder == "/") null else folder,
                 )
             }
@@ -111,8 +116,8 @@ sealed interface VoiceDelegatorRouteAvailability {
     val explanation: String?
         get() = when (this) {
             Available -> null
-            GeminiLive -> "Gemini Live delegates straight to the session on screen. Choose an OpenAI Voice Provider to use an OpenCode session."
-            is UnsupportedEngine -> "${engine.title} delegates straight to the session on screen. Switch Voice Model to GPT-Live to use an OpenCode session."
+            GeminiLive -> localized(R.string.voice_delegator_unavailable_gemini)
+            is UnsupportedEngine -> localized(R.string.voice_delegator_unavailable_engine, engine.title)
         }
 
     companion object {

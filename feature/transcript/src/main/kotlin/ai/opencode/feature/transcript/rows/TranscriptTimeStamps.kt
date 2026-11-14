@@ -1,6 +1,8 @@
 package ai.opencode.feature.transcript.rows
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.appFormattingLocale
+import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import android.icu.text.DateFormat
@@ -305,7 +307,11 @@ object TranscriptTimeStamps {
     }
 
     /** What TalkBack reads: “Wednesday, 8:24 AM”. */
-    fun accessibilityLabel(text: String): String = text.split("\t", limit = 2).joinToString(", ")
+    fun accessibilityLabel(text: String): String {
+        val parts = text.split("\t", limit = 2)
+        if (parts.size < 2) return text
+        return localized(R.string.transcript_spoken_pair, parts[0], parts[1])
+    }
 }
 
 /** Bounded minute-and-day string cache shared by transcript and drawer timestamps (iOS `MinuteTimestampCache`). */

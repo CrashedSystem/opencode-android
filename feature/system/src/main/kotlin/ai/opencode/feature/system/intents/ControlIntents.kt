@@ -1,6 +1,8 @@
 package ai.opencode.feature.system.intents
 
 import ai.opencode.core.log.SystemActionOrigin
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SystemAction
 import ai.opencode.feature.system.SessionDirectory
 /**
@@ -57,11 +59,11 @@ data class SessionControlValue(
         fun of(entity: SessionEntity?, directory: SessionDirectory): SessionControlValue {
             val current = entity?.let { directory.sessionEntities(listOf(it.id)).firstOrNull() }
             return when (entity?.id) {
-                null, SessionEntity.LAST_VIEWED_ID -> SessionControlValue(entity?.id, "Last Viewed Session", null)
-                SessionEntity.NEW_SESSION_ID -> SessionControlValue(entity.id, "New Session", null)
+                null, SessionEntity.LAST_VIEWED_ID -> SessionControlValue(entity?.id, localized(R.string.system_last_viewed_session), null)
+                SessionEntity.NEW_SESSION_ID -> SessionControlValue(entity.id, localized(R.string.system_new_session), null)
                 else -> {
                     val title = current?.title ?: entity.title
-                    SessionControlValue(entity.id, title.ifEmpty { "Session" }, current?.detail ?: entity.detail)
+                    SessionControlValue(entity.id, title.ifEmpty { localized(R.string.system_quick_action_session_fallback) }, current?.detail ?: entity.detail)
                 }
             }
         }

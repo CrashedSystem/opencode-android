@@ -2,11 +2,13 @@ package ai.opencode.feature.composer
 
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.server.OpenCodeClientError
+import ai.opencode.server.R as ServerR
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -156,10 +158,13 @@ object RequestErrorLine {
         return brief(detail)
     }
 
+    private val httpStatus = Regex("HTTP (\\d{3})")
+
     /** The server's reason short enough to fit the line: “The server returned HTTP 500.” reads “HTTP 500”. */
     fun brief(detail: String): String {
         var brief = detail.trim()
-        if (brief.startsWith("The server returned HTTP ")) brief = brief.removePrefix("The server returned ")
+        val status = httpStatus.find(brief)?.groupValues?.get(1)?.toIntOrNull()
+        if (status != null && brief == localized(ServerR.string.server_error_http_status, status)) return "HTTP $status"
         if (brief.endsWith(".")) brief = brief.dropLast(1)
         return brief
     }

@@ -1,6 +1,8 @@
 package ai.opencode.feature.system.intents
 
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SessionDirectory
 import ai.opencode.feature.system.SystemAction
 import android.app.appsearch.AppSearchBatchResult
@@ -91,7 +93,7 @@ internal object SystemSearchIndex {
     internal fun document(session: SessionDirectory.Session, serverKey: String): GenericDocument {
         val url = url(serverKey, session.id)
         val open = GenericDocument.Builder<GenericDocument.Builder<*>>(serverKey, "${identifier(serverKey, session.id)}#open", POTENTIAL_ACTION)
-            .setPropertyString("name", "Open Session")
+            .setPropertyString("name", localized(R.string.system_open_session))
             .setPropertyString("uri", url)
             .build()
         return GenericDocument.Builder<GenericDocument.Builder<*>>(serverKey, identifier(serverKey, session.id), THING)

@@ -16,6 +16,8 @@ import ai.opencode.core.motion.motionFrameLoop
 import ai.opencode.core.motion.rememberFrameDurationSeconds
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.motion.transitionBlur
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.tuning.InternalBuild
 import ai.opencode.core.ui.OpenCodeFonts
 import ai.opencode.core.ui.OpenCodeIcon
@@ -33,6 +35,7 @@ import ai.opencode.feature.voice.VoiceLabEnvironment
 import ai.opencode.server.model.OpenCodeSession
 import ai.opencode.server.model.OpenCodeShell
 import androidx.activity.compose.BackHandler
+import androidx.annotation.PluralsRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
@@ -112,6 +115,7 @@ import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -233,10 +237,14 @@ object BackgroundWorkSummary {
     /** “1 subagent · 2 shells”, as the capsule reads. */
     fun summary(agents: List<OpenCodeSession>, shells: List<OpenCodeShell>): String = summary(agents.size, shells.size)
 
-    fun summary(agents: Int, shells: Int): String = listOfNotNull(
-        if (agents == 0) null else if (agents == 1) "1 subagent" else "$agents subagents",
-        if (shells == 0) null else if (shells == 1) "1 shell" else "$shells shells",
-    ).joinToString(" · ")
+    fun summary(agents: Int, shells: Int): String {
+        val agentsText = localizedPlural(R.plurals.session_background_work_subagent_count, agents, agents)
+        val shellsText = localizedPlural(R.plurals.session_background_work_shell_count, shells, shells)
+        if (agents == 0 && shells == 0) return ""
+        if (agents == 0) return shellsText
+        if (shells == 0) return agentsText
+        return localized(R.string.session_background_work_summary, agentsText, shellsText)
+    }
 
     /** Before the first measurement: rows, headers, and padding (dp). */
     fun estimatedHeight(agents: List<OpenCodeSession>, shells: List<OpenCodeShell>): Float =
@@ -301,8 +309,8 @@ fun BackgroundWorkCapsuleLabel(
 fun glyphWidth(agents: Int, shells: Int): Float = if (agents > 0 && shells > 0) 36 + BackgroundWorkTunables.pairGap else 18f
 
 /**
- * “1 subagent · 2 shells”, animated where it stands as the counts change: digits roll, a plural’s
- * “s”, a group, or the dot between groups opens or closes its own width on the resize spring
+ * “1 subagent · 2 shells”, animated where it stands as the counts change: digits roll, a group,
+ * or the dot between groups opens or closes its own width on the resize spring
  * while it fades and blurs, and the rest slides over. Under Reduce Motion the words cross-fade.
  */
 @Composable
@@ -320,18 +328,28 @@ fun BackgroundWorkCounts(agents: Int, shells: Int, modifier: Modifier = Modifier
         return
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Opening(agents > 0) { CountGroup(if (agents > 0) agents else lastAgents, "subagent") }
+        Opening(agents > 0) { CountGroup(if (agents > 0) agents else lastAgents, R.plurals.session_background_work_subagent_count) }
         Opening(agents > 0 && shells > 0) { Text(" · ", style = countsStyle, maxLines = 1, softWrap = false) }
-        Opening(shells > 0) { CountGroup(if (shells > 0) shells else lastShells, "shell") }
+        Opening(shells > 0) { CountGroup(if (shells > 0) shells else lastShells, R.plurals.session_background_work_shell_count) }
     }
 }
 
 @Composable
-private fun CountGroup(count: Int, noun: String) {
+private fun CountGroup(count: Int, @PluralsRes textRes: Int) {
+    // The whole phrase (“2 shells”) comes from the plural resource; the number inside it rolls.
+    val text = pluralStringResource(textRes, count, count)
+    val number = count.toString()
+    val numberAt = text.indexOf(number)
     Row(verticalAlignment = Alignment.CenterVertically) {
+        if (numberAt < 0) {
+            Text(text, style = countsStyle, maxLines = 1, softWrap = false)
+            return@Row
+        }
+        val before = text.substring(0, numberAt)
+        val after = text.substring(numberAt + number.length)
+        if (before.isNotEmpty()) Text(before, style = countsStyle, maxLines = 1, softWrap = false)
         RollingNumber(count, style = countsStyle)
-        Text(" $noun", style = countsStyle, maxLines = 1, softWrap = false)
-        Opening(count != 1) { Text("s", style = countsStyle, maxLines = 1, softWrap = false) }
+        if (after.isNotEmpty()) Text(after, style = countsStyle, maxLines = 1, softWrap = false)
     }
 }
 
@@ -1165,13 +1183,17 @@ object ShellElapsedTimeFormat {
         val h = seconds / 3600
         val m = (seconds % 3600) / 60
         val s = seconds % 60
-        fun unit(n: Long, noun: String) = if (n == 1L) "1 $noun" else "$n ${noun}s"
         val parts = listOfNotNull(
-            if (h > 0) unit(h, "hour") else null,
-            if (m > 0) unit(m, "minute") else null,
-            if (s > 0) unit(s, "second") else null,
+            if (h > 0) localizedPlural(R.plurals.session_shell_elapsed_hours, h.toInt(), h.toInt()) else null,
+            if (m > 0) localizedPlural(R.plurals.session_shell_elapsed_minutes, m.toInt(), m.toInt()) else null,
+            if (s > 0) localizedPlural(R.plurals.session_shell_elapsed_seconds, s.toInt(), s.toInt()) else null,
         )
-        return if (parts.isEmpty()) "0 seconds" else parts.joinToString(", ")
+        return when (parts.size) {
+            0 -> localizedPlural(R.plurals.session_shell_elapsed_seconds, 0, 0)
+            1 -> parts[0]
+            2 -> localized(R.string.session_list_two, parts[0], parts[1])
+            else -> localized(R.string.session_list_three, parts[0], parts[1], parts[2])
+        }
     }
 }
 

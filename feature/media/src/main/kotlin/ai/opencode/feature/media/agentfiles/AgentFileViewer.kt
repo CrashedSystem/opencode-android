@@ -6,6 +6,8 @@ import ai.opencode.core.ui.OpenCodeTopBarBackButton
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.AppearanceColorScheme
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
@@ -13,6 +15,7 @@ import ai.opencode.core.ui.OpenCodePrimaryButton
 import ai.opencode.core.ui.OpenCodeSecondaryButton
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.core.ui.rememberAppAppearance
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.AgentFileReference
@@ -709,24 +712,42 @@ private fun AudioArtwork(name: String) {
 /** "Downloading 1.2 MB of 3.1 MB"; before the first bytes, just the size. */
 fun progressText(received: Long, expected: Long?): String {
     val total = expected?.takeIf { it > 0 }?.let(::fileSizeText)
-    if (received <= 0) return total?.let { "Downloading $it" } ?: "Downloading…"
+    if (received <= 0) {
+        if (total != null) return localized(R.string.media_file_downloading_size, total)
+        return localized(R.string.media_file_downloading)
+    }
     val done = fileSizeText(received)
-    return total?.let { "Downloading $done of $it" } ?: "Downloading $done"
+    if (total != null) return localized(R.string.media_file_downloading_progress, done, total)
+    return localized(R.string.media_file_downloading_size, done)
 }
 
 /** `ByteCountFormatter` `.file`: decimal units ("Zero KB", "12 bytes", "345 KB", "1.2 MB"). */
 internal fun fileSizeText(bytes: Long): String {
-    if (bytes == 0L) return "Zero KB"
-    if (bytes < 1000) return "$bytes ${if (bytes == 1L) "byte" else "bytes"}"
-    val units = listOf("KB", "MB", "GB", "TB")
+    if (bytes == 0L) return localized(R.string.media_file_size_zero)
+    if (bytes < 1000) return localizedPlural(R.plurals.media_file_size_bytes, bytes.toInt(), bytes.toInt())
+    val units = listOf(
+        R.string.media_file_size_kilobytes,
+        R.string.media_file_size_megabytes,
+        R.string.media_file_size_gigabytes,
+        R.string.media_file_size_terabytes,
+    )
     var value = bytes / 1000.0
     var unit = 0
     while (value >= 1000 && unit < units.lastIndex) {
         value /= 1000
         unit++
     }
-    val text = if (unit == 0) Math.round(value).toString() else String.format(Locale.US, "%.1f", value).removeSuffix(".0")
-    return "$text ${units[unit]}"
+    val text = if (unit == 0) {
+        String.format(appFormattingLocale(), "%d", Math.round(value))
+    } else {
+        val rounded = Math.round(value * 10) / 10.0
+        if (rounded == Math.floor(rounded)) {
+            String.format(appFormattingLocale(), "%d", rounded.toLong())
+        } else {
+            String.format(appFormattingLocale(), "%.1f", rounded)
+        }
+    }
+    return localized(units[unit], text)
 }
 
 private fun timeText(ms: Long): String {

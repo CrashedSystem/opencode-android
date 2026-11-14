@@ -235,13 +235,20 @@ private fun PairingViewfinder(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(stringResource(R.string.settings_pairing_point_camera), style = OpenCodeTextStyles.headline, color = OpenCodeTheme.colors.text, textAlign = TextAlign.Center)
+            val command = "opencode pair"
+            val hint = stringResource(R.string.settings_pairing_computer_hint, command)
+            val commandStart = hint.indexOf(command)
             Text(
                 buildAnnotatedString {
-                    append("On your computer, open OpenCode’s Settings → Pairing, or run ")
-                    withStyle(SpanStyle(fontFamily = OpenCodeFonts.monospace, fontSize = 14.sp, color = OpenCodeTheme.colors.text)) {
-                        append("opencode pair")
+                    if (commandStart < 0) {
+                        append(hint)
+                    } else {
+                        append(hint.substring(0, commandStart))
+                        withStyle(SpanStyle(fontFamily = OpenCodeFonts.monospace, fontSize = 14.sp, color = OpenCodeTheme.colors.text)) {
+                            append(command)
+                        }
+                        append(hint.substring(commandStart + command.length))
                     }
-                    append(" in a terminal.")
                 },
                 style = OpenCodeTextStyles.subheadline,
                 color = OpenCodeTheme.colors.secondaryText,

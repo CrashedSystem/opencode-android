@@ -2,6 +2,8 @@ package ai.opencode.server.model
 
 import ai.opencode.core.sharing.FileDirectory
 import ai.opencode.core.sharing.SharedKey
+import ai.opencode.core.strings.localized
+import ai.opencode.server.R
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -30,8 +32,8 @@ data class ModelVisibility(
 
         val title: String
             get() = when (this) {
-                hide -> "Hide Selected"
-                onlyShow -> "Only Show Selected"
+                hide -> localized(R.string.server_model_visibility_hide)
+                onlyShow -> localized(R.string.server_model_visibility_only_show)
             }
     }
 

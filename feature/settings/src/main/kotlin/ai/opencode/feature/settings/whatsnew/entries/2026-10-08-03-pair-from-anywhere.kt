@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,13 +12,13 @@ internal val WhatsNewShipped.pairFromAnywhere: WhatsNewEntry
     get() = feature(
         id = "pair-from-anywhere",
         day = "2026-10-08",
-        title = "Pair From Anywhere",
+        title = localized(R.string.settings_whatsnew_entry_pair_from_anywhere_title),
         symbol = "qrcode",
         tint = Tint.gray,
-        summary = "Run opencode pair --remote on your computer to connect from any network, without shared Wi-Fi or Tailscale.",
+        summary = localized(R.string.settings_whatsnew_entry_pair_from_anywhere_summary),
         details = listOf(
-            "Scan the code it shows, or paste the link it prints.",
+            localized(R.string.settings_whatsnew_entry_pair_from_anywhere_detail_1),
         ),
-        example = "Run opencode pair --remote, then add the server on your phone",
+        example = localized(R.string.settings_whatsnew_entry_pair_from_anywhere_example),
         tryIt = Destination.servers,
     )

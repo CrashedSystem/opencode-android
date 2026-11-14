@@ -1,5 +1,6 @@
 package ai.opencode.feature.drawer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.log.CallTrigger
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DateClient
@@ -269,7 +270,7 @@ internal fun HomeFeature.reduceDrawer(state: State, action: Action): HomeReduced
             }
             var s = state.copy(recentlyDeletedIDs = state.recentlyDeletedIDs - action.sessionID)
             s = restoreSession(s, action.backup)
-            s = s.copy(deletionError = "Couldn’t delete “${action.backup.session.title}”. ${error.message}")
+            s = s.copy(deletionError = localized(R.string.drawer_delete_session_error, action.backup.session.title, error.message))
             haptics.play(Haptic.error)
             val clock = dependency(Clock)
             return Reduced(

@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
@@ -8,7 +10,7 @@ internal val WhatsNewShipped.drawerKeepsKeyboard: WhatsNewEntry
     get() = smaller(
         id = "drawer-keeps-keyboard",
         day = "2026-10-12",
-        title = "Keyboard Slides With the Drawer",
+        title = localized(R.string.settings_whatsnew_entry_drawer_keeps_keyboard_title),
         symbol = "keyboard",
-        summary = "Opening the session list while typing keeps your message focused, and the keys slide aside with the session.",
+        summary = localized(R.string.settings_whatsnew_entry_drawer_keeps_keyboard_summary),
     )

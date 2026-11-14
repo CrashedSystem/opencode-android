@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.SettingsDestination
@@ -9,7 +11,7 @@ internal val WhatsNewShipped.livingOrbPresets: WhatsNewEntry
     get() = smaller(
         id = "living-orb-presets",
         day = "2026-10-26",
-        title = "Orb Presets and Fancy",
+        title = localized(R.string.settings_whatsnew_entry_living_orb_presets_title),
         symbol = "circle.hexagongrid.fill",
-        summary = "Orb, beneath Call Style in Settings › Experimental › Calls, now opens on Fancy, with a bigger live preview and a row of presets. Save your own, rename them, and copy or paste a setup to share it.",
+        summary = localized(R.string.settings_whatsnew_entry_living_orb_presets_summary),
     )

@@ -10,6 +10,7 @@ import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
 import ai.opencode.core.store.cancellable
 import ai.opencode.core.store.map
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.modelpicker.ModelPickerEvent
 import ai.opencode.feature.composer.modelpicker.ModelPickerState
 import ai.opencode.server.OpenCodeClient
@@ -131,7 +132,7 @@ class ComposerFeature : Reducer<ComposerFeature.State, ComposerFeature.Action> {
             val haptics = dependency(HapticsClient)
             if (action.error != null) {
                 haptics.play(Haptic.error)
-                Reduced(state.copy(isSending = false, sendError = "Couldn’t send message: ${action.error.message}"))
+                Reduced(state.copy(isSending = false, sendError = localized(R.string.composer_send_failed_with_reason, action.error.message)))
             } else {
                 Reduced(state.copy(isSending = false, pendingModel = null))
             }
@@ -302,7 +303,7 @@ class ComposerFeature : Reducer<ComposerFeature.State, ComposerFeature.Action> {
                     Reduced(updateFile(action.id) { it.copy(status = ComposerFileAttachment.Status.Uploaded(result.value)) })
                 is ComposerAttachmentsFeature.Outcome.Failure -> {
                     haptics.play(Haptic.error)
-                    Reduced(updateFile(action.id) { it.copy(status = ComposerFileAttachment.Status.Failed("Couldn’t upload")) })
+                    Reduced(updateFile(action.id) { it.copy(status = ComposerFileAttachment.Status.Failed(localized(R.string.composer_upload_failed))) })
                 }
             }
             is ComposerAttachmentsFeature.Action.FileRetryTapped -> {

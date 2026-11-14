@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Tint
@@ -9,12 +11,12 @@ internal val WhatsNewShipped.drawerPeek: WhatsNewEntry
     get() = feature(
         id = "drawer-peek",
         day = "2026-10-08",
-        title = "When Sessions Were Active",
+        title = localized(R.string.settings_whatsnew_entry_drawer_peek_title),
         symbol = "clock",
         tint = Tint.blue,
-        summary = "Drag the session list toward the session to see when each was last active.",
+        summary = localized(R.string.settings_whatsnew_entry_drawer_peek_summary),
         details = listOf(
-            "Swiping left over the list closes it.",
+            localized(R.string.settings_whatsnew_entry_drawer_peek_detail_1),
         ),
-        example = "Open the session list and drag it to the right",
+        example = localized(R.string.settings_whatsnew_entry_drawer_peek_example),
     )

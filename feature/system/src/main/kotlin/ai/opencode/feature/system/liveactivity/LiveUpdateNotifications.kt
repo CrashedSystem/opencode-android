@@ -1,5 +1,6 @@
 package ai.opencode.feature.system.liveactivity
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.feature.system.R
 import ai.opencode.feature.system.notifications.SystemNotificationChannels
@@ -40,10 +41,10 @@ object LiveUpdateNotifications {
 
         val status: String
             get() = when (state) {
-                VoiceCallActivityAttributes.ContentState.Phase.Connecting -> "Connecting…"
-                VoiceCallActivityAttributes.ContentState.Phase.Reconnecting -> "Reconnecting…"
+                VoiceCallActivityAttributes.ContentState.Phase.Connecting -> localized(R.string.system_call_connecting)
+                VoiceCallActivityAttributes.ContentState.Phase.Reconnecting -> localized(R.string.system_call_reconnecting)
                 VoiceCallActivityAttributes.ContentState.Phase.Live -> ""
-                VoiceCallActivityAttributes.ContentState.Phase.Ended -> "Call ended"
+                VoiceCallActivityAttributes.ContentState.Phase.Ended -> localized(R.string.system_call_ended)
             }
     }
 

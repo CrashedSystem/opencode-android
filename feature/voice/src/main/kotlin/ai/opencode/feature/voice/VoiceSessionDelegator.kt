@@ -515,7 +515,7 @@ object VoiceSessionDelegator {
     }
 
     private fun pickedGone(picked: VoiceDelegatorChoice.Picked) =
-        "The picked delegator session “${picked.displayTitle}” was deleted. Pick another session or switch Delegator to Automatic in Voice settings."
+        "The picked delegator session “${picked.modelTitle}” was deleted. Pick another session or switch Delegator to Automatic in Voice settings."
 
     private suspend fun submit(submission: Submission, gate: VoiceSessionCreationGate): Admission {
         val client = dependency(OpenCodeClient)
@@ -547,7 +547,7 @@ object VoiceSessionDelegator {
                 val picked = choice.picked
                 if (picked.serverID != VoiceDelegatorWorkspace.serverID(server)) {
                     throw OpenCodeClientError(
-                        message = "The picked delegator session “${picked.displayTitle}” belongs to another server. Pick a session on this server or switch Delegator to Automatic in Voice settings.",
+                        message = "The picked delegator session “${picked.modelTitle}” belongs to another server. Pick a session on this server or switch Delegator to Automatic in Voice settings.",
                     )
                 }
                 if (picked.sessionID in submission.deletedSessionIDs) throw OpenCodeClientError(message = pickedGone(picked))
@@ -561,7 +561,7 @@ object VoiceSessionDelegator {
                 }
                 return Admission(
                     sessionID = picked.sessionID,
-                    title = picked.displayTitle,
+                    title = picked.modelTitle,
                     promptID = promptID,
                     promptText = text,
                     explained = explained,

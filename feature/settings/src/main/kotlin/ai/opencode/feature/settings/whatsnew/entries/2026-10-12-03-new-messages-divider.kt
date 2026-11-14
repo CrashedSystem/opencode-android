@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.SettingsDestination
@@ -10,13 +12,13 @@ internal val WhatsNewShipped.newMessagesDivider: WhatsNewEntry
     get() = feature(
         id = "new-messages-divider",
         day = "2026-10-12",
-        title = "Pick Up Where You Left Off",
+        title = localized(R.string.settings_whatsnew_entry_new_messages_divider_title),
         symbol = "line.horizontal.star.fill.line.horizontal",
         tint = Tint.orange,
-        summary = "Coming back to a session opens it at the bottom, with what arrived while you were away already there. To open a long backlog at a New line instead, turn on New Messages Divider in Settings › Sessions.",
+        summary = localized(R.string.settings_whatsnew_entry_new_messages_divider_summary),
         details = listOf(
-            "Sessions you’re likely to open refresh as the drawer opens, so they’re ready when you tap.",
-            "Switching back keeps a session’s background work and context gauge while it refreshes.",
+            localized(R.string.settings_whatsnew_entry_new_messages_divider_detail_1),
+            localized(R.string.settings_whatsnew_entry_new_messages_divider_detail_2),
         ),
-        example = "Start a long task, switch to another session, and come back once it has replied",
+        example = localized(R.string.settings_whatsnew_entry_new_messages_divider_example),
     )

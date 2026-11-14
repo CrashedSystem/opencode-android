@@ -1,7 +1,10 @@
 package ai.opencode.core.sharing
 
+import ai.opencode.core.R
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.experiments.ExperimentalGroup
+import ai.opencode.core.strings.localized
+import androidx.annotation.StringRes
 
 /**
  * Port of iOS `ExperimentalFeature` (`OpenCode/Settings/Experimental/ExperimentalFeature.swift`)
@@ -20,7 +23,7 @@ import ai.opencode.core.experiments.ExperimentalGroup
 enum class ExperimentalFeature(
     /** The switch's key (`experimental-<rawValue>`) and lab name. */
     val rawValue: String,
-    val title: String,
+    @StringRes private val titleRes: Int,
     /**
      * The Settings › Experimental section it sits in; null for a switch that lives on another
      * Settings page (Welcome Preview, in Developer › Playgrounds).
@@ -41,51 +44,53 @@ enum class ExperimentalFeature(
     joinsAll: Boolean = true,
 ) {
     // Composer
-    agentSelection("agent-selection", "Agent Selection", ExperimentalGroup.composer, "person.crop.circle"),
-    hideModels("hide-models", "Hide Unused Models", ExperimentalGroup.composer, "eye.slash"),
+    agentSelection("agent-selection", R.string.core_experiment_agent_selection_title, ExperimentalGroup.composer, "person.crop.circle"),
+    hideModels("hide-models", R.string.core_experiment_hide_models_title, ExperimentalGroup.composer, "eye.slash"),
 
     // Calls
     backgroundCallIntent(
-        "background-call-intent", "Background Call Shortcut", ExperimentalGroup.calls, "button.programmable",
+        "background-call-intent", R.string.core_experiment_background_call_intent_title, ExperimentalGroup.calls, "button.programmable",
         // Starts the microphone with the app in the background.
         joinsAll = false,
     ),
-    voiceSessionDelegator("voice-session-delegator", "OpenCode Session Delegator", ExperimentalGroup.calls, "bubble.left.and.bubble.right"),
+    voiceSessionDelegator("voice-session-delegator", R.string.core_experiment_voice_session_delegator_title, ExperimentalGroup.calls, "bubble.left.and.bubble.right"),
     shareScreenWithAgents(
-        "share-screen-with-agents", "Share Screen with Agents", ExperimentalGroup.calls, "rectangle.on.rectangle",
+        "share-screen-with-agents", R.string.core_experiment_share_screen_with_agents_title, ExperimentalGroup.calls, "rectangle.on.rectangle",
         // Sends a picture of the app to the agent.
         joinsAll = false,
     ),
 
     // Drawer
-    inboxSidebar("inbox-sidebar", "Inbox Sidebar", ExperimentalGroup.drawer, "tray"),
+    inboxSidebar("inbox-sidebar", R.string.core_experiment_inbox_sidebar_title, ExperimentalGroup.drawer, "tray"),
     sessionLiveActivity(
-        "session-live-activity", "Session Live Updates", ExperimentalGroup.drawer, "platter.filled.top.iphone",
+        "session-live-activity", R.string.core_experiment_session_live_activity_title, ExperimentalGroup.drawer, "platter.filled.top.iphone",
     ),
-    soundEffects("sound-effects", "Sound Effects", ExperimentalGroup.drawer, "speaker.wave.2.fill"),
+    soundEffects("sound-effects", R.string.core_experiment_sound_effects_title, ExperimentalGroup.drawer, "speaker.wave.2.fill"),
 
     // Transcript
-    inAppBrowser("in-app-browser", "In-App Browser", ExperimentalGroup.transcript, "safari"),
+    inAppBrowser("in-app-browser", R.string.core_experiment_in_app_browser_title, ExperimentalGroup.transcript, "safari"),
 
     // Settings › Developer › Playgrounds, beside Show Welcome
-    welcomePreview("welcome-preview", "Welcome Preview", null, "hand.wave"),
+    welcomePreview("welcome-preview", R.string.core_experiment_welcome_preview_title, null, "hand.wave"),
 
     // Removed on iOS; kept only until the modules that still read them port the removal.
 
     /** iOS cd6be7c6 removed the Since You Left experiment. Never on. */
     @Deprecated("Removed on iOS (cd6be7c6)")
-    sinceYouLeft("since-you-left", "Since You Left", ExperimentalGroup.transcript, "clock.arrow.circlepath", isRetired = true),
+    sinceYouLeft("since-you-left", R.string.core_experiment_since_you_left_title, ExperimentalGroup.transcript, "clock.arrow.circlepath", isRetired = true),
 
     /** iOS c75d4a1e removed the Session Switcher experiment. Never on; its switch is cleared at launch. */
     @Deprecated("Removed on iOS (c75d4a1e)")
-    sessionSwitcher("session-switcher", "Session Switcher", ExperimentalGroup.drawer, "square.stack", isRetired = true),
+    sessionSwitcher("session-switcher", R.string.core_experiment_session_switcher_title, ExperimentalGroup.drawer, "square.stack", isRetired = true),
 
     /** iOS c75d4a1e removed Title Is the Switch. Never on; its switch is cleared at launch. */
     @Deprecated("Removed on iOS (c75d4a1e)")
-    serverTitleSwitch("server-title-switch", "Title Is the Switch", ExperimentalGroup.drawer, "server.rack", isRetired = true),
+    serverTitleSwitch("server-title-switch", R.string.core_experiment_server_title_switch_title, ExperimentalGroup.drawer, "server.rack", isRetired = true),
     ;
 
     val id: String get() = rawValue
+
+    val title: String get() = localized(titleRes)
 
     /** All Experiments switches it: it didn't opt out and sits in the pane (iOS `joinsAll`). */
     val joinsAll: Boolean = joinsAll && group != null && !isRetired

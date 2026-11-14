@@ -1,5 +1,6 @@
 package ai.opencode.feature.voice
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeServer
 
 /** The only precedence table for a new call. Never contains a phone key. */
@@ -140,15 +141,15 @@ sealed interface VoiceKeySource {
     val rowTitle: String
         get() = when (this) {
             is Phone -> provider.keyRowTitle
-            is Server, OpenCode -> "Key on Your Server"
+            is Server, OpenCode -> localized(R.string.voice_key_source_server_row_title)
         }
 
     /** Settings › Voice's footer: whose key, or which workspace, pays for calls. */
     val footer: String
         get() = when (this) {
-            is Phone -> "Calls use your own OpenAI or xAI key."
-            is Server -> "Calls use your server’s $providerName key."
-            OpenCode -> "Calls are billed to your OpenCode Console workspace."
+            is Phone -> localized(R.string.voice_key_source_phone_footer)
+            is Server -> localized(R.string.voice_key_source_server_footer, providerName)
+            OpenCode -> localized(R.string.voice_key_source_opencode_footer)
         }
 
     val isPhoneKey: Boolean get() = this is Phone

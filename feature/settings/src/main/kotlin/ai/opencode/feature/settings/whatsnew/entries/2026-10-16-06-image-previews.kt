@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,15 +12,15 @@ internal val WhatsNewShipped.imagePreviews: WhatsNewEntry
     get() = feature(
         id = "image-previews",
         day = "2026-10-16",
-        title = "Image Previews",
+        title = localized(R.string.settings_whatsnew_entry_image_previews_title),
         symbol = "photo.on.rectangle",
         tint = Tint.purple,
-        summary = "Images the agent names appear as previews in a bento layout, and missing files say so.",
+        summary = localized(R.string.settings_whatsnew_entry_image_previews_summary),
         details = listOf(
-            "Previews sit under the paragraph that names them.",
-            "Tap an image to open it full screen and swipe through the reply’s images.",
-            "Images outside the session’s folder wait for you to tap before loading.",
+            localized(R.string.settings_whatsnew_entry_image_previews_detail_1),
+            localized(R.string.settings_whatsnew_entry_image_previews_detail_2),
+            localized(R.string.settings_whatsnew_entry_image_previews_detail_3),
         ),
-        example = "Ask the agent to show screenshots from your project.",
-        tryIt = Destination.Prompt("Show me the screenshots in this project."),
+        example = localized(R.string.settings_whatsnew_entry_image_previews_example),
+        tryIt = Destination.Prompt(localized(R.string.settings_whatsnew_entry_image_previews_prompt)),
     )

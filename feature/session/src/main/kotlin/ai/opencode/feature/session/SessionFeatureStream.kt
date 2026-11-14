@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.RequestDockFeature
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
@@ -759,7 +760,7 @@ private fun SessionFeature.firstContentFrameRendered(state: SessionFeature.State
 
 /** iOS `Result.failure(OpenCodeClientError)`: a failure that isn't one reads as a generic client error. */
 internal fun Throwable.asClientError(): ai.opencode.server.OpenCodeClientError =
-    this as? ai.opencode.server.OpenCodeClientError ?: ai.opencode.server.OpenCodeClientError(message ?: "Something went wrong")
+    this as? ai.opencode.server.OpenCodeClientError ?: ai.opencode.server.OpenCodeClientError(message ?: localized(R.string.session_something_went_wrong))
 
 // region Live projection
 

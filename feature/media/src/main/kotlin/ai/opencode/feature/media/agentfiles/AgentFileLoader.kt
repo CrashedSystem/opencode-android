@@ -2,6 +2,7 @@ package ai.opencode.feature.media
 
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.OpenCodeTransport
@@ -56,16 +57,16 @@ sealed class AgentFileError : Exception() {
 
     val title: String
         get() = when (this) {
-            NotFound -> "File Not Found"
-            else -> "Couldn’t Open File"
+            NotFound -> localized(R.string.media_file_error_not_found_title)
+            else -> localized(R.string.media_file_error_open_failed_title)
         }
 
     val detail: String
         get() = when (this) {
-            Unreadable -> "This path can’t be read from the server."
-            NotFound -> "It may have been moved or deleted."
-            Unauthorized -> "The server didn’t accept this device’s password."
-            is Server -> "The server couldn’t read it (HTTP $status). It may be a folder."
+            Unreadable -> localized(R.string.media_file_error_unreadable)
+            NotFound -> localized(R.string.media_file_error_not_found)
+            Unauthorized -> localized(R.string.media_file_error_unauthorized)
+            is Server -> localized(R.string.media_file_error_server, status)
             is Network -> description
         }
 
@@ -83,12 +84,12 @@ sealed class AgentFileError : Exception() {
          */
         fun network(error: Throwable): AgentFileError = Network(
             when (error) {
-                is SocketTimeoutException -> "The request timed out."
+                is SocketTimeoutException -> localized(R.string.media_file_error_timed_out)
                 else -> OpenCodeClientError.UNREACHABLE_MESSAGE
             },
         )
 
-        internal val unexpectedResponse = Network("The server sent an unexpected response.")
+        internal val unexpectedResponse: Network get() = Network(localized(R.string.media_file_error_unexpected_response))
     }
 }
 

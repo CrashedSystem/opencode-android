@@ -1,5 +1,6 @@
 package ai.opencode.feature.voice
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeServer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -106,8 +107,8 @@ enum class VoiceProvider(val rawValue: String) {
 
     // iOS `CallVoice.swift` extension.
     val id: VoiceProvider get() = this
-    val keyRowTitle: String get() = "$displayName Key"
-    val keyPlaceholder: String get() = "$displayName API key"
+    val keyRowTitle: String get() = localized(R.string.voice_provider_key_row_title, displayName)
+    val keyPlaceholder: String get() = localized(R.string.voice_provider_key_placeholder, displayName)
     val engines: List<VoiceEngine> get() = VoiceEngine.entries.filter { it.provider == this }
 
     companion object {

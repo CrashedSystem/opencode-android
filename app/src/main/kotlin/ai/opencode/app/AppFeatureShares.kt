@@ -3,6 +3,7 @@ package ai.opencode.app
 import ai.opencode.core.files.ComposerFileStaging
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.drawer.HomeFeature
 import ai.opencode.feature.system.share.ReceivedShare
 
@@ -18,7 +19,7 @@ internal fun AppFeature.receiveShares(shares: List<ReceivedShare>, state: AppFea
     var next = state
     if (known.size < shares.size) {
         next = next.copy(
-            shareError = "The server you shared to is no longer saved on this device. Connect to it again, then share again.",
+            shareError = localized(R.string.app_share_server_no_longer_saved),
         )
         discardStagedFiles(shares.filter { share -> known.none { it.handoff.id == share.handoff.id } })
     }

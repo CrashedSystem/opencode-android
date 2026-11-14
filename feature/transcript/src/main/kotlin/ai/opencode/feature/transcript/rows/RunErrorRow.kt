@@ -3,6 +3,7 @@ package ai.opencode.feature.transcript.rows
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeShape
@@ -60,7 +61,7 @@ val OpenCodeRunError.Action.symbol: String
 
 /** The hold menu and TalkBack name Edit by what it edits. */
 private fun menuTitle(action: OpenCodeRunError.Action): String =
-    if (action == OpenCodeRunError.Action.Edit) "Edit Last Message" else action.title
+    if (action == OpenCodeRunError.Action.Edit) localized(R.string.transcript_run_error_edit_last_message) else action.title
 
 /** iOS `@ScaledMetric(relativeTo: .body)`: [base] dp scaled with the font, like Dynamic Type. */
 @Composable

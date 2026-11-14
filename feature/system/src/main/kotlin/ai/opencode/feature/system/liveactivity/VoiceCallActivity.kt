@@ -1,5 +1,7 @@
 package ai.opencode.feature.system.liveactivity
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
@@ -67,6 +69,6 @@ class LiveActivityCommands<Command : Any>(private val endActivities: suspend () 
 
 /** Port of iOS `EndVoiceCallIntent` / `ToggleVoiceMuteIntent`: the call's Live Update buttons. */
 object VoiceCallIntents {
-    const val END_TITLE = "End Call"
-    const val TOGGLE_MUTE_TITLE = "Mute or Unmute Call"
+    val END_TITLE: String get() = localized(R.string.system_call_end_title)
+    val TOGGLE_MUTE_TITLE: String get() = localized(R.string.system_call_toggle_mute_title)
 }

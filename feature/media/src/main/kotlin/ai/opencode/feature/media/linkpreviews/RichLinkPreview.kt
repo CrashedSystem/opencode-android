@@ -1,5 +1,6 @@
 package ai.opencode.feature.media
 
+import ai.opencode.core.strings.localized
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -253,7 +254,18 @@ data class GitHubPreview(
         @SerialName("Merged") Merged("Merged"),
         @SerialName("Draft") Draft("Draft"),
         @SerialName("Completed") Completed("Completed"),
-        @SerialName("Not planned") NotPlanned("Not planned"),
+        @SerialName("Not planned") NotPlanned("Not planned");
+
+        /** What the preview shows for the state; [rawValue] stays the wire value. */
+        val title: String
+            get() = when (this) {
+                Open -> localized(R.string.media_github_state_open)
+                Closed -> localized(R.string.media_github_state_closed)
+                Merged -> localized(R.string.media_github_state_merged)
+                Draft -> localized(R.string.media_github_state_draft)
+                Completed -> localized(R.string.media_github_state_completed)
+                NotPlanned -> localized(R.string.media_github_state_not_planned)
+            }
     }
 
     val caption: String

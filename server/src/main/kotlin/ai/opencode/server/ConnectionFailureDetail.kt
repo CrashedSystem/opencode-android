@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.core.strings.localized
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,7 +116,7 @@ data class ConnectionFailureDetail(
     val errorLabel: String
         get() {
             statusCode?.let { return "HTTP $it" }
-            val code = urlErrorCode ?: return "Connection failed"
+            val code = urlErrorCode ?: return localized(R.string.server_connection_failed)
             val name = when (code) {
                 UrlErrorCode.TIMED_OUT -> "timedOut"
                 UrlErrorCode.CANNOT_FIND_HOST -> "cannotFindHost"
@@ -153,11 +154,11 @@ data class ConnectionFailureDetail(
         get() {
             val lines = mutableListOf(
                 "$errorLabel · $endpoint",
-                if (addresses.isEmpty()) "Resolved address: Unknown"
-                else "Resolved address (lookup after failure): ${addresses.joinToString(", ")}",
+                if (addresses.isEmpty()) localized(R.string.server_connection_resolved_address_unknown)
+                else localized(R.string.server_connection_resolved_address, addresses.joinToString(", ")),
             )
             if (hasTailnetDNSMismatch) {
-                lines += "This tailnet name resolved to an address outside Tailscale’s range, so Tailscale DNS may not be in use. In the Tailscale app, turn on Use Tailscale DNS settings, and turn off Private DNS or any DNS-changing VPN profile."
+                lines += localized(R.string.server_connection_tailnet_dns_mismatch)
             }
             return lines.joinToString("\n")
         }

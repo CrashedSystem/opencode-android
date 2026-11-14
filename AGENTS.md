@@ -107,13 +107,18 @@ already wired by its parent; keep those names.
   defaults to a capsule); dialogs use `OpenCodeAlertDialog`. Touch targets ≥ 48dp (`Modifier.openCodeTapTarget`, after `clickable`),
   `OpenCodeIconButton` for icon controls.
 - Unfinished features stay behind Experimental, off by default, as on iOS.
-- UI text lives in string resources, not Kotlin literals, so it can be translated: each module's
-  `src/main/res/values/strings.xml`, with names prefixed by the module (`composer_`, `session_`,
-  …) because resource names are global. Shared words (Cancel, Done, …) are `common_*` in
+- UI text lives in string resources, not Kotlin literals, so it can be translated
+  ([docs/translating.md](docs/translating.md)): each module's `src/main/res/values/strings.xml`,
+  with names prefixed by the module (`composer_`, `session_`, …) because resource names are
+  global. Shared words (Cancel, Done, …) are `common_*` in
   `core/src/main/res/values/strings_common.xml`, read elsewhere as `CoreR.string.common_cancel`
-  (`import ai.opencode.core.R as CoreR`). One resource per sentence with positional placeholders
-  (`%1$s`), never joined pieces; counts use `<plurals>`. Logs, model prompts, wire values and
-  developer-only screens stay literals.
+  (`import ai.opencode.core.R as CoreR`). Composables read text with `stringResource`; reducers,
+  models, enums and errors use `localized(R.string.x)` / `localizedPlural` (`ai.opencode.core.strings`),
+  called in a function or `get()`, never in a `const val`, a top-level `val` or an enum
+  constructor argument. One resource per sentence with positional placeholders (`%1$s`), never
+  joined pieces; counts use `<plurals>`. Never compare, store or send translated text. Logs,
+  model prompts, wire values and developer-only screens stay literals. Tests assert the English
+  text: under unit tests `localized` returns it from the XML files.
 
 ## Dependencies
 

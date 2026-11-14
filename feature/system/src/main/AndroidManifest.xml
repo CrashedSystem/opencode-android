@@ -125,7 +125,7 @@
             android:name=".widgets.StartCallTileService"
             android:exported="true"
             android:icon="@drawable/ms_graphic_eq"
-            android:label="Start Call"
+            android:label="@string/system_start_call"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -136,7 +136,7 @@
             android:name=".widgets.OpenSessionTileService"
             android:exported="true"
             android:icon="@drawable/ms_chat_bubble"
-            android:label="Open Session"
+            android:label="@string/system_open_session"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -147,7 +147,7 @@
             android:name=".widgets.NewSessionTileService"
             android:exported="true"
             android:icon="@drawable/ms_edit_square"
-            android:label="New Session"
+            android:label="@string/system_new_session"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -159,7 +159,7 @@
         <receiver
             android:name=".widgets.StartCallWidgetReceiver"
             android:exported="true"
-            android:label="Start Call">
+            android:label="@string/system_start_call">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -168,7 +168,7 @@
         <receiver
             android:name=".widgets.OpenSessionWidgetReceiver"
             android:exported="true"
-            android:label="Open Session">
+            android:label="@string/system_open_session">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -177,7 +177,7 @@
         <receiver
             android:name=".widgets.NewSessionWidgetReceiver"
             android:exported="true"
-            android:label="New Session">
+            android:label="@string/system_new_session">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

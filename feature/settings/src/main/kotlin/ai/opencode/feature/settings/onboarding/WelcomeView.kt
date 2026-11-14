@@ -11,6 +11,7 @@ import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.motion.MotionSpring
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.StoreOf
+import ai.opencode.core.strings.localized
 import ai.opencode.core.store.observe
 import ai.opencode.core.tuning.TuningContext
 import ai.opencode.core.tuning.TuningContextEffect
@@ -83,10 +84,10 @@ import kotlin.math.min
 
 /** The welcome's words, in one place so the headline is easy to swap (iOS `WelcomeCopy`). */
 object WelcomeCopy {
-    const val HEADLINE = "OpenCode\nanywhere."
-    const val HEADLINE_SPOKEN = "OpenCode anywhere."
-    const val SUBHEAD = "Start tasks, answer questions and review changes away from your desk."
-    const val INSTRUCTION = "On your computer, open OpenCode and go to Settings → Pairing."
+    val HEADLINE: String get() = localized(R.string.settings_onboarding_headline)
+    val HEADLINE_SPOKEN: String get() = localized(R.string.settings_onboarding_headline_spoken)
+    val SUBHEAD: String get() = localized(R.string.settings_onboarding_subhead)
+    val INSTRUCTION: String get() = localized(R.string.settings_onboarding_instruction)
     const val PAIR_COMMAND = "opencode pair --remote"
     const val INSTALL_COMMAND = "curl -fsSL https://opencode.ai/v2/install | bash"
 }

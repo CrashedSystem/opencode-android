@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Tint
@@ -9,14 +11,14 @@ internal val WhatsNewShipped.groupedSteering: WhatsNewEntry
     get() = feature(
         id = "grouped-steering",
         day = "2026-10-13",
-        title = "Grouped Messages",
+        title = localized(R.string.settings_whatsnew_entry_grouped_steering_title),
         symbol = "text.bubble",
         tint = Tint.blue,
-        summary = "Messages you send in a row sit together as one block, and steering messages waiting for the agent share one Steering label.",
+        summary = localized(R.string.settings_whatsnew_entry_grouped_steering_summary),
         details = listOf(
-            "Bubbles in a row sit close, their corners joining where they meet.",
-            "Photos and files keep their own round shape inside the block.",
-            "As the agent takes each message, it moves up into place in one motion.",
+            localized(R.string.settings_whatsnew_entry_grouped_steering_detail_1),
+            localized(R.string.settings_whatsnew_entry_grouped_steering_detail_2),
+            localized(R.string.settings_whatsnew_entry_grouped_steering_detail_3),
         ),
-        example = "While the agent works, send three quick messages, one with a photo",
+        example = localized(R.string.settings_whatsnew_entry_grouped_steering_example),
     )

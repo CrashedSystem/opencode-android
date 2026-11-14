@@ -11,6 +11,7 @@ import ai.opencode.core.motion.MotionBlurReveal
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.motionBlurReveal
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeTextStyles
@@ -32,6 +33,7 @@ import android.location.LocationManager
 import android.location.LocationRequest
 import android.net.Uri
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
@@ -208,12 +210,14 @@ data class SharedLocation(
 // region LocationClient
 
 /** Why Location couldn't be shared (iOS `LocationClientError`); [message] is the user-facing copy. */
-sealed class LocationClientError(message: String) : Exception(message) {
-    data object Denied : LocationClientError("Location access is off for OpenCode. Turn it on in Settings.")
-    data object Unavailable : LocationClientError("Couldn’t find your location.")
+sealed class LocationClientError(@StringRes private val messageRes: Int) : Exception() {
+    data object Denied : LocationClientError(R.string.composer_location_denied)
+    data object Unavailable : LocationClientError(R.string.composer_location_unavailable)
+
+    override val message: String get() = localized(messageRes)
 
     /** iOS `localizedDescription`. */
-    val localizedDescription: String get() = message ?: ""
+    val localizedDescription: String get() = message
 }
 
 /**

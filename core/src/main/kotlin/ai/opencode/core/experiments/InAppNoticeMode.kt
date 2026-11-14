@@ -1,6 +1,8 @@
 package ai.opencode.core.experiments
 
+import ai.opencode.core.R
 import ai.opencode.core.sharing.SharedKey
+import ai.opencode.core.strings.localized
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -19,9 +21,9 @@ enum class InAppNoticeMode(val rawValue: String) {
 
     val title: String
         get() = when (this) {
-            off -> "Off"
-            needsInput -> "Needs Your Input Only"
-            all -> "All Updates"
+            off -> localized(R.string.core_in_app_notice_mode_off)
+            needsInput -> localized(R.string.core_in_app_notice_mode_needs_input)
+            all -> localized(R.string.core_in_app_notice_mode_all)
         }
 
     /** Off wherever the drawer button can't show the label (beside a large-screen sidebar). */

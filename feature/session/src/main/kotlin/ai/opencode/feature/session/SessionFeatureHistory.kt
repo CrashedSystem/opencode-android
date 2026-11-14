@@ -5,6 +5,7 @@ import ai.opencode.core.log.AppLog
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.strings.localized
 import ai.opencode.core.tuning.AnimationTimeScale
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.CancelID
@@ -113,13 +114,13 @@ private fun SessionFeature.earlierHistoryResponse(
     var added: List<OpenCodeTranscriptItem> = emptyList()
     val page: OpenCodeTranscriptPage? = action.result.getOrNull()
     if (page == null) {
-        val error = action.result.exceptionOrNull()?.asClientError() ?: OpenCodeClientError("Something went wrong")
+        val error = action.result.exceptionOrNull()?.asClientError() ?: OpenCodeClientError(localized(R.string.session_something_went_wrong))
         // No HTTP status means the request never reached the server. The connection state already
         // covers that; don't open a session on an error banner for a page nobody asked for yet.
         s = if (error.statusCode == null) s.copy(earlierHistoryRetriesOnReconnect = true) else s.copy(earlierHistoryError = error.message)
     } else {
         if (page.next != null && page.next == cursor) {
-            return Reduced(s.copy(earlierHistoryError = "Couldn’t load earlier messages"))
+            return Reduced(s.copy(earlierHistoryError = localized(R.string.session_load_earlier_failed)))
         }
         val merged = SessionFeature.mergeOlderPage(
             page.items, s.items, before = s.earlierHistoryInsertionID, reachedLoadedItems = reachedLoadedItems,
@@ -145,7 +146,7 @@ private fun SessionFeature.earlierHistoryResponse(
                 return Reduced(
                     s.copy(
                         earlierHistory = EarlierHistory.SeekingOverlap(null),
-                        earlierHistoryError = "Couldn’t load earlier messages",
+                        earlierHistoryError = localized(R.string.session_load_earlier_failed),
                     ),
                 )
             }
@@ -179,7 +180,7 @@ private fun SessionFeature.transcriptResponse(
     if (state.session?.id != sessionID) return Reduced(state)
     val items = action.result.getOrNull()
     if (items == null) {
-        val error = action.result.exceptionOrNull()?.asClientError() ?: OpenCodeClientError("Something went wrong")
+        val error = action.result.exceptionOrNull()?.asClientError() ?: OpenCodeClientError(localized(R.string.session_something_went_wrong))
         var s = state.copy(initialTranscriptRequestIsExternal = false, isLoading = false)
         if (s.cacheableItems.isEmpty() && !s.initialTranscriptIsFresh) s = s.copy(loadError = error.message)
         return Reduced(s, if (s.items.isEmpty()) Effect.send(Action.FirstContentFrameRendered) else Effect.none())

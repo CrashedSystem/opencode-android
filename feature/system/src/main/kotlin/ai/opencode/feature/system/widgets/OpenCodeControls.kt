@@ -1,6 +1,7 @@
 package ai.opencode.feature.system.widgets
 
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.AppTheme
 import ai.opencode.core.ui.OpenCodeColors
 import ai.opencode.core.ui.ThemeSharedKeys
@@ -200,7 +201,7 @@ abstract class OpenCodeControlWidget : GlanceAppWidget() {
 class StartCallWidget : OpenCodeControlWidget() {
     override val kind = OpenCodeControlKind.START_CALL
     override fun symbol(value: SessionControlValue) = SFSymbol.Waveform
-    override fun title(value: SessionControlValue) = "Start Call"
+    override fun title(value: SessionControlValue) = localized(R.string.system_start_call)
     override fun detail(value: SessionControlValue): String = value.title
 }
 
@@ -216,7 +217,7 @@ class OpenSessionWidget : OpenCodeControlWidget() {
 class NewSessionWidget : OpenCodeControlWidget() {
     override val kind = OpenCodeControlKind.NEW_SESSION
     override fun symbol(value: SessionControlValue) = SFSymbol.SquareAndPencil
-    override fun title(value: SessionControlValue) = "New Session"
+    override fun title(value: SessionControlValue) = localized(R.string.system_new_session)
     override fun detail(value: SessionControlValue): String? = null
 }
 

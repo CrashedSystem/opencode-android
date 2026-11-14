@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.sound.SoundEffect
@@ -193,7 +194,7 @@ internal fun SessionFeature.reduceSending(state: State, action: Action): Reduced
             val error = action.error
             if (error != null) {
                 haptics.play(Haptic.error)
-                return Reduced(appendInfo(next, "Couldn’t undo the message: ${error.message}"))
+                return Reduced(appendInfo(next, localized(R.string.session_undo_message_failed, error.message)))
             }
             next = next.setRevertMessageID(action.messageID)
             next = fillComposerDraft(

@@ -243,7 +243,12 @@ private fun DiffPreview(patch: String, modifier: Modifier = Modifier) {
                 DiffPreviewLines.Kind.Context -> colors.text to Color.Transparent
                 DiffPreviewLines.Kind.Hunk -> colors.secondaryText to Color.Transparent
             }
-            val spoken = line.kind.spoken + line.text.drop(1)
+            val body = line.text.drop(1)
+            val spoken = when (line.kind) {
+                DiffPreviewLines.Kind.Added -> stringResource(R.string.composer_diff_added_description, body)
+                DiffPreviewLines.Kind.Removed -> stringResource(R.string.composer_diff_removed_description, body)
+                DiffPreviewLines.Kind.Context, DiffPreviewLines.Kind.Hunk -> body
+            }
             Text(
                 line.text.ifEmpty { " " },
                 style = RequestTranscriptMetrics.toolFont,
@@ -262,7 +267,7 @@ private fun DiffPreview(patch: String, modifier: Modifier = Modifier) {
 
 /** The pure part of iOS `DiffPreview`. */
 internal object DiffPreviewLines {
-    enum class Kind(val spoken: String) { Added("Added: "), Removed("Removed: "), Context(""), Hunk("") }
+    enum class Kind { Added, Removed, Context, Hunk }
 
     data class Line(val kind: Kind, val text: String)
 

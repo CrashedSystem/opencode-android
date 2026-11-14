@@ -125,7 +125,7 @@ fun TranscriptVoiceMessageView(
     val actions = buildList {
         add(action(copyLabel) { onCopy(delegation.displayText) })
         add(action(copyFullMessageLabel) { onCopy(prompt) })
-        pendingActions?.let { addAll(it.accessibilityActions().filter { a -> a.label != "Copy" }) }
+        pendingActions?.let { addAll(it.accessibilityActions()) }
     }
     Box(
         modifier

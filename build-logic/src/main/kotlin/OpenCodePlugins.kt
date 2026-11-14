@@ -46,6 +46,9 @@ private fun CommonExtension.configureCommon() {
     lint.warningsAsErrors = false
     lint.checkDependencies = false
     lint.disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
+    // A string with no translation yet shows in English (docs/translating.md), so new English
+    // text doesn't have to wait for every language.
+    lint.warning += "MissingTranslation"
 }
 
 private fun Project.addCommonDependencies() {

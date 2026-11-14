@@ -1,5 +1,6 @@
 package ai.opencode.feature.drawer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.dependencies.BackgroundTaskClient
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DateClient
@@ -124,7 +125,7 @@ private val sessionLiveActivityOn: Boolean
 /** An accepted send from the open screen (or the session a draft's send created) starts following its run, replacing any run before. */
 internal fun HomeFeature.startSessionActivity(state: State, sessionID: String): HomeReduced {
     if (!sessionLiveActivityOn) return Reduced(state)
-    val title = state.sessionActivityTitle(sessionID, fallback = "New session")
+    val title = state.sessionActivityTitle(sessionID, fallback = localized(R.string.drawer_session_activity_new_session))
     val attributes = SessionActivityAttributes(serverKey = SessionDirectory.serverKey(state.server.persistenceID), sessionID = sessionID)
     val content = SessionLiveActivity.Content(title = title, phase = Phase.working, startedAt = dependency(DateClient).now())
     val client = dependency(SessionLiveActivityClient)

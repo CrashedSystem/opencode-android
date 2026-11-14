@@ -115,4 +115,56 @@
     <string name="transcript_location_open_in_maps">Open in Maps</string>
     <string name="transcript_location_description">Location: %1$s</string>
     <string name="transcript_location_description_with_address">Location: %1$s, %2$s</string>
+
+    <!-- Shared phrasing -->
+    <string name="transcript_quoted">“%1$s”</string>
+    <string name="transcript_spoken_pair">%1$s, %2$s</string>
+    <string name="transcript_list_two">%1$s and %2$s</string>
+    <string name="transcript_list_many">%1$s, and %2$s</string>
+
+    <!-- Tool rows -->
+    <string name="transcript_tool_read">Read</string>
+    <string name="transcript_tool_search">search %1$s</string>
+    <string name="transcript_tool_search_quoted">search “%1$s”</string>
+    <string name="transcript_tool_group_updates">Updates</string>
+    <plurals name="transcript_tool_group_used">
+        <item quantity="one">Used %1$d tool</item>
+        <item quantity="other">Used %1$d tools</item>
+    </plurals>
+
+    <!-- Question rows -->
+    <string name="transcript_question">Question</string>
+    <string name="transcript_question_no_answer">No answer</string>
+    <string name="transcript_question_dismissed">Dismissed</string>
+    <plurals name="transcript_question_answered_count">
+        <item quantity="one">Answered %1$d question</item>
+        <item quantity="other">Answered %1$d questions</item>
+    </plurals>
+    <plurals name="transcript_question_count">
+        <item quantity="one">%1$d question</item>
+        <item quantity="other">%1$d questions</item>
+    </plurals>
+
+    <!-- Model switch -->
+    <string name="transcript_model_switch_title">Switched to %1$s</string>
+    <string name="transcript_model_switch_default">Default</string>
+    <string name="transcript_model_switch_thinking_description">%1$s, %2$s thinking</string>
+    <string name="transcript_model_switch_thinking_off_description">%1$s, thinking off</string>
+
+    <!-- Run errors and failed sends -->
+    <string name="transcript_run_error_edit_last_message">Edit Last Message</string>
+    <string name="transcript_failed_send_status">Couldn’t send</string>
+    <string name="transcript_failed_send_moving">Moving…</string>
+    <string name="transcript_failed_send_move_to">Move to %1$s</string>
+
+    <!-- Links -->
+    <string name="transcript_session_link_new_session">New Session</string>
+    <string name="transcript_links_to_description">Links to %1$s</string>
+    <string name="transcript_link_preview_video">Video</string>
+    <string name="transcript_link_preview_post">Post</string>
+    <string name="transcript_link_preview_post_unavailable">Post unavailable</string>
+    <plurals name="transcript_link_preview_comments">
+        <item quantity="one">%1$s comment</item>
+        <item quantity="other">%1$s comments</item>
+    </plurals>
 </resources>

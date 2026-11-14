@@ -9,6 +9,7 @@ import ai.opencode.core.haptics.HapticEffect
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -104,13 +105,13 @@ enum class LinkMenuAction(val rawValue: String) {
 
     val title: String
         get() = when (this) {
-            OpenInAppBrowser -> "Open in App Browser"
-            OpenInSafari -> "Open in Browser"
-            OpenInApp -> "Open in App"
-            Copy -> "Copy Link"
-            Share -> "Share…"
-            OpenSession -> "Open Session"
-            CopySessionID -> "Copy ID"
+            OpenInAppBrowser -> localized(R.string.media_link_open_in_app_browser)
+            OpenInSafari -> localized(R.string.media_link_open_in_browser)
+            OpenInApp -> localized(R.string.media_link_open_in_app)
+            Copy -> localized(R.string.media_link_copy)
+            Share -> localized(R.string.media_link_share)
+            OpenSession -> localized(R.string.media_link_open_session)
+            CopySessionID -> localized(R.string.media_link_copy_session_id)
         }
 
     val systemImage: String
@@ -330,18 +331,18 @@ object LinkMenuText {
         if (id != null) {
             val name = SessionLink.title(url) ?: SessionLink.shortID(id)
             return when (action) {
-                LinkMenuAction.CopySessionID -> if (among.size > 1) "Copy ID of $name" else "Copy ID"
-                else -> "Open session $name"
+                LinkMenuAction.CopySessionID -> if (among.size > 1) localized(R.string.media_link_copy_session_id_of_description, name) else localized(R.string.media_link_copy_session_id)
+                else -> localized(R.string.media_link_open_session_named_description, name)
             }
         }
         if (among.size <= 1) return action.title.replace("…", "")
         val host = accessibilityTarget(url, among, linkText)
         return when (action) {
-            LinkMenuAction.OpenInAppBrowser -> "Open $host in App Browser"
-            LinkMenuAction.OpenInSafari -> "Open $host in Browser"
-            LinkMenuAction.OpenInApp -> "Open $host in App"
-            LinkMenuAction.Copy -> "Copy Link to $host"
-            LinkMenuAction.Share -> "Share Link to $host"
+            LinkMenuAction.OpenInAppBrowser -> localized(R.string.media_link_open_host_in_app_browser_description, host)
+            LinkMenuAction.OpenInSafari -> localized(R.string.media_link_open_host_in_browser_description, host)
+            LinkMenuAction.OpenInApp -> localized(R.string.media_link_open_host_in_app_description, host)
+            LinkMenuAction.Copy -> localized(R.string.media_link_copy_host_description, host)
+            LinkMenuAction.Share -> localized(R.string.media_link_share_host_description, host)
             LinkMenuAction.OpenSession, LinkMenuAction.CopySessionID -> action.title
         }
     }
@@ -363,9 +364,9 @@ object LinkMenuText {
             val bare = text.lowercase().removePrefix("https://").removePrefix("http://").removePrefix("www.")
             return text.takeUnless { bare.startsWith(host.lowercase().removePrefix("www.")) }
         }
-        ownText(url)?.let { text -> if (sameHost.count { ownText(it) == text } == 1) return "$text on $host" }
+        ownText(url)?.let { text -> if (sameHost.count { ownText(it) == text } == 1) return localized(R.string.media_link_text_on_host_description, text, host) }
         path(url)?.let { path -> if (sameHost.count { path(it) == path } == 1) return "$host$path" }
-        return "$host link ${among.indexOf(url) + 1}"
+        return localized(R.string.media_link_host_numbered_description, host, among.indexOf(url) + 1)
     }
 
     /** [url]'s path and query, without a trailing slash; null when it has none. */
@@ -379,7 +380,8 @@ object LinkMenuText {
     private val invisibleLinkChars = setOf('\u2060', '\uFFFC', '\uFFFD', '\u200B')
 
     /** TalkBack's name for the action that lists the links whose actions don't fit on the text. */
-    const val moreLinks = "More Links"
+    val moreLinks: String
+        get() = localized(R.string.media_link_more_links_description)
 
     /** What the text's links give TalkBack: [actions] on the text, and the links behind [moreLinks]. */
     data class AccessibilityActions(val actions: List<Pair<LinkMenuAction, String>>, val more: List<String>)

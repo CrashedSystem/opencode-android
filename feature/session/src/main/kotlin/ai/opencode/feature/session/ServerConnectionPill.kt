@@ -1,8 +1,11 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.R as CoreR
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionTransition
+import ai.opencode.core.strings.localized
+import ai.opencode.server.OpenCodeClientError
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeSurfaces
 import ai.opencode.core.ui.OpenCodeIcon
@@ -99,9 +102,9 @@ data class ServerConnectionNotice(
 
     val title: String
         get() = when (kind) {
-            Kind.reconnecting -> "Reconnecting to $serverName…"
-            Kind.failed -> "Couldn’t connect to $serverName"
-            Kind.signInFailed -> "Couldn’t sign in to $serverName"
+            Kind.reconnecting -> localized(R.string.session_server_reconnecting, serverName)
+            Kind.failed -> localized(R.string.session_server_connect_failed, serverName)
+            Kind.signInFailed -> localized(R.string.session_server_sign_in_failed, serverName)
         }
 
     /** The pill's tap: retry, or pair again for a sign-in the server refused. */
@@ -111,8 +114,16 @@ data class ServerConnectionNotice(
     val action: String?
         get() = when (kind) {
             Kind.reconnecting -> null
-            Kind.failed -> "Try Again"
-            Kind.signInFailed -> "Pair Again"
+            Kind.failed -> localized(CoreR.string.common_try_again)
+            Kind.signInFailed -> localized(R.string.session_server_pair_again)
+        }
+
+    /** What TalkBack says the pill's tap does (“Double-tap to try again”). */
+    val actionClickLabel: String?
+        get() = when (kind) {
+            Kind.reconnecting -> null
+            Kind.failed -> localized(R.string.session_server_try_again_click_label)
+            Kind.signInFailed -> localized(R.string.session_server_pair_again_click_label)
         }
 
     val systemImage: SFSymbol
@@ -140,7 +151,11 @@ data class ServerConnectionNotice(
             if (isSwitching || isConnected) return null
             if (isReconnecting) return ServerConnectionNotice(Kind.reconnecting, serverName)
             if (credentialsRejected) return ServerConnectionNotice(Kind.signInFailed, serverName)
-            val detail = errorMessage?.takeIf { it.isNotEmpty() && !it.startsWith("Couldn’t") }
+            // The pill already says the server couldn't be reached, so that message adds nothing as a detail.
+            // The English check covers the other “Couldn’t …” messages; in other languages those show as the detail.
+            val detail = errorMessage?.takeIf {
+                it.isNotEmpty() && it != OpenCodeClientError.UNREACHABLE_MESSAGE && !it.startsWith("Couldn’t")
+            }
             return ServerConnectionNotice(Kind.failed, serverName, detail)
         }
     }
@@ -185,7 +200,7 @@ fun ServerConnectionPill(
                 .clearAndSetSemantics {
                     contentDescription = notice.title
                     notice.detail?.let { stateDescription = it }
-                    onClick(label = notice.action?.lowercase()) { onAction(notice.primary); true }
+                    onClick(label = notice.actionClickLabel) { onAction(notice.primary); true }
                     if (offersEdit) {
                         customActions = listOf(CustomAccessibilityAction(editServerLabel) { onAction(ServerConnectionNotice.Action.editServer); true })
                     }

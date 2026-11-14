@@ -3,6 +3,7 @@ package ai.opencode.feature.voice
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.log.AppLog
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.core.tuning.Tunable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -94,12 +95,12 @@ enum class VoiceCallSoundPack(val rawValue: String) {
 
     val title: String
         get() = when (this) {
-            breathPing -> "Breath Ping"
-            crystalGlass -> "Crystal Glass"
-            warmAnalog -> "Warm Analog"
-            auroraPulse -> "Aurora Pulse"
-            velvetBell -> "Velvet Bell"
-            silent -> "Silent"
+            breathPing -> localized(R.string.voice_sound_pack_breath_ping)
+            crystalGlass -> localized(R.string.voice_sound_pack_crystal_glass)
+            warmAnalog -> localized(R.string.voice_sound_pack_warm_analog)
+            auroraPulse -> localized(R.string.voice_sound_pack_aurora_pulse)
+            velvetBell -> localized(R.string.voice_sound_pack_velvet_bell)
+            silent -> localized(R.string.voice_sound_pack_silent)
         }
 
     /**

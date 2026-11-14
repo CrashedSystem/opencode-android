@@ -1,5 +1,7 @@
 package ai.opencode.feature.session.header
 
+import ai.opencode.feature.session.R
+import ai.opencode.core.strings.localized
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.ui.OpenCodeTheme
@@ -111,16 +113,16 @@ object SessionContextRing {
 /** "64% of 400K", or the token count when the window is unknown (iOS `SessionContextText`). */
 object SessionContextText {
     fun summary(tokens: Int, limit: Int?, locale: Locale = appFormattingLocale()): String {
-        if (limit == null || limit <= 0) return "${NumberFormat.getIntegerInstance(locale).format(tokens)} tokens"
+        if (limit == null || limit <= 0) return localized(R.string.session_sheet_context_tokens, NumberFormat.getIntegerInstance(locale).format(tokens))
         val percent = SessionContextRing.percent(tokens.toDouble() / limit.toDouble())
         val compact = CompactDecimalFormat.getInstance(locale, CompactDecimalFormat.CompactStyle.SHORT).format(limit.toLong())
-        return "$percent% of $compact"
+        return localized(R.string.session_context_summary, percent, compact)
     }
 
     fun accessibilityValue(tokens: Int, limit: Int?, locale: Locale = appFormattingLocale()): String {
         val format = NumberFormat.getIntegerInstance(locale)
-        if (limit == null || limit <= 0) return "${format.format(tokens)} tokens"
+        if (limit == null || limit <= 0) return localized(R.string.session_sheet_context_tokens, format.format(tokens))
         val percent = SessionContextRing.percent(tokens.toDouble() / limit.toDouble())
-        return "$percent% used of ${format.format(limit)} tokens"
+        return localized(R.string.session_context_accessibility_value, percent, format.format(limit))
     }
 }

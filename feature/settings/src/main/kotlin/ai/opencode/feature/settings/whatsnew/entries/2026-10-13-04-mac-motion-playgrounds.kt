@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -13,18 +15,18 @@ internal val WhatsNewShipped.macMotionPlaygrounds: WhatsNewEntry
         id = "mac-motion-playgrounds",
         day = "2026-10-13",
         audience = Audience.developer,
-        title = "Playground Controls on Mac",
+        title = localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_title),
         symbol = "slider.horizontal.3",
         tint = Tint.orange,
-        summary = "With Developer Mode on, pair tuning with your Mac to replay playground animations in slow motion and inspect captured frames.",
+        summary = localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_summary),
         details = listOf(
-            "The Mac’s knobs page holds playground selection, presets and replay controls; the phone shows only the playground.",
-            "Compact cards show which controls are on screen, with named presets for motion and spacing and Native to restore the shipped feel; each preset applies its values together in one update.",
-            "The floating tuning panel hides when the Mac connects; summon it with the tuning gesture and choose Exit Playground to leave.",
-            "Seeded scenarios replay the same sample session so you can compare motion between builds.",
-            "Replays start fresh and deliver their steering and queued messages instead of leaving them waiting.",
-            "The Mac’s Review Player lets you step through captured geometry, mark a frame, and send animation feedback.",
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_1),
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_2),
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_3),
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_4),
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_5),
+            localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_detail_6),
         ),
-        example = "Open Settings → Developer, pair with the Mac tuning page, then try Transcript → Stream Reply at 0.25×",
+        example = localized(R.string.settings_whatsnew_entry_mac_motion_playgrounds_example),
         tryIt = Destination.Open(SettingsDestination.Developer),
     )

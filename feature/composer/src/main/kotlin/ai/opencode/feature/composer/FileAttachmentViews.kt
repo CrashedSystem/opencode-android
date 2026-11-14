@@ -1,6 +1,7 @@
 package ai.opencode.feature.composer
 
 import ai.opencode.core.files.AttachmentFileType
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
@@ -59,7 +60,7 @@ object ComposerFileChip {
         NumberFormat.getPercentInstance(appFormattingLocale()).apply { maximumFractionDigits = 0 }.format(value)
 
     fun statusDescription(file: ComposerFileAttachment): String = when (val status = file.status) {
-        is ComposerFileAttachment.Status.Uploading -> "Uploading, ${percent(file.progress)}"
+        is ComposerFileAttachment.Status.Uploading -> localized(R.string.composer_file_uploading_description, percent(file.progress))
         is ComposerFileAttachment.Status.Uploaded -> subtitle(file)
         is ComposerFileAttachment.Status.Failed -> status.message
     }

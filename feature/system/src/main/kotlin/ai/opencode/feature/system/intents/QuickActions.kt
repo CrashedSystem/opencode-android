@@ -1,6 +1,7 @@
 package ai.opencode.feature.system.intents
 
 import ai.opencode.core.log.SystemActionOrigin
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SystemAction
 import ai.opencode.feature.system.SessionDirectory
@@ -61,7 +62,7 @@ data class SystemQuickAction(
         val label = title.ifEmpty { context.getString(R.string.system_quick_action_session_fallback) }
         return ShortcutInfoCompat.Builder(context, shortcutID)
             .setShortLabel(label)
-            .setLongLabel(subtitle?.takeIf { it.isNotEmpty() }?.let { "$label · $it" } ?: label)
+            .setLongLabel(subtitle?.takeIf { it.isNotEmpty() }?.let { context.getString(R.string.system_quick_action_long_label, label, it) } ?: label)
             .setIcon(IconCompat.createWithResource(context, symbol.drawable))
             .setIntent(intent)
             .setRank(rank)
@@ -86,7 +87,7 @@ data class SystemQuickAction(
             server ?: return emptyList()
             val items = mutableListOf<SystemQuickAction>()
             if (voiceAvailable) {
-                items += SystemQuickAction(Kind.StartCall, "Start Call", server.lastViewed?.title, SFSymbol.Waveform, server.key)
+                items += SystemQuickAction(Kind.StartCall, localized(R.string.system_start_call), server.lastViewed?.title, SFSymbol.Waveform, server.key)
             }
             for (session in server.sessions.take(LIMIT - STATIC_COUNT - items.size)) {
                 items += SystemQuickAction(

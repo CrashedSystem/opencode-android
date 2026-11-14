@@ -303,6 +303,7 @@ private fun InlineRowLabel(row: InlineToolRow, expanded: Boolean, modifier: Modi
 /** The tool's glyph, by name (the desktop shows one per tool kind). */
 private fun toolGlyph(row: InlineToolRow): String {
     if (row.detailIsCommand) return "terminal"
+    if (row.kind is InlineToolRow.Kind.Reads) return "doc.text"
     val name = row.name.lowercase()
     return when {
         "read" in name -> "doc.text"

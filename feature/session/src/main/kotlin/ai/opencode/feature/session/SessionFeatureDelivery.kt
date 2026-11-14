@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.UndeliveredPrompts
 import ai.opencode.feature.composer.PromptOutbox
 import ai.opencode.feature.composer.DeliveryOutcome
@@ -46,7 +47,11 @@ data class FailedSend(
      */
     val isFolderGone: Boolean get() = reason == OpenCodeClientError.FOLDER_GONE_MESSAGE || reason == moveFailedReason
 
+    /** [reason] as the transcript shows it: the saved English [moveFailedReason] reads in the app's language. */
+    val displayReason: String get() = if (reason == moveFailedReason) localized(R.string.session_move_failed_reason) else reason
+
     companion object {
+        /** Saved with the send and compared in [isFolderGone], so it stays English; [displayReason] shows it. */
         const val moveFailedReason = "Couldn’t move session"
     }
 }
@@ -58,7 +63,7 @@ enum class DeliveryNote {
 
     val label: String
         get() = when (this) {
-            waiting -> "Waiting to send"
+            waiting -> localized(R.string.session_delivery_waiting_to_send)
         }
 }
 
@@ -260,7 +265,7 @@ internal fun SessionFeature.Companion.deliveryJob(
                                 handle.networkOperation.retried()
                             }
                         }
-                        val session = created ?: return failed(null, null, OpenCodeClientError("Couldn’t create the session."))
+                        val session = created ?: return failed(null, null, OpenCodeClientError(localized(R.string.session_create_failed)))
                         sessionID = session.id
                     }
                 }
@@ -323,7 +328,7 @@ internal fun SessionFeature.Companion.deliveryJob(
                     } catch (thrown: OpenCodeClientError) {
                         attempts += 1
                         log.notice { "$sendID couldn’t apply its agent to $sessionID: ${thrown.logSummary}" }
-                        val error = if (thrown.isLocationMissing) thrown else thrown.copy(message = "Couldn’t switch agent: ${thrown.message}")
+                        val error = if (thrown.isLocationMissing) thrown else thrown.copy(message = localized(R.string.session_switch_agent_failed, thrown.message))
                         if (!waitToRetry(error)) return failed(sessionID, created, error)
                         handle.networkOperation.retried()
                         continue
@@ -341,7 +346,7 @@ internal fun SessionFeature.Companion.deliveryJob(
                         // A failed switch is a failed attempt of the send.
                         attempts += 1
                         log.notice { "$sendID couldn’t apply its model to $sessionID: ${thrown.logSummary}" }
-                        val error = if (thrown.isLocationMissing) thrown else thrown.copy(message = "Couldn’t switch model: ${thrown.message}")
+                        val error = if (thrown.isLocationMissing) thrown else thrown.copy(message = localized(R.string.session_switch_model_failed, thrown.message))
                         if (!waitToRetry(error)) return failed(sessionID, created, error)
                         handle.networkOperation.retried()
                         continue

@@ -1,6 +1,8 @@
 package ai.opencode.feature.system.intents
 
 import ai.opencode.core.log.SystemActionOrigin
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SystemAction
 import ai.opencode.feature.system.SystemActionInbox
 import ai.opencode.feature.system.ScopedID
@@ -20,8 +22,8 @@ import kotlin.time.Duration.Companion.seconds
  * Settings tiles and widgets.
  */
 object OpenSessionIntent {
-    const val TITLE = "Open Session"
-    const val DESCRIPTION = "Opens a session in OpenCode."
+    val TITLE: String get() = localized(R.string.system_open_session)
+    val DESCRIPTION: String get() = localized(R.string.system_intent_open_session_description)
 
     fun perform(target: SessionEntity) {
         target.action()?.let(SystemActionInbox.shared::post)
@@ -29,8 +31,8 @@ object OpenSessionIntent {
 }
 
 object NewSessionIntent {
-    const val TITLE = "New Session"
-    const val DESCRIPTION = "Starts a new session in OpenCode."
+    val TITLE: String get() = localized(R.string.system_new_session)
+    val DESCRIPTION: String get() = localized(R.string.system_intent_new_session_description)
 
     fun perform(project: ProjectEntity?) {
         val scoped = project?.let { ScopedID.parse(it.id) }
@@ -40,9 +42,8 @@ object NewSessionIntent {
 
 /** The default: a call in the session you were last looking at. Its Session can instead be New Session or any session. */
 object StartVoiceCallIntent {
-    const val TITLE = "Start Voice Call"
-    const val DESCRIPTION =
-        "Starts a voice call with OpenCode in a session. Without a session, the call starts in the one you viewed last."
+    val TITLE: String get() = localized(R.string.system_intent_start_voice_call_title)
+    val DESCRIPTION: String get() = localized(R.string.system_intent_start_voice_call_description)
 
     fun perform(session: SessionEntity?) {
         (session ?: SessionEntity.lastViewed(null)).action(startsCall = true, origin = SystemActionOrigin.shortcut)?.let(SystemActionInbox.shared::post)
@@ -57,9 +58,8 @@ object StartVoiceCallIntent {
  * does.
  */
 object StartBackgroundVoiceCallIntent {
-    const val TITLE = "Start Voice Call in Background"
-    const val DESCRIPTION =
-        "Starts a voice call with OpenCode without opening the app. The call shows in the status bar and on the lock screen."
+    val TITLE: String get() = localized(R.string.system_intent_background_call_title)
+    val DESCRIPTION: String get() = localized(R.string.system_intent_background_call_description)
 
     /** How long the call has to reach Connecting before the app opens instead. */
     val callTimeout: Duration = 8.seconds

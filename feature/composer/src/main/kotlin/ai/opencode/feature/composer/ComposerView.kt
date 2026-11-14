@@ -1,8 +1,10 @@
 package ai.opencode.feature.composer
 
+import ai.opencode.core.R as CoreR
 import ai.opencode.core.experiments.key
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.collectState
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -179,7 +181,7 @@ fun ComposerView(
                         Spacer(Modifier.weight(1f))
                         SendButton(
                             enabled = state.requestDock.requestBar(state.draft)?.let { it.isReady && state.requestDock.respondingRequestIDs.isEmpty() } ?: state.canSend,
-                            label = sendLabel(state),
+                            verb = sendVerb(state),
                             onClick = { send(ComposerFeature.Action.SendTapped) },
                         )
                     }
@@ -214,17 +216,18 @@ fun ComposerView(
     }
 }
 
-/** iOS's bar: Send, or the request bar's verb while answering (Next, Deny, Dismiss). */
-private fun sendLabel(state: ComposerFeature.State): String = when (val bar = state.requestDock.requestBar(state.draft)) {
-    null -> "Send"
+/** iOS's bar: Send (null, the arrow), or the request bar's verb while answering (Next, Deny, Dismiss). */
+private fun sendVerb(state: ComposerFeature.State): String? = when (val bar = state.requestDock.requestBar(state.draft)) {
+    null -> null
     is RequestBar.Decline -> bar.verb.title
-    is RequestBar.Answer -> if (bar.isLast) "Send" else "Next"
-    is RequestBar.Choose -> if (bar.isLast) "Send" else "Next"
+    is RequestBar.Answer -> if (bar.isLast) null else localized(CoreR.string.common_next)
+    is RequestBar.Choose -> if (bar.isLast) null else localized(CoreR.string.common_next)
 }
 
 @Composable
-private fun SendButton(enabled: Boolean, label: String, onClick: () -> Unit) {
+private fun SendButton(enabled: Boolean, verb: String?, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val label = verb ?: stringResource(CoreR.string.common_send)
     Box(
         Modifier
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -233,7 +236,7 @@ private fun SendButton(enabled: Boolean, label: String, onClick: () -> Unit) {
             .testTag("composer-send"),
         contentAlignment = Alignment.Center,
     ) {
-        if (label != "Send") {
+        if (verb != null) {
             // The request bar's verb (Deny, Dismiss, Next) reads as a word, as iOS's bar does.
             Box(
                 Modifier

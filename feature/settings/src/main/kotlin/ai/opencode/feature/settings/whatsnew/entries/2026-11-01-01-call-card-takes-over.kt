@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.SettingsDestination
@@ -9,7 +11,7 @@ internal val WhatsNewShipped.callCardTakesOver: WhatsNewEntry
     get() = smaller(
         id = "call-card-takes-over",
         day = "2026-11-01",
-        title = "The Call’s Card Takes Over the Bottom",
+        title = localized(R.string.settings_whatsnew_entry_call_card_takes_over_title),
         symbol = "rectangle.bottomhalf.inset.filled",
-        summary = "In Living Orb, the call’s card now fills the bottom of the screen over the message field, with even margins all round, so the keyboard no longer squeezes it. Shrink it back to the orb to type.",
+        summary = localized(R.string.settings_whatsnew_entry_call_card_takes_over_summary),
     )

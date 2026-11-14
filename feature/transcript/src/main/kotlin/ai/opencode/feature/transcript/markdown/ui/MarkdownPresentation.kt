@@ -1,11 +1,13 @@
 package ai.opencode.feature.transcript.markdown.ui
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeColors
 import ai.opencode.core.ui.OpenCodeFonts
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.feature.media.SiteIcon
+import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.SessionLinkTarget
 import ai.opencode.feature.transcript.markdown.InlineRun
 import ai.opencode.feature.transcript.markdown.MathSyntax
@@ -273,7 +275,7 @@ object MarkdownPresentation {
             menuLinks = menuLinks,
             fetchableLinks = fetchable,
             hasMath = hasMath,
-            linkHint = if (hosts.isEmpty()) null else "Links to " + listFormatted(hosts),
+            linkHint = if (hosts.isEmpty()) null else localized(R.string.transcript_links_to_description, listFormatted(hosts)),
             atomics = atomics,
         )
     }
@@ -494,7 +496,13 @@ object MarkdownPresentation {
 
     private fun listFormatted(items: List<String>): String = when (items.size) {
         1 -> items[0]
-        2 -> "${items[0]} and ${items[1]}"
-        else -> items.dropLast(1).joinToString(", ") + ", and " + items.last()
+        2 -> localized(R.string.transcript_list_two, items[0], items[1])
+        else -> {
+            var leading = items[0]
+            for (index in 1 until items.size - 1) {
+                leading = localized(R.string.transcript_spoken_pair, leading, items[index])
+            }
+            localized(R.string.transcript_list_many, leading, items.last())
+        }
     }
 }

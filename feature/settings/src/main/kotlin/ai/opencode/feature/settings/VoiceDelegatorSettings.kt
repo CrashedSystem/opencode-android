@@ -2,6 +2,7 @@ package ai.opencode.feature.settings
 
 import ai.opencode.core.ui.OpenCodeSearchField
 import ai.opencode.core.experiments.ExperimentalFeature
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -77,14 +78,14 @@ val VoiceSettingsFeature.State.delegatorRowValue: String
     get() {
         val choice = voiceDelegatorChoice
         if (!delegatorRouteAvailability.isAvailable) {
-            return if (choice.usesOpenCodeSession) "Direct · Session unavailable" else "Direct"
+            return if (choice.usesOpenCodeSession) localized(R.string.settings_delegator_direct_session_unavailable) else localized(R.string.settings_delegator_direct)
         }
         return when (choice) {
-            VoiceDelegatorChoice.BuiltIn -> "Built-in"
-            VoiceDelegatorChoice.AutomaticSession -> "Automatic"
-            VoiceDelegatorChoice.ViewedSession -> "Viewed Session"
+            VoiceDelegatorChoice.BuiltIn -> localized(R.string.settings_delegator_built_in)
+            VoiceDelegatorChoice.AutomaticSession -> localized(R.string.settings_delegator_automatic)
+            VoiceDelegatorChoice.ViewedSession -> localized(R.string.settings_delegator_viewed_session)
             is VoiceDelegatorChoice.PickedSession -> {
-                if (crossServerPickedSession != null) return "${choice.picked.displayTitle} · Another server"
+                if (crossServerPickedSession != null) return localized(R.string.settings_delegator_another_server, choice.picked.displayTitle)
                 delegatorSessions.firstOrNull { it.id == choice.picked.sessionID }
                     ?.let { VoiceFeature.State.usableTitle(it.title) }
                     ?: choice.picked.displayTitle

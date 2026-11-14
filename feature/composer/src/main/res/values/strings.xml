@@ -156,4 +156,83 @@
         <item quantity="one">%1$d photo is the most you can add</item>
         <item quantity="other">%1$d photos is the most you can add</item>
     </plurals>
+    <!-- Camera lenses and flash (AttachmentCameraLenses) -->
+    <string name="composer_camera_lens_ultra_wide_description">Ultra Wide</string>
+    <string name="composer_camera_lens_wide_description">Wide</string>
+    <string name="composer_camera_lens_wide_zoom_description">Wide %1$s×</string>
+    <string name="composer_camera_lens_telephoto_description">Telephoto %1$s×</string>
+    <string name="composer_camera_flash_off">Off</string>
+    <string name="composer_camera_flash_auto">Auto</string>
+    <string name="composer_camera_flash_on">On</string>
+    <!-- Camera messages (AttachmentCameraView) -->
+    <string name="composer_camera_opening">Opening camera…</string>
+    <string name="composer_camera_access_restricted">Camera access is restricted.</string>
+    <string name="composer_camera_access_needed">Allow camera access in Settings to take a photo.</string>
+    <string name="composer_camera_open_failed">Couldn’t open the camera.</string>
+    <string name="composer_camera_none_available">No camera available on this device.</string>
+    <string name="composer_camera_unavailable">Camera is unavailable.</string>
+    <string name="composer_camera_temporarily_unavailable">Camera is temporarily unavailable.</string>
+    <string name="composer_camera_capture_failed">Couldn’t capture the photo. Try again.</string>
+    <string name="composer_camera_switch_failed">Couldn’t switch cameras.</string>
+    <string name="composer_camera_interrupted">Camera interrupted. It will resume when available.</string>
+    <string name="composer_camera_stopped">Camera stopped. Try again.</string>
+    <!-- Attachment menu (AttachmentPicker) -->
+    <string name="composer_attachment_menu_camera">Camera</string>
+    <string name="composer_attachment_menu_photos">Photos</string>
+    <string name="composer_attachment_menu_files">Files</string>
+    <string name="composer_attachment_menu_location">Location</string>
+    <string name="composer_attachment_menu_paste">Paste</string>
+    <!-- Autocomplete items (AutocompleteModels) -->
+    <string name="composer_autocomplete_new_session">New Session</string>
+    <string name="composer_autocomplete_skill">Skill</string>
+    <string name="composer_autocomplete_subagent">Subagent</string>
+    <string name="composer_autocomplete_command">Command</string>
+    <string name="composer_autocomplete_no_matches">No matches for “%1$s”</string>
+    <string name="composer_autocomplete_skill_description">Skill, %1$s</string>
+    <string name="composer_autocomplete_subagent_description">Subagent, %1$s</string>
+    <string name="composer_autocomplete_file_description">File, %1$s, %2$s</string>
+    <string name="composer_autocomplete_session_description">Session, %1$s, %2$s</string>
+    <string name="composer_autocomplete_command_description">Command, %1$s</string>
+    <string name="composer_autocomplete_command_with_label_description">Command, %1$s, %2$s</string>
+    <!-- Send and upload failures -->
+    <string name="composer_send_failed_with_reason">Couldn’t send message: %1$s</string>
+    <string name="composer_send_failed">Couldn’t send message</string>
+    <string name="composer_upload_failed">Couldn’t upload</string>
+
+    <!-- Photo viewer -->
+    <string name="composer_photo_viewer_image_label">Image attachment %1$d of %2$d</string>
+    <string name="composer_photo_viewer_image_format">Image</string>
+    <!-- Dictation errors -->
+    <string name="composer_dictation_microphone_denied">Microphone access is off for OpenCode. Enable it in Settings.</string>
+    <string name="composer_dictation_locale_unsupported">Dictation isn’t available for your language yet.</string>
+    <string name="composer_dictation_audio_unavailable">Dictation couldn’t start an audio session.</string>
+    <string name="composer_dictation_recognizer_failed">Couldn’t transcribe dictation (error %1$d)</string>
+
+    <!-- File attachments -->
+    <string name="composer_file_uploading_description">Uploading, %1$s</string>
+    <!-- Diff preview -->
+    <string name="composer_diff_added_description">Added: %1$s</string>
+    <string name="composer_diff_removed_description">Removed: %1$s</string>
+    <!-- Request dock -->
+    <string name="composer_request_dismiss_failed">Couldn’t dismiss request</string>
+    <string name="composer_request_answer_failed">Couldn’t send answer</string>
+    <string name="composer_request_reply_failed">Couldn’t send reply</string>
+    <string name="composer_request_deny">Deny</string>
+    <string name="composer_request_decline_placeholder">Tell it what to do instead</string>
+    <string name="composer_request_reason_description">Reason</string>
+    <string name="composer_request_failed">The request failed</string>
+    <!-- Location -->
+    <string name="composer_location_denied">Location access is off for OpenCode. Turn it on in Settings.</string>
+    <string name="composer_location_unavailable">Couldn’t find your location.</string>
+    <string name="composer_request_yes">Yes</string>
+    <string name="composer_request_no">No</string>
+    <!-- Model picker -->
+    <string name="composer_model_level_default">Default</string>
+    <string name="composer_model_section_favorites">Favorites</string>
+    <string name="composer_model_section_recent">Recent</string>
+    <string name="composer_model_section_all_models">All Models</string>
+    <string name="composer_model_placeholder">Model</string>
+    <string name="composer_model_list_full_description">Full</string>
+    <string name="composer_model_list_half_description">Half</string>
+    <string name="composer_model_favorite_description">Favorite</string>
 </resources>

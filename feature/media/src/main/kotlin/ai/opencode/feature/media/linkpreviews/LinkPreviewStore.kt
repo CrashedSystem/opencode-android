@@ -1,6 +1,7 @@
 package ai.opencode.feature.media
 
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.retry.NetworkPathMonitor
 import android.icu.number.Notation
@@ -70,7 +71,7 @@ data class LinkPreview(
                         // Its title is its caption: say it once, then its stars and language.
                         GitHubLink.Kind.Repository -> listOf(details.caption, repositoryFacts(details))
                         GitHubLink.Kind.Issue, GitHubLink.Kind.PullRequest ->
-                            listOf(details.caption, details.state?.rawValue, display.title)
+                            listOf(details.caption, details.state?.title, display.title)
                         GitHubLink.Kind.Commit -> {
                             val additions = details.additions
                             val deletions = details.deletions
@@ -79,14 +80,14 @@ data class LinkPreview(
                         }
                     }
                 }
-                is Display.Video -> listOf(display.title, display.site ?: domain, "Video")
+                is Display.Video -> listOf(display.title, display.site ?: domain, localized(R.string.media_link_preview_video))
                 Display.Pending -> when (val source = richSource) {
                     is RichLinkSource.Github -> listOf(source.link.caption, kindName(source.link.kind), domain)
-                    is RichLinkSource.Youtube -> listOf("YouTube", "Video")
-                    null -> listOf(handle?.let { "@$it" }, "Post", domain)
+                    is RichLinkSource.Youtube -> listOf("YouTube", localized(R.string.media_link_preview_video))
+                    null -> listOf(handle?.let { "@$it" }, localized(R.string.media_link_preview_post), domain)
                 }
                 Display.Plain -> when {
-                    isXPost -> listOf("Post unavailable", handle?.let { "@$it" }, domain)
+                    isXPost -> listOf(localized(R.string.media_link_preview_post_unavailable), handle?.let { "@$it" }, domain)
                     else -> readableTitle(url)?.let { listOf(it, domain) } ?: listOf(domain)
                 }
             }
@@ -112,10 +113,10 @@ data class LinkPreview(
 
         /** What a GitHub link is, before its metadata arrives. */
         fun kindName(kind: GitHubLink.Kind): String = when (kind) {
-            GitHubLink.Kind.Repository -> "Repository"
-            GitHubLink.Kind.Issue -> "Issue"
-            GitHubLink.Kind.PullRequest -> "Pull request"
-            GitHubLink.Kind.Commit -> "Commit"
+            GitHubLink.Kind.Repository -> localized(R.string.media_github_kind_repository)
+            GitHubLink.Kind.Issue -> localized(R.string.media_github_kind_issue)
+            GitHubLink.Kind.PullRequest -> localized(R.string.media_github_kind_pull_request)
+            GitHubLink.Kind.Commit -> localized(R.string.media_github_kind_commit)
         }
 
         /** A repository's stars and language, as its facts read. */

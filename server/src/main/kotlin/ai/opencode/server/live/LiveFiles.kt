@@ -4,8 +4,10 @@ import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.ServerLinkClient
 import ai.opencode.server.OpenCodeTransport
 import ai.opencode.core.files.AttachmentFileType
@@ -152,7 +154,7 @@ private suspend fun performUpload(server: OpenCodeServer, directory: String?, fi
     // `paths.tmp` arrived just before the write route; without it, uploads have nowhere to go.
     val tmp = info.paths?.tmp?.ifEmpty { null } ?: throw OpenCodeClientError.uploadsUnsupported
     val query = locationQuery(directory) + listOf("path" to uploadPath(tmp, name = name))
-    if (server.endpoint("/api/experimental/fs/write", query) == null) throw OpenCodeClientError("Enter a valid HTTP or HTTPS server URL.")
+    if (server.endpoint("/api/experimental/fs/write", query) == null) throw OpenCodeClientError(localized(R.string.server_error_invalid_url))
     // The same path on every attempt: a retry overwrites, never duplicates. Something the
     // person is sending: it rides out a long drop like a send. Like any request, it goes again
     // as soon as the server answers anything, at whichever address answers then.
@@ -165,7 +167,7 @@ private suspend fun performUpload(server: OpenCodeServer, directory: String?, fi
         reachable = { ServerContact.shared.next(contact) },
     ) {
         val target = link.route(server)
-        val url = target.endpoint("/api/experimental/fs/write", query) ?: throw OpenCodeClientError("Enter a valid HTTP or HTTPS server URL.")
+        val url = target.endpoint("/api/experimental/fs/write", query) ?: throw OpenCodeClientError(localized(R.string.server_error_invalid_url))
         val sentAt = Clock.liveValue.now()
         try {
             writeUpload(url, file, target, progress)
@@ -243,7 +245,7 @@ internal suspend fun requestListDirectory(server: OpenCodeServer, path: String?)
         request<DirectoryListingPayload>("/api/fs/list", query = path?.let { listOf("path" to it) } ?: emptyList(), server = server)
     } catch (error: OpenCodeClientError) {
         // A missing folder, or a file, answers 500. Only the words change.
-        if (error.statusCode != null && error.statusCode != 401) throw error.copy(message = "The server couldn’t list this folder")
+        if (error.statusCode != null && error.statusCode != 401) throw error.copy(message = localized(R.string.server_error_list_folder))
         throw error
     }
     return directoryListing(payload.location.directory, path, payload.data.map { it.path to it.type })

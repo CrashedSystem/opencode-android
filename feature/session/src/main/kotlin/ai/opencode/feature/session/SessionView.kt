@@ -2,6 +2,7 @@
 
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.ui.inContainer
 import ai.opencode.feature.composer.composerWindowTouches
@@ -838,7 +839,7 @@ private fun SessionPendingAttachments(store: StoreOf<State, Action>, sendImages:
             val text = attachment.pastedText
             val summary = attachment.pasted
             if (text != null && summary != null) {
-                presenter?.present(sourceID = null, isMedia = false, reducesMotion = reducedMotion, screenName = "Pasted Text") { viewer ->
+                presenter?.present(sourceID = null, isMedia = false, reducesMotion = reducedMotion, screenName = localized(R.string.session_pasted_text_screen_title)) { viewer ->
                     PastedTextViewer(
                         text = text,
                         summary = summary,
@@ -1003,12 +1004,13 @@ private fun SessionSheets(store: StoreOf<State, Action>, listContext: SessionLis
                         needsInput = status == SessionSheetStatus.Waiting,
                     )
                     val statusDescription = stringResource(R.string.session_sheet_status_description)
+                    val statusText = stringResource(status.textRes)
                     CompositionLocalProvider(
                         LocalAgentActivityScope provides "${sheet.state.server.persistenceID}|${details.session?.id ?: "draft"}|sheet",
                     ) {
                         AgentActivityGlyph(
                             AgentActivitySource.Subagent(activity),
-                            Modifier.clearAndSetSemantics { contentDescription = statusDescription; stateDescription = status.text },
+                            Modifier.clearAndSetSemantics { contentDescription = statusDescription; stateDescription = statusText },
                             size = size,
                         )
                     }

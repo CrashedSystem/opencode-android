@@ -7,6 +7,7 @@ import ai.opencode.core.motion.MotionReduce
 import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.StoreOf
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeAlertDialog
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconButton
@@ -206,7 +207,7 @@ internal fun selectionActions(
 
     val main = listOf(
         DrawerRowMenuItem(
-            if (anyUnread) "Mark as Read" else "Mark as Unread",
+            if (anyUnread) localized(R.string.drawer_mark_as_read) else localized(R.string.drawer_mark_as_unread),
             if (anyUnread) SFSymbol.EnvelopeOpen else SFSymbol.EnvelopeBadge,
         ) {
             for (session in sessions) {
@@ -218,13 +219,13 @@ internal fun selectionActions(
             }
             selection.clear()
         },
-        DrawerRowMenuItem("Archive", SFSymbol.Archivebox) {
+        DrawerRowMenuItem(localized(R.string.drawer_archive), SFSymbol.Archivebox) {
             for (session in sessions) {
                 store.send(HomeFeature.Action.InboxSidebar(InboxSidebarFeature.Action.ArchiveTapped(session.id, session.title)))
             }
             selection.clear()
         },
-        DrawerRowMenuItem("Delete", SFSymbol.Trash) {
+        DrawerRowMenuItem(localized(CoreR.string.common_delete), SFSymbol.Trash) {
             if (ids.size == 1) {
                 // One session asks in the existing words ([ai.opencode.feature.drawer.HomeDeleteConfirmation]).
                 store.send(HomeFeature.Action.DeleteSessionTapped(ids[0]))
@@ -237,7 +238,7 @@ internal fun selectionActions(
 
     val overflow = mutableListOf<DrawerRowMenuItem>()
     overflow.add(
-        DrawerRowMenuItem(if (allMuted) "Unmute" else "Mute", if (allMuted) SFSymbol.Bell else SFSymbol.BellSlash) {
+        DrawerRowMenuItem(if (allMuted) localized(R.string.drawer_unmute) else localized(R.string.drawer_mute), if (allMuted) SFSymbol.Bell else SFSymbol.BellSlash) {
             for (session in sessions) {
                 if (state.isMuted(session.id) == allMuted) store.send(HomeFeature.Action.ToggleMute(session.id))
             }
@@ -246,7 +247,7 @@ internal fun selectionActions(
     )
     if (pins) {
         overflow.add(
-            DrawerRowMenuItem(if (allPinned) "Unpin" else "Pin", if (allPinned) SFSymbol.PinSlash else SFSymbol.Pin) {
+            DrawerRowMenuItem(if (allPinned) localized(R.string.drawer_unpin) else localized(R.string.drawer_pin), if (allPinned) SFSymbol.PinSlash else SFSymbol.Pin) {
                 for (session in sessions) {
                     if (state.isPinned(session.id) == allPinned) store.send(HomeFeature.Action.TogglePin(session.id))
                 }
@@ -257,7 +258,7 @@ internal fun selectionActions(
     val windows = dependency(WindowsClient)
     if (ids.size == 1 && windows.isAvailable()) {
         overflow.add(
-            DrawerRowMenuItem("Open in New Window", SFSymbol.MacwindowBadgePlus) {
+            DrawerRowMenuItem(localized(R.string.drawer_open_in_new_window), SFSymbol.MacwindowBadgePlus) {
                 windows.open(SessionWindowTarget(serverID = state.server.persistenceID, sessionID = ids[0]))
                 selection.clear()
             },
@@ -273,13 +274,13 @@ internal fun archivedSelectionActions(
 ): List<DrawerRowMenuItem> {
     val rows = store.state.inboxSidebarArchivedRows().filter { it.id in selection.ids }
     return listOf(
-        DrawerRowMenuItem("Unarchive", SFSymbol.TrayAndArrowDown) {
+        DrawerRowMenuItem(localized(R.string.drawer_unarchive), SFSymbol.TrayAndArrowDown) {
             for (row in rows) {
                 store.send(HomeFeature.Action.InboxSidebar(InboxSidebarFeature.Action.UnarchiveTapped(row.id, row.title)))
             }
             selection.clear()
         },
-        DrawerRowMenuItem("Delete", SFSymbol.Trash) {
+        DrawerRowMenuItem(localized(CoreR.string.common_delete), SFSymbol.Trash) {
             // Delete reads the sessions Home lists, so the archived ones join it first.
             for (row in rows) {
                 store.send(HomeFeature.Action.InboxSidebar(InboxSidebarFeature.Action.ArchivedRowTapped(row.id)))

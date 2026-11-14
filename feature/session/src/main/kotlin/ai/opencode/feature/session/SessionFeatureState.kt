@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.RequestDockFeature
 import ai.opencode.feature.composer.UndoSnapshot
 import ai.opencode.feature.composer.DraftState
@@ -713,7 +714,7 @@ fun State.restoreDraft(saved: DraftState): State {
     var next = applySessionComposer {
         saved.copy(
             files = saved.files.map { file ->
-                if (!file.isUploading) file else file.copy(status = ComposerFileAttachment.Status.Failed("Couldn’t upload"))
+                if (!file.isUploading) file else file.copy(status = ComposerFileAttachment.Status.Failed(localized(R.string.session_attachment_upload_failed)))
             },
         )
     }

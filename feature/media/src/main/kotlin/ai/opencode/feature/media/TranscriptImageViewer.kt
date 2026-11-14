@@ -188,9 +188,11 @@ class ImageShareClient(
 val TranscriptImagePreview.Page.displayTitle: String?
     get() {
         name?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        if (labelIsPlaceholder) return null
         val trimmed = label.trim()
         if (trimmed.isEmpty()) return null
         val lower = trimmed.lowercase()
+        // Labels that arrive already written (a model's alt text) are matched as English words.
         val placeholders = setOf(
             "image",
             "photo",

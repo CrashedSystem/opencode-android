@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Tint
@@ -9,14 +11,14 @@ internal val WhatsNewShipped.stopRunsYourSteer: WhatsNewEntry
     get() = feature(
         id = "stop-runs-your-steer",
         day = "2026-10-11",
-        title = "Steer While It Works",
+        title = localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_title),
         symbol = "arrow.turn.up.right",
         tint = Tint.indigo,
-        summary = "Send while the agent works and it reads your message at its next step, moving long commands to the background first.",
+        summary = localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_summary),
         details = listOf(
-            "Touch and hold Send to choose Steer or Queue for one message.",
-            "Hold a waiting message to move it to the queue or delete it.",
-            "Stop reads Stopping… at once, and a steering message you sent runs next.",
+            localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_detail_1),
+            localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_detail_2),
+            localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_detail_3),
         ),
-        example = "While a long command runs, send a message and watch the command move to the background",
+        example = localized(R.string.settings_whatsnew_entry_stop_runs_your_steer_example),
     )

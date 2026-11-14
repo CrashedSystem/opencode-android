@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.PasteboardClient
 import ai.opencode.core.dependencies.dependency
@@ -172,7 +173,7 @@ class ShellOutputFeature : Reducer<ShellOutputFeature.State, ShellOutputFeature.
             if (action.error.statusCode == 404) {
                 Reduced(state.copy(isUnavailable = true, isConfirmingStop = false, errorMessage = null, endCursor = state.endCursor ?: 0))
             } else {
-                Reduced(state.copy(errorMessage = "Couldn’t refresh output"))
+                Reduced(state.copy(errorMessage = localized(R.string.session_shell_refresh_failed)))
             }
         }
 
@@ -214,7 +215,7 @@ class ShellOutputFeature : Reducer<ShellOutputFeature.State, ShellOutputFeature.
                     if (failure.asClientError().statusCode == 404) {
                         Reduced(next.copy(isUnavailable = true, isConfirmingStop = false))
                     } else {
-                        Reduced(next.copy(errorMessage = "Couldn’t load earlier output"))
+                        Reduced(next.copy(errorMessage = localized(R.string.session_shell_load_earlier_failed)))
                     }
                 },
             )
@@ -254,7 +255,7 @@ class ShellOutputFeature : Reducer<ShellOutputFeature.State, ShellOutputFeature.
             val error = action.error
             if (error != null && error.statusCode != 404) {
                 dependency(HapticsClient).play(Haptic.error)
-                val failed = next.copy(errorMessage = "Couldn’t stop shell")
+                val failed = next.copy(errorMessage = localized(R.string.session_shell_stop_failed))
                 Reduced(failed, poll(failed))
             } else {
                 Reduced(next.copy(shell = next.shell.copy(status = OpenCodeShell.Status.Killed), isUnavailable = true))

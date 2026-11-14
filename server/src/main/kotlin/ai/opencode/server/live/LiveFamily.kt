@@ -1,8 +1,10 @@
 package ai.opencode.server.live
 
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.model.OpenCodeHomeSnapshot
 import ai.opencode.server.model.OpenCodeSession
 import ai.opencode.server.model.OpenCodeSessionFamily
@@ -63,7 +65,7 @@ internal suspend fun requestHomeSnapshot(server: OpenCodeServer): OpenCodeHomeSn
     } catch (error: OpenCodeClientError) {
         throw error
     } catch (_: Exception) {
-        throw OpenCodeClientError("Couldn’t load projects and sessions")
+        throw OpenCodeClientError(localized(R.string.server_error_load_projects_and_sessions))
     }
 }
 
@@ -231,7 +233,7 @@ internal suspend fun requestSessionFamily(server: OpenCodeServer, root: OpenCode
     } catch (error: OpenCodeClientError) {
         throw error
     } catch (_: Exception) {
-        throw OpenCodeClientError("Couldn’t load the session family")
+        throw OpenCodeClientError(localized(R.string.server_error_load_session_family))
     }
 }
 

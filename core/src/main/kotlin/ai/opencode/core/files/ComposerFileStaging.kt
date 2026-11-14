@@ -1,7 +1,9 @@
 package ai.opencode.core.files
 
+import ai.opencode.core.R
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import android.content.ContentResolver
 import android.net.Uri
 import java.io.File
@@ -42,7 +44,7 @@ data class ComposerStagedFile(
  * function takes it as a parameter so callers and tests can point elsewhere.
  */
 object ComposerFileStaging {
-    class FileTooLarge : IOException("File too large")
+    class FileTooLarge : IOException(localized(R.string.core_file_too_large))
 
     sealed interface BoundedStageResult {
         data class Staged(val file: ComposerStagedFile) : BoundedStageResult
@@ -63,7 +65,7 @@ object ComposerFileStaging {
     fun stage(source: File, name: String? = null, id: UUID = UUID.randomUUID(), directory: File = this.directory): ComposerStagedFile {
         val fileName = AttachmentFileType.sanitizedName(name ?: source.name)
         val folder = File(directory, folderName(id))
-        if (!folder.mkdirs() && !folder.isDirectory) throw IOException("Couldn’t create staging folder")
+        if (!folder.mkdirs() && !folder.isDirectory) throw IOException(localized(R.string.core_staging_folder_create_failed))
         val destination = File(folder, fileName)
         try {
             Files.copy(source.toPath(), destination.toPath())
@@ -243,7 +245,7 @@ object ComposerFileStaging {
         if (maximumBytes != null && data.size.toLong() > maximumBytes) throw FileTooLarge()
         val fileName = AttachmentFileType.sanitizedName(name)
         val folder = File(directory, folderName(id))
-        if (!folder.mkdirs() && !folder.isDirectory) throw IOException("Couldn’t create staging folder")
+        if (!folder.mkdirs() && !folder.isDirectory) throw IOException(localized(R.string.core_staging_folder_create_failed))
         val destination = File(folder, fileName)
         try {
             // Atomic, as iOS's `.atomic` write: a temporary sibling renamed into place.

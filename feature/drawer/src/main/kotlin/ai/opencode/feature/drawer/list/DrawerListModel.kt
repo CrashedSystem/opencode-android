@@ -1,8 +1,10 @@
 package ai.opencode.feature.drawer.list
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.drawer.DrawerListFooter
 import ai.opencode.feature.drawer.HomeFeature
 import ai.opencode.feature.drawer.HomeFeature.State.Indicator
+import ai.opencode.feature.drawer.R
 import ai.opencode.feature.drawer.ServerSwapTarget
 import ai.opencode.feature.drawer.ServerSwitchNote
 import ai.opencode.feature.drawer.drawerListFooter
@@ -79,12 +81,12 @@ data class DrawerListRow(
     val accessibilityValue: String
         get() {
             val parts = mutableListOf<String>()
-            if (isPinnedSection) parts += "Pinned"
-            if (muted) parts += "Muted"
+            if (isPinnedSection) parts += localized(R.string.drawer_row_pinned_state)
+            if (muted) parts += localized(R.string.drawer_row_muted_state)
             val status = when (indicator) {
-                Indicator.attention -> "Needs your input"
-                Indicator.running -> "Working"
-                Indicator.unread -> "Unread"
+                Indicator.attention -> localized(R.string.drawer_row_needs_input_state)
+                Indicator.running -> localized(R.string.drawer_row_working_state)
+                Indicator.unread -> localized(R.string.drawer_row_unread_state)
                 Indicator.none -> ""
             }
             if (status.isNotEmpty()) parts += status

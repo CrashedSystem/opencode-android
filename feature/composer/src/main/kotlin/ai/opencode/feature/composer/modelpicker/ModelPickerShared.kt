@@ -1,5 +1,7 @@
 package ai.opencode.feature.composer.modelpicker
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.composer.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -126,7 +128,7 @@ enum class ModelListDetent {
         fun extent(detent: ModelListDetent): Double = if (detent == Large) large else medium
     }
 
-    val accessibilityValue: String get() = if (this == Large) "Full" else "Half"
+    val accessibilityValue: String get() = if (this == Large) localized(R.string.composer_model_list_full_description) else localized(R.string.composer_model_list_half_description)
 
     /** iOS `adjusted(_:)`: TalkBack's increment/decrement (+1 / −1, 0 keeps it). */
     fun adjusted(direction: Int): ModelListDetent = when {

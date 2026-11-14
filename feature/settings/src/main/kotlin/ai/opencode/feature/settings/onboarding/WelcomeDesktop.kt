@@ -306,10 +306,16 @@ private fun DesktopBrowser(frame: WelcomeFrame, reduced: Boolean, targets: Welco
 
 // MARK: Settings › Pairing
 
-private val navigation: List<Pair<String, String>?> = listOf(
-    "slider.horizontal.3" to "Preferences", "paintpalette" to "Appearance", "bell" to "Notifications",
-    "keyboard" to "Shortcuts", "laptopcomputer.and.iphone" to "Pairing", null,
-    "folder" to "Projects", "arrow.triangle.branch" to "Worktrees", "cpu" to "Providers", "sparkle" to "Models",
+private val navigation: List<Pair<String, Int>?> = listOf(
+    "slider.horizontal.3" to R.string.settings_onboarding_desktop_nav_preferences,
+    "paintpalette" to R.string.settings_onboarding_desktop_nav_appearance,
+    "bell" to R.string.settings_onboarding_desktop_nav_notifications,
+    "keyboard" to R.string.settings_onboarding_desktop_nav_shortcuts,
+    "laptopcomputer.and.iphone" to R.string.settings_onboarding_desktop_pairing_title, null,
+    "folder" to R.string.settings_onboarding_desktop_nav_projects,
+    "arrow.triangle.branch" to R.string.settings_onboarding_desktop_nav_worktrees,
+    "cpu" to R.string.settings_onboarding_desktop_nav_providers,
+    "sparkle" to R.string.settings_onboarding_desktop_nav_models,
 )
 
 @Composable
@@ -322,10 +328,10 @@ private fun DesktopSettings(pairing: Float, reduced: Boolean) {
                 if (item == null) {
                     Spacer(Modifier.height(10.dp))
                 } else {
-                    val selected = item.second == "Pairing"
+                    val selected = item.second == R.string.settings_onboarding_desktop_pairing_title
                     NavRow(
                         item.first,
-                        item.second,
+                        stringResource(item.second),
                         if (selected) Color.White else WelcomeInk.hex(0xD0D0D0),
                         if (selected) Modifier.background(WelcomeInk.hex(0x2A2A2A), RoundedCornerShape(6.dp)) else Modifier,
                     )

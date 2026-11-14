@@ -1,10 +1,12 @@
 package ai.opencode.feature.voice
 
+import ai.opencode.core.R as CoreR
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.friendlyName
 import android.content.ActivityNotFoundException
@@ -80,10 +82,10 @@ enum class VoiceProviderState {
     val label: String?
         get() = when (this) {
             unknown -> null
-            ready -> "Ready"
-            noKey -> "No key"
-            needsUpdate -> "Update OpenCode"
-            offline -> "Offline"
+            ready -> localized(R.string.voice_provider_state_ready)
+            noKey -> localized(R.string.voice_provider_state_no_key)
+            needsUpdate -> localized(R.string.voice_provider_state_needs_update)
+            offline -> localized(R.string.voice_provider_state_offline)
         }
 
     val symbol: String?
@@ -170,7 +172,7 @@ data class VoiceProviderOption(
     val placeName: String
         get() = when (place) {
             is Place.Server -> place.server.friendlyName
-            Place.Phone -> "This Phone"
+            Place.Phone -> localized(R.string.voice_provider_place_phone)
         }
 
     val title: String
@@ -178,13 +180,13 @@ data class VoiceProviderOption(
             Brand.openAI -> "OpenAI"
             Brand.openCode -> "OpenCode"
             Brand.gemini -> "Gemini Live"
-            Brand.openAIAccount -> "Your OpenAI Account"
+            Brand.openAIAccount -> localized(R.string.voice_provider_brand_openai_account)
             null -> placeName
         }
 
     /** "OpenAI on My Mac", or the server's name alone while it can't run calls. */
-    val name: String get() = if (brand == null) title else "$title on $placeName"
-    val subtitle: String get() = if (brand == null) state.label ?: "" else "On $placeName"
+    val name: String get() = if (brand == null) title else localized(R.string.voice_provider_name, title, placeName)
+    val subtitle: String get() = if (brand == null) state.label ?: "" else localized(R.string.voice_provider_subtitle, placeName)
     val isReady: Boolean get() = state == VoiceProviderState.ready
 }
 
@@ -337,10 +339,10 @@ enum class VoiceCallFix {
 
     val title: String
         get() = when (this) {
-            setUpOnIPhone -> "Set Up on This Phone"
-            chooseProvider -> "Choose Provider"
-            updateOpenCode -> "Update OpenCode"
-            openSettings -> "Open Settings"
+            setUpOnIPhone -> localized(R.string.voice_fix_set_up_on_phone)
+            chooseProvider -> localized(R.string.voice_fix_choose_provider)
+            updateOpenCode -> localized(R.string.voice_fix_update_opencode)
+            openSettings -> localized(CoreR.string.common_open_settings)
         }
 
     companion object {
@@ -391,11 +393,11 @@ data class VoiceCallDiagnosis(
         /** `message` is the failure's text; `route` the call's, and `place` the server that brokered it. */
         fun diagnose(message: String, route: VoiceRoute, place: String?): VoiceCallDiagnosis {
             if (message == VoiceAudioError.microphoneDenied.message) {
-                return VoiceCallDiagnosis(message, VoiceCallFix.openSettings, null)
+                return VoiceCallDiagnosis(VoiceAudioError.microphoneDenied.displayMessage, VoiceCallFix.openSettings, null)
             }
-            val server = place ?: "Your server"
             if (message == ServerVoiceError.unsupportedServerNotice || route == VoiceRoute.Unavailable(VoiceRoute.Reason.ServerUnsupported)) {
-                return VoiceCallDiagnosis("$server needs a newer OpenCode for voice calls.", VoiceCallFix.updateOpenCode, place)
+                val sentence = if (place == null) localized(R.string.voice_diagnosis_your_server_needs_update) else localized(R.string.voice_diagnosis_needs_update, place)
+                return VoiceCallDiagnosis(sentence, VoiceCallFix.updateOpenCode, place)
             }
             val reason = (route as? VoiceRoute.Unavailable)?.reason
             if (reason is VoiceRoute.Reason.MissingPhoneKey) {
@@ -404,23 +406,75 @@ data class VoiceCallDiagnosis(
             if (route is VoiceRoute.Server) {
                 val lowered = message.lowercase()
                 val sentence = when {
-                    lowered.contains("api key") || lowered.contains("sign-in") -> "$server doesn’t have a key for voice calls."
+                    lowered.contains("api key") || lowered.contains("sign-in") ->
+                        if (place == null) localized(R.string.voice_diagnosis_your_server_no_key) else localized(R.string.voice_diagnosis_no_key, place)
                     message == RealtimePreflightError.NoConnection.message || lowered.contains("offline") ||
-                        lowered.contains("could not connect") || lowered.contains("timed out") -> "Couldn’t reach $server."
-                    else -> "$server couldn’t start the call."
+                        lowered.contains("could not connect") || lowered.contains("timed out") ->
+                        if (place == null) localized(R.string.voice_diagnosis_your_server_unreachable) else localized(R.string.voice_diagnosis_unreachable, place)
+                    else -> if (place == null) localized(R.string.voice_diagnosis_your_server_failed) else localized(R.string.voice_diagnosis_failed, place)
                 }
                 return VoiceCallDiagnosis(sentence, VoiceCallFix.chooseProvider, place)
             }
             if (message == RealtimePreflightError.RejectedAPIKey.message) {
-                return VoiceCallDiagnosis("OpenAI didn’t accept the key on this phone.", VoiceCallFix.setUpOnIPhone, null)
+                return VoiceCallDiagnosis(localized(R.string.voice_diagnosis_key_rejected), VoiceCallFix.setUpOnIPhone, null)
             }
             val engine = route.engine
             if (engine != null && message == VoiceRoute.Reason.MissingPhoneKey(engine).message) {
                 return VoiceCallDiagnosis(missingKey(engine), VoiceCallFix.setUpOnIPhone, null)
             }
-            return VoiceCallDiagnosis(message, VoiceCallFix.setUpOnIPhone, null)
+            return VoiceCallDiagnosis(voiceFailureDisplayText(message), VoiceCallFix.setUpOnIPhone, null)
         }
 
-        private fun missingKey(engine: VoiceEngine): String = "Add your ${engine.provider.displayName} API key to call from this phone."
+        private fun missingKey(engine: VoiceEngine): String = localized(R.string.voice_diagnosis_missing_phone_key, engine.provider.displayName)
     }
+}
+
+/**
+ * A call failure's text as the person reads it. The failure itself stays in English, since
+ * it is compared, logged and parsed; text from a server or provider is shown as it came.
+ */
+fun voiceFailureDisplayText(message: String): String {
+    when (message) {
+        VoiceAudioError.microphoneDenied.message -> return VoiceAudioError.microphoneDenied.displayMessage
+        VoiceAudioError.formatUnavailable.message -> return localized(R.string.voice_error_audio_format_unavailable)
+        VoiceAudioError.engineRejectedMessage -> return localized(R.string.voice_error_audio_engine_rejected)
+        ServerVoiceError.unsupportedServerNotice -> return localized(R.string.voice_error_server_unsupported)
+        ServerVoiceError.InvalidServerURL.errorDescription -> return localized(R.string.voice_error_invalid_server_url)
+        ServerVoiceError.InvalidResponse.errorDescription -> return localized(R.string.voice_error_invalid_response)
+        RealtimePreflightError.RejectedAPIKey.message -> return localized(R.string.voice_error_openai_rejected_key)
+        RealtimePreflightError.NoConnection.message -> return localized(R.string.voice_error_no_connection)
+        "The voice model address is invalid." -> return localized(R.string.voice_error_model_address_invalid)
+        "xAI rejected the API key." -> return localized(R.string.voice_error_xai_rejected_key)
+        "This xAI API key is disabled." -> return localized(R.string.voice_error_xai_key_disabled)
+        "This xAI API key is blocked." -> return localized(R.string.voice_error_xai_key_blocked)
+        RealtimeClientError.InvalidURL.message -> return localized(R.string.voice_error_service_address_invalid)
+        RealtimeClientError.Dropped.message -> return localized(R.string.voice_notification_call_ended)
+        "The voice connection was lost." -> return localized(R.string.voice_error_connection_lost)
+        "The voice connection is closed." -> return localized(R.string.voice_error_connection_closed)
+        "The voice connection couldn't be set up." -> return localized(R.string.voice_error_connection_setup)
+        "A safety filter ended the voice call." -> return localized(R.string.voice_error_safety_filter)
+        "Audio was reset by the system. Start the call again." -> return localized(R.string.voice_error_audio_reset)
+    }
+    for (engine in VoiceEngine.entries) {
+        if (message == VoiceRoute.Reason.MissingPhoneKey(engine).message) {
+            return localized(R.string.voice_error_missing_phone_key, engine.provider.displayName)
+        }
+    }
+    val startPrefix = "Couldn’t start voice: "
+    if (message.startsWith(startPrefix)) {
+        return localized(R.string.voice_error_start_voice_detail, message.removePrefix(startPrefix))
+    }
+    val statusCode = httpStatusCode(message, "Couldn’t start voice (HTTP ", ").")
+    if (statusCode != null) return localized(R.string.voice_error_start_voice_http, statusCode)
+    val openAIStatus = httpStatusCode(message, "OpenAI couldn’t verify this key (HTTP ", ").")
+    if (openAIStatus != null) return localized(R.string.voice_error_openai_verify_http, openAIStatus)
+    val xAIStatus = httpStatusCode(message, "xAI couldn’t verify this key (HTTP ", ").")
+    if (xAIStatus != null) return localized(R.string.voice_error_xai_verify_http, xAIStatus)
+    return message
+}
+
+/** The status code in `<prefix><code><suffix>`, or null when [message] isn't in that shape. */
+private fun httpStatusCode(message: String, prefix: String, suffix: String): Int? {
+    if (!message.startsWith(prefix) || !message.endsWith(suffix)) return null
+    return message.removePrefix(prefix).removeSuffix(suffix).toIntOrNull()
 }

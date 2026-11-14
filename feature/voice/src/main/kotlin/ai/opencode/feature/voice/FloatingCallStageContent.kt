@@ -201,7 +201,7 @@ private fun FloatingCallStageHeader(store: VoiceStoreOf, status: String, onMinim
         ) {
             Text(stringResource(R.string.voice_stage_talking_in), style = OpenCodeTextStyles.caption1, color = OpenCodeTheme.colors.secondaryText)
             Text(
-                title,
+                if (title == VoiceFeature.State.newSessionTitle) stringResource(R.string.voice_session_new_title) else title,
                 style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold),
                 color = OpenCodeTheme.colors.text,
                 maxLines = 1,

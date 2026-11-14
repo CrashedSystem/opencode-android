@@ -1,8 +1,10 @@
 package ai.opencode.server.live
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodePairingLink
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.ServerLinkStore
 import ai.opencode.server.model.OpenCodeNotifyPluginStatus
 import ai.opencode.server.retry.RequestIdempotency
@@ -95,17 +97,17 @@ private fun pairingFailure(failures: List<OpenCodeClientError>): OpenCodeClientE
     val details = failures.flatMap { it.connectionFailures }
     if (failures.any { it.statusCode == 401 }) {
         return OpenCodeClientError(
-            "This pairing code expired or was already used. Run `opencode pair --remote` again.",
+            localized(R.string.server_error_pairing_expired),
             statusCode = 401, connectionFailures = details,
         )
     }
     if (failures.any { it.statusCode == 404 }) {
         return OpenCodeClientError(
-            "This server doesn’t support pairing links. Update OpenCode on your computer, or enter the server manually.",
+            localized(R.string.server_error_pairing_unsupported),
             statusCode = 404, connectionFailures = details,
         )
     }
-    val failure = failures.lastOrNull() ?: OpenCodeClientError("Couldn’t reach the OpenCode server")
+    val failure = failures.lastOrNull() ?: OpenCodeClientError(OpenCodeClientError.UNREACHABLE_MESSAGE)
     return failure.copy(connectionFailures = details)
 }
 
@@ -139,7 +141,7 @@ internal suspend fun requestPairNotificationPreview(
     publicKey: String,
 ): String {
     val secure = server.candidateURLs.firstOrNull { it.substringBefore("://", "").lowercase() == "https" }
-        ?: throw OpenCodeClientError("Encrypted notification previews need an HTTPS server connection.")
+        ?: throw OpenCodeClientError(localized(R.string.server_error_notification_previews_need_https))
     val reply = request<NotificationPreviewPairReply>(
         "/api/rpc/mobile-notifications/pair",
         method = "POST",

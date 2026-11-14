@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Tint
@@ -9,12 +11,12 @@ internal val WhatsNewShipped.muteSessions: WhatsNewEntry
     get() = feature(
         id = "mute-sessions",
         day = "2026-10-08",
-        title = "Mute Sessions",
+        title = localized(R.string.settings_whatsnew_entry_mute_sessions_title),
         symbol = "bell.slash",
         tint = Tint.indigo,
-        summary = "Muted sessions stay in your list but never join Catch Up or show an unread dot.",
+        summary = localized(R.string.settings_whatsnew_entry_mute_sessions_summary),
         details = listOf(
-            "Hold Catch Up to mark everything as read. Sessions waiting on you stay.",
+            localized(R.string.settings_whatsnew_entry_mute_sessions_detail_1),
         ),
-        example = "Hold a session in the drawer and tap Mute",
+        example = localized(R.string.settings_whatsnew_entry_mute_sessions_example),
     )

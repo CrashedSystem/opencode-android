@@ -1,6 +1,8 @@
 package ai.opencode.server.model
 
 import ai.opencode.core.sharing.InstantSerializer
+import ai.opencode.core.strings.localized
+import ai.opencode.server.R
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -177,9 +179,9 @@ object ModelVariant {
     private val order = listOf("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
 
     fun label(id: String): String = when (id) {
-        "none" -> "Off"
-        "xhigh" -> "Extra High"
-        "max" -> "Max"
+        "none" -> localized(R.string.server_model_variant_off)
+        "xhigh" -> localized(R.string.server_model_variant_extra_high)
+        "max" -> localized(R.string.server_model_variant_max)
         else -> id.take(1).uppercase() + id.drop(1)
     }
 
@@ -403,7 +405,7 @@ object SessionActivity {
 enum class OpenCodeDelivery(val rawValue: String) {
     Steer("steer"), Queue("queue");
 
-    val pendingLabel: String get() = if (this == Steer) "Steering" else "Queued"
+    val pendingLabel: String get() = if (this == Steer) localized(R.string.server_delivery_steering) else localized(R.string.server_delivery_queued)
 
     companion object {
         fun of(raw: String): OpenCodeDelivery? = entries.firstOrNull { it.rawValue == raw }

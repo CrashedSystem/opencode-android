@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,8 +12,8 @@ internal val WhatsNewShipped.returnKeySends: WhatsNewEntry
     get() = smaller(
         id = "return-key-sends",
         day = "2026-10-18",
-        title = "Return Key Setting",
+        title = localized(R.string.settings_whatsnew_entry_return_key_sends_title),
         symbol = "return",
-        summary = "Turn off Return Key Sends in Settings when you want Return to add a new line, or use Command-Return and Shift-Return on a hardware keyboard.",
+        summary = localized(R.string.settings_whatsnew_entry_return_key_sends_summary),
         tryIt = Destination.Open(SettingsDestination.Sessions),
     )

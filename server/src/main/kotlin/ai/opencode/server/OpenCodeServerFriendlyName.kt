@@ -1,6 +1,7 @@
 package ai.opencode.server
 
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.server.internal.UrlParts
 
 /**
@@ -67,11 +68,11 @@ fun friendlyServerName(address: String): String {
     if (host.contains(":")) {
         // Swift's `split` drops empty pieces: `fe80::` ends in "fe80".
         val last = host.split(":").lastOrNull { it.isNotEmpty() }.orEmpty()
-        return if (last.isEmpty()) "Server" else "Server $last"
+        return if (last.isEmpty()) localized(R.string.server_friendly_name_fallback) else localized(R.string.server_friendly_name_numbered, last)
     }
     val labels = host.split(".").filter { it.isNotEmpty() }
-    if (labels.size == 4 && labels.all { label -> label.all(Char::isDigit) }) return "Server ${labels[3]}"
-    val first = labels.firstOrNull()?.takeIf { it.isNotEmpty() } ?: return "Server"
+    if (labels.size == 4 && labels.all { label -> label.all(Char::isDigit) }) return localized(R.string.server_friendly_name_numbered, labels[3])
+    val first = labels.firstOrNull()?.takeIf { it.isNotEmpty() } ?: return localized(R.string.server_friendly_name_fallback)
     return first.split('-', '_').filter { it.isNotEmpty() }
         .joinToString(" ") { it.substring(0, 1).uppercase() + it.substring(1) }
 }

@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.PasteboardClient
 import ai.opencode.core.dependencies.UuidClient
@@ -186,7 +187,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
                         }.cancellable(CancelID.AutoRenameFailure, cancelInFlight = true),
                     )
                 }
-                action.error?.let { return fail(next, "Couldn’t Rename Session", it, haptics) }
+                action.error?.let { return fail(next, localized(R.string.session_sheet_rename_failed_title), it, haptics) }
                 Reduced(next, Effect.send(Action.Delegate(Delegate.Renamed(action.title))))
             }
 
@@ -210,7 +211,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
 
             is Action.CompactFinished -> {
                 val next = state.copy(operation = null)
-                action.error?.let { return fail(next, "Couldn’t Compact Session", it, haptics) }
+                action.error?.let { return fail(next, localized(R.string.session_sheet_compact_failed_title), it, haptics) }
                 haptics.play(Haptic.success)
                 Reduced(next, Effect.send(Action.Delegate(Delegate.Compacted(action.model))))
             }
@@ -227,7 +228,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
 
             is Action.ForkFinished -> action.result.fold(
                 onSuccess = { Reduced(state.copy(operation = null), Effect.send(Action.Delegate(Delegate.Forked(it)))) },
-                onFailure = { fail(state, "Couldn’t Fork Session", it.asClientError(), haptics) },
+                onFailure = { fail(state, localized(R.string.session_sheet_fork_failed_title), it.asClientError(), haptics) },
             )
 
             is Action.ExportTapped -> {
@@ -247,7 +248,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
                             } catch (cancellation: CancellationException) {
                                 throw cancellation
                             } catch (_: Exception) {
-                                throw OpenCodeClientError("Couldn’t save export")
+                                throw OpenCodeClientError(localized(R.string.session_sheet_save_export_failed))
                             }
                         }
                         send(Action.ExportFinished(result))
@@ -264,7 +265,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
                         Effect.run { sessionExport.share(path) },
                     )
                 },
-                onFailure = { fail(state, "Couldn’t Export Session", it.asClientError(), haptics) },
+                onFailure = { fail(state, localized(R.string.session_sheet_export_failed_title), it.asClientError(), haptics) },
             )
 
             Action.ExportDismissed -> {
@@ -303,7 +304,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
                                 }
                                 // The same callback a send attaches: null when notifications are off.
                                 callbackURL = notifications.callbackURL(server)
-                                    ?: throw OpenCodeClientError("Turn on notifications in Settings first.")
+                                    ?: throw OpenCodeClientError(localized(R.string.session_sheet_notifications_off_message))
                             }
                             client.setAlwaysNotify(server, sessionID, callbackURL)
                         }
@@ -317,7 +318,7 @@ class SessionSheetFeature : Reducer<SessionSheetFeature.State, SessionSheetFeatu
                 val error = action.error
                 if (error != null) {
                     haptics.play(Haptic.error)
-                    val title = if (action.isOn) "Couldn’t Turn On Always Notify" else "Couldn’t Turn Off Always Notify"
+                    val title = if (action.isOn) localized(R.string.session_sheet_always_notify_on_failed_title) else localized(R.string.session_sheet_always_notify_off_failed_title)
                     return Reduced(next.copy(failure = Failure(title, error.message)))
                 }
                 Reduced(next, Effect.send(Action.Delegate(Delegate.AlwaysNotifyChanged(action.isOn))))

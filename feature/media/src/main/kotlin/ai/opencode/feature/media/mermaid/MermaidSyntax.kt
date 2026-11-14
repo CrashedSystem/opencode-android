@@ -1,5 +1,6 @@
 package ai.opencode.feature.media
 
+import ai.opencode.core.strings.localized
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 
@@ -79,35 +80,36 @@ object MermaidSyntax {
             }
             if (inFrontMatter || trimmed.isEmpty() || trimmed.startsWith("%%")) continue
             val keyword = trimmed.takeWhile { !it.isWhitespace() && it != ';' && it != ':' && it != '{' }
-            return names[keyword.lowercase()]
+            val name = names[keyword.lowercase()] ?: return null
+            return localized(name)
         }
         return null
     }
 
-    private val names: Map<String, String> = mapOf(
-        "flowchart" to "Flowchart", "flowchart-elk" to "Flowchart", "graph" to "Flowchart",
-        "sequencediagram" to "Sequence diagram",
-        "classdiagram" to "Class diagram", "classdiagram-v2" to "Class diagram",
-        "statediagram" to "State diagram", "statediagram-v2" to "State diagram",
-        "erdiagram" to "Entity relationship diagram",
-        "journey" to "User journey",
-        "gantt" to "Gantt chart",
-        "pie" to "Pie chart",
-        "quadrantchart" to "Quadrant chart",
-        "requirementdiagram" to "Requirement diagram",
-        "gitgraph" to "Git graph",
-        "c4context" to "C4 diagram", "c4container" to "C4 diagram", "c4component" to "C4 diagram",
-        "c4dynamic" to "C4 diagram", "c4deployment" to "C4 diagram",
-        "mindmap" to "Mind map",
-        "timeline" to "Timeline",
-        "zenuml" to "Sequence diagram",
-        "sankey" to "Sankey diagram", "sankey-beta" to "Sankey diagram",
-        "xychart" to "XY chart", "xychart-beta" to "XY chart",
-        "block" to "Block diagram", "block-beta" to "Block diagram",
-        "packet" to "Packet diagram", "packet-beta" to "Packet diagram",
-        "kanban" to "Kanban board",
-        "architecture" to "Architecture diagram", "architecture-beta" to "Architecture diagram",
-        "radar-beta" to "Radar chart",
-        "treemap-beta" to "Treemap",
+    private val names: Map<String, Int> = mapOf(
+        "flowchart" to R.string.media_mermaid_type_flowchart, "flowchart-elk" to R.string.media_mermaid_type_flowchart, "graph" to R.string.media_mermaid_type_flowchart,
+        "sequencediagram" to R.string.media_mermaid_type_sequence,
+        "classdiagram" to R.string.media_mermaid_type_class, "classdiagram-v2" to R.string.media_mermaid_type_class,
+        "statediagram" to R.string.media_mermaid_type_state, "statediagram-v2" to R.string.media_mermaid_type_state,
+        "erdiagram" to R.string.media_mermaid_type_entity_relationship,
+        "journey" to R.string.media_mermaid_type_user_journey,
+        "gantt" to R.string.media_mermaid_type_gantt,
+        "pie" to R.string.media_mermaid_type_pie,
+        "quadrantchart" to R.string.media_mermaid_type_quadrant,
+        "requirementdiagram" to R.string.media_mermaid_type_requirement,
+        "gitgraph" to R.string.media_mermaid_type_git_graph,
+        "c4context" to R.string.media_mermaid_type_c4, "c4container" to R.string.media_mermaid_type_c4, "c4component" to R.string.media_mermaid_type_c4,
+        "c4dynamic" to R.string.media_mermaid_type_c4, "c4deployment" to R.string.media_mermaid_type_c4,
+        "mindmap" to R.string.media_mermaid_type_mind_map,
+        "timeline" to R.string.media_mermaid_type_timeline,
+        "zenuml" to R.string.media_mermaid_type_sequence,
+        "sankey" to R.string.media_mermaid_type_sankey, "sankey-beta" to R.string.media_mermaid_type_sankey,
+        "xychart" to R.string.media_mermaid_type_xy_chart, "xychart-beta" to R.string.media_mermaid_type_xy_chart,
+        "block" to R.string.media_mermaid_type_block, "block-beta" to R.string.media_mermaid_type_block,
+        "packet" to R.string.media_mermaid_type_packet, "packet-beta" to R.string.media_mermaid_type_packet,
+        "kanban" to R.string.media_mermaid_type_kanban,
+        "architecture" to R.string.media_mermaid_type_architecture, "architecture-beta" to R.string.media_mermaid_type_architecture,
+        "radar-beta" to R.string.media_mermaid_type_radar,
+        "treemap-beta" to R.string.media_mermaid_type_treemap,
     )
 }

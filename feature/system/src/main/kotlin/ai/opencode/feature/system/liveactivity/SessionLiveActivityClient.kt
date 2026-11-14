@@ -5,6 +5,8 @@ import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.liveactivity.SessionActivityAttributes.ContentState.Phase
 import ai.opencode.server.OpenCodeLiveContentEvent
 import ai.opencode.server.model.OpenCodeToolCall
@@ -95,8 +97,8 @@ object SessionLiveActivity {
         for (event in events.asReversed()) {
             when (event) {
                 is OpenCodeLiveContentEvent.ToolInputStarted -> return OpenCodeToolCall.displayName(event.name)
-                is OpenCodeLiveContentEvent.ReasoningStarted -> return "Thinking"
-                is OpenCodeLiveContentEvent.TextStarted -> return "Replying"
+                is OpenCodeLiveContentEvent.ReasoningStarted -> return localized(R.string.system_session_step_thinking)
+                is OpenCodeLiveContentEvent.TextStarted -> return localized(R.string.system_session_step_replying)
                 else -> continue
             }
         }

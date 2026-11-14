@@ -2,8 +2,10 @@ package ai.opencode.server.live
 
 import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.SelfViewReceipts
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.model.OpenCodeSession
@@ -205,7 +207,7 @@ internal suspend fun requestSetAlwaysNotify(server: OpenCodeServer, sessionID: S
     val body = try {
         WireJson.encodeToString(JsonObject.serializer(), JsonObject(mapOf("metadata" to JsonObject(metadata)))).toByteArray()
     } catch (_: Exception) {
-        throw OpenCodeClientError("Couldn’t update the session")
+        throw OpenCodeClientError(localized(R.string.server_error_update_session))
     }
     // Sets the whole metadata object to the same value each time.
     perform("/api/session/$sessionID", method = "PATCH", body = body, idempotency = RequestIdempotency.Idempotent, server = server)

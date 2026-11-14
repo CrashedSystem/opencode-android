@@ -1,7 +1,9 @@
 package ai.opencode.server.live
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.internal.list
 import ai.opencode.server.internal.obj
 import ai.opencode.server.internal.req
@@ -143,7 +145,7 @@ internal suspend fun requestStartIntegrationOAuth(server: OpenCodeServer, integr
     val id = pathComponent(integrationID)
     val info = request<DataPayload<IntegrationMethodsPayload>>("/api/integration/$id", timeout = 20.seconds, server = server)
     val methodID = info.data.methods.firstOrNull { it.type == "oauth" }?.id
-        ?: throw OpenCodeClientError("This integration has no sign-in method.")
+        ?: throw OpenCodeClientError(localized(R.string.server_error_integration_no_sign_in))
     val payload = request<DataPayload<OAuthAttemptPayload>>(
         "/api/integration/$id/connect/oauth",
         method = "POST",
@@ -153,7 +155,7 @@ internal suspend fun requestStartIntegrationOAuth(server: OpenCodeServer, integr
         server = server,
     )
     val url = runCatching { URI(payload.data.url) }.getOrNull()
-    if (url == null || (url.scheme != "https" && url.scheme != "http")) throw OpenCodeClientError("The sign-in page address isn’t valid.")
+    if (url == null || (url.scheme != "https" && url.scheme != "http")) throw OpenCodeClientError(localized(R.string.server_error_sign_in_url_invalid))
     return OpenCodeOAuthAttempt(
         attemptID = payload.data.attemptID,
         url = url,
@@ -248,7 +250,7 @@ internal suspend fun requestServerCapabilities(server: OpenCodeServer): OpenCode
     } catch (error: OpenCodeClientError) {
         throw error
     } catch (error: Exception) {
-        throw OpenCodeClientError(error.message ?: "Couldn’t load server details")
+        throw OpenCodeClientError(error.message ?: localized(R.string.server_error_load_server_details))
     }
 }
 

@@ -1,8 +1,10 @@
 package ai.opencode.server.live
 
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.model.OpenCodeFormRequest
 import ai.opencode.server.model.OpenCodeFormValue
 import ai.opencode.server.model.OpenCodePendingRequests
@@ -141,8 +143,8 @@ sealed interface FormSettlement {
 
     /** Why a form settled otherwise can't take this one. */
     fun conflict(state: FormState): String = when (this) {
-        is Answered -> if (state.status == FormStatus.Answered) "Already answered elsewhere" else "Already dismissed"
-        is Cancelled -> if (state.status == FormStatus.Answered) "Already answered" else "Already dismissed elsewhere"
+        is Answered -> if (state.status == FormStatus.Answered) localized(R.string.server_request_already_answered_elsewhere) else localized(R.string.server_request_already_dismissed)
+        is Cancelled -> if (state.status == FormStatus.Answered) localized(R.string.server_request_already_answered) else localized(R.string.server_request_already_dismissed_elsewhere)
     }
 
     val logName: String
@@ -185,12 +187,12 @@ private suspend fun settleForm(
         } catch (failure: OpenCodeClientError) {
             failure
         }
-        if (isGone(error)) throw settled(error, "No longer waiting")
+        if (isGone(error)) throw settled(error, localized(R.string.server_request_no_longer_waiting))
         if (!error.mayHaveReachedServer && error.statusCode != 409) throw error
         val state = try {
             requestFormState(server, sessionID, formID)
         } catch (read: OpenCodeClientError) {
-            throw if (isGone(read)) settled(error, "No longer waiting") else error
+            throw if (isGone(read)) settled(error, localized(R.string.server_request_no_longer_waiting)) else error
         }
         if (wanted.matches(state)) return
         if (state.status != FormStatus.Pending) throw settled(error, wanted.conflict(state))

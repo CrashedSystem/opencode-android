@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,15 +12,15 @@ internal val WhatsNewShipped.modelListAndLevelMeter: WhatsNewEntry
     get() = feature(
         id = "model-list-and-level-meter",
         day = "2026-10-12",
-        title = "New Model Picker",
+        title = localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_title),
         symbol = "cpu",
         tint = Tint.purple,
-        summary = "Choose a model and its thinking level from the Model sheet, with your favorites on top. To try the list that grows out of the message box, turn on New Model Picker in Settings → Experimental.",
+        summary = localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_summary),
         details = listOf(
-            "Use the Thinking menu in the Model sheet when a model offers levels.",
-            "Swipe a model to add it to Favorites.",
-            "A quiet line in the session marks where you switched model or level.",
+            localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_detail_1),
+            localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_detail_2),
+            localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_detail_3),
         ),
-        example = "Tap the model in the message box and choose a thinking level",
+        example = localized(R.string.settings_whatsnew_entry_model_list_and_level_meter_example),
         tryIt = Destination.ModelList,
     )

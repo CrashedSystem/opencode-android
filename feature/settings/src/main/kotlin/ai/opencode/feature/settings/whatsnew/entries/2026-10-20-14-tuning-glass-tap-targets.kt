@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -11,12 +13,12 @@ internal val WhatsNewShipped.tuningGlassTapTargets: WhatsNewEntry
         id = "tuning-glass-tap-targets",
         day = "2026-10-20",
         audience = Audience.developer,
-        title = "Easier Tuning Controls",
+        title = localized(R.string.settings_whatsnew_entry_tuning_glass_tap_targets_title),
         symbol = "slider.horizontal.3",
         tint = Tint.gray,
-        summary = "The folded tuning pill and edge tab have larger tap targets.",
+        summary = localized(R.string.settings_whatsnew_entry_tuning_glass_tap_targets_summary),
         details = listOf(
-            "Their glass faces keep the same size.",
+            localized(R.string.settings_whatsnew_entry_tuning_glass_tap_targets_detail_1),
         ),
-        example = "Fold the Tuning Panel, then tap near the edge of its pill or tab",
+        example = localized(R.string.settings_whatsnew_entry_tuning_glass_tap_targets_example),
     )

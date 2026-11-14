@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,8 +12,8 @@ internal val WhatsNewShipped.settingsSessionsPage: WhatsNewEntry
     get() = smaller(
         id = "settings-sessions-page",
         day = "2026-10-26",
-        title = "Sessions Settings",
+        title = localized(R.string.settings_whatsnew_entry_settings_sessions_page_title),
         symbol = "bubble.left.fill",
-        summary = "Settings has a new Sessions page, where New Messages Divider sits above Return Key Sends, and Advanced is now two rows: Experimental and Developer.",
+        summary = localized(R.string.settings_whatsnew_entry_settings_sessions_page_summary),
         tryIt = Destination.Open(SettingsDestination.Sessions),
     )

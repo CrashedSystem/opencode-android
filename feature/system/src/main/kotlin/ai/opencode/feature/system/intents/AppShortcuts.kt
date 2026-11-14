@@ -1,27 +1,32 @@
 package ai.opencode.feature.system.intents
 
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SessionDirectory
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.server.model.OpenCodeDelivery
+import androidx.annotation.StringRes
 
 /** Port of iOS `DeliveryOption` (Ask OpenCode's Delivery parameter). */
-enum class DeliveryOption(val title: String, val symbol: SFSymbol, val delivery: OpenCodeDelivery) {
-    Steer("Steer", SFSymbol.ArrowTurnUpRight, OpenCodeDelivery.Steer),
-    Queue("Queue", SFSymbol.TextBadgePlus, OpenCodeDelivery.Queue),
+enum class DeliveryOption(@StringRes private val titleRes: Int, val symbol: SFSymbol, val delivery: OpenCodeDelivery) {
+    Steer(R.string.system_delivery_steer, SFSymbol.ArrowTurnUpRight, OpenCodeDelivery.Steer),
+    Queue(R.string.system_delivery_queue, SFSymbol.TextBadgePlus, OpenCodeDelivery.Queue),
     ;
 
+    val title: String get() = localized(titleRes)
+
     companion object {
-        const val TYPE_DISPLAY_NAME = "Delivery"
+        val TYPE_DISPLAY_NAME: String get() = localized(R.string.system_delivery_type_name)
     }
 }
 
 /** Port of iOS `AskOpenCodeIntent`: sends a typed or dictated message to a session without opening the app. */
 object AskOpenCodeIntent {
-    const val TITLE = "Ask OpenCode"
-    const val DESCRIPTION = "Sends a message to an OpenCode session without opening the app."
-    const val MESSAGE_TITLE = "Message"
-    const val REQUEST_VALUE_DIALOG = "What should OpenCode do?"
-    const val SESSION_TITLE = "Session"
+    val TITLE: String get() = localized(R.string.system_ask_title)
+    val DESCRIPTION: String get() = localized(R.string.system_ask_description)
+    val MESSAGE_TITLE: String get() = localized(R.string.system_ask_message_title)
+    val REQUEST_VALUE_DIALOG: String get() = localized(R.string.system_ask_message_placeholder)
+    val SESSION_TITLE: String get() = localized(R.string.system_ask_session_title)
     val defaultDelivery = DeliveryOption.Steer
 }
 

@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
@@ -8,7 +10,7 @@ internal val WhatsNewShipped.foldQuestions: WhatsNewEntry
     get() = smaller(
         id = "fold-questions",
         day = "2026-11-02",
-        title = "Fold Questions Out of the Way",
+        title = localized(R.string.settings_whatsnew_entry_fold_questions_title),
         symbol = "chevron.down",
-        summary = "Drag a question down to fold it into a small bar above the composer, and tap it to bring it back. A failed answer now waits on Retry.",
+        summary = localized(R.string.settings_whatsnew_entry_fold_questions_summary),
     )

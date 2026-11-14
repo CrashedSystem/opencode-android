@@ -1,7 +1,8 @@
 package ai.opencode.feature.composer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.SFSymbol
-import java.util.Locale
+import ai.opencode.core.ui.appFormattingLocale
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.max
@@ -47,10 +48,14 @@ class CameraZoomModel(device: CameraDeviceDescription) {
 
         val accessibilityLabel: String
             get() = when (lens) {
-                CameraDeviceDescription.Lens.UltraWide -> "Ultra Wide"
+                CameraDeviceDescription.Lens.UltraWide -> localized(R.string.composer_camera_lens_ultra_wide_description)
                 CameraDeviceDescription.Lens.Wide ->
-                    if (displayFactor > 1.01) "Wide ${number(displayFactor)}×" else "Wide"
-                CameraDeviceDescription.Lens.Telephoto -> "Telephoto ${number(displayFactor)}×"
+                    if (displayFactor > 1.01) {
+                        localized(R.string.composer_camera_lens_wide_zoom_description, number(displayFactor))
+                    } else {
+                        localized(R.string.composer_camera_lens_wide_description)
+                    }
+                CameraDeviceDescription.Lens.Telephoto -> localized(R.string.composer_camera_lens_telephoto_description, number(displayFactor))
             }
     }
 
@@ -142,7 +147,7 @@ class CameraZoomModel(device: CameraDeviceDescription) {
         fun label(display: Double, active: Boolean): String {
             val text = number(display)
             if (active) return "$text×"
-            return if (text.startsWith("0.")) text.drop(1) else text
+            return if (text.length > 1 && text.startsWith("0")) text.drop(1) else text
         }
 
         fun number(display: Double): String {
@@ -150,7 +155,7 @@ class CameraZoomModel(device: CameraDeviceDescription) {
             if (display >= 10 || abs(tenths - Math.round(tenths).toDouble()) < 0.001) {
                 return display.roundToInt().toString()
             }
-            return String.format(Locale.US, "%.1f", tenths)
+            return String.format(appFormattingLocale(), "%.1f", tenths)
         }
     }
 }
@@ -265,8 +270,8 @@ enum class AttachmentCameraFlash {
 
     val accessibilityValue: String
         get() = when (this) {
-            Off -> "Off"
-            Auto -> "Auto"
-            On -> "On"
+            Off -> localized(R.string.composer_camera_flash_off)
+            Auto -> localized(R.string.composer_camera_flash_auto)
+            On -> localized(R.string.composer_camera_flash_on)
         }
 }

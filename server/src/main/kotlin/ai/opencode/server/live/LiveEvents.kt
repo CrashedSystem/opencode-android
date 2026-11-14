@@ -7,6 +7,7 @@ import ai.opencode.core.diagnostics.DiagnosticsFailurePhase
 import ai.opencode.core.diagnostics.DiagnosticsRecorder
 import ai.opencode.core.diagnostics.DiagnosticsStreamName
 import ai.opencode.core.diagnostics.DiagnosticsStreamProgress
+import ai.opencode.core.strings.localized
 import ai.opencode.server.EventBatcher
 import ai.opencode.server.EventBatcherHooks
 import ai.opencode.server.EventEmission
@@ -17,6 +18,7 @@ import ai.opencode.server.OpenCodeLiveContentEvent
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.OpenCodeServerEvent
 import ai.opencode.server.OpenCodeTransport
+import ai.opencode.server.R
 import ai.opencode.server.SelfViewReceipts
 import ai.opencode.server.ServerLinkClient
 import ai.opencode.core.log.AppLog
@@ -108,7 +110,7 @@ private fun eventSource(server: OpenCodeServer, waiting: AtomicInteger): Flow<Op
     val poolReset = PoolResetWatch(link)
     launch(Dispatchers.IO) {
         try {
-            val url = server.endpoint("/api/event") ?: throw OpenCodeClientError("Enter a valid HTTP or HTTPS server URL.")
+            val url = server.endpoint("/api/event") ?: throw OpenCodeClientError(localized(R.string.server_error_invalid_url))
             val builder = Request.Builder().url(url).header("Accept", "text/event-stream")
             server.authorize(builder)
             builder.header("X-OpenCode-Op", operationID).header("X-OpenCode-Req", UUID.randomUUID().toString().uppercase())
@@ -121,11 +123,11 @@ private fun eventSource(server: OpenCodeServer, waiting: AtomicInteger): Flow<Op
             call.execute().use { response ->
                 if (response.code == 401) {
                     stream.record(DiagnosticsStreamName.Disconnected, 401, DiagnosticsErrorCategory.Unauthorized, DiagnosticsFailurePhase.HttpStatus)
-                    throw OpenCodeClientError("The server rejected these credentials.", statusCode = 401)
+                    throw OpenCodeClientError(localized(R.string.server_error_credentials_rejected), statusCode = 401)
                 }
                 if (response.code !in 200..299) {
                     stream.record(DiagnosticsStreamName.Disconnected, response.code, DiagnosticsErrorCategory.of(response.code), DiagnosticsFailurePhase.HttpStatus)
-                    throw OpenCodeClientError("The event stream returned HTTP ${response.code}.", statusCode = response.code)
+                    throw OpenCodeClientError(localized(R.string.server_error_event_stream_http, response.code), statusCode = response.code)
                 }
                 stream.connected(response.code)
                 ServerContact.shared.heard(server.persistenceID)
@@ -142,7 +144,7 @@ private fun eventSource(server: OpenCodeServer, waiting: AtomicInteger): Flow<Op
                     if (line.length - 5 > MAX_FRAME_BYTES ||
                         (line.length * 3 - 5 > MAX_FRAME_BYTES && utf8Length(line) - 5 > MAX_FRAME_BYTES)
                     ) {
-                        throw OpenCodeClientError("The event stream sent an oversized frame.")
+                        throw OpenCodeClientError(localized(R.string.server_error_event_stream_oversized_frame))
                     }
                     // JSON tolerates the whitespace after `data:`.
                     val event = decodeStreamFrame(line.substring(5)) ?: continue
@@ -159,7 +161,7 @@ private fun eventSource(server: OpenCodeServer, waiting: AtomicInteger): Flow<Op
             // Before the owner hears it ended, so its next request can't count a stream that's
             // gone as live (the finally covers cancellation).
             link.noteStreamEnded(server)
-            close(OpenCodeClientError("The event stream ended."))
+            close(OpenCodeClientError(localized(R.string.server_error_event_stream_ended)))
         } catch (cancelled: CancellationException) {
             stream.record(DiagnosticsStreamName.Disconnected, errorCategory = DiagnosticsErrorCategory.Cancelled, failurePhase = DiagnosticsFailurePhase.Cancelled)
             throw cancelled
@@ -464,7 +466,7 @@ internal fun decodeStreamFrame(text: String): OpenCodeServerEvent? {
     } catch (_: RuntimeException) {
         return null
     }
-    if (tag != null) throw OpenCodeClientError("The event stream reported a server failure.")
+    if (tag != null) throw OpenCodeClientError(localized(R.string.server_error_event_stream_server_failure))
     type ?: return null
     if (type !in HANDLED_TYPES) return null
     val data: EventPayload? = envelope["data"]?.takeUnless { it is JsonNull }?.let(::decodePayload)
@@ -592,7 +594,7 @@ private fun serverEvent(type: String, data: EventPayload?): OpenCodeServerEvent?
         }
         "session.tool.failed" -> toolContent { messageID, toolID, payload ->
             OpenCodeLiveContentEvent.ToolFailed(
-                messageID, toolID, payload.error?.message ?: "Tool failed", payload.error?.type,
+                messageID, toolID, payload.error?.message ?: localized(R.string.server_tool_failed), payload.error?.type,
                 payload.textOutput, payload.metadata ?: emptyMap(),
             )
         }

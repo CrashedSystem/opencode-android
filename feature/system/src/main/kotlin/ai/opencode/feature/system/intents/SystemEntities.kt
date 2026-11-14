@@ -1,6 +1,8 @@
 package ai.opencode.feature.system.intents
 
 import ai.opencode.core.log.SystemActionOrigin
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SystemAction
 import ai.opencode.feature.system.SessionDirectory
 import ai.opencode.feature.system.ScopedID
@@ -32,7 +34,7 @@ data class SessionEntity(
     }
 
     companion object {
-        const val TYPE_DISPLAY_NAME = "Session"
+        val TYPE_DISPLAY_NAME: String get() = localized(R.string.system_session_type_name)
         const val LAST_VIEWED_ID = "last-viewed"
         const val NEW_SESSION_ID = "new-session"
 
@@ -41,11 +43,11 @@ data class SessionEntity(
 
         /** Last Viewed Session, naming the session it means today. */
         fun lastViewed(server: SessionDirectory.Server?) =
-            SessionEntity(LAST_VIEWED_ID, "Last Viewed Session", server?.lastViewed?.title)
+            SessionEntity(LAST_VIEWED_ID, localized(R.string.system_last_viewed_session), server?.lastViewed?.title)
 
         /** New Session, naming the project it starts in. */
         fun newSession(server: SessionDirectory.Server?) =
-            SessionEntity(NEW_SESSION_ID, "New Session", server?.projects?.firstOrNull()?.name)
+            SessionEntity(NEW_SESSION_ID, localized(R.string.system_new_session), server?.projects?.firstOrNull()?.name)
     }
 }
 
@@ -54,7 +56,7 @@ data class ProjectEntity(val id: String, val name: String) {
     val symbol: SFSymbol get() = SFSymbol.Folder
 
     companion object {
-        const val TYPE_DISPLAY_NAME = "Project"
+        val TYPE_DISPLAY_NAME: String get() = localized(R.string.system_project_type_name)
 
         fun of(project: SessionDirectory.Project, serverKey: String) =
             ProjectEntity(ScopedID(serverKey, project.id).rawValue, project.name)

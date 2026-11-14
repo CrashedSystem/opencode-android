@@ -18,6 +18,7 @@ import ai.opencode.core.store.Store
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.store.rememberScope
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.AccessibilityFocusTarget
 import ai.opencode.core.ui.OpenCodeAppTheme
 import ai.opencode.core.ui.OpenCodeFonts
@@ -625,7 +626,7 @@ private fun serverRowDetail(server: OpenCodeServer, lastUsedID: String?): String
     val parts = mutableListOf<String>()
     if (server.displayName != server.host) parts += server.host
     if (server.username != "opencode") parts += server.username
-    if (lastUsedID == server.persistenceID) parts += "last used"
+    if (lastUsedID == server.persistenceID) parts += localized(R.string.app_servers_last_used)
     return if (parts.isEmpty()) null else parts.joinToString(" · ")
 }
 
@@ -644,9 +645,9 @@ private fun formatted(message: String): AnnotatedString = buildAnnotatedString {
 
 /** iOS `errorTitle`. */
 private fun errorTitle(phase: AppFeature.FailureContext.Phase?, context: AppFeature.FailureContext?): String = when (phase) {
-    AppFeature.FailureContext.Phase.Pair -> "Couldn’t Pair"
-    AppFeature.FailureContext.Phase.LoadSessions -> "Couldn’t Load Sessions"
-    else -> "Couldn’t connect to ${context?.friendlyName ?: "server"}"
+    AppFeature.FailureContext.Phase.Pair -> localized(R.string.app_error_title_pair)
+    AppFeature.FailureContext.Phase.LoadSessions -> localized(R.string.app_error_title_load_sessions)
+    else -> localized(R.string.app_error_title_connect, context?.friendlyName ?: localized(R.string.app_server_fallback_name))
 }
 
 /**
@@ -683,7 +684,7 @@ private fun ConnectionErrorCard(store: StoreOf<AppFeature.State, AppFeature.Acti
                     context?.takeIf { it.details.isNotEmpty() }?.let { Text(it.detailText, style = OpenCodeTextStyles.subheadline) }
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         context?.let {
-                            Text(stringResource(R.string.app_error_phase, it.phase.rawValue), style = OpenCodeTextStyles.footnote, color = secondary)
+                            Text(stringResource(R.string.app_error_phase, it.phase.title), style = OpenCodeTextStyles.footnote, color = secondary)
                             Text(stringResource(R.string.app_error_server, it.serverLabel), style = OpenCodeTextStyles.footnote, color = secondary)
                             Text(stringResource(R.string.app_error_attempt, it.attempt), style = OpenCodeTextStyles.footnote, color = secondary)
                         }
@@ -773,7 +774,7 @@ private fun ServerFormSheet(store: StoreOf<AppFeature.State, AppFeature.Action>)
                 scroll.animateScrollTo(0, MotionRole.Layout.animation(reduceMotion = reduceMotion))
             }
             val failed = store.state
-            failed.errorMessage?.let { announcer.announce("${errorTitle(failed.errorPhase, failed.errorContext)}. ${it.replace("`", "")}", false) }
+            failed.errorMessage?.let { announcer.announce(localized(R.string.app_error_announcement, errorTitle(failed.errorPhase, failed.errorContext), it.replace("`", "")), false) }
         }
         Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
             Text(
@@ -904,12 +905,12 @@ private const val TALKBACK_SETTLE_MS = 300L
 
 private fun editHint(editing: OpenCodeServer?): String {
     if (editing == null) {
-        return "Paste the link `opencode pair --remote` prints to pair, or use the address and password your OpenCode server runs with. The username is usually opencode."
+        return localized(R.string.app_server_form_hint_new)
     }
     return if (editing.usesPairingToken) {
-        "Changes are saved once this server connects. This server was paired, so its password is a session token; scan a new pairing code instead of changing it."
+        localized(R.string.app_server_form_hint_edit_paired)
     } else {
-        "Changes are saved once this server connects."
+        localized(R.string.app_server_form_hint_edit)
     }
 }
 

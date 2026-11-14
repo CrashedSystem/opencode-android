@@ -2,6 +2,9 @@ plugins {
     id("opencode.android.application")
 }
 
+// The languages the app is translated into (docs/translating.md).
+val appLanguages = listOf("en")
+
 android {
     namespace = "ai.opencode.app"
     defaultConfig {
@@ -51,10 +54,12 @@ android {
     buildFeatures {
         buildConfig = true
     }
-    // The app is English only, as iOS's bundle: keep library (Material, AndroidX) translations
-    // out so their labels, e.g. a sheet's "Drag handle", read in English beside the app's own.
     androidResources {
-        localeFilters += "en"
+        // Library (Material, AndroidX) translations are kept only for the app's own languages, so
+        // their labels, e.g. a sheet's "Drag handle", never read in a language the app isn't in.
+        localeFilters += appLanguages
+        // Android's per-app language setting lists the languages that have a values-xx folder.
+        generateLocaleConfig = true
     }
 }
 

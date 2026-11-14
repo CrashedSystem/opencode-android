@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,18 +12,18 @@ internal val WhatsNewShipped.callVoice: WhatsNewEntry
     get() = feature(
         id = "call-voice",
         day = "2026-10-10",
-        title = "Voice Calls",
+        title = localized(R.string.settings_whatsnew_entry_call_voice_title),
         symbol = "phone.and.waveform.fill",
         tint = Tint.green,
-        summary = "Tap the waveform in an empty message box and talk. Voice works in your sessions while you talk and tells you when the work is done.",
+        summary = localized(R.string.settings_whatsnew_entry_call_voice_summary),
         details = listOf(
-            "Ask for any session by name: Voice opens it and starts or steers work there.",
-            "Talk over it to interrupt, or ask how the work is going.",
-            "Tap the call bar for live captions.",
-            "Mute and End from the call’s notification, on the Lock Screen too.",
-            "Touch and hold Stop to call while the agent works.",
-            "Choose a voice in Settings → Voice.",
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_1),
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_2),
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_3),
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_4),
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_5),
+            localized(R.string.settings_whatsnew_entry_call_voice_detail_6),
         ),
-        example = "Start a call and say “open my upload fixes session and check the tests”",
+        example = localized(R.string.settings_whatsnew_entry_call_voice_example),
         tryIt = Destination.Call,
     )

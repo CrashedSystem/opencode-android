@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.voice.AudioSessionGeneration
 import android.Manifest
 import android.content.Context
@@ -213,12 +214,12 @@ object DictationLatency {
 }
 
 sealed class DictationError(val errorDescription: String) : Exception(errorDescription) {
-    class MicrophoneDenied : DictationError("Microphone access is off for OpenCode. Enable it in Settings.")
-    class LocaleUnsupported : DictationError("Dictation isn’t available for your language yet.")
-    class AudioFormatUnavailable : DictationError("Dictation couldn’t start an audio session.")
+    class MicrophoneDenied : DictationError(localized(R.string.composer_dictation_microphone_denied))
+    class LocaleUnsupported : DictationError(localized(R.string.composer_dictation_locale_unsupported))
+    class AudioFormatUnavailable : DictationError(localized(R.string.composer_dictation_audio_unavailable))
 
     /** The recognizer failed (iOS shows the Speech framework's own description). */
-    class Recognizer(val code: Int) : DictationError("Couldn’t transcribe dictation (error $code)")
+    class Recognizer(val code: Int) : DictationError(localized(R.string.composer_dictation_recognizer_failed, code))
 }
 
 /** A warm-up load found the on-device language not installed: the first press installs it. */

@@ -13,6 +13,7 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeIconSize
 import ai.opencode.core.ui.OpenCodeTextStyles
@@ -267,7 +268,7 @@ private fun VoiceCallLogRow(log: VoiceCallLog, onOpen: () -> Unit, onDelete: () 
                 .testTag("voice-call-log-${log.id.toString().uppercase()}"),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(log.title, style = OpenCodeTextStyles.body, color = OpenCodeTheme.colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(if (log.title == VoiceFeature.State.newSessionTitle) stringResource(R.string.voice_session_new_title) else log.title, style = OpenCodeTextStyles.body, color = OpenCodeTheme.colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 "${VoiceCallLogFormat.startedAt(log)} · ${VoiceCallLogFormat.duration(log.duration)}",
                 style = OpenCodeTextStyles.footnote,
@@ -287,7 +288,7 @@ object VoiceCallLogFormat {
     /** “42s”, or “3m 5s” from a minute. */
     fun duration(seconds: Double): String {
         val total = seconds.roundToInt()
-        return if (total < 60) "${total}s" else "${total / 60}m ${total % 60}s"
+        return if (total < 60) localized(R.string.voice_call_log_duration_seconds, total) else localized(R.string.voice_call_log_duration_minutes, total / 60, total % 60)
     }
 
     /** Swift's `Double.formatted()` for the playback speeds: “0.5”, “1”, “2”. */
@@ -325,7 +326,7 @@ fun VoiceCallReplayView(log: VoiceCallLog, onBack: () -> Unit, modifier: Modifie
         modifier = modifier,
         topBar = {
             OpenCodeTopBar(
-                title = { Text(log.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
+                title = { Text(if (log.title == VoiceFeature.State.newSessionTitle) stringResource(R.string.voice_session_new_title) else log.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
                 navigation = { OpenCodeTopBarBackButton(onClick = onBack) },
                 centerTitle = true,
             )
@@ -557,9 +558,9 @@ private fun replayEvents(log: VoiceCallLog, dark: Boolean, secondary: Color): Li
     }
     val notes = log.notes.map { note ->
         val (who, color) = when (note.kind) {
-            VoiceCallLog.Note.Kind.received -> "→ Delegator" to VoiceCallLogColors.color(VoiceCallLog.Track.delegator, dark)
-            VoiceCallLog.Note.Kind.injected -> "→ Voice" to VoiceCallLogColors.color(VoiceCallLog.Track.voice, dark)
-            VoiceCallLog.Note.Kind.audio -> "Audio" to if (note.text.startsWith("⚠︎")) VoiceCallLogColors.red(dark) else VoiceCallLogColors.teal(dark)
+            VoiceCallLog.Note.Kind.received -> localized(R.string.voice_replay_to_delegator) to VoiceCallLogColors.color(VoiceCallLog.Track.delegator, dark)
+            VoiceCallLog.Note.Kind.injected -> localized(R.string.voice_replay_to_voice) to VoiceCallLogColors.color(VoiceCallLog.Track.voice, dark)
+            VoiceCallLog.Note.Kind.audio -> localized(R.string.voice_replay_audio) to if (note.text.startsWith("⚠︎")) VoiceCallLogColors.red(dark) else VoiceCallLogColors.teal(dark)
             VoiceCallLog.Note.Kind.marker -> "•" to secondary
         }
         ReplayEvent(
@@ -657,10 +658,10 @@ object VoiceCallLogColors {
     }
 
     fun name(track: VoiceCallLog.Track): String = when (track) {
-        VoiceCallLog.Track.user -> "You"
-        VoiceCallLog.Track.voice -> "Voice"
-        VoiceCallLog.Track.delegator -> "Delegator"
-        VoiceCallLog.Track.tool -> "Tools"
+        VoiceCallLog.Track.user -> localized(R.string.voice_replay_track_user)
+        VoiceCallLog.Track.voice -> localized(R.string.voice_replay_track_voice)
+        VoiceCallLog.Track.delegator -> localized(R.string.voice_replay_track_delegator)
+        VoiceCallLog.Track.tool -> localized(R.string.voice_replay_track_tools)
     }
 
     /** `UIColor.systemRed`. */

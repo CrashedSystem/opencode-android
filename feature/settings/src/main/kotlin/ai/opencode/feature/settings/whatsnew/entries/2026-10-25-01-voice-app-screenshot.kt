@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -11,14 +13,14 @@ internal val WhatsNewShipped.voiceAppScreenshot: WhatsNewEntry
         id = "voice-app-screenshot",
         day = "2026-10-25",
         audience = Audience.developer,
-        title = "Voice Screenshots",
+        title = localized(R.string.settings_whatsnew_entry_voice_app_screenshot_title),
         symbol = "camera.viewfinder",
         tint = Tint.gray,
-        summary = "On a voice call, say “look at this” and the app’s screen goes to a session with your feedback.",
+        summary = localized(R.string.settings_whatsnew_entry_voice_app_screenshot_summary),
         details = listOf(
-            "It sends only the app’s own screen, with its screen name and call and app state.",
-            "Ask for the call log or recent app logs to go with it; addresses and credentials are masked.",
-            "It won’t capture while a sign-in screen or password field is showing.",
+            localized(R.string.settings_whatsnew_entry_voice_app_screenshot_detail_1),
+            localized(R.string.settings_whatsnew_entry_voice_app_screenshot_detail_2),
+            localized(R.string.settings_whatsnew_entry_voice_app_screenshot_detail_3),
         ),
-        example = "In a voice call, say “take a screenshot, this row is misaligned”",
+        example = localized(R.string.settings_whatsnew_entry_voice_app_screenshot_example),
     )

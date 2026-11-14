@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.motion.transitionBlur
 
@@ -151,7 +152,7 @@ internal data class SessionHeaderModel(
             val isDraft = state.isDraft
             // A session just made from this draft reads New Session as the draft did, without a resync's breathing.
             val isSyncing = !isDraft &&
-                !(state.session?.id == state.draftBecameSessionID && titleText == "New Session") &&
+                !(state.session?.id == state.draftBecameSessionID && readsNewSession(state)) &&
                 (state.isResyncing || state.sessionSheet?.operation == SessionSheetFeature.Operation.AutoRenaming)
             return SessionHeaderModel(
                 titleText = titleText,
@@ -181,10 +182,16 @@ internal data class SessionHeaderModel(
          * first send changes nothing here; a real title replaces it in the same capsule.
          */
         fun headerTitleText(state: State): String? {
-            val session = state.session ?: return if (state.isDraft) "New Session" else null
-            val title = session.title.trim()
-            if (title.isEmpty() || title.equals("New session", ignoreCase = true)) return "New Session"
+            val session = state.session ?: return if (state.isDraft) localized(R.string.session_new_session_title) else null
+            if (readsNewSession(state)) return localized(R.string.session_new_session_title)
             return session.title
+        }
+
+        /** True when a session's title is empty or the server's “New session” placeholder, which the header reads as New Session. */
+        private fun readsNewSession(state: State): Boolean {
+            val session = state.session ?: return state.isDraft
+            val title = session.title.trim()
+            return title.isEmpty() || title.equals("New session", ignoreCase = true)
         }
     }
 }
@@ -338,6 +345,7 @@ private fun HeaderTitle(
     // in place shows its own title at once.
     BreathingTitleHold(identity = model.identity, title = latestTitle, isBreathing = model.isSyncing) { title, animates ->
         val subtitle = if (model.autoRenameFailed) stringResource(R.string.session_sheet_rename_failed) else project
+        val titleDescription = if (subtitle == null) title else stringResource(R.string.session_list_two, title, subtitle)
         val onClick: () -> Unit = onCatchUpOpen
             ?: {
                 if (!model.isDraft) returnsFocusAfterInfo = true
@@ -351,10 +359,9 @@ private fun HeaderTitle(
         val value = if (model.isDraft) {
             ""
         } else {
-            listOfNotNull(
-                if (model.isBusy) stringResource(R.string.session_activity_running_description) else stringResource(R.string.session_header_idle_description),
-                if (model.isResyncing) stringResource(R.string.session_header_syncing_description) else if (model.refreshFailed) stringResource(R.string.session_header_last_known_description) else null,
-            ).joinToString(", ")
+            val activity = if (model.isBusy) stringResource(R.string.session_activity_running_description) else stringResource(R.string.session_header_idle_description)
+            val freshness = if (model.isResyncing) stringResource(R.string.session_header_syncing_description) else if (model.refreshFailed) stringResource(R.string.session_header_last_known_description) else null
+            if (freshness == null) activity else stringResource(R.string.session_list_two, activity, freshness)
         }
         // Android divergence: the title sits on the bar itself (no capsule); a press shows the
         // ripple in a rounded rectangle around it.
@@ -370,7 +377,7 @@ private fun HeaderTitle(
                 // Ahead of the clearing below, which would drop its marker.
                 .accessibilityFocusRequest(infoFocus)
                 .clearAndSetSemantics {
-                    contentDescription = listOfNotNull(title, subtitle).joinToString(", ")
+                    contentDescription = titleDescription
                     if (value.isNotEmpty()) stateDescription = value
                 },
         ) {

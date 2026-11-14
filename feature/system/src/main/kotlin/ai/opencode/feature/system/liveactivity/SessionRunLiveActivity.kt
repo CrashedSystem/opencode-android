@@ -1,6 +1,8 @@
 package ai.opencode.feature.system.liveactivity
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.SFSymbol
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.liveactivity.SessionActivityAttributes.ContentState.Phase
 import ai.opencode.feature.system.notifications.SystemNotificationChannels
 import android.app.Notification
@@ -105,20 +107,20 @@ data class SessionRunDisplay(
     val status: String
         get() = when (phase) {
             Phase.working -> {
-                val working = if (isStale) "Last seen working" else "Working"
-                step?.let { "$working · $it" } ?: working
+                val working = if (isStale) localized(R.string.system_session_last_seen_working) else localized(R.string.system_session_working)
+                step?.let { localized(R.string.system_session_status_with_step, working, it) } ?: working
             }
-            Phase.needsInput -> "Needs your input"
-            Phase.done -> "Done"
-            Phase.failed -> "Failed"
+            Phase.needsInput -> localized(R.string.system_session_needs_input)
+            Phase.done -> localized(R.string.system_session_done)
+            Phase.failed -> localized(R.string.system_session_failed)
         }
 
     val shortStatus: String
         get() = when (phase) {
-            Phase.working -> "Working"
-            Phase.needsInput -> "Input"
-            Phase.done -> "Done"
-            Phase.failed -> "Failed"
+            Phase.working -> localized(R.string.system_session_working)
+            Phase.needsInput -> localized(R.string.system_session_input)
+            Phase.done -> localized(R.string.system_session_done)
+            Phase.failed -> localized(R.string.system_session_failed)
         }
 
     val symbol: SFSymbol

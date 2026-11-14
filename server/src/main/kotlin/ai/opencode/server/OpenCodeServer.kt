@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.internal.UrlParts
 import ai.opencode.server.internal.percentEncodePath
 import ai.opencode.server.internal.percentEncodeQueryComponent
@@ -314,6 +315,15 @@ enum class ConnectionRoute(val rawValue: String) {
     LocalNetwork("Local Network"),
     Loopback("Loopback"),
     Internet("Internet");
+
+    /** What the route reads as on screen; [rawValue] stays English for logs. */
+    val title: String
+        get() = when (this) {
+            Tailscale -> rawValue
+            LocalNetwork -> localized(R.string.server_connection_route_local_network)
+            Loopback -> localized(R.string.server_connection_route_loopback)
+            Internet -> localized(R.string.server_connection_route_internet)
+        }
 
     /** Straight to the computer (a LAN or tailnet address), not through a relay or the internet. */
     val isDirect: Boolean get() = this == Tailscale || this == LocalNetwork

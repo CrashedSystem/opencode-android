@@ -1,5 +1,7 @@
 package ai.opencode.core.ui
 
+import ai.opencode.core.R
+import ai.opencode.core.strings.localized
 import android.content.res.Resources
 
 /**
@@ -12,8 +14,8 @@ object ThisDevice {
     val isTablet: Boolean get() = (Resources.getSystem()?.configuration?.smallestScreenWidthDp ?: 0) >= 600
 
     /** “this phone”, “this tablet” (iOS “this iPhone”, “this iPad”). */
-    val name: String get() = if (isTablet) "tablet" else "phone"
+    val name: String get() = if (isTablet) localized(R.string.core_this_device_name_tablet) else localized(R.string.core_this_device_name_phone)
 
     /** “your phone”, “your tablet”. */
-    val casualName: String get() = if (isTablet) "tablet" else "phone"
+    val casualName: String get() = if (isTablet) localized(R.string.core_this_device_casual_name_tablet) else localized(R.string.core_this_device_casual_name_phone)
 }

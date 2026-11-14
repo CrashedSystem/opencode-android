@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -13,16 +15,16 @@ internal val WhatsNewShipped.teamScrawlFeedback: WhatsNewEntry
         id = "team-scrawl-feedback",
         day = "2026-10-19",
         audience = Audience.developer,
-        title = "Team Scrawl Feedback",
+        title = localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_title),
         symbol = "hand.draw.fill",
         tint = Tint.teal,
-        summary = "Join Team Feedback with your personal link to send three-finger Scrawl recordings and redacted diagnostics to the shared queue on the Problems board.",
+        summary = localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_summary),
         details = listOf(
-            "Open your opencode://team/join link to review what gets collected and accept.",
-            "A three-step interactive tutorial walks through holding three fingers, talking and drawing, and sending a practice clip to the test lane.",
-            "Each recording attaches the same redacted timeline, app log, and Motion Watch diagnostics as Report a Problem.",
-            "Replay the tutorial or leave Team Feedback anytime in Settings › Developer.",
+            localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_detail_1),
+            localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_detail_2),
+            localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_detail_3),
+            localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_detail_4),
         ),
-        example = "Open Settings › Developer to check your Team Feedback status or replay the tutorial.",
+        example = localized(R.string.settings_whatsnew_entry_team_scrawl_feedback_example),
         tryIt = Destination.Open(SettingsDestination.Developer),
     )

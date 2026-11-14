@@ -161,7 +161,7 @@ fun MarkdownImage(
                     )
                     .clip(shape)
                     .background(colors.userBubble, shape)
-                    .clickable { send(TranscriptAction.PreviewImage(TranscriptImagePreview(cacheKey, load.image.asAndroidBitmap(), label))) }
+                    .clickable { send(TranscriptAction.PreviewImage(TranscriptImagePreview(cacheKey, load.image.asAndroidBitmap(), label, labelIsPlaceholder = alt.isEmpty()))) }
                     .semantics { contentDescription = openDescription },
                 contentAlignment = Alignment.Center,
             ) {

@@ -3,6 +3,7 @@ package ai.opencode.feature.media
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.motion.MotionRole
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -191,8 +192,9 @@ data class AgentImagePlan(
          * by a constrained network from a path outside the project.
          */
         fun outsideAccessibilityValue(file: AgentFileReference, directory: String?): String {
-            val target = file.target(directory) ?: return "Outside the project"
-            return if (isInside(target, directory)) "Deferred for Low Data Mode" else "Outside the project"
+            val target = file.target(directory) ?: return localized(R.string.media_image_outside_project_value)
+            if (isInside(target, directory)) return localized(R.string.media_image_deferred_low_data_value)
+            return localized(R.string.media_image_outside_project_value)
         }
 
         /** The images held out of the layout until their shape is known. */

@@ -30,7 +30,7 @@ object DynamicSystemTheme {
     fun definition(context: Context): ThemeDefinition {
         return ThemeDefinition(
             id = AppTheme.System,
-            title = ThemePalette.system.title,
+            title = AppTheme.System.title,
             light = variant(colorScheme(context, isDark = false), ThemePalette.system.light),
             dark = variant(colorScheme(context, isDark = true), ThemePalette.system.dark),
         )

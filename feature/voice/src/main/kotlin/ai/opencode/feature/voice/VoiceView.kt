@@ -800,7 +800,7 @@ private fun VoiceCallFailurePlainCard(store: VoiceStoreOf, message: String, modi
             VoiceFailureCloseButton({ store.send(VoiceFeature.Action.EndPressed) })
         }
         SelectionContainer {
-            Text(message, style = OpenCodeTextStyles.footnote, color = OpenCodeTheme.colors.secondaryText)
+            Text(voiceFailureDisplayText(message), style = OpenCodeTextStyles.footnote, color = OpenCodeTheme.colors.secondaryText)
         }
         val actions = @Composable {
             if (isMicrophoneDenied) {

@@ -1,6 +1,10 @@
 package ai.opencode.server.model
 
 import ai.opencode.core.files.AttachmentFileType
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
+import ai.opencode.core.ui.appFormattingLocale
+import ai.opencode.server.R
 import ai.opencode.server.TaskLocal
 import ai.opencode.server.internal.ElementSerializer
 import ai.opencode.server.internal.obj
@@ -10,6 +14,7 @@ import ai.opencode.server.internal.str
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.Serializable
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 /**
@@ -150,7 +155,7 @@ data class OpenCodeTranscriptFile(
     /** A `media:<hash>` reference whose bytes the server no longer has. */
     val isUnavailable: Boolean = false,
 ) {
-    val typeLabel: String get() = if (isUnavailable) "Media unavailable" else AttachmentFileType.label(name, mime)
+    val typeLabel: String get() = if (isUnavailable) localized(R.string.server_media_unavailable) else AttachmentFileType.label(name, mime)
     val symbolName: String get() = if (isUnavailable) "exclamationmark.triangle" else AttachmentFileType.symbolName(name, mime)
 }
 
@@ -162,7 +167,11 @@ sealed interface OpenCodeUploadEvent {
 
 /** A long paste, sent as an inline `text/plain` file named “Pasted Text”. */
 object PastedText {
+    /** The file name the paste is sent under; it is data, so it stays English. */
     const val NAME = "Pasted Text"
+
+    /** What a paste is called on screen. */
+    val title: String get() = localized(R.string.server_pasted_text_title)
     const val MIME = "text/plain"
     const val LINE_LIMIT = 12
     const val CHARACTER_LIMIT = 1_000
@@ -245,10 +254,10 @@ data class PastedTextSummary(
     )
 
     /** “42 lines · 3 KB”. */
-    val summary: String get() = "$lineCount ${if (lineCount == 1) "line" else "lines"} · $size"
+    val summary: String get() = localizedPlural(R.plurals.server_pasted_text_summary, lineCount, lineCount, size)
 
     /** “42 lines”, or the size of one long line. */
-    val length: String get() = if (lineCount > 1) "$lineCount lines" else size
+    val length: String get() = if (lineCount > 1) localizedPlural(R.plurals.server_pasted_text_lines, lineCount, lineCount) else size
 
     /** Like `ByteCountFormatter` `.file`: decimal units. */
     val size: String get() = formatFileSize(byteCount.toLong())
@@ -280,17 +289,23 @@ data class PastedTextSummary(
         }
 
         internal fun formatFileSize(bytes: Long): String {
-            if (bytes == 0L) return "Zero KB"
-            if (bytes < 1000) return "$bytes ${if (bytes == 1L) "byte" else "bytes"}"
-            val units = listOf("KB", "MB", "GB", "TB")
+            if (bytes == 0L) return localized(R.string.server_file_size_zero)
+            if (bytes < 1000) return localizedPlural(R.plurals.server_file_size_bytes, bytes.toInt(), bytes)
+            val units = listOf(
+                R.string.server_file_size_kilobytes,
+                R.string.server_file_size_megabytes,
+                R.string.server_file_size_gigabytes,
+                R.string.server_file_size_terabytes,
+            )
             var value = bytes / 1000.0
             var unit = 0
             while (value >= 1000 && unit < units.lastIndex) {
                 value /= 1000
                 unit++
             }
-            val text = if (unit == 0) Math.round(value).toString() else String.format(Locale.US, "%.1f", value).removeSuffix(".0")
-            return "$text ${units[unit]}"
+            val separator = DecimalFormatSymbols.getInstance(appFormattingLocale()).decimalSeparator
+            val text = if (unit == 0) Math.round(value).toString() else String.format(Locale.US, "%.1f", value).removeSuffix(".0").replace('.', separator)
+            return localized(units[unit], text)
         }
     }
 }
@@ -338,7 +353,7 @@ data class OpenCodeAutocompleteFile(val relativePath: String, val absolutePath: 
             val parent = if (trimmed.contains('/')) trimmed.substringBeforeLast('/') else ""
             if (parent.isEmpty() || parent == ".") {
                 val dirName = directory.trimEnd('/').substringAfterLast('/')
-                return dirName.ifEmpty { "Project" }
+                return dirName.ifEmpty { localized(R.string.server_autocomplete_folder_project) }
             }
             return parent
         }

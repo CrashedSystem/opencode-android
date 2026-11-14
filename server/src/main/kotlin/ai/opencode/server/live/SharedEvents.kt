@@ -1,10 +1,12 @@
 package ai.opencode.server.live
 
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.server.EventBatcher
 import ai.opencode.server.EventStreamOverflow
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.OpenCodeServerEvent
 import ai.opencode.server.model.OpenCodeHomeSnapshot
 import ai.opencode.server.model.OpenCodeSession
@@ -100,7 +102,7 @@ internal class SharedEventStreams(private val source: (OpenCodeServer) -> Flow<O
             channel.subscribers.clear()
             ended
         }
-        val error = failure ?: OpenCodeClientError("The event stream ended.")
+        val error = failure ?: OpenCodeClientError(localized(R.string.server_error_event_stream_ended))
         for (subscriber in subscribers) subscriber.close(error)
     }
 

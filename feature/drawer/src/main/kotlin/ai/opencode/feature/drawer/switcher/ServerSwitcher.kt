@@ -1,6 +1,8 @@
 package ai.opencode.feature.drawer.switcher
 
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.drawer.HomeConnectionFeature
+import ai.opencode.feature.drawer.R
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.friendlyName
 import java.text.Collator
@@ -72,12 +74,6 @@ object DrawerTitle {
     /** The test tag / iOS accessibility identifier. */
     const val TAG = "drawer-title"
 
-    const val TRY_AGAIN = "Try Again"
-    const val MANAGE_SERVERS = "Manage Servers…"
-    const val OFFLINE = "Offline"
-    const val SIGN_IN_FAILED = "Sign-in failed"
-    const val EDIT_SERVER = "Edit Server…"
-
     /** What the title shows for a server count and connection status. */
     data class Presentation(
         /** A confirmed outage of the server in use; not a reconnect or a switch. */
@@ -103,8 +99,8 @@ object DrawerTitle {
                 val rejected = status == HomeConnectionFeature.State.ConnectionStatus.disconnected && credentialsRejected
                 val issue = when (status) {
                     HomeConnectionFeature.State.ConnectionStatus.connected -> null
-                    HomeConnectionFeature.State.ConnectionStatus.reconnecting -> "Reconnecting"
-                    HomeConnectionFeature.State.ConnectionStatus.disconnected -> if (rejected) SIGN_IN_FAILED else OFFLINE
+                    HomeConnectionFeature.State.ConnectionStatus.reconnecting -> localized(R.string.drawer_server_reconnecting_state)
+                    HomeConnectionFeature.State.ConnectionStatus.disconnected -> if (rejected) localized(R.string.drawer_server_sign_in_failed) else localized(R.string.drawer_server_offline)
                 }
                 val listsServers = serverCount > 1
                 val offersTryAgain = status == HomeConnectionFeature.State.ConnectionStatus.disconnected && !rejected
@@ -117,11 +113,11 @@ object DrawerTitle {
                     offersTryAgain = offersTryAgain,
                     offersEdit = offersEdit,
                     issue = issue,
-                    accessibilityValue = switchingTo?.let { "Connecting to $it" } ?: issue ?: "",
+                    accessibilityValue = switchingTo?.let { localized(R.string.drawer_server_connecting_to_state, it) } ?: issue ?: "",
                     accessibilityHint = when {
-                        listsServers -> "Show your servers"
-                        offersEdit -> "Offer to edit the server"
-                        hasMenu -> "Offer to try again"
+                        listsServers -> localized(R.string.drawer_server_show_servers_hint)
+                        offersEdit -> localized(R.string.drawer_server_offer_edit_hint)
+                        hasMenu -> localized(R.string.drawer_server_offer_try_again_hint)
                         else -> null
                     },
                 )

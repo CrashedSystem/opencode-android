@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,14 +12,14 @@ internal val WhatsNewShipped.alwaysNotify: WhatsNewEntry
     get() = feature(
         id = "always-notify",
         day = "2026-10-09",
-        title = "Notify When Done",
+        title = localized(R.string.settings_whatsnew_entry_always_notify_title),
         symbol = "bell.badge",
         tint = Tint.red,
-        summary = "Get a notification when a session you started here finishes, with a short summary of what happened.",
+        summary = localized(R.string.settings_whatsnew_entry_always_notify_summary),
         details = listOf(
-            "Turn on Always Notify in a session’s sheet to hear about every reply, even ones started on your computer.",
-            "Tap a notification to open its session.",
+            localized(R.string.settings_whatsnew_entry_always_notify_detail_1),
+            localized(R.string.settings_whatsnew_entry_always_notify_detail_2),
         ),
-        example = "Send a message, then lock your phone",
+        example = localized(R.string.settings_whatsnew_entry_always_notify_example),
         tryIt = Destination.notifications,
     )

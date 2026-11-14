@@ -5,6 +5,7 @@ import ai.opencode.core.log.AppLog
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.CancelID
 import ai.opencode.feature.session.SessionFeature.State
@@ -208,7 +209,7 @@ internal fun SessionFeature.reduceBrowserAndBackgroundWork(state: State, action:
                     Reduced(next)
                 } else {
                     haptics.play(Haptic.error)
-                    Reduced(appendInfo(next, "Couldn’t move to background: ${error.message}"))
+                    Reduced(appendInfo(next, localized(R.string.session_move_to_background_failed, error.message)))
                 }
             } else {
                 // Moved even if its send let the claim go meanwhile.

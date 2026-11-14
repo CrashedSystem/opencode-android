@@ -5,6 +5,7 @@ import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.motion.Motion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionSpring
 import ai.opencode.core.motion.motionPressEffect
@@ -14,6 +15,7 @@ import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.ui.accessibilityFocusRequest
 import ai.opencode.core.ui.rememberAccessibilityFocusRequest
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -428,12 +430,14 @@ private suspend fun AwaitPointerEventScope.waitForUpOrCancellationCompat(): Bool
     waitForUpOrCancellation()?.also { it.consume() } != null
 
 /** What the menu offers. Paste can only be tapped, never chosen by releasing a drag over it. */
-enum class AttachmentMenuItem(val title: String, val systemImage: SFSymbol) {
-    Camera("Camera", SFSymbol.Camera),
-    Photos("Photos", SFSymbol.PhotoOnRectangle),
-    Files("Files", SFSymbol.Folder),
-    Location("Location", SFSymbol.Location),
-    Paste("Paste", SFSymbol.DocOnClipboard);
+enum class AttachmentMenuItem(@StringRes private val titleRes: Int, val systemImage: SFSymbol) {
+    Camera(R.string.composer_attachment_menu_camera, SFSymbol.Camera),
+    Photos(R.string.composer_attachment_menu_photos, SFSymbol.PhotoOnRectangle),
+    Files(R.string.composer_attachment_menu_files, SFSymbol.Folder),
+    Location(R.string.composer_attachment_menu_location, SFSymbol.Location),
+    Paste(R.string.composer_attachment_menu_paste, SFSymbol.DocOnClipboard);
+
+    val title: String get() = localized(titleRes)
 
     val isDragSelectable: Boolean get() = this != Paste
 }

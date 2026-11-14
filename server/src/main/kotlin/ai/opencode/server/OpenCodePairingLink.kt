@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.internal.UrlParts
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.internal.parseQueryItems
@@ -296,14 +297,14 @@ data class OpenCodePairingLink(
 
         /** Why [address] can't be a server's base URL, finishing “it …”; null when it can. */
         private fun originProblem(address: String): String? {
-            val parts = UrlParts.parse(address) ?: return "isn’t a web address"
+            val parts = UrlParts.parse(address) ?: return localized(R.string.server_pairing_origin_not_web_address)
             val scheme = parts.scheme?.lowercase()
-            if (scheme != "http" && scheme != "https") return "doesn’t start with http:// or https://"
-            if (parts.host.isNullOrEmpty() || parts.rawAuthority == null) return "has no host name"
-            if (parts.user != null || parts.password != null) return "includes a user name or password"
-            if (parts.rawQuery != null || parts.rawFragment != null) return "has a query or fragment"
-            parts.port?.let { if (it !in 1..65535) return "has a port outside 1–65535" }
-            if (parts.path.isNotEmpty() && parts.path != "/") return "has a path, and the server must be at the root of its address"
+            if (scheme != "http" && scheme != "https") return localized(R.string.server_pairing_origin_bad_scheme)
+            if (parts.host.isNullOrEmpty() || parts.rawAuthority == null) return localized(R.string.server_pairing_origin_no_host)
+            if (parts.user != null || parts.password != null) return localized(R.string.server_pairing_origin_credentials)
+            if (parts.rawQuery != null || parts.rawFragment != null) return localized(R.string.server_pairing_origin_query)
+            parts.port?.let { if (it !in 1..65535) return localized(R.string.server_pairing_origin_port) }
+            if (parts.path.isNotEmpty() && parts.path != "/") return localized(R.string.server_pairing_origin_path)
             return null
         }
 

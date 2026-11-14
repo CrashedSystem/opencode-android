@@ -152,7 +152,7 @@ internal fun PastedTextCard(id: String, text: String, summary: PastedTextSummary
             .clickable(onClickLabel = stringResource(R.string.transcript_pasted_text_open_click_label), onClick = open)
             .padding(horizontal = TranscriptMetrics.standard, vertical = 10.dp)
             .semantics(mergeDescendants = true) {
-                contentDescription = PastedText.NAME
+                contentDescription = PastedText.title
                 stateDescription = summary.summary
                 role = Role.Button
             },
@@ -161,7 +161,7 @@ internal fun PastedTextCard(id: String, text: String, summary: PastedTextSummary
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             OpenCodeIcon("doc.plaintext", contentDescription = null, size = smallGlyph(OpenCodeTextStyles.subheadline) + 2.dp, tint = OpenCodeTheme.colors.secondaryText)
             Text(
-                PastedText.NAME,
+                PastedText.title,
                 style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium),
                 color = OpenCodeTheme.colors.text,
                 maxLines = 1,

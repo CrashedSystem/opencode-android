@@ -1,6 +1,11 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.R as CoreR
 import ai.opencode.core.sharing.InstantSerializer
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
+import ai.opencode.server.R
+import androidx.annotation.StringRes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -13,12 +18,16 @@ import kotlin.math.ceil
 @Serializable
 data class TranscriptNoticeKind(val source: Source, val outcome: Outcome) {
     @Serializable
-    enum class Source(val one: String, val many: String) {
-        @SerialName("shell") Shell("shell", "shells"),
-        @SerialName("subagent") Subagent("subagent", "subagents");
+    enum class Source {
+        @SerialName("shell") Shell,
+        @SerialName("subagent") Subagent;
 
         /** “Shell”, “Subagent”. */
-        val title: String get() = AgentDisplayName.titleCased(one)
+        val title: String
+            get() = when (this) {
+                Shell -> localized(R.string.server_notice_source_shell)
+                Subagent -> localized(R.string.server_notice_source_subagent)
+            }
     }
 
     @Serializable
@@ -26,19 +35,35 @@ data class TranscriptNoticeKind(val source: Source, val outcome: Outcome) {
         @SerialName("finished") Finished("finished"),
         @SerialName("failed") Failed("failed"),
         @SerialName("cancelled") Cancelled("cancelled");
-
-        /** What the notice says: a cancelled one was interrupted. */
-        val word: String get() = if (this == Cancelled) "interrupted" else rawValue
     }
 
     /** The notice's own status line, naming a subagent by its agent: “Explore finished”, else “Subagent finished”. */
     fun heading(agent: String? = null): String {
         val actor = if (source == Source.Subagent) AgentDisplayName.of(agent) ?: source.title else source.title
-        return "$actor ${outcome.word}"
+        // A cancelled one was interrupted.
+        return when (outcome) {
+            Outcome.Finished -> localized(R.string.server_notice_heading_finished, actor)
+            Outcome.Failed -> localized(R.string.server_notice_heading_failed, actor)
+            Outcome.Cancelled -> localized(R.string.server_notice_heading_interrupted, actor)
+        }
     }
 
     /** “1 shell failed”, “2 subagents finished”. */
-    fun count(count: Int): String = "$count ${if (count == 1) source.one else source.many} ${outcome.word}"
+    fun count(count: Int): String {
+        val id = when (source) {
+            Source.Shell -> when (outcome) {
+                Outcome.Finished -> R.plurals.server_notice_count_shell_finished
+                Outcome.Failed -> R.plurals.server_notice_count_shell_failed
+                Outcome.Cancelled -> R.plurals.server_notice_count_shell_interrupted
+            }
+            Source.Subagent -> when (outcome) {
+                Outcome.Finished -> R.plurals.server_notice_count_subagent_finished
+                Outcome.Failed -> R.plurals.server_notice_count_subagent_failed
+                Outcome.Cancelled -> R.plurals.server_notice_count_subagent_interrupted
+            }
+        }
+        return localizedPlural(id, count, count)
+    }
 
     companion object {
         /** A notice reads “<heading> · <description>”. */
@@ -82,13 +107,15 @@ data class OpenCodeRunError(
     /** Recorded on the run's `idle` message: nothing replied before it failed. */
     val beforeReply: Boolean = false,
 ) {
-    enum class Action(val title: String) {
+    enum class Action(@StringRes private val titleRes: Int) {
         /** Sends “Continue”, so the agent picks up where the run stopped. */
-        TryAgain("Try Again"),
+        TryAgain(CoreR.string.common_try_again),
         /** Undoes the last message and puts its words back in the composer. */
-        Edit("Edit"),
-        Compact("Compact"),
-        SwitchModel("Switch Model"),
+        Edit(CoreR.string.common_edit),
+        Compact(R.string.server_run_error_action_compact),
+        SwitchModel(R.string.server_run_error_action_switch_model);
+
+        val title: String get() = localized(titleRes)
     }
 
     /** A stop the reader asked for (Stop, or a denied request) is no failure. */
@@ -97,21 +124,22 @@ data class OpenCodeRunError(
     /** The line the transcript shows. */
     val line: String
         get() = when (type) {
-            "aborted" -> "Interrupted"
-            "permission.rejected" -> "Interrupted after a denied request"
-            "provider.content-filter" -> "Safety filter blocked the reply"
-            "provider.rate-limit" -> "Rate limit reached"
-            "provider.quota" -> "Usage limit reached"
-            "provider.auth" -> "The provider rejected its key"
-            "provider.invalid-request" -> if (isContextOverflow) "Session too long for this model" else "The provider rejected the request"
-            "provider.internal" -> if (isOverloaded) "The model is overloaded" else "The provider had a problem"
-            "provider.transport" -> "Connection to the model dropped"
-            "provider.timeout" -> "The model took too long to reply"
-            "provider.invalid-output" -> "The model’s reply couldn’t be read"
-            "provider.no-route", "provider.unknown" -> "This model isn’t available"
-            "provider.unsupported-operation" -> "This model can’t do that"
-            "tool.execution" -> "A tool failed and the run stopped"
-            else -> "The run stopped with an error"
+            "aborted" -> localized(R.string.server_run_error_aborted)
+            "permission.rejected" -> localized(R.string.server_run_error_permission_rejected)
+            "provider.content-filter" -> localized(R.string.server_run_error_content_filter)
+            "provider.rate-limit" -> localized(R.string.server_run_error_rate_limit)
+            "provider.quota" -> localized(R.string.server_run_error_quota)
+            "provider.auth" -> localized(R.string.server_run_error_auth)
+            "provider.invalid-request" ->
+                if (isContextOverflow) localized(R.string.server_run_error_context_overflow) else localized(R.string.server_run_error_invalid_request)
+            "provider.internal" -> if (isOverloaded) localized(R.string.server_run_error_overloaded) else localized(R.string.server_run_error_internal)
+            "provider.transport" -> localized(R.string.server_run_error_transport)
+            "provider.timeout" -> localized(R.string.server_run_error_timeout)
+            "provider.invalid-output" -> localized(R.string.server_run_error_invalid_output)
+            "provider.no-route", "provider.unknown" -> localized(R.string.server_run_error_unavailable)
+            "provider.unsupported-operation" -> localized(R.string.server_run_error_unsupported_operation)
+            "tool.execution" -> localized(R.string.server_run_error_tool_execution)
+            else -> localized(R.string.server_run_error_other)
         }
 
     /** The one action the line offers; the hold menu has the rest. */
@@ -164,6 +192,6 @@ data class OpenCodeRunRetry(
     /** “Rate limit reached · retrying in 4 s”, then “… · retrying”. */
     fun title(now: Instant): String {
         val seconds = ceil((at.toEpochMilli() - now.toEpochMilli()) / 1000.0).toInt()
-        return if (seconds > 0) "${error.line} · retrying in $seconds s" else "${error.line} · retrying"
+        return if (seconds > 0) localized(R.string.server_run_retry_in_seconds, error.line, seconds) else localized(R.string.server_run_retry_now, error.line)
     }
 }

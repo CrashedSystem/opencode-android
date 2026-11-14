@@ -1,5 +1,6 @@
 package ai.opencode.feature.composer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.model.OpenCodeOutgoingAttachment
 import ai.opencode.server.model.OpenCodeProject
 import ai.opencode.server.model.OpenCodeSession
@@ -225,7 +226,7 @@ fun restorePersistedComposer(
         if (entry.isHeld) {
             val existing = undelivered.entries(serverID, effectiveSessionID)
             if (existing.none { it.pending.messageID == id }) {
-                undelivered.keep(entry.pending, "Couldn’t send message", serverID, effectiveSessionID)
+                undelivered.keep(entry.pending, localized(R.string.composer_send_failed), serverID, effectiveSessionID)
             }
         }
         if (!alreadyInOutbox) {

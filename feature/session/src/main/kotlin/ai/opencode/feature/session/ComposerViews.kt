@@ -3,6 +3,7 @@ package ai.opencode.feature.session
 import ai.opencode.core.ui.openCodeHairline
 import ai.opencode.core.ui.OpenCodeSurfaces
 import ai.opencode.core.motion.Motion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.motionBlurReveal
 import ai.opencode.core.motion.rememberReduceMotion
@@ -462,10 +463,10 @@ sealed interface ComposerTrailingControl {
 
     val accessibilityLabel: String
         get() = when (this) {
-            is Send -> "Send message"
-            Stop -> "Stop"
-            Mic -> "Dictate message"
-            Call -> "Start voice call"
+            is Send -> localized(R.string.session_send_message_description)
+            Stop -> localized(R.string.session_stop_description)
+            Mic -> localized(R.string.session_dictate_message_description)
+            Call -> localized(R.string.session_start_voice_call_description)
         }
 
     @Composable

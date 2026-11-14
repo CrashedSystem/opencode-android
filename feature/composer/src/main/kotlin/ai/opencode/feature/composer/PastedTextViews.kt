@@ -100,7 +100,7 @@ fun PastedTextCard(
             .background(fill, shape)
             .clickable(onClickLabel = stringResource(R.string.composer_pasted_text_open_action), role = Role.Button, onClick = onOpen)
             .semantics {
-                contentDescription = PastedText.NAME
+                contentDescription = PastedText.title
                 stateDescription = summary.summary
                 testTag = "pasted-text-card"
             }
@@ -115,7 +115,7 @@ fun PastedTextCard(
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                PastedText.NAME,
+                PastedText.title,
                 style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.Medium),
                 color = OpenCodeTheme.colors.text,
                 maxLines = 1,
@@ -204,7 +204,7 @@ fun PastedTextViewer(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.semantics(mergeDescendants = true) { heading() },
                     ) {
-                        Text(PastedText.NAME, style = OpenCodeTextStyles.headline)
+                        Text(PastedText.title, style = OpenCodeTextStyles.headline)
                         Text(summary.summary, style = OpenCodeTextStyles.caption1, color = OpenCodeTheme.colors.secondaryText)
                     }
                 },

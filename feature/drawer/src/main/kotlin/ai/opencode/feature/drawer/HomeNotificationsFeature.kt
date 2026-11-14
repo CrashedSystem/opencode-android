@@ -1,5 +1,6 @@
 package ai.opencode.feature.drawer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
@@ -84,7 +85,7 @@ class HomeNotificationsFeature : Reducer<HomeNotificationsFeature.State, HomeNot
 
             is Action.NotificationPermissionRequested -> {
                 val error = if (action.permission == NotificationPermission.NotDetermined) {
-                    "Couldn’t request permission. Try again."
+                    localized(R.string.drawer_notifications_request_error)
                 } else {
                     status.notificationSetupError
                 }
@@ -96,7 +97,7 @@ class HomeNotificationsFeature : Reducer<HomeNotificationsFeature.State, HomeNot
 
             is Action.NotificationSettingsOpened -> {
                 val error = if (!action.opened) {
-                    "Couldn’t open Settings. Open Android Settings and choose Notifications → OpenCode."
+                    localized(R.string.drawer_notifications_open_settings_error)
                 } else {
                     status.notificationSetupError
                 }

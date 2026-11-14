@@ -1,6 +1,7 @@
 package ai.opencode.feature.transcript.user
 
 import ai.opencode.core.R as CoreR
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -72,10 +73,10 @@ class TranscriptPendingActions(
     }
 
     fun accessibilityActions(copying: String? = null): List<CustomAccessibilityAction> = buildList {
-        if (!copying.isNullOrEmpty()) add(action("Copy") { copy(copying) })
-        sendNow?.let { add(action("Send Now", it)) }
-        add(action("Move to Queue", moveToQueue))
-        add(action("Delete", delete))
+        if (!copying.isNullOrEmpty()) add(action(localized(CoreR.string.common_copy)) { copy(copying) })
+        sendNow?.let { add(action(localized(R.string.transcript_pending_send_now), it)) }
+        add(action(localized(R.string.transcript_pending_move_to_queue), moveToQueue))
+        add(action(localized(CoreR.string.common_delete), delete))
     }
 }
 
@@ -103,7 +104,7 @@ class TranscriptFailedSend(
     val edit: () -> Unit,
     val delete: () -> Unit,
 ) {
-    val moveTitle: String? get() = failure.moveTo?.let { "Move to $it" }
+    val moveTitle: String? get() = failure.moveTo?.let { localized(R.string.transcript_failed_send_move_to, it) }
 
     /** The bubble's menu: why it failed, then what to do about it. */
     @Composable
@@ -130,18 +131,18 @@ class TranscriptFailedSend(
         get() = buildList {
             if (!failure.isMoving) {
                 moveTitle?.let { add(action(it, move)) }
-                add(action("Retry", retry))
+                add(action(localized(CoreR.string.common_retry), retry))
             }
-            add(action("Edit", edit))
-            add(action("Delete", delete))
+            add(action(localized(CoreR.string.common_edit), edit))
+            add(action(localized(CoreR.string.common_delete), delete))
         }
 
     override fun equals(other: Any?): Boolean = other is TranscriptFailedSend && other.failure == failure
     override fun hashCode(): Int = failure.hashCode()
 
     companion object {
-        const val status = "Couldn’t send"
-        const val moving = "Moving…"
+        val status: String get() = localized(R.string.transcript_failed_send_status)
+        val moving: String get() = localized(R.string.transcript_failed_send_moving)
     }
 }
 

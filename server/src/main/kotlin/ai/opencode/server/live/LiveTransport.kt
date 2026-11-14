@@ -4,10 +4,12 @@ import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
 import ai.opencode.core.log.logSummary
+import ai.opencode.core.strings.localized
 import ai.opencode.server.ConnectionFailureDetail
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.OpenCodeTransport
+import ai.opencode.server.R
 import ai.opencode.server.ServerLinkClient
 import ai.opencode.server.ServerLinkEpoch
 import ai.opencode.server.UrlErrorCode
@@ -145,9 +147,9 @@ internal fun requestBody(method: String, body: ByteArray?): RequestBody? = when 
 /** The status error copy shared by every route. */
 internal fun statusError(status: Int, retryAfterHeader: String?, locationMissing: Boolean = false): OpenCodeClientError = OpenCodeClientError(
     message = when {
-        status == 401 -> "The server rejected these credentials."
+        status == 401 -> localized(R.string.server_error_credentials_rejected)
         locationMissing -> OpenCodeClientError.FOLDER_GONE_MESSAGE
-        else -> "The server returned HTTP $status."
+        else -> localized(R.string.server_error_http_status, status)
     },
     statusCode = status,
     retryAfter = OpenCodeClientError.retryAfter(retryAfterHeader),
@@ -207,7 +209,7 @@ internal suspend fun perform(
     isConnectionProbe: Boolean = false,
     server: OpenCodeServer,
 ): MeasuredResponse {
-    val url = server.endpoint(path, query) ?: throw OpenCodeClientError("Enter a valid HTTP or HTTPS server URL.")
+    val url = server.endpoint(path, query) ?: throw OpenCodeClientError(localized(R.string.server_error_invalid_url))
     val contact = server.persistenceID
     val idempotency = idempotency ?: RequestIdempotency.forMethod(method)
     // Only a read that can be sent again is cut off when the link changes: not a send or a reply

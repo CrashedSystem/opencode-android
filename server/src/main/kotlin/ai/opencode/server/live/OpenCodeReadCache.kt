@@ -1,6 +1,8 @@
 package ai.opencode.server.live
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
+import ai.opencode.server.R
 import ai.opencode.server.model.OpenCodeModelCatalog
 import ai.opencode.server.model.OpenCodeSession
 import kotlinx.coroutines.CancellationException
@@ -149,6 +151,6 @@ internal class OpenCodeReadCache {
         private const val SESSION_PARENT_LIMIT = 4_096
         private val MISSING_SESSION_TTL = 5.seconds
 
-        val ancestryError get() = OpenCodeClientError("Couldn’t load active session ancestry")
+        val ancestryError get() = OpenCodeClientError(localized(R.string.server_error_load_session_ancestry))
     }
 }

@@ -3,6 +3,7 @@ package ai.opencode.feature.media
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionRole
+import ai.opencode.core.strings.localized
 import ai.opencode.core.touch.TouchRecovery
 import ai.opencode.core.touch.rememberTouchRecovery
 import ai.opencode.core.ui.AppearanceColorScheme
@@ -472,7 +473,7 @@ class MediaPresenter internal constructor() {
             sourceID,
             isMedia,
             reducesMotion,
-            screenName ?: if (isMedia) "Media Viewer" else "File Viewer",
+            screenName ?: if (isMedia) localized(R.string.media_viewer_screen_title) else localized(R.string.media_file_viewer_screen_title),
             flightAccessories,
             onDismiss,
             content,

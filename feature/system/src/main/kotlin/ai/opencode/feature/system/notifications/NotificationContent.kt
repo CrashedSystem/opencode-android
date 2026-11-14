@@ -1,5 +1,7 @@
 package ai.opencode.feature.system.notifications
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,7 +21,7 @@ import kotlinx.serialization.json.jsonObject
 object NotificationContent {
     const val ENVELOPE_KEY = "opencode"
     const val PLACEHOLDER_TITLE = "OpenCode"
-    const val PLACEHOLDER_BODY = "New activity"
+    val PLACEHOLDER_BODY: String get() = localized(R.string.system_notification_placeholder_body)
 
     data class Verified(val ref: String, val box: String, val payload: NotificationCrypto.Payload)
 

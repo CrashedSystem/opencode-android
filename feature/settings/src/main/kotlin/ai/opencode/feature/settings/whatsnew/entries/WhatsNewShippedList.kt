@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.R as CoreR
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
 
@@ -8,8 +10,24 @@ import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
 // `<day>-<NN>-<id>.kt` like iOS's (`NN` counts up within a day), declaring
 // `internal val WhatsNewShipped.<name>`. Add its line here in file-name order, newest first.
 
-/** Every shipped entry, newest first: by day, then by `NN` (higher is newer). */
-internal val whatsNewShippedEntries: List<WhatsNewEntry> by lazy {
+/**
+ * Every shipped entry, newest first: by day, then by `NN` (higher is newer). The list is built
+ * once per language, because each entry reads its text from string resources.
+ */
+internal val whatsNewShippedEntries: List<WhatsNewEntry>
+    get() = synchronized(WhatsNewShipped) {
+        val language = localized(CoreR.string.core_language_tag)
+        if (language != builtForLanguage) {
+            builtEntries = buildEntries()
+            builtForLanguage = language
+        }
+        builtEntries
+    }
+
+private var builtForLanguage: String? = null
+private var builtEntries: List<WhatsNewEntry> = emptyList()
+
+private fun buildEntries(): List<WhatsNewEntry> =
     listOf(
         WhatsNewShipped.defaultModel,
         WhatsNewShipped.connectingCaptionGlass,
@@ -187,4 +205,3 @@ internal val whatsNewShippedEntries: List<WhatsNewEntry> by lazy {
         WhatsNewShipped.attachmentMenuHold,
         WhatsNewShipped.voiceMessages,
     )
-}

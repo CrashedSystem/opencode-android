@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,14 +12,14 @@ internal val WhatsNewShipped.serverSwitcher: WhatsNewEntry
     get() = feature(
         id = "server-switcher",
         day = "2026-10-09",
-        title = "Switch Servers",
+        title = localized(R.string.settings_whatsnew_entry_server_switcher_title),
         symbol = "laptopcomputer",
         tint = Tint.gray,
-        summary = "The server you’re on is the drawer’s title. Tap it to switch to another server or add one.",
+        summary = localized(R.string.settings_whatsnew_entry_server_switcher_summary),
         details = listOf(
-            "Settings shows the connection as a live heartbeat, with the round trip beside the server’s name.",
-            "Rename a server; only this phone uses the name.",
+            localized(R.string.settings_whatsnew_entry_server_switcher_detail_1),
+            localized(R.string.settings_whatsnew_entry_server_switcher_detail_2),
         ),
-        example = "Open the drawer, tap the server’s name, and add your other computer",
+        example = localized(R.string.settings_whatsnew_entry_server_switcher_example),
         tryIt = Destination.servers,
     )

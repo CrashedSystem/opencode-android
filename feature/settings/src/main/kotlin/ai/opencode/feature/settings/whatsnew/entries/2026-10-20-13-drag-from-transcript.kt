@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,16 +12,16 @@ internal val WhatsNewShipped.dragFromTranscript: WhatsNewEntry
     get() = feature(
         id = "drag-from-transcript",
         day = "2026-10-20",
-        title = "Drag from the Session",
+        title = localized(R.string.settings_whatsnew_entry_drag_from_transcript_title),
         symbol = "hand.draw",
         tint = Tint.orange,
-        summary = "Hold and drag code, images, files, links and messages out of a session into other apps.",
+        summary = localized(R.string.settings_whatsnew_entry_drag_from_transcript_summary),
         details = listOf(
-            "Code blocks arrive as text with their language.",
-            "Images and files the agent wrote arrive as files.",
-            "Drop any of them into the message box to attach or paste them.",
-            "Scrolling, selecting text and menus work as before.",
+            localized(R.string.settings_whatsnew_entry_drag_from_transcript_detail_1),
+            localized(R.string.settings_whatsnew_entry_drag_from_transcript_detail_2),
+            localized(R.string.settings_whatsnew_entry_drag_from_transcript_detail_3),
+            localized(R.string.settings_whatsnew_entry_drag_from_transcript_detail_4),
         ),
-        example = "Select a line of code in a reply, then hold the selection and drag the block into Notes.",
-        tryIt = Destination.Prompt("Write a short Swift function that reverses a string, in a code block."),
+        example = localized(R.string.settings_whatsnew_entry_drag_from_transcript_example),
+        tryIt = Destination.Prompt(localized(R.string.settings_whatsnew_entry_drag_from_transcript_prompt)),
     )

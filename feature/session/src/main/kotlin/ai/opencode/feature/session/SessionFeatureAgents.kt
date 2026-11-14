@@ -7,6 +7,7 @@ import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.State
 import ai.opencode.feature.composer.AgentPickerSharedKeys
@@ -222,7 +223,7 @@ val State.currentAgentID: String?
 val State.currentAgentName: String
     get() {
         val id = currentAgentID
-        return primaryAgents.firstOrNull { it.id == id }?.displayName ?: AgentDisplayName.of(id) ?: "Agent"
+        return primaryAgents.firstOrNull { it.id == id }?.displayName ?: AgentDisplayName.of(id) ?: localized(R.string.session_agent_fallback_name)
     }
 
 /** The agent a send applies first, or null when the session already has it. */

@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
@@ -8,7 +10,7 @@ internal val WhatsNewShipped.stuckTouchRecovery: WhatsNewEntry
     get() = smaller(
         id = "stuck-touch-recovery",
         day = "2026-11-05",
-        title = "Scrolling Recovers Itself",
+        title = localized(R.string.settings_whatsnew_entry_stuck_touch_recovery_title),
         symbol = "hand.point.up.left",
-        summary = "If something invisible keeps a session from scrolling for more than a second, the app releases it.",
+        summary = localized(R.string.settings_whatsnew_entry_stuck_touch_recovery_summary),
     )

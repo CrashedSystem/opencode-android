@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,14 +12,14 @@ internal val WhatsNewShipped.newSessionRecentProjects: WhatsNewEntry
     get() = feature(
         id = "new-session-recent-projects",
         day = "2026-10-11",
-        title = "Start in Any Project",
+        title = localized(R.string.settings_whatsnew_entry_new_session_recent_projects_title),
         symbol = "folder",
         tint = Tint.teal,
-        summary = "New Session lists your recent projects above the message box, and All Projects can open any folder on your computer.",
+        summary = localized(R.string.settings_whatsnew_entry_new_session_recent_projects_summary),
         details = listOf(
-            "The project you chose stays above the message box as you type.",
-            "A call started from a new session works in the project you chose.",
+            localized(R.string.settings_whatsnew_entry_new_session_recent_projects_detail_1),
+            localized(R.string.settings_whatsnew_entry_new_session_recent_projects_detail_2),
         ),
-        example = "Tap New Session, then All Projects, then Choose Folder…",
+        example = localized(R.string.settings_whatsnew_entry_new_session_recent_projects_example),
         tryIt = Destination.NewSession,
     )

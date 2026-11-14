@@ -1,5 +1,7 @@
 package ai.opencode.feature.drawer.motion
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.drawer.R
 import ai.opencode.core.ui.appFormattingLocale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -51,7 +53,7 @@ object DrawerTimestamp {
     class Day(
         now: Instant,
         private val zone: ZoneId = ZoneId.systemDefault(),
-        private val locale: Locale = Locale.getDefault(),
+        private val locale: Locale = appFormattingLocale(),
         private val hour24: Boolean? = null,
     ) {
         private val today = now.atZone(zone).truncatedTo(ChronoUnit.DAYS)
@@ -82,7 +84,7 @@ object DrawerTimestamp {
         val numeric = DateTimeFormatter.ofPattern(numericPattern.replace(Regex("y+"), "y"), locale)
         if (days == 0 && !date.isBefore(today)) return date.format(time)
         if (!date.isBefore(today)) return date.format(numeric)
-        if (!date.isBefore(today.minusDays(1))) return "Yesterday"
+        if (!date.isBefore(today.minusDays(1))) return localized(R.string.drawer_date_yesterday)
         if (!date.isBefore(today.minusDays(6))) return date.format(DateTimeFormatter.ofPattern("EEEE", locale))
         return date.format(numeric)
     }

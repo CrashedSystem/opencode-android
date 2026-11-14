@@ -162,7 +162,7 @@ fun MermaidDiagramCard(
             val full = runCatching {
                 renderer.viewerImage(source, theme, density, configuration.screenWidthDp.toFloat(), configuration.screenHeightDp.toFloat())
             }.getOrNull() ?: return@launch
-            onPreview(TranscriptImagePreview(mediaID, full, previewLabel))
+            onPreview(TranscriptImagePreview(mediaID, full, previewLabel, labelIsPlaceholder = true))
         }
     }
 

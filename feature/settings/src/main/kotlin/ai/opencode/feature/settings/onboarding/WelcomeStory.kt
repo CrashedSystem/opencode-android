@@ -2,10 +2,12 @@ package ai.opencode.feature.settings.onboarding
 
 import ai.opencode.core.motion.MotionSpring
 import ai.opencode.core.motion.SpringSolver
+import ai.opencode.core.strings.localized
 import ai.opencode.core.tuning.Tunable
 import ai.opencode.core.tuning.TunableSpring
 import ai.opencode.core.tuning.TuningContext
 import ai.opencode.core.tuning.TuningStore
+import ai.opencode.feature.settings.R
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
@@ -212,14 +214,14 @@ data class WelcomeStory(
     }
 
     companion object {
-        const val PROMPT = "Add an Android download button and show me"
-        const val SHIP_IT = "Ship it"
-        const val REPLY = "Done: added the Download for Android button to `Hero.tsx` on the home page."
-        const val TITLE = "Download for Android"
+        val PROMPT: String get() = localized(R.string.settings_onboarding_story_prompt)
+        val SHIP_IT: String get() = localized(R.string.settings_onboarding_story_ship_it)
+        val REPLY: String get() = localized(R.string.settings_onboarding_story_reply)
+        val TITLE: String get() = localized(R.string.settings_onboarding_story_title)
         const val PROJECT = "opencode"
-        val PROMPT_WORDS = words(PROMPT)
-        val SHIP_WORDS = words(SHIP_IT)
-        val REPLY_WORDS = words(REPLY)
+        val PROMPT_WORDS: List<String> get() = words(PROMPT)
+        val SHIP_WORDS: List<String> get() = words(SHIP_IT)
+        val REPLY_WORDS: List<String> get() = words(REPLY)
 
         fun words(text: String): List<String> = text.split(' ').filter { it.isNotEmpty() }
 

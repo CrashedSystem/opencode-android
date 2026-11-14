@@ -4,6 +4,7 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionTunables
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -117,7 +118,7 @@ data class OnePickerRowItem(
         get() = buildList {
             add(providerTitle)
             if (isAdjustable) add(levelLabel)
-            if (isFavorite) add("Favorite")
+            if (isFavorite) add(localized(R.string.composer_model_favorite_description))
         }.joinToString(", ")
 }
 

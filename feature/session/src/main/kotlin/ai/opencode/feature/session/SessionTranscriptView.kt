@@ -2,6 +2,7 @@
 
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.experiments.key
 import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
@@ -541,7 +542,7 @@ object SessionTranscriptView {
                         putIfAbsent(
                             failed.id,
                             TranscriptSendFailure(
-                                reason = failed.reason,
+                                reason = failed.displayReason,
                                 moveTo = if (failed.isFolderGone) moveTo else null,
                                 // The whole session is moving: every row whose folder is gone waits.
                                 isMoving = failed.isFolderGone && state.movingFailedSendID != null,
@@ -617,7 +618,7 @@ object SessionTranscriptView {
             }
             is TranscriptAction.OpenPastedText -> {
                 host?.dismissComposerKeyboard()
-                presenter?.present(sourceID = action.sourceID, isMedia = false, reducesMotion = reducedMotion, screenName = "Pasted Text Viewer") { viewer ->
+                presenter?.present(sourceID = action.sourceID, isMedia = false, reducesMotion = reducedMotion, screenName = localized(R.string.session_pasted_text_viewer_screen_title)) { viewer ->
                     PastedTextViewer(
                         text = action.text,
                         summary = action.summary,
@@ -995,8 +996,9 @@ private fun MoveToBackgroundAction(activity: WorkingActivity, onMove: () -> Unit
         // Working's footprint (orb slot + its text) and the 12 dp before the action, without a
         // second animating orb; the title shows only where the whole label fits beside it
         // (iOS `ViewThatFits`).
-        val working = remember(activity.needsInput, workingStyle, density) {
-            measurer.measure(if (activity.needsInput) "Needs your input" else "Working", workingStyle).size.width
+        val workingText = stringResource(if (activity.needsInput) R.string.session_status_needs_input else R.string.session_status_working)
+        val working = remember(workingText, workingStyle, density) {
+            measurer.measure(workingText, workingStyle).size.width
         }
         val title = remember(labelStyle, moveToBackgroundLabel, density) { measurer.measure(moveToBackgroundLabel, labelStyle, maxLines = 1).size.width }
         val showsTitle = with(density) {

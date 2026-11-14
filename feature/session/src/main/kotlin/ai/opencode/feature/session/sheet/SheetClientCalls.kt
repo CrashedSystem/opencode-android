@@ -1,5 +1,7 @@
 package ai.opencode.feature.session.sheet
 
+import ai.opencode.feature.session.R
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import kotlinx.coroutines.CancellationException
 
@@ -23,4 +25,4 @@ internal suspend fun <T> clientResult(block: suspend () -> T): Result<T> = try {
 }
 
 internal fun Throwable.asClientError(): OpenCodeClientError =
-    this as? OpenCodeClientError ?: OpenCodeClientError(message ?: "Something went wrong.")
+    this as? OpenCodeClientError ?: OpenCodeClientError(message ?: localized(R.string.session_something_went_wrong_sentence))

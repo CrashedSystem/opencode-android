@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.model.PastedTextSummary
 import ai.opencode.feature.media.MediaReferenceLoadResult
 import ai.opencode.feature.media.MediaReferenceClient
@@ -108,7 +109,7 @@ private suspend fun hydrated(attachment: OpenCodeOutgoingAttachment, server: Ope
 internal fun SessionFeature.reportRevertError(error: OpenCodeClientError, state: State): Reduced<State, Action> {
     haptics.play(Haptic.error)
     val details = error.message.trim()
-    return Reduced(appendInfo(state, if (details.isEmpty()) "Couldn’t revert" else "Couldn’t revert: $details"))
+    return Reduced(appendInfo(state, if (details.isEmpty()) localized(R.string.session_revert_failed) else localized(R.string.session_revert_failed_details, details)))
 }
 
 /**

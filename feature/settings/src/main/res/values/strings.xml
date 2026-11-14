@@ -9,6 +9,7 @@
     <string name="settings_themes_title">Themes</string>
     <string name="settings_themes_preview_description">Transcript preview</string>
     <string name="settings_themes_preview_user_message">Help me improve the session screen. Show me what you find and explain the changes.</string>
+    <string name="settings_themes_preview_reply">I found the layout issue in %1$s. The transcript and composer share the available height, so the keyboard is a useful stress test.</string>
 
     <!-- Experimental -->
     <string name="settings_experimental_title">Experimental</string>
@@ -32,6 +33,9 @@
     <string name="settings_models_forget_unavailable">Forget Unavailable Models</string>
     <string name="settings_models_show_every_model">Show Every Model</string>
     <string name="settings_models_load_failed_title">Couldn’t Load Models</string>
+    <string name="settings_models_summary_hidden">Hidden</string>
+    <string name="settings_models_summary_all">All</string>
+    <string name="settings_models_summary_count">%1$d of %2$d</string>
 
     <!-- Models › Provider -->
     <string name="settings_models_search_placeholder">Search Models</string>
@@ -93,6 +97,9 @@
     <string name="settings_delegator_no_sessions">No Sessions on This Server</string>
     <string name="settings_delegator_no_matching_sessions">No Matching Sessions</string>
     <string name="settings_delegator_new_session">New session</string>
+    <string name="settings_delegator_direct">Direct</string>
+    <string name="settings_delegator_direct_session_unavailable">Direct · Session unavailable</string>
+    <string name="settings_delegator_another_server">%1$s · Another server</string>
 
 
     <!-- Voice › Key Editor -->
@@ -139,6 +146,7 @@
     <string name="settings_voice_key_checking">Checking…</string>
     <string name="settings_voice_key_saved">Saved</string>
     <string name="settings_voice_key_missing">Missing</string>
+    <string name="settings_voice_preview_disabled_hint">Add your %1$s key to preview voices</string>
 
     <!-- Voice › Voice Picker -->
     <string name="settings_voice_picker_add_key_footer">Add your %1$s key to preview voices.</string>
@@ -146,16 +154,34 @@
     <string name="settings_voice_stop_preview_description">Stop %1$s preview</string>
     <string name="settings_voice_preview_description">Preview %1$s</string>
     <string name="settings_voice_preview_playing">Playing</string>
+    <string name="settings_voice_call_voice_unavailable">%1$s · %2$s unavailable</string>
 
 
     <!-- Settings root -->
     <string name="settings_whats_new_title">What’s New</string>
     <string name="settings_developer_title">Developer</string>
+    <string name="settings_app_version">Version %1$s (%2$s)</string>
+    <string name="settings_app_version_commit">Version %1$s (%2$s) · %3$s</string>
 
 
     <!-- Connection card -->
     <string name="settings_connection_show_server_label">Show the server</string>
     <string name="settings_connection_milliseconds">%1$d ms</string>
+    <string name="settings_connection_card_value_description">%1$s, %2$s, %3$s</string>
+    <string name="settings_connection_status_connected">Connected</string>
+    <string name="settings_connection_status_slow">Slow</string>
+    <string name="settings_connection_status_unstable">Unstable</string>
+    <string name="settings_connection_status_reconnecting">Reconnecting</string>
+    <string name="settings_connection_status_offline">Offline</string>
+    <string name="settings_connection_status_sign_in_failed">Sign-in failed</string>
+    <string name="settings_connection_status_switching">Switching</string>
+    <string name="settings_connection_status_switching_to">Switching to %1$s</string>
+    <string name="settings_connection_status_code">%1$s · %2$d</string>
+    <string name="settings_connection_status_http_description">%1$s, HTTP %2$d</string>
+    <plurals name="settings_connection_status_milliseconds_description">
+        <item quantity="one">%1$s, %2$d milliseconds</item>
+        <item quantity="other">%1$s, %2$d milliseconds</item>
+    </plurals>
 
     <!-- Server page -->
     <string name="settings_server_title">Server</string>
@@ -198,4 +224,5 @@
     <string name="settings_pairing_nothing_to_paste_message">Your clipboard doesn’t have a pairing link. Copy the link that opencode pair prints, then try again.</string>
     <string name="settings_pairing_point_camera">Point your camera at the QR code</string>
     <string name="settings_pairing_paste_link">Paste Pairing Link</string>
+    <string name="settings_pairing_computer_hint">On your computer, open OpenCode’s Settings → Pairing, or run %1$s in a terminal.</string>
 </resources>

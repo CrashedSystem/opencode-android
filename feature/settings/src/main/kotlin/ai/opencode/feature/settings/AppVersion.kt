@@ -2,6 +2,7 @@ package ai.opencode.feature.settings
 
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import android.content.pm.PackageManager
 
 /**
@@ -11,6 +12,13 @@ import android.content.pm.PackageManager
  */
 data class AppVersion(val version: String, val build: String, val commit: String?) {
     val label: String get() = "Version $version ($build)" + (commit?.let { " · $it" } ?: "")
+
+    /** [label] in the app's language, for the Settings footer ([label] stays English for the launch log). */
+    val displayLabel: String
+        get() {
+            if (commit == null) return localized(R.string.settings_app_version, version, build)
+            return localized(R.string.settings_app_version_commit, version, build, commit)
+        }
 
     companion object {
         val current: AppVersion by lazy { read() }

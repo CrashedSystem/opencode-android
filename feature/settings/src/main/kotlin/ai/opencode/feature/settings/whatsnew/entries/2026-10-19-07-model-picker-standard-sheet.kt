@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,8 +12,8 @@ internal val WhatsNewShipped.modelPickerStandardSheet: WhatsNewEntry
     get() = smaller(
         id = "model-picker-standard-sheet",
         day = "2026-10-19",
-        title = "Model Picker as a Standard Sheet",
+        title = localized(R.string.settings_whatsnew_entry_model_picker_standard_sheet_title),
         symbol = "cpu",
-        summary = "With the New Model Picker experiment on, the model in the message box opens a standard sheet where each model has its own thinking-level menu. The earlier picker is now Custom Model Picker in Settings › Experimental.",
+        summary = localized(R.string.settings_whatsnew_entry_model_picker_standard_sheet_summary),
         tryIt = Destination.Open(SettingsDestination.Experimental),
     )

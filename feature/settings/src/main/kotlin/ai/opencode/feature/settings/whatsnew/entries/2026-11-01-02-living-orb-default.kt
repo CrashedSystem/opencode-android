@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,17 +12,17 @@ internal val WhatsNewShipped.livingOrbDefault: WhatsNewEntry
     get() = feature(
         id = "living-orb-default",
         day = "2026-11-01",
-        title = "Calls Float in the Orb",
+        title = localized(R.string.settings_whatsnew_entry_living_orb_default_title),
         symbol = "circle.hexagongrid.fill",
         tint = Tint.green,
-        summary = "Voice calls now float in the Living Orb for everyone, above every screen, while the message field stays yours.",
+        summary = localized(R.string.settings_whatsnew_entry_living_orb_default_summary),
         details = listOf(
-            "Tap the orb to grow it into the call’s card, and drag up for the whole call and its transcript.",
-            "Drag the orb anywhere; it stays put as you switch sessions or open Settings.",
-            "Start a call from the session list too, with the call button beside Settings.",
-            "The Tray is gone: if you used it, calls float in the orb too.",
-            "Switch it off in Settings › Experimental › Calls › Living Orb.",
+            localized(R.string.settings_whatsnew_entry_living_orb_default_detail_1),
+            localized(R.string.settings_whatsnew_entry_living_orb_default_detail_2),
+            localized(R.string.settings_whatsnew_entry_living_orb_default_detail_3),
+            localized(R.string.settings_whatsnew_entry_living_orb_default_detail_4),
+            localized(R.string.settings_whatsnew_entry_living_orb_default_detail_5),
         ),
-        example = "Start a call, then open the session list: the orb comes with you",
+        example = localized(R.string.settings_whatsnew_entry_living_orb_default_example),
         tryIt = Destination.Call,
     )

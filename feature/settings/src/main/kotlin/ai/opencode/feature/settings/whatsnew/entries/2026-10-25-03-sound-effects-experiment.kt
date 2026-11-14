@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -13,15 +15,15 @@ internal val WhatsNewShipped.soundEffectsExperiment: WhatsNewEntry
         id = "sound-effects-experiment",
         day = "2026-10-25",
         audience = Audience.developer,
-        title = "Sound Effects",
+        title = localized(R.string.settings_whatsnew_entry_sound_effects_experiment_title),
         symbol = "speaker.wave.2.fill",
         tint = Tint.gray,
-        summary = "An experiment that plays soft sounds with the haptics for replies, requests, Catch Up and failed sends.",
+        summary = localized(R.string.settings_whatsnew_entry_sound_effects_experiment_summary),
         details = listOf(
-            "Silent and vibrate modes mute them, and music keeps playing.",
-            "They stay quiet during a call, dictation or media, and in the background.",
-            "Volume and an optional Send Sound sit beneath the switch.",
+            localized(R.string.settings_whatsnew_entry_sound_effects_experiment_detail_1),
+            localized(R.string.settings_whatsnew_entry_sound_effects_experiment_detail_2),
+            localized(R.string.settings_whatsnew_entry_sound_effects_experiment_detail_3),
         ),
-        example = "Turn on Sound Effects in Settings › Experimental, then wait for a reply in another session",
+        example = localized(R.string.settings_whatsnew_entry_sound_effects_experiment_example),
         tryIt = Destination.Open(SettingsDestination.Experiment("sound-effects")),
     )

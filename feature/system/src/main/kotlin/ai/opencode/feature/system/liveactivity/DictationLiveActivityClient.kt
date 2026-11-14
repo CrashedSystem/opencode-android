@@ -5,6 +5,8 @@ import ai.opencode.core.dependencies.Clock
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,7 +45,7 @@ object DictationLiveActivity {
         serverID: String,
     ): Recording? {
         if (!hasDetail || !callIsTerminal || !isRecording || !holdIsLocked) return null
-        val title = sessionTitle?.takeIf { it.isNotEmpty() } ?: "New session"
+        val title = sessionTitle?.takeIf { it.isNotEmpty() } ?: localized(R.string.system_recording_new_session)
         return Recording(title, serverID)
     }
 

@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -11,15 +13,15 @@ internal val WhatsNewShipped.themes: WhatsNewEntry
     get() = feature(
         id = "themes",
         day = "2026-10-18",
-        title = "Themes",
+        title = localized(R.string.settings_whatsnew_entry_themes_title),
         symbol = "paintpalette",
         tint = Tint.purple,
-        summary = "Give sessions a theme, like Tokyo Night, Catppuccin, Dracula, Rosé Pine or GitHub, with a live preview as you browse.",
+        summary = localized(R.string.settings_whatsnew_entry_themes_summary),
         details = listOf(
-            "Themes colour the transcript, your messages, code, syntax, diffs and links.",
-            "Mode in Appearance sets light, dark or system.",
-            "Controls keep their native Liquid Glass look in every theme.",
+            localized(R.string.settings_whatsnew_entry_themes_detail_1),
+            localized(R.string.settings_whatsnew_entry_themes_detail_2),
+            localized(R.string.settings_whatsnew_entry_themes_detail_3),
         ),
-        example = "Open Settings → Appearance → Theme and try Tokyo Night.",
+        example = localized(R.string.settings_whatsnew_entry_themes_example),
         tryIt = Destination.Open(SettingsDestination.Themes),
     )

@@ -1,5 +1,8 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.strings.localized
+import ai.opencode.server.R
+
 /**
  * The one rule for what a session is called, used by every surface (drawer rows, header, Session
  * sheet, Catch Up, switcher, notices, notifications, widgets, shortcuts, search, voice).
@@ -10,8 +13,11 @@ package ai.opencode.server.model
  * (and what snapshots cached by earlier builds hold), so it counts as no title too.
  */
 object SessionTitle {
-    /** What an unnamed session reads as when its first prompt isn't known. */
+    /** What this app stores as an unnamed session's title: data, so it stays English. */
     const val placeholder = "Untitled session"
+
+    /** What an unnamed session reads as when its first prompt isn't known. */
+    val displayPlaceholder: String get() = localized(R.string.server_session_title_untitled)
 
     /** The most characters a first-prompt title keeps before it's cut (the ellipsis comes on top). */
     const val previewLimit = 60
@@ -26,13 +32,13 @@ object SessionTitle {
     fun display(serverTitle: String?, firstPrompt: String?): String {
         val title = serverTitle?.trimmedWhitespace().orEmpty()
         if (!isPlaceholder(title)) return title
-        return firstPrompt?.trimmedWhitespace()?.nonEmpty ?: placeholder
+        return firstPrompt?.trimmedWhitespace()?.nonEmpty ?: displayPlaceholder
     }
 
     /** Whether [title] names nothing: empty, or the placeholder (in any case). */
     fun isPlaceholder(title: String?): Boolean {
         val trimmed = title?.trimmedWhitespace().orEmpty()
-        return trimmed.isEmpty() || trimmed.equals(placeholder, ignoreCase = true)
+        return trimmed.isEmpty() || trimmed.equals(placeholder, ignoreCase = true) || trimmed.equals(displayPlaceholder, ignoreCase = true)
     }
 
     /**

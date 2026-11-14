@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
@@ -8,7 +10,7 @@ internal val WhatsNewShipped.openLinksFromCalls: WhatsNewEntry
     get() = smaller(
         id = "open-links-from-calls",
         day = "2026-11-01",
-        title = "Open Links from Calls",
+        title = localized(R.string.settings_whatsnew_entry_open_links_from_calls_title),
         symbol = "arrow.up.forward.app",
-        summary = "Turn on Open Links from Calls in Settings › Experimental › Calls, and during a call an agent can offer a link, like an Uber ride: tap Open to open it in its app, or Not Now.",
+        summary = localized(R.string.settings_whatsnew_entry_open_links_from_calls_summary),
     )

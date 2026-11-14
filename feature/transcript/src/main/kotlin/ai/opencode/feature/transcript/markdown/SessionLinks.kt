@@ -1,5 +1,7 @@
 package ai.opencode.feature.transcript.markdown
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.SessionLinkTarget
 import ai.opencode.server.model.OpenCodeSession
 import ai.opencode.server.model.SessionLink
@@ -89,7 +91,7 @@ fun sessionLinkTarget(session: OpenCodeSession): SessionLinkTarget =
 fun SessionLinkTarget.label(id: String): String {
     if (this !is SessionLinkTarget.Session) return SessionLink.shortID(id)
     val trimmed = SwiftText.trimWhitespaceAndNewlines(title)
-    if (trimmed.isEmpty()) return "New Session"
+    if (trimmed.isEmpty()) return localized(R.string.transcript_session_link_new_session)
     return if (trimmed.length > SESSION_LINK_MAXIMUM_TITLE) trimmed.take(SESSION_LINK_MAXIMUM_TITLE - 1) + "…" else trimmed
 }
 

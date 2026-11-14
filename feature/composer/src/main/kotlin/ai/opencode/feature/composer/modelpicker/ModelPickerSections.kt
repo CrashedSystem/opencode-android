@@ -1,5 +1,7 @@
 package ai.opencode.feature.composer.modelpicker
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.composer.R
 import ai.opencode.server.model.ModelVisibility
 import ai.opencode.server.model.ModelProviderGroup
 import ai.opencode.server.model.ModelSearch
@@ -37,9 +39,9 @@ data class ModelPickerSection(val kind: Kind, val models: List<OpenCodeModel>) {
 
     val title: String
         get() = when (kind) {
-            Kind.Favorites -> "Favorites"
-            Kind.Recent -> "Recent"
-            Kind.AllModels -> "All Models"
+            Kind.Favorites -> localized(R.string.composer_model_section_favorites)
+            Kind.Recent -> localized(R.string.composer_model_section_recent)
+            Kind.AllModels -> localized(R.string.composer_model_section_all_models)
             Kind.SearchResults -> ""
             is Kind.Provider -> ModelProviderGroup.title(kind.id)
         }
@@ -109,7 +111,7 @@ data class ModelPickerState(
     /** Resolve a label without borrowing another provider's capabilities. */
     val currentModelName: String
         get() {
-            val ref = currentModel ?: return "Model"
+            val ref = currentModel ?: return localized(R.string.composer_model_placeholder)
             val model = currentModelInfo
             if (model != null && ModelDisplayNames.usable(model.name, model.key, model.modelID)) return model.name
             return modelDisplayNames.name(ref)

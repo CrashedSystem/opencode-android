@@ -7,6 +7,8 @@ import ai.opencode.core.ui.OpenCodeTextField
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.store.observe
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.AlertTextFields
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
@@ -37,6 +39,7 @@ import ai.opencode.feature.settings.SettingsText
 import ai.opencode.feature.settings.SettingsValueRow
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.friendlyName
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -211,8 +214,12 @@ private fun ConnectionCardContent(
     // changing value unspoken. TalkBack re-reads the focused card whenever anything it speaks changes
     // (state, label or a merged child), so the card speaks the status word, not the live milliseconds:
     // a new word is still read; the number stays on screen and on the server page's Status row.
-    val accessibilityValue = listOf(rememberSettledSpokenWord(presentation.spokenWord), monitor.server.host, monitor.route.rawValue)
-        .joinToString(", ")
+    val accessibilityValue = stringResource(
+        R.string.settings_connection_card_value_description,
+        rememberSettledSpokenWord(presentation.spokenWord),
+        monitor.server.host,
+        monitor.route.title,
+    )
     val showServerLabel = stringResource(R.string.settings_connection_show_server_label)
 
     // Where the inline action sits: reserved after the status, the real button drawn over the card
@@ -356,7 +363,7 @@ private fun CardAddress(monitor: ConnectionMonitor, stacked: Boolean) {
     if (stacked) {
         Column(Modifier.padding(top = 1.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(monitor.server.host, style = mono, color = color, maxLines = 2, overflow = TextOverflow.MiddleEllipsis)
-            Text(monitor.route.rawValue, style = caption, color = color, maxLines = 1)
+            Text(monitor.route.title, style = caption, color = color, maxLines = 1)
         }
     } else {
         Row(Modifier.padding(top = 1.dp), verticalAlignment = Alignment.Bottom) {
@@ -369,7 +376,7 @@ private fun CardAddress(monitor: ConnectionMonitor, stacked: Boolean) {
                 modifier = Modifier.weight(1f, fill = false).alignByBaseline(),
             )
             Text(" · ", style = caption, color = color, modifier = Modifier.alignByBaseline())
-            Text(monitor.route.rawValue, style = caption, color = color, maxLines = 1, modifier = Modifier.alignByBaseline())
+            Text(monitor.route.title, style = caption, color = color, maxLines = 1, modifier = Modifier.alignByBaseline())
         }
     }
 }
@@ -378,10 +385,12 @@ private fun CardAddress(monitor: ConnectionMonitor, stacked: Boolean) {
  * Port of iOS `CardAction`: what the card offers inline beside its status: Retry while Offline,
  * and Edit Server… when the password was refused (Retry couldn't help).
  */
-private enum class CardAction(val title: String) {
-    retry("Retry"),
-    editServer("Edit Server…"),
+private enum class CardAction(@StringRes private val titleRes: Int) {
+    retry(CoreR.string.common_retry),
+    editServer(R.string.settings_server_edit_server),
     ;
+
+    val title: String get() = localized(titleRes)
 
     companion object {
         fun of(status: ConnectionHealth.Status): CardAction? = when (status) {
@@ -421,15 +430,15 @@ data class ConnectionStatusPresentation(
 
     val spokenStatus: String
         get() {
-            if (code != null) return "$word, HTTP $code"
-            return milliseconds?.let { "$word, $it milliseconds" } ?: word
+            if (code != null) return localized(R.string.settings_connection_status_http_description, word, code)
+            return milliseconds?.let { localizedPlural(R.plurals.settings_connection_status_milliseconds_description, it, word, it) } ?: word
         }
 
     /** [spokenStatus] without the round trip, for the card (see `ConnectionCard`). */
-    val spokenWord: String get() = code?.let { "$word, HTTP $it" } ?: word
+    val spokenWord: String get() = code?.let { localized(R.string.settings_connection_status_http_description, word, it) } ?: word
 
     /** The word, with a refused sign-in's status code. */
-    val text: String get() = code?.let { "$word · $it" } ?: word
+    val text: String get() = code?.let { localized(R.string.settings_connection_status_code, word, it) } ?: word
 
     /** Offline and a refused sign-in read red. */
     val isAlert: Boolean get() = status == ConnectionHealth.Status.offline || status == ConnectionHealth.Status.signInFailed
@@ -438,17 +447,17 @@ data class ConnectionStatusPresentation(
         operator fun invoke(display: ConnectionHealth.Display): ConnectionStatusPresentation {
             var code: Int? = null
             val (symbol, word) = when (display.status) {
-                ConnectionHealth.Status.connected -> SFSymbol.WaveformPathEcg to "Connected"
-                ConnectionHealth.Status.slow -> SFSymbol.TortoiseFill to "Slow"
-                ConnectionHealth.Status.unstable -> SFSymbol.WifiExclamationmark to "Unstable"
-                ConnectionHealth.Status.reconnecting -> SFSymbol.ArrowTrianglehead2Clockwise to "Reconnecting"
-                ConnectionHealth.Status.offline -> SFSymbol.NetworkSlash to "Offline"
+                ConnectionHealth.Status.connected -> SFSymbol.WaveformPathEcg to localized(R.string.settings_connection_status_connected)
+                ConnectionHealth.Status.slow -> SFSymbol.TortoiseFill to localized(R.string.settings_connection_status_slow)
+                ConnectionHealth.Status.unstable -> SFSymbol.WifiExclamationmark to localized(R.string.settings_connection_status_unstable)
+                ConnectionHealth.Status.reconnecting -> SFSymbol.ArrowTrianglehead2Clockwise to localized(R.string.settings_connection_status_reconnecting)
+                ConnectionHealth.Status.offline -> SFSymbol.NetworkSlash to localized(R.string.settings_connection_status_offline)
                 ConnectionHealth.Status.signInFailed -> {
                     code = credentialsRejectedStatus
-                    SFSymbol.LockSlash to "Sign-in failed"
+                    SFSymbol.LockSlash to localized(R.string.settings_connection_status_sign_in_failed)
                 }
                 ConnectionHealth.Status.switching ->
-                    SFSymbol.ArrowLeftArrowRight to (display.target?.let { "Switching to $it" } ?: "Switching")
+                    SFSymbol.ArrowLeftArrowRight to (display.target?.let { localized(R.string.settings_connection_status_switching_to, it) } ?: localized(R.string.settings_connection_status_switching))
             }
             val measured = display.status == ConnectionHealth.Status.connected ||
                 display.status == ConnectionHealth.Status.slow ||
@@ -654,7 +663,7 @@ fun ServerPage(store: SettingsStore) {
                     }
                 }
                 SettingsDivider()
-                SettingsValueRow(stringResource(R.string.settings_server_connection), monitor.route.rawValue)
+                SettingsValueRow(stringResource(R.string.settings_server_connection), monitor.route.title)
                 monitor.version?.let { version ->
                     SettingsDivider()
                     SettingsValueRow(stringResource(R.string.settings_server_version), version)

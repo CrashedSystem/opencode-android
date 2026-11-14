@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -11,14 +13,14 @@ internal val WhatsNewShipped.screenshotShutter: WhatsNewEntry
         id = "screenshot-shutter",
         day = "2026-11-01",
         audience = Audience.developer,
-        title = "Screenshot Shutter",
+        title = localized(R.string.settings_whatsnew_entry_screenshot_shutter_title),
         symbol = "camera.shutter.button",
         tint = Tint.gray,
-        summary = "When the app screenshots itself for a session, the screen flashes and the shutter clicks.",
+        summary = localized(R.string.settings_whatsnew_entry_screenshot_shutter_summary),
         details = listOf(
-            "The flash comes after the capture, so it’s never in the picture.",
-            "Reduce Motion makes it a soft dim, and Dim Flashing Lights turns it off.",
-            "In a call the click plays through the call, so the agent doesn’t hear it.",
+            localized(R.string.settings_whatsnew_entry_screenshot_shutter_detail_1),
+            localized(R.string.settings_whatsnew_entry_screenshot_shutter_detail_2),
+            localized(R.string.settings_whatsnew_entry_screenshot_shutter_detail_3),
         ),
-        example = "In a voice call, say “look at this”",
+        example = localized(R.string.settings_whatsnew_entry_screenshot_shutter_example),
     )

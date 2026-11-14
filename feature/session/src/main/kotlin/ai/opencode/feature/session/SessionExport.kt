@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.server.model.OpenCodeExportFormat
 import android.content.ClipData
@@ -162,10 +163,10 @@ class SessionExportClient(
                     val content = SessionExport.content(body, format)
                     val directory = File(File(context.cacheDir, EXPORTS_DIRECTORY), id.toString())
                     val file = File(directory, SessionExport.fileName(title, format))
-                    if (!directory.isDirectory && !directory.mkdirs()) throw java.io.IOException("Couldn’t create the export folder")
+                    if (!directory.isDirectory && !directory.mkdirs()) throw java.io.IOException(localized(R.string.session_export_folder_failed))
                     val temporary = File(directory, ".${file.name}.tmp")
                     temporary.writeBytes(content)
-                    if (!temporary.renameTo(file)) throw java.io.IOException("Couldn’t save the export")
+                    if (!temporary.renameTo(file)) throw java.io.IOException(localized(R.string.session_export_save_failed))
                     file.absolutePath
                 },
                 remove = { path -> File(path).parentFile?.deleteRecursively() },

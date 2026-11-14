@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.live.TranscriptContextCapture
 import ai.opencode.server.model.OpenCodeContextReading
 import ai.opencode.server.model.OpenCodeDelivery
@@ -72,7 +73,7 @@ suspend fun OpenCodeClient.sendPromptConfirming(
     }
     if (held == true) return id
     // Not seen yet isn't proof it won't land: the server may still be admitting it.
-    throw error.copy(unconfirmedPromptID = id, message = "The connection dropped after the message was sent, so it may have arrived.")
+    throw error.copy(unconfirmedPromptID = id, message = localized(R.string.server_error_prompt_unconfirmed))
 }
 
 /**

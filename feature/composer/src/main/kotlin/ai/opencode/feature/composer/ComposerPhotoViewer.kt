@@ -5,6 +5,7 @@ import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
 import ai.opencode.core.store.Store
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.SFSymbol
 import ai.opencode.feature.composer.plusmenu.LibraryPhoto
@@ -180,8 +181,9 @@ object ComposerPhotoViewer {
             TranscriptImagePreview.Page(
                 id = mediaID(attachment.id),
                 image = image,
-                label = attachment.name ?: "Image attachment ${index + 1} of ${images.size}",
+                label = attachment.name ?: localized(R.string.composer_photo_viewer_image_label, index + 1, images.size),
                 detail = detail(attachment, image),
+                labelIsPlaceholder = attachment.name == null,
             )
         }
         return TranscriptImagePreview(mediaID(selected), pages)
@@ -189,7 +191,7 @@ object ComposerPhotoViewer {
 
     /** “JPEG · 1568 × 1176 · 412 KB”. */
     fun detail(attachment: OpenCodeOutgoingAttachment, pixelWidth: Int, pixelHeight: Int): String {
-        val format = attachment.mime.split("/").lastOrNull()?.uppercase() ?: "Image"
+        val format = attachment.mime.split("/").lastOrNull()?.uppercase() ?: localized(R.string.composer_photo_viewer_image_format)
         val size = AttachmentFileType.byteCount(attachment.byteCount ?: attachment.data.size.toLong())
         return "$format · $pixelWidth × $pixelHeight · $size"
     }

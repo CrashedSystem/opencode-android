@@ -36,7 +36,7 @@ class VoiceCallLogging(private val client: VoiceCallLogClient = dependency(Voice
         fun note(text: String) = recorder.note(log, VoiceCallLog.Note.Kind.marker, text)
         when (event) {
             Event.start -> {
-                recorder.begin(log, if (state.isOnDraft) "New session" else state.sessionTitle, state.engine)
+                recorder.begin(log, if (state.isOnDraft) VoiceFeature.State.newSessionTitle else state.sessionTitle, state.engine)
                 note("Voice: ${state.voice}"); if (state.isAtEar) note("Raised to ear")
             }
             is Event.callRouteResolved -> {
@@ -64,7 +64,7 @@ class VoiceCallLogging(private val client: VoiceCallLogClient = dependency(Voice
             is Event.sessionStarted -> note("Created “${event.title}”")
             Event.targetChanged -> {
                 note((if (state.isOnDraft) "Moved to a new session draft" else "Moved to “${state.sessionTitle}”") + (state.moveReason?.let { " ($it)" } ?: ""))
-                recorder.setTitle(log, if (state.isOnDraft) "New session" else state.sessionTitle)
+                recorder.setTitle(log, if (state.isOnDraft) VoiceFeature.State.newSessionTitle else state.sessionTitle)
             }
             Event.muteTapped -> note(if (state.isMuted) "Muted" else "Unmuted")
             is Event.atEarChanged -> note(if (event.atEar) "Raised to ear" else "Lowered from ear")

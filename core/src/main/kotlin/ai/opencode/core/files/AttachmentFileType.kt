@@ -1,9 +1,14 @@
 package ai.opencode.core.files
 
+import ai.opencode.core.R
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
+import ai.opencode.core.ui.appFormattingLocale
 import android.webkit.MimeTypeMap
 import java.io.File
 import java.io.FileInputStream
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 /**
  * Port of iOS `AttachmentFileType` (`OpenCode/Composer/AttachmentFileType.swift`), moved to
@@ -81,11 +86,12 @@ object AttachmentFileType {
     fun label(name: String, mime: String): String {
         if (mime == pdfMime) return "PDF"
         val suffix = fileExtension(name)
-        if (suffix.isEmpty()) return "File"
+        if (suffix.isEmpty()) return localized(R.string.core_attachment_file_label)
         return languageNames[suffix] ?: suffix.uppercase()
     }
 
-    fun subtitle(name: String, mime: String, size: Long): String = "${label(name, mime)} · ${byteCount(size)}"
+    fun subtitle(name: String, mime: String, size: Long): String =
+        localized(R.string.core_attachment_subtitle, label(name, mime), byteCount(size))
 
     /** An SF Symbol name (drawn through `OpenCodeIcon(sfName, …)`). */
     fun symbolName(name: String, mime: String): String {
@@ -136,10 +142,20 @@ object AttachmentFileType {
      * whole bytes and KB, one decimal for MB, two for GB and above, trailing zeros dropped.
      */
     fun byteCount(bytes: Long): String {
-        if (bytes == 0L) return "Zero KB"
+        if (bytes == 0L) return localized(R.string.core_byte_count_zero)
+        val symbols = DecimalFormatSymbols(appFormattingLocale())
         val magnitude = kotlin.math.abs(bytes)
-        if (magnitude < 1000) return if (magnitude == 1L) "$bytes byte" else "$bytes bytes"
-        val units = listOf("KB" to 0, "MB" to 1, "GB" to 2, "TB" to 2, "PB" to 2)
+        if (magnitude < 1000) {
+            val formatted = DecimalFormat("#,##0", symbols).format(bytes)
+            return localizedPlural(R.plurals.core_byte_count_bytes, magnitude.toInt(), formatted)
+        }
+        val units = listOf(
+            R.string.core_byte_count_kilobytes to 0,
+            R.string.core_byte_count_megabytes to 1,
+            R.string.core_byte_count_gigabytes to 2,
+            R.string.core_byte_count_terabytes to 2,
+            R.string.core_byte_count_petabytes to 2,
+        )
         var value = bytes.toDouble() / 1000
         var index = 0
         while (index < units.lastIndex && kotlin.math.abs(value) >= 999.5) {
@@ -147,8 +163,8 @@ object AttachmentFileType {
             index += 1
         }
         val (unit, digits) = units[index]
-        val format = DecimalFormat(if (digits == 0) "#,##0" else "#,##0." + "#".repeat(digits))
-        return "${format.format(value)} $unit"
+        val format = DecimalFormat(if (digits == 0) "#,##0" else "#,##0." + "#".repeat(digits), symbols)
+        return localized(unit, format.format(value))
     }
 
     private fun Char.isControlCharacter(): Boolean {

@@ -1,8 +1,10 @@
 package ai.opencode.server.live
 
 import ai.opencode.core.diagnostics.LabMarks
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.TaskLocal
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.internal.bool
@@ -277,8 +279,8 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
                 status = OpenCodeToolCall.Status.shell(message.status, message.exit),
                 input = OpenCodeJSONValue.Object(mapOf("command" to OpenCodeJSONValue.Str(message.command ?: ""))),
                 output = listOfNotNull(message.output?.output?.bounded(20_000)),
-                error = if (message.status == "killed") "Shell was killed"
-                else message.exit?.let { if (it == 0) null else "Command exited with code $it" },
+                error = if (message.status == "killed") localized(R.string.server_tool_shell_killed)
+                else message.exit?.let { if (it == 0) null else localized(R.string.server_tool_shell_exit_code, it) },
                 metadata = message.exit?.let { mapOf("exit" to OpenCodeJSONValue.Number(it.toDouble())) } ?: emptyMap(),
             ),
         ),
@@ -571,6 +573,6 @@ internal fun syntheticNotice(id: String, description: String?, metadata: Map<Str
             },
         )
     }
-    val label = kind?.heading(metadata?.get("agent")?.string) ?: "Session update"
+    val label = kind?.heading(metadata?.get("agent")?.string) ?: localized(R.string.server_notice_session_update)
     return OpenCodeTranscriptItem.Notice(id, "$label · $text", isError = failed, kind = kind)
 }

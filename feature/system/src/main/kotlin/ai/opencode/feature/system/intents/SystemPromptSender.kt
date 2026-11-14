@@ -1,5 +1,7 @@
 package ai.opencode.feature.system.intents
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.feature.system.SessionDirectory
 import ai.opencode.feature.system.ScopedID
 import ai.opencode.core.dependencies.AppContext
@@ -31,9 +33,9 @@ object SystemPromptSender {
         /** What the confirmation says once it's sent. */
         val confirmation: String
             get() = when {
-                isNewSession -> "Started a new session in $sessionTitle"
-                delivery == OpenCodeDelivery.Queue -> "Queued for “$sessionTitle”"
-                else -> "Sent to “$sessionTitle”"
+                isNewSession -> localized(R.string.system_ask_started_new_session, sessionTitle)
+                delivery == OpenCodeDelivery.Queue -> localized(R.string.system_ask_queued_for, sessionTitle)
+                else -> localized(R.string.system_ask_sent_to, sessionTitle)
             }
     }
 
@@ -42,9 +44,9 @@ object SystemPromptSender {
         override fun hashCode() = message.hashCode()
 
         companion object {
-            val noServer = Failure("Open OpenCode and connect to a server first.")
-            val noProject = Failure("Open OpenCode and start a session first.")
-            val emptyMessage = Failure("There’s nothing to send.")
+            val noServer: Failure get() = Failure(localized(R.string.system_ask_no_server))
+            val noProject: Failure get() = Failure(localized(R.string.system_ask_no_project))
+            val emptyMessage: Failure get() = Failure(localized(R.string.system_ask_empty_message))
         }
     }
 
@@ -69,7 +71,7 @@ object SystemPromptSender {
 
         var session: Pair<String, String>? = null
         if (scoped != null) {
-            session = scoped.id to (entry?.session(scoped.id)?.title ?: "your session")
+            session = scoped.id to (entry?.session(scoped.id)?.title ?: localized(R.string.system_ask_your_session))
         } else if (target != SessionEntity.NEW_SESSION_ID) {
             entry?.lastViewed?.let { session = it.id to it.title }
         }
@@ -87,7 +89,7 @@ object SystemPromptSender {
                 client.sendPromptConfirming(server, sessionID, trimmed, delivery)
             }
         } catch (error: OpenCodeClientError) {
-            throw Failure("Couldn’t send to OpenCode. ${error.message}")
+            throw Failure(localized(R.string.system_ask_send_failed, error.message.toString()))
         }
         return Sent(title, delivery, isNewSession = project != null)
     }

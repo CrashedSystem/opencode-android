@@ -5,6 +5,7 @@ import ai.opencode.core.log.AppLog
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.State
 import ai.opencode.feature.transcript.TranscriptEntry
@@ -204,7 +205,7 @@ internal fun SessionFeature.reducePendingInputs(state: State, action: Action): R
                 next = next.copy(isAwaitingReply = false)
             }
             haptics.play(Haptic.error)
-            next = appendInfo(next, "Couldn’t send the pending message now: ${action.error.message}")
+            next = appendInfo(next, localized(R.string.session_pending_send_now_failed_details, action.error.message))
             return Reduced(next, fetchQueuedInputs(next.server, action.sessionID))
         }
 
@@ -219,12 +220,12 @@ internal fun SessionFeature.reducePendingInputs(state: State, action: Action): R
                 next.copy(cancelledInputIDs = next.cancelledInputIDs - action.inputID)
             }
             val message = when (restoring) {
-                null -> "Couldn’t cancel the pending message"
-                OpenCodeDelivery.Queue -> "Couldn’t send the pending message now"
-                OpenCodeDelivery.Steer -> "Couldn’t queue the pending message"
+                null -> localized(R.string.session_pending_cancel_failed_details, action.error.message)
+                OpenCodeDelivery.Queue -> localized(R.string.session_pending_send_now_failed_details, action.error.message)
+                OpenCodeDelivery.Steer -> localized(R.string.session_pending_queue_failed_details, action.error.message)
             }
             haptics.play(Haptic.error)
-            return Reduced(appendInfo(next, "$message: ${action.error.message}"))
+            return Reduced(appendInfo(next, message))
         }
 
         // The pending-work poll slows to 12 s once the stream is healthy, so requests answered

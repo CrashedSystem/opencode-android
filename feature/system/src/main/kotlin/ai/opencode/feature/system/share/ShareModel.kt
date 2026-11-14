@@ -4,6 +4,8 @@ import ai.opencode.core.files.ComposerFileStaging
 import ai.opencode.core.files.ComposerStagedFile
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.system.R
 import ai.opencode.server.ServerID
 import ai.opencode.server.OpenCodeServer
 import android.content.Context
@@ -61,7 +63,7 @@ class ShareModel(
         val skippedFileCount: Int = 0,
         val saveError: String? = null,
     ) {
-        val serverName: String get() = targets?.serverName ?: "your server"
+        val serverName: String get() = targets?.serverName ?: localized(R.string.system_share_your_server)
 
         val composedText: String get() = ShareComposition.text(message, sharedText)
 
@@ -213,7 +215,7 @@ class ShareModel(
             // iOS's one `.sensoryFeedback(.success)` on Sent.
             haptics.play(Haptic.success)
             val title = if (destination is ShareComposition.Destination.Session) destination.title
-            else "New Session · ${destination.projectName}"
+            else localized(R.string.system_share_new_session_in_project, destination.projectName)
             Sent(ShareConversation.serverKey(targets.serverID), sessionID, title)
         } catch (failure: ShareSendFailure) {
             // Anything but a size refusal sent something: Send Later reuses the IDs, which the
@@ -261,7 +263,7 @@ class ShareModel(
             true
         } catch (_: IOException) {
             mutableState.update {
-                it.copy(saveError = "Try again. If it keeps happening, free up some storage on this device.")
+                it.copy(saveError = localized(R.string.system_share_save_failed_message))
             }
             false
         }

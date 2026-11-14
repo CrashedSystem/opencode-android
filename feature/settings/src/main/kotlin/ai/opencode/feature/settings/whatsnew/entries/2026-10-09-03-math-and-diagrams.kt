@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -10,14 +12,14 @@ internal val WhatsNewShipped.mathAndDiagrams: WhatsNewEntry
     get() = feature(
         id = "math-and-diagrams",
         day = "2026-10-09",
-        title = "Math and Diagrams",
+        title = localized(R.string.settings_whatsnew_entry_math_and_diagrams_title),
         symbol = "function",
         tint = Tint.indigo,
-        summary = "Replies typeset math and draw Mermaid diagrams.",
+        summary = localized(R.string.settings_whatsnew_entry_math_and_diagrams_summary),
         details = listOf(
-            "Tap a diagram to zoom in, or hold it to see its source.",
-            "Math follows your text size.",
+            localized(R.string.settings_whatsnew_entry_math_and_diagrams_detail_1),
+            localized(R.string.settings_whatsnew_entry_math_and_diagrams_detail_2),
         ),
-        example = "Ask for a flowchart of how a message is sent",
-        tryIt = Destination.Prompt("Draw a flowchart of how a message is sent"),
+        example = localized(R.string.settings_whatsnew_entry_math_and_diagrams_example),
+        tryIt = Destination.Prompt(localized(R.string.settings_whatsnew_entry_math_and_diagrams_prompt)),
     )

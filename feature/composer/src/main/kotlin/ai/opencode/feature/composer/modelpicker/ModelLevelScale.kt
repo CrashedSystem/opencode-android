@@ -1,5 +1,7 @@
 package ai.opencode.feature.composer.modelpicker
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.composer.R
 import ai.opencode.server.model.ModelVariant
 import kotlin.math.abs
 import kotlin.math.floor
@@ -51,7 +53,7 @@ class ModelLevelScale(variants: List<String>) {
 
     companion object {
         fun label(level: String?): String {
-            if (level == null || level == "default") return "Default"
+            if (level == null || level == "default") return localized(R.string.composer_model_level_default)
             return ModelVariant.label(level)
         }
 

@@ -1,6 +1,7 @@
 package ai.opencode.feature.system.share
 
 import ai.opencode.core.R as CoreR
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.OpenCodeSearchField
 import ai.opencode.core.ui.OpenCodeSheetHandle
 import ai.opencode.core.ui.OpenCodeRadius
@@ -570,8 +571,8 @@ private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit)
 
 private fun skippedNote(images: Int, files: Int): String {
     val parts = mutableListOf<String>()
-    if (images > 0) parts.add(if (images == 1) "1 image couldn’t be added" else "$images images couldn’t be added")
-    if (files > 0) parts.add(if (files == 1) "1 file couldn’t be added" else "$files files couldn’t be added")
+    if (images > 0) parts.add(localizedPlural(R.plurals.system_share_images_skipped, images, images))
+    if (files > 0) parts.add(localizedPlural(R.plurals.system_share_files_skipped, files, files))
     return parts.joinToString(" · ")
 }
 
@@ -621,7 +622,7 @@ private fun ShareTargetChips(
             val selected = (state.destination as? ShareComposition.Destination.Session)?.session?.id == session.id
             Chip(
                 selected = selected,
-                label = "${session.title}, ${session.projectName}",
+                label = stringResource(R.string.system_share_session_chip_description, session.title, session.projectName),
                 onClick = { onChoose(ShareComposition.Destination.Session(session)) },
             ) {
                 Text(session.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))

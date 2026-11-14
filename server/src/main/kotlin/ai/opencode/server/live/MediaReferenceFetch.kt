@@ -1,8 +1,10 @@
 package ai.opencode.server.live
 
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.R
 import ai.opencode.server.OpenCodeTransport
 import ai.opencode.server.ServerLinkClient
 import ai.opencode.server.retry.NetworkRetry
@@ -34,7 +36,7 @@ object MediaReferenceFetch {
     /** iOS `MediaReferenceLoader.liveFetch(server:hash:)`. Throws [OpenCodeClientError]. */
     suspend fun live(server: OpenCodeServer, hash: String): Response {
         val path = "/api/experimental/media/$hash"
-        val url = dependency(ServerLinkClient).resolve(server).endpoint(path) ?: throw OpenCodeClientError("Enter a valid HTTP or HTTPS server URL.")
+        val url = dependency(ServerLinkClient).resolve(server).endpoint(path) ?: throw OpenCodeClientError(localized(R.string.server_error_invalid_url))
         val contact = server.persistenceID
         val transport = dependency(OpenCodeTransport)
         return NetworkRetry.run(

@@ -322,7 +322,7 @@ private fun SettingsRootPage(store: SettingsStore) {
                 footer = {
                     SelectionContainer(Modifier.fillMaxWidth()) {
                         Text(
-                            AppVersion.current.label,
+                            AppVersion.current.displayLabel,
                             style = OpenCodeTextStyles.footnote.copy(fontFeatureSettings = "tnum"),
                             color = OpenCodeTheme.colors.secondaryText,
                             textAlign = TextAlign.Center,

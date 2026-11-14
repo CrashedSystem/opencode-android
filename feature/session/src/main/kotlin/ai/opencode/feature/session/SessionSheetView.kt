@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import androidx.annotation.StringRes
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.ui.OpenCodeTextField
 import ai.opencode.core.ui.OpenCodeSheetHandle
@@ -176,10 +177,10 @@ object SessionSheetFormat {
 }
 
 /** The sheet's status orb: the session's own activity. */
-enum class SessionSheetStatus(val text: String) {
-    Working("Working"),
-    Waiting("Needs your input"),
-    Idle("Idle"),
+enum class SessionSheetStatus(@StringRes val textRes: Int) {
+    Working(R.string.session_status_working),
+    Waiting(R.string.session_status_needs_input),
+    Idle(R.string.session_activity_idle),
 }
 
 /**
@@ -396,8 +397,14 @@ private fun Hero(
     val isAutoRenaming = state.operation == SessionSheetFeature.Operation.AutoRenaming
     val renameFailed = stringResource(R.string.session_sheet_rename_failed)
     val statusDescription = stringResource(R.string.session_sheet_status_description)
+    val statusText = stringResource(details.status.textRes)
     val renameSessionLabel = stringResource(R.string.session_rename_title)
-    val renameValue = listOfNotNull(session?.title, if (state.autoRenameFailed) renameFailed else null).joinToString(", ")
+    val sessionTitle = session?.title
+    val renameValue = when {
+        sessionTitle != null && state.autoRenameFailed -> stringResource(R.string.session_list_two, sessionTitle, renameFailed)
+        state.autoRenameFailed -> renameFailed
+        else -> sessionTitle ?: ""
+    }
     // The title's own height: its target grows only downward from it, over the location line, so
     // nothing moves (iOS `minimumHitTarget(side: 50, topReach: 0)`).
     var titleHeight by remember { mutableStateOf(0) }
@@ -408,7 +415,7 @@ private fun Hero(
                 .alignBy { it.measuredHeight / 2 + orbToBaseline }
                 .clearAndSetSemantics {
                     contentDescription = statusDescription
-                    stateDescription = details.status.text
+                    stateDescription = statusText
                 }
                 .testTag("session-sheet-status"),
         ) {

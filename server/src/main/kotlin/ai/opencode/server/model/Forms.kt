@@ -1,6 +1,9 @@
 package ai.opencode.server.model
 
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.appFormattingLocale
+import ai.opencode.server.R
 import ai.opencode.server.internal.ElementSerializer
 import ai.opencode.server.internal.arr
 import ai.opencode.server.internal.str
@@ -116,36 +119,36 @@ data class OpenCodeFormField(
     }
 
     fun validationError(value: OpenCodeFormValue?): kotlin.String? {
-        if (type == OpenCodeFormFieldType.External && value != OpenCodeFormValue.Boolean(true)) return "Complete this step"
-        if (required == true && value == null) return "Required"
+        if (type == OpenCodeFormFieldType.External && value != OpenCodeFormValue.Boolean(true)) return localized(R.string.server_form_complete_step)
+        if (required == true && value == null) return localized(R.string.server_form_required)
         value ?: return null
         when {
             type == OpenCodeFormFieldType.String && value is OpenCodeFormValue.Str -> {
                 val text = value.value
                 val length = text.codePointCount(0, text.length)
-                if (required == true && text.trimmedWhitespace().isEmpty()) return "Required"
-                minLength?.let { if (length < it) return "Enter at least $it characters" }
-                maxLength?.let { if (length > it) return "Enter no more than $it characters" }
-                pattern?.let { if (runCatching { Regex(it).containsMatchIn(text) }.getOrDefault(false).not()) return "Invalid format" }
-                options?.let { opts -> if (custom != true && opts.none { it.value == text }) return "Choose an available option" }
-                if (format == "email" && !text.contains("@")) return "Enter a valid email"
-                if (format == "uri" && UrlParts.parse(text)?.scheme == null) return "Enter a valid URL"
-                if (format == "date" && !ISO_DATE.matches(text)) return "Enter a date as YYYY-MM-DD"
-                if (format == "date-time" && runCatching { OffsetDateTime.parse(text) }.isFailure) return "Enter a valid date and time"
+                if (required == true && text.trimmedWhitespace().isEmpty()) return localized(R.string.server_form_required)
+                minLength?.let { if (length < it) return localizedPlural(R.plurals.server_form_min_length, it, it) }
+                maxLength?.let { if (length > it) return localizedPlural(R.plurals.server_form_max_length, it, it) }
+                pattern?.let { if (runCatching { Regex(it).containsMatchIn(text) }.getOrDefault(false).not()) return localized(R.string.server_form_invalid_format) }
+                options?.let { opts -> if (custom != true && opts.none { it.value == text }) return localized(R.string.server_form_choose_option) }
+                if (format == "email" && !text.contains("@")) return localized(R.string.server_form_invalid_email)
+                if (format == "uri" && UrlParts.parse(text)?.scheme == null) return localized(R.string.server_form_invalid_url)
+                if (format == "date" && !ISO_DATE.matches(text)) return localized(R.string.server_form_invalid_date)
+                if (format == "date-time" && runCatching { OffsetDateTime.parse(text) }.isFailure) return localized(R.string.server_form_invalid_date_time)
             }
             (type == OpenCodeFormFieldType.Number || type == OpenCodeFormFieldType.Integer) && value is OpenCodeFormValue.Number -> {
                 val number = value.value
-                minimum?.let { if (number < it) return "Must be at least ${formatGroupedNumber(it)}" }
-                maximum?.let { if (number > it) return "Must be at most ${formatGroupedNumber(it)}" }
-                if (type == OpenCodeFormFieldType.Integer && Math.rint(number) != number) return "Enter a whole number"
+                minimum?.let { if (number < it) return localized(R.string.server_form_minimum, formatGroupedNumber(it)) }
+                maximum?.let { if (number > it) return localized(R.string.server_form_maximum, formatGroupedNumber(it)) }
+                if (type == OpenCodeFormFieldType.Integer && Math.rint(number) != number) return localized(R.string.server_form_whole_number)
             }
             type == OpenCodeFormFieldType.Multiselect && value is OpenCodeFormValue.Strings -> {
-                if (required == true && value.values.isEmpty()) return "Required"
-                minItems?.let { if (value.values.size < it) return "Choose at least $it" }
-                maxItems?.let { if (value.values.size > it) return "Choose no more than $it" }
+                if (required == true && value.values.isEmpty()) return localized(R.string.server_form_required)
+                minItems?.let { if (value.values.size < it) return localizedPlural(R.plurals.server_form_min_items, it, it) }
+                maxItems?.let { if (value.values.size > it) return localizedPlural(R.plurals.server_form_max_items, it, it) }
             }
             (type == OpenCodeFormFieldType.Boolean || type == OpenCodeFormFieldType.External) && value is OpenCodeFormValue.Boolean -> Unit
-            else -> return "Invalid value"
+            else -> return localized(R.string.server_form_invalid_value)
         }
         return null
     }

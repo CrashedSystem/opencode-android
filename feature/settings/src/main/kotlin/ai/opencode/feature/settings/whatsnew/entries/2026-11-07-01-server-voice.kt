@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Destination
@@ -11,16 +13,16 @@ internal val WhatsNewShipped.serverVoice: WhatsNewEntry
     get() = feature(
         id = "server-voice",
         day = "2026-11-07",
-        title = "Calls on Your Server’s Keys",
+        title = localized(R.string.settings_whatsnew_entry_server_voice_title),
         symbol = "waveform",
         tint = Tint.green,
-        summary = "Server Voice is now on for everyone, with no switch. Calls can use your OpenCode server’s keys, so this phone doesn’t need its own OpenAI key.",
+        summary = localized(R.string.settings_whatsnew_entry_server_voice_summary),
         details = listOf(
-            "With Choose Automatically on, calls use the server you’re on, then your OpenAI key on this phone, then another saved server that’s ready.",
-            "If this phone and your server both have an OpenAI key, calls now use the server’s. To keep using yours, open Your OpenAI Account in Voice Provider and tap Use for Calls.",
-            "Gemini Live is now a provider too, on servers with a key for Gemini.",
-            "A call that can’t start says why and shows the button that fixes it.",
+            localized(R.string.settings_whatsnew_entry_server_voice_detail_1),
+            localized(R.string.settings_whatsnew_entry_server_voice_detail_2),
+            localized(R.string.settings_whatsnew_entry_server_voice_detail_3),
+            localized(R.string.settings_whatsnew_entry_server_voice_detail_4),
         ),
-        example = "Open Settings › Voice and tap Voice Provider",
+        example = localized(R.string.settings_whatsnew_entry_server_voice_example),
         tryIt = Destination.Open(SettingsDestination.Voice),
     )

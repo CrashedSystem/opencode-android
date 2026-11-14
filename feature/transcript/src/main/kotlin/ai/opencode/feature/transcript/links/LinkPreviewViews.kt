@@ -4,6 +4,8 @@ import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.motion.rememberReduceMotion
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -404,12 +406,12 @@ class LinkPreviewSummary(preview: LinkPreview, palette: LinkPreviewPalette) {
                     }
                     is RichLinkSource.Youtube -> {
                         site = "YouTube"
-                        title = "Video"
+                        title = localized(R.string.transcript_link_preview_video)
                         isVideo = true
                     }
                     null -> {
                         site = preview.handle?.let { "@$it" } ?: preview.domain
-                        title = "Post"
+                        title = localized(R.string.transcript_link_preview_post)
                     }
                 }
             }
@@ -451,7 +453,7 @@ class LinkPreviewSummary(preview: LinkPreview, palette: LinkPreviewPalette) {
                 isPlain = true
                 if (preview.isXPost) {
                     site = preview.handle?.let { "@$it" } ?: preview.domain
-                    title = "Post unavailable"
+                    title = localized(R.string.transcript_link_preview_post_unavailable)
                 } else {
                     val readable = LinkPreview.readableTitle(preview.url)
                     if (readable != null) {
@@ -473,7 +475,7 @@ class LinkPreviewSummary(preview: LinkPreview, palette: LinkPreviewPalette) {
             val parts = ArrayList<AnnotatedString>()
             details.state?.let { state ->
                 parts += buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = stateColor(state, palette))) { append(state.rawValue) }
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = stateColor(state, palette))) { append(state.title) }
                 }
             }
             when (details.kind) {
@@ -490,7 +492,7 @@ class LinkPreviewSummary(preview: LinkPreview, palette: LinkPreviewPalette) {
                 GitHubLink.Kind.Issue -> {
                     val comments = details.comments
                     if (comments != null && comments > 0) {
-                        parts += AnnotatedString(if (comments == 1) "1 comment" else "${LinkPreview.formatted(comments)} comments")
+                        parts += AnnotatedString(localizedPlural(R.plurals.transcript_link_preview_comments, comments, LinkPreview.formatted(comments)))
                     }
                     val labels = details.labels
                     if (!labels.isNullOrEmpty()) parts += AnnotatedString(labels.take(2).joinToString(", "))
@@ -582,7 +584,7 @@ object LinkPreviewEntry {
                 val details = display.details
                 val state = details.state
                 if (state != null) {
-                    AnnotatedString(state.rawValue, SpanStyle(fontWeight = FontWeight.SemiBold, color = LinkPreviewSummary.stateColor(state, palette)))
+                    AnnotatedString(state.title, SpanStyle(fontWeight = FontWeight.SemiBold, color = LinkPreviewSummary.stateColor(state, palette)))
                 } else {
                     when (details.kind) {
                         GitHubLink.Kind.Commit -> {

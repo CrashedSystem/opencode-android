@@ -10,6 +10,7 @@ import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.log.AppLog
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.strings.localized
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
@@ -423,7 +424,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
          */
         fun retarget(session: OpenCodeSession, reason: String? = null, endedAt: Instant = dependency(DateClient).now()): State {
             val leaving = sessionTitle
-            var next = copy(sessionTitle = usableTitle(session.title) ?: "New session")
+            var next = copy(sessionTitle = usableTitle(session.title) ?: newSessionTitle)
             if (next.target.sessionID == session.id) return next
             next = next.leave(title = leaving, reason = reason, at = endedAt)
             // The new screen hands over its own pick, if any.
@@ -450,7 +451,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
                 previousEndedAt = null,
                 pendingModel = model,
                 target = next.target.copy(sessionID = null, directory = directory),
-                sessionTitle = "New session",
+                sessionTitle = newSessionTitle,
             )
         }
 
@@ -535,7 +536,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
 
         val captionTargets: List<CaptionTarget>
             get() {
-                val targets = callNote?.let { mutableListOf(CaptionTarget(id = "call-note", isUser = false, text = it)) } ?: mutableListOf()
+                val targets = callNote?.let { mutableListOf(CaptionTarget(id = "call-note", isUser = false, text = callNoteDisplayText(it))) } ?: mutableListOf()
                 targets += captions.map { CaptionTarget(id = it.id, isUser = it.role == VoiceTranscriptTail.Role.user, text = it.text) }
                 val progress = sessionDelegator.progressCaption
                 if (liveAssistantText.isNotEmpty()) {
@@ -550,23 +551,33 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
 
         val statusText: String
             get() = when (val phase = phase) {
-                Phase.Connecting -> callPlace?.let { "Connecting via ${it.name}…" } ?: "Connecting…"
+                Phase.Connecting -> callPlace?.let { localized(R.string.voice_status_connecting_via, it.name) } ?: localized(R.string.voice_notification_connecting)
                 Phase.Live -> when {
-                    isReconnecting -> "Reconnecting…"
-                    isConnectionPoor -> "Weak connection"
-                    isAudioInterrupted -> "Paused"
-                    targetNeedsInput -> "Needs your input"
-                    isWorking -> sessionDelegator.progressCaption ?: "Working"
-                    isAssistantSpeaking -> "Speaking"
-                    else -> if (isMuted) "Muted" else "Listening"
+                    isReconnecting -> localized(R.string.voice_notification_reconnecting)
+                    isConnectionPoor -> localized(R.string.voice_status_weak_connection)
+                    isAudioInterrupted -> localized(R.string.voice_status_paused)
+                    targetNeedsInput -> localized(R.string.voice_status_needs_input)
+                    isWorking -> sessionDelegator.progressCaption ?: localized(R.string.voice_status_working)
+                    isAssistantSpeaking -> localized(R.string.voice_status_speaking)
+                    else -> if (isMuted) localized(R.string.voice_status_muted) else localized(R.string.voice_status_listening)
                 }
-                is Phase.EndingAfterGoodbye -> "Ending…"
-                Phase.Ended -> "Ended"
-                Phase.Dropped -> "Call ended"
-                is Phase.Failed -> phase.message
+                is Phase.EndingAfterGoodbye -> localized(R.string.voice_status_ending)
+                Phase.Ended -> localized(R.string.voice_status_ended)
+                Phase.Dropped -> localized(R.string.voice_notification_call_ended)
+                is Phase.Failed -> voiceFailureDisplayText(phase.message)
             }
 
         companion object {
+            /** The title a call names an untitled session by; it also goes to the voice agent, so it stays English. */
+            const val newSessionTitle = "New session"
+
+            /** [title] as the person reads it: [newSessionTitle] in the app's language. */
+            fun displayTitle(title: String): String = if (title == newSessionTitle) localized(R.string.voice_session_new_title) else title
+
+            /** A call note as the person reads it; the note itself stays English for the call log. */
+            fun callNoteDisplayText(note: String): String =
+                if (note == VoiceFeature.builtInFallbackNote) localized(R.string.voice_call_note_builtin_fallback) else note
+
             /** A session's title to name it by, or null while it reads as untitled ([SessionTitle.isPlaceholder]). */
             fun usableTitle(title: String): String? = if (SessionTitle.isPlaceholder(title)) null else title.trim()
 
@@ -576,7 +587,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
                 val previousLines = VoiceTranscriptRecord.continuityLines(previous?.tail ?: emptyList())
                 return State(
                     target = VoiceWorkTarget(server = server, sessionID = session.id, directory = session.directory),
-                    sessionTitle = usableTitle(session.title) ?: "New session",
+                    sessionTitle = usableTitle(session.title) ?: newSessionTitle,
                     tail = VoiceTranscriptTail(lines = previousLines),
                     previousCallTail = previousLines,
                     previousEndedAt = if (previousLines.isEmpty()) null else previous?.endedAt,
@@ -590,7 +601,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
             operator fun invoke(server: OpenCodeServer, draftDirectory: String, model: OpenCodeModelRef?): State = State(
                 target = VoiceWorkTarget(server = server, sessionID = null, directory = draftDirectory),
                 pendingModel = model,
-                sessionTitle = "New session",
+                sessionTitle = newSessionTitle,
                 tail = VoiceTranscriptTail(lines = emptyList()),
             )
 

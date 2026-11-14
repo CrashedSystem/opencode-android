@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.experiments.key
 import ai.opencode.core.motion.Motion
@@ -677,7 +678,7 @@ fun SessionComposer(
 private fun chipLevelLabel(state: SessionFeature.State): String? {
     val model = state.currentModelInfo ?: return null
     if (model.variants.none { it != "default" }) return null
-    val level = state.currentModel?.variant?.takeIf { it != "default" } ?: return "Default"
+    val level = state.currentModel?.variant?.takeIf { it != "default" } ?: return localized(R.string.session_model_level_default)
     return ai.opencode.server.model.ModelVariant.label(level)
 }
 

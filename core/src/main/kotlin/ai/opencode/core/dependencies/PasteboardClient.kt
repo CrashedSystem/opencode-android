@@ -1,5 +1,7 @@
 package ai.opencode.core.dependencies
 
+import ai.opencode.core.R
+import ai.opencode.core.strings.localized
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -28,8 +30,8 @@ class PasteboardClient(
             val context = dependency(AppContext)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             PasteboardClient(
-                setURL = { url -> withContext(Dispatchers.Main) { clipboard.setPrimaryClip(ClipData.newRawUri("URL", url.toUri())) } },
-                setString = { text -> withContext(Dispatchers.Main) { clipboard.setPrimaryClip(ClipData.newPlainText("Text", text)) } },
+                setURL = { url -> withContext(Dispatchers.Main) { clipboard.setPrimaryClip(ClipData.newRawUri(localized(R.string.core_clipboard_url_label), url.toUri())) } },
+                setString = { text -> withContext(Dispatchers.Main) { clipboard.setPrimaryClip(ClipData.newPlainText(localized(R.string.core_clipboard_text_label), text)) } },
                 string = {
                     val item = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)
                     item?.text?.toString()?.takeIf { it.isNotBlank() } ?: item?.uri?.toString()

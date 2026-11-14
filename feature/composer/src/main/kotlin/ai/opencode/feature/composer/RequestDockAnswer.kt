@@ -1,5 +1,6 @@
 package ai.opencode.feature.composer
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.model.AgentDisplayName
 import ai.opencode.server.model.OpenCodeFormField
 import ai.opencode.server.model.OpenCodeFormFieldType
@@ -43,7 +44,7 @@ object RequestDockAnswer {
 
     fun options(field: OpenCodeFormField): List<OpenCodeFormOption> {
         if (field.type == OpenCodeFormFieldType.Boolean) {
-            return listOf(OpenCodeFormOption(value = "true", label = "Yes"), OpenCodeFormOption(value = "false", label = "No"))
+            return listOf(OpenCodeFormOption(value = "true", label = localized(R.string.composer_request_yes)), OpenCodeFormOption(value = "false", label = localized(R.string.composer_request_no)))
         }
         return field.options ?: emptyList()
     }

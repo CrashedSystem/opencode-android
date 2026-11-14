@@ -1,6 +1,8 @@
 package ai.opencode.feature.transcript.rows
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.feature.transcript.R
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.server.model.ModelVariant
@@ -30,11 +32,12 @@ import androidx.compose.ui.unit.dp
  * same model's default level says Default, so it never reads as no change.
  */
 @Immutable
-data class ModelSwitchLabel(val title: String, val variant: String?) {
+data class ModelSwitchLabel(val title: String, val variant: String?, val thinkingOff: Boolean = false) {
     val accessibilityLabel: String
         get() {
-            val thinking = variant?.let { if (it == ModelVariant.label("none")) "thinking off" else "$it thinking" }
-            return listOfNotNull(title, thinking).joinToString(", ")
+            if (variant == null) return title
+            if (thinkingOff) return localized(R.string.transcript_model_switch_thinking_off_description, title)
+            return localized(R.string.transcript_model_switch_thinking_description, title, variant)
         }
 
     companion object {
@@ -42,10 +45,10 @@ data class ModelSwitchLabel(val title: String, val variant: String?) {
             val level = level(model)
             val variant = when {
                 level != null -> ModelVariant.label(level)
-                previous != null && previous.sameModel(model) && level(previous) != null -> "Default"
+                previous != null && previous.sameModel(model) && level(previous) != null -> localized(R.string.transcript_model_switch_default)
                 else -> null
             }
-            return ModelSwitchLabel("Switched to ${name ?: model.id}", variant)
+            return ModelSwitchLabel(localized(R.string.transcript_model_switch_title, name ?: model.id), variant, thinkingOff = level == "none")
         }
 
         private fun level(ref: OpenCodeModelRef): String? {

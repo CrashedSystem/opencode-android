@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.smaller
 import ai.opencode.feature.settings.whatsnew.WhatsNewShipped
@@ -8,7 +10,7 @@ internal val WhatsNewShipped.drawerOneEdge: WhatsNewEntry
     get() = smaller(
         id = "drawer-one-edge",
         day = "2026-10-10",
-        title = "Tidier Drawer",
+        title = localized(R.string.settings_whatsnew_entry_drawer_one_edge_title),
         symbol = "sidebar.left",
-        summary = "Rows start on one edge, status dots sit at the end of each row, and search is a button at the top.",
+        summary = localized(R.string.settings_whatsnew_entry_drawer_one_edge_summary),
     )

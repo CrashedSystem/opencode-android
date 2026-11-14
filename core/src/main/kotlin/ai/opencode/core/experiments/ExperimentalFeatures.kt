@@ -1,7 +1,9 @@
 package ai.opencode.core.experiments
 
+import ai.opencode.core.R
 import ai.opencode.core.sharing.SharedKey
 import ai.opencode.core.sharing.experimental
+import ai.opencode.core.strings.localized
 
 /**
  * Settings' half of iOS `OpenCode/Settings/ExperimentalFeatures.swift`, in `:core` beside the
@@ -32,10 +34,10 @@ enum class ExperimentalGroup {
 
     val title: String
         get() = when (this) {
-            composer -> "Composer"
-            calls -> "Calls"
-            transcript -> "Transcript"
-            drawer -> "Drawer"
+            composer -> localized(R.string.core_experiment_group_composer_title)
+            calls -> localized(R.string.core_experiment_group_calls_title)
+            transcript -> localized(R.string.core_experiment_group_transcript_title)
+            drawer -> localized(R.string.core_experiment_group_drawer_title)
         }
 
     /** The group's experiments, in Settings order. */

@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Tint
@@ -9,14 +11,14 @@ internal val WhatsNewShipped.answerFromTheBar: WhatsNewEntry
     get() = feature(
         id = "answer-from-the-bar",
         day = "2026-10-12",
-        title = "Answer From the Message Box",
+        title = localized(R.string.settings_whatsnew_entry_answer_from_the_bar_title),
         symbol = "checklist",
         tint = Tint.green,
-        summary = "Questions and permissions grow out of the message box, and you answer right there: tap a choice, or type or dictate your own.",
+        summary = localized(R.string.settings_whatsnew_entry_answer_from_the_bar_summary),
         details = listOf(
-            "Permissions show the command or edit before you allow it.",
-            "Deny takes what you typed as what to do instead, so the agent keeps going.",
-            "Your draft comes back once you’ve answered.",
+            localized(R.string.settings_whatsnew_entry_answer_from_the_bar_detail_1),
+            localized(R.string.settings_whatsnew_entry_answer_from_the_bar_detail_2),
+            localized(R.string.settings_whatsnew_entry_answer_from_the_bar_detail_3),
         ),
-        example = "When the agent asks a question, hold the mic and say your answer",
+        example = localized(R.string.settings_whatsnew_entry_answer_from_the_bar_example),
     )

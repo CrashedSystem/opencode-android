@@ -3,6 +3,7 @@ package ai.opencode.feature.voice
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeTransport
 import ai.opencode.server.retry.NetworkRetry
@@ -59,14 +60,14 @@ enum class CallVoice {
     /** How the regional voices speak; null for the rest. */
     val accent: String?
         get() = when (this) {
-            quartz, ripple, rigel -> "Australian English"
-            vesper, eve, leo -> "British English"
-            willow, stone -> "Irish English"
-            gleam, meridian -> "North American English"
-            bossa, tempo -> "Brazilian Portuguese"
-            beacon -> "Filipino English"
-            delta, cinder -> "Southern U.S. English"
-            naksh -> "Indian English"
+            quartz, ripple, rigel -> localized(R.string.voice_accent_australian_english)
+            vesper, eve, leo -> localized(R.string.voice_accent_british_english)
+            willow, stone -> localized(R.string.voice_accent_irish_english)
+            gleam, meridian -> localized(R.string.voice_accent_north_american_english)
+            bossa, tempo -> localized(R.string.voice_accent_brazilian_portuguese)
+            beacon -> localized(R.string.voice_accent_filipino_english)
+            delta, cinder -> localized(R.string.voice_accent_southern_us_english)
+            naksh -> localized(R.string.voice_accent_indian_english)
             else -> null
         }
 
@@ -116,7 +117,7 @@ sealed class VoicePreviewError : Exception("Couldn’t play preview") {
     data object Failed : VoicePreviewError()
 
     /** iOS `errorDescription`. */
-    val errorDescription: String get() = "Couldn’t play preview"
+    val errorDescription: String get() = localized(R.string.voice_preview_error)
 
     override fun fillInStackTrace(): Throwable = this
 }

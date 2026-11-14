@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings.whatsnew.entries
 
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.settings.R
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Audience
 import ai.opencode.feature.settings.whatsnew.WhatsNewEntry.Companion.feature
@@ -11,14 +13,14 @@ internal val WhatsNewShipped.scrawlFasterStart: WhatsNewEntry
         id = "scrawl-faster-start",
         day = "2026-10-19",
         audience = Audience.developer,
-        title = "Faster Scrawl Start",
+        title = localized(R.string.settings_whatsnew_entry_scrawl_faster_start_title),
         symbol = "hand.draw",
         tint = Tint.red,
-        summary = "Scrawl’s controls appear while the microphone and recorder start.",
+        summary = localized(R.string.settings_whatsnew_entry_scrawl_faster_start_summary),
         details = listOf(
-            "Draw, Send and Discard taps are kept while recording gets ready.",
-            "A three-finger hold prepares the overlay without starting the microphone early.",
-            "Fixed a crash when Scrawl’s microphone restarts during an audio route change.",
+            localized(R.string.settings_whatsnew_entry_scrawl_faster_start_detail_1),
+            localized(R.string.settings_whatsnew_entry_scrawl_faster_start_detail_2),
+            localized(R.string.settings_whatsnew_entry_scrawl_faster_start_detail_3),
         ),
-        example = "On a paired device, hold three fingers to start a recording",
+        example = localized(R.string.settings_whatsnew_entry_scrawl_faster_start_example),
     )

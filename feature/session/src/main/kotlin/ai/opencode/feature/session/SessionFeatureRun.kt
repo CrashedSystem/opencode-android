@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.core.experiments.ExperimentalFeature
 import ai.opencode.core.sound.SoundEffect
 import ai.opencode.feature.composer.RequestDockFeature
@@ -228,8 +229,8 @@ private fun SessionFeature.promptAdmitted(
  * the background); after that, it's offered for Retry.
  */
 internal val SessionFeature.Companion.sendRetryPolicy: RetryPolicy get() = RetryPolicy.send
-internal val SessionFeature.Companion.stoppedReason: String get() = "Interrupted before it was sent"
-internal val SessionFeature.Companion.stopFailedText: String get() = "Couldn’t stop session"
+internal val SessionFeature.Companion.stoppedReason: String get() = localized(R.string.session_stopped_before_sent)
+internal val SessionFeature.Companion.stopFailedText: String get() = localized(R.string.session_stop_failed)
 
 /** Once the server has taken Stop, the session's state is read at these gaps in case the stream misses the run's end: about 15 s in all. */
 internal val SessionFeature.Companion.interruptSettleDelays: List<Duration> get() = listOf(1.seconds, 2.seconds, 4.seconds, 8.seconds)

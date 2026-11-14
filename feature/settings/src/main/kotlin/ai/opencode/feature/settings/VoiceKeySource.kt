@@ -1,5 +1,7 @@
 package ai.opencode.feature.settings
 
+import ai.opencode.core.strings.localized
+
 /**
  * Port of iOS `Settings/VoiceKeySource.swift`'s `VoiceKeyStatus`: the status shown at a glance on
  * the provider key row in Settings › Voice. `VoiceKeySource` itself lives in `:feature:voice`
@@ -15,10 +17,10 @@ sealed interface VoiceKeyStatus {
 
     val badgeTitle: String
         get() = when (this) {
-            Missing -> "Missing"
-            Saved, is Invalid -> "Saved"
-            Checking -> "Checking…"
-            Verified -> "Verified"
+            Missing -> localized(R.string.settings_voice_key_missing)
+            Saved, is Invalid -> localized(R.string.settings_voice_key_saved)
+            Checking -> localized(R.string.settings_voice_key_checking)
+            Verified -> localized(R.string.settings_voice_key_verified)
             is OnServer -> providerName
         }
 }

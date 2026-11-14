@@ -1,5 +1,6 @@
 package ai.opencode.feature.session
 
+import ai.opencode.core.strings.localized
 import ai.opencode.server.OpenCodeLiveContentEvent
 import ai.opencode.server.OpenCodeServerEvent
 import ai.opencode.server.model.OpenCodeRunRetry
@@ -43,16 +44,16 @@ enum class AgentActivity(val rawValue: String) {
 
     val label: String
         get() = when (this) {
-            idle -> "Idle"
-            startup -> "Starting Up"
-            thinking -> "Thinking"
-            longWork -> "Long Work"
-            tool -> "Tool Burst"
-            streaming -> "Streaming Output"
-            waiting -> "Waiting for Input"
-            handoff -> "Handing Off"
-            done -> "Done"
-            failed -> "Failed"
+            idle -> localized(R.string.session_activity_idle)
+            startup -> localized(R.string.session_activity_starting_up)
+            thinking -> localized(R.string.session_activity_thinking)
+            longWork -> localized(R.string.session_activity_long_work)
+            tool -> localized(R.string.session_activity_tool_burst)
+            streaming -> localized(R.string.session_activity_streaming_output)
+            waiting -> localized(R.string.session_activity_waiting_for_input)
+            handoff -> localized(R.string.session_activity_handing_off)
+            done -> localized(R.string.session_activity_done)
+            failed -> localized(R.string.session_activity_failed)
         }
 
     /** Done and Failed settle and hold; everything else keeps moving. */
@@ -162,12 +163,12 @@ data class WorkingActivity(
     val title: String get() = title(Instant.now())
 
     fun title(now: Instant): String {
-        if (phase == Phase.stopping) return "Stopping…"
-        if (needsInput) return "Needs your input"
+        if (phase == Phase.stopping) return localized(R.string.session_working_stopping)
+        if (needsInput) return localized(R.string.session_status_needs_input)
         // Past its time the attempt is under way, and the run reads as Working.
         val retry = retry
         if (phase == Phase.running && retry != null && retry.at.isAfter(now.minusSeconds(1))) return retry.title(now)
-        return "Working"
+        return localized(R.string.session_status_working)
     }
 
     fun activity(now: Double): AgentActivity {

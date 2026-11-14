@@ -10,6 +10,7 @@ import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
 import ai.opencode.core.store.cancellable
+import ai.opencode.core.strings.localized
 import ai.opencode.feature.voice.CallVoice
 import ai.opencode.feature.voice.RealtimePreflightClient
 import ai.opencode.feature.voice.RealtimePreflightError
@@ -29,6 +30,7 @@ import ai.opencode.feature.voice.VoiceProvider
 import ai.opencode.feature.voice.VoiceRoute
 import ai.opencode.feature.voice.VoiceServerChoice
 import ai.opencode.feature.voice.VoiceSharedKeys
+import ai.opencode.feature.voice.voiceFailureDisplayText
 import ai.opencode.server.CachedHomeSnapshot
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeServer
@@ -118,7 +120,7 @@ class VoiceSettingsFeature : Reducer<VoiceSettingsFeature.State, VoiceSettingsFe
         val keyBadgeTitle: String get() = keyStatus.badgeTitle
         val canPreviewVoices: Boolean get() = activeAPIKey.isNotEmpty()
         val previewDisabledHint: String?
-            get() = if (canPreviewVoices) null else "Add your ${activeProvider.displayName} key to preview voices"
+            get() = if (canPreviewVoices) null else localized(R.string.settings_voice_preview_disabled_hint, activeProvider.displayName)
     }
 
     sealed interface Action {
@@ -228,7 +230,7 @@ class VoiceSettingsFeature : Reducer<VoiceSettingsFeature.State, VoiceSettingsFe
                         shared(SharedKeys.verifiedVoiceKeyFingerprint).set(fingerprint)
                         Reduced(state.copy(isCheckingKey = false, keyVerificationError = null))
                     },
-                    onFailure = { error -> Reduced(state.copy(isCheckingKey = false, keyVerificationError = error.message)) },
+                    onFailure = { error -> Reduced(state.copy(isCheckingKey = false, keyVerificationError = error.message?.let { voiceFailureDisplayText(it) })) },
                 )
             }
         is Action.CallVoiceSelected -> {

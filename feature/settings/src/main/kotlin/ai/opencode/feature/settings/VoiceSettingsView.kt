@@ -8,6 +8,7 @@ import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.store.scope
+import ai.opencode.core.strings.localized
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeTextStyles
@@ -343,7 +344,7 @@ object CallVoicePicker {
     /** The row's value: the voice calls will use, and the saved one when the model doesn't offer it. */
     fun rowValue(saved: CallVoice, engine: VoiceEngine): String {
         val voice = saved.resolved(engine)
-        return if (isMissing(saved, engine)) "${voice.title} · ${saved.title} unavailable" else voice.title
+        return if (isMissing(saved, engine)) localized(R.string.settings_voice_call_voice_unavailable, voice.title, saved.title) else voice.title
     }
 
     /** A saved voice from the engine's own provider that the engine lacks. */

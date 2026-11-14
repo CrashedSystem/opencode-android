@@ -1,5 +1,8 @@
 package ai.opencode.feature.transcript.rows
 
+import ai.opencode.core.strings.localized
+import ai.opencode.core.strings.localizedPlural
+import ai.opencode.feature.transcript.R
 import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodeQuestion
 import ai.opencode.server.model.OpenCodeToolCall
@@ -30,7 +33,7 @@ data class InlineToolRow(
     val name: String
         get() = when (kind) {
             is Kind.Tool -> kind.call.displayName
-            is Kind.Reads -> "Read"
+            is Kind.Reads -> localized(R.string.transcript_tool_read)
             is Kind.Notice -> TranscriptNoticeKind.headingOfNotice(kind.text)
         }
 
@@ -105,7 +108,7 @@ data class InlineToolRow(
                     val tools = OpenCodeToolCall.calledTools(code)
                     if (tools.isNotEmpty()) return tools.joinToString(", ")
                     val lookup = catalogSearch(code) ?: return null
-                    "search " + if (lookup.contains(" ")) "“$lookup”" else lookup
+                    if (lookup.contains(" ")) localized(R.string.transcript_tool_search_quoted, lookup) else localized(R.string.transcript_tool_search, lookup)
                 }
                 "skill" -> string("id") ?: string("name") ?: call.metadata["name"]?.string?.nonEmpty
                 else -> call.subtitle
@@ -138,7 +141,12 @@ data class InlineToolGroupHeader(
     val cue: String?,
 ) {
     val spoken: String
-        get() = listOfNotNull(title, if (failed > 0) "$failed failed" else null, cue).joinToString(", ")
+        get() {
+            var spoken = title
+            if (failed > 0) spoken = localized(R.string.transcript_spoken_pair, spoken, localized(R.string.transcript_tool_group_failed_count, failed))
+            if (cue != null) spoken = localized(R.string.transcript_spoken_pair, spoken, cue)
+            return spoken
+        }
 
     companion object {
         operator fun invoke(items: List<OpenCodeTranscriptItem>): InlineToolGroupHeader {
@@ -168,11 +176,11 @@ object ToolGroupLabel {
             if (notices.size == 1) return notices[0].first to null
             val kind = notices.firstOrNull()?.second
             if (kind != null && notices.all { it.second == kind }) return kind.count(notices.size) to null
-            return "Updates" to failedNotices(tools)
+            return localized(R.string.transcript_tool_group_updates) to failedNotices(tools)
         }
         val denied = tools.any { (it as? OpenCodeTranscriptItem.Tool)?.call?.decline == OpenCodeToolCall.Decline.Denied }
         // A denied call is an answer: a quiet cue, like a failed notice's.
-        return "Used $toolCount ${if (toolCount == 1) "tool" else "tools"}" to (failedNotices(tools) ?: if (denied) "Denied" else null)
+        return localizedPlural(R.plurals.transcript_tool_group_used, toolCount, toolCount) to (failedNotices(tools) ?: if (denied) localized(R.string.transcript_tool_denied) else null)
     }
 
     /**
@@ -251,13 +259,13 @@ object InlineQuestion {
             for (option in offered) lines += Line(option, if (option in picked) Line.Kind.Chosen else Line.Kind.Unchosen)
             for (typed in picked) {
                 if (typed in offered) continue
-                lines += Line(if (offered.isEmpty()) typed else "“$typed”", Line.Kind.Chosen)
+                lines += Line(if (offered.isEmpty()) typed else localized(R.string.transcript_quoted, typed), Line.Kind.Chosen)
             }
-            if (!dismissed && picked.isEmpty()) lines += Line("No answer", Line.Kind.Note)
+            if (!dismissed && picked.isEmpty()) lines += Line(localized(R.string.transcript_question_no_answer), Line.Kind.Note)
         }
         if (dismissed) {
-            lines += Line("Dismissed", Line.Kind.Decision)
-            if (reason != null) lines += Line("“$reason”", Line.Kind.Note)
+            lines += Line(localized(R.string.transcript_question_dismissed), Line.Kind.Decision)
+            if (reason != null) lines += Line(localized(R.string.transcript_quoted, reason), Line.Kind.Note)
         }
         return lines
     }
@@ -277,23 +285,25 @@ data class QuestionRowSummary(
     /** The leading, quieter part and the answer that follows it. */
     val parts: Pair<String, String?>
         get() {
-            val header = questions.firstOrNull()?.header?.nonEmpty ?: "Question"
+            val header = questions.firstOrNull()?.header?.nonEmpty ?: localized(R.string.transcript_question)
             if (questions.size > 1) {
-                return if (decline == null) "Answered ${questions.size} questions" to null else "${questions.size} questions" to "Dismissed"
+                val count = questions.size
+                if (decline == null) return localizedPlural(R.plurals.transcript_question_answered_count, count, count) to null
+                return localizedPlural(R.plurals.transcript_question_count, count, count) to localized(R.string.transcript_question_dismissed)
             }
-            if (decline != null) return header to "Dismissed"
+            if (decline != null) return header to localized(R.string.transcript_question_dismissed)
             return header to answer(0)
         }
 
     val spoken: String
         get() {
             val (lead, value) = parts
-            return value?.let { "$lead, $it" } ?: lead
+            return value?.let { localized(R.string.transcript_spoken_pair, lead, it) } ?: lead
         }
 
     fun answer(index: Int): String {
-        if (decline != null) return reason ?: "Dismissed"
+        if (decline != null) return reason ?: localized(R.string.transcript_question_dismissed)
         val values = answers.getOrNull(index) ?: emptyList()
-        return if (values.isEmpty()) "No answer" else values.joinToString(", ")
+        return if (values.isEmpty()) localized(R.string.transcript_question_no_answer) else values.joinToString(", ")
     }
 }
