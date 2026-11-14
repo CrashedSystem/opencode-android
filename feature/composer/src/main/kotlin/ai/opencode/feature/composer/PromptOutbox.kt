@@ -391,9 +391,21 @@ class PromptOutbox(
         val admitted: List<PendingPrompt> = emptyList(),
     )
 
+    /** Attachment bytes held for sends on their way or shown as just delivered. */
+    val retainedAttachmentBytes: Int
+        get() = synchronized(lock) {
+            var total = 0
+            for (lane in storage.lanes.values) {
+                for (item in lane.items) total += item.pending.attachments.sumOf { it.data.size }
+                for (admitted in lane.admitted) total += admitted.pending.attachments.sumOf { it.data.size }
+            }
+            total
+        }
+
     fun contents(serverKey: String, sessionID: String): Contents = contents(serverKey, Lane.Session(sessionID))
 
     fun contents(serverKey: String, lane: Lane): Contents = synchronized(lock) {
+        expireAdmitted()
         val laneState = storage.lanes[resolve(lane, serverKey)] ?: return Contents()
         val unsent = mutableListOf<Entry>()
         var blocked = false
@@ -406,8 +418,7 @@ class PromptOutbox(
             unsent += Entry(item.pending, blocked)
         }
         val admitted = if (lane is Lane.Session) {
-            val cutoff = now().minusMillis((ADMITTED_MEMORY_SECONDS * 1000).toLong())
-            laneState.admitted.filter { it.at > cutoff && it.sessionID == lane.id }.map { it.pending }
+            laneState.admitted.filter { it.sessionID == lane.id }.map { it.pending }
         } else {
             emptyList()
         }
@@ -427,6 +438,7 @@ class PromptOutbox(
             lane.admitted = lane.admitted.filterNot { it.pending.messageID == admitted.messageID }
             lane.appendAdmitted(admitted, sessionID, now())
             storage.lanes[key] = lane
+            expireAdmitted()
         }
     }
 
@@ -589,6 +601,7 @@ class PromptOutbox(
     fun settle(messageIDs: Set<String>) {
         if (messageIDs.isEmpty()) return
         val (held, persistence) = synchronized(lock) {
+            expireAdmitted()
             storage.lanes.values.flatMap { lane ->
                 lane.items.filter { it.phase == Phase.Held && it.pending.messageID in messageIDs }.map { it.pending.messageID }
             } to storage.persistence
@@ -659,6 +672,7 @@ class PromptOutbox(
                     // Its delivery can arrive over the event stream before the post's answer.
                     val pending = if (item.pending.messageID in storage.delivered) item.pending.copy(wasRunning = false) else item.pending
                     lane.appendAdmitted(pending, outcome.sessionID, now())
+                    expireAdmitted()
                     status = Status.Settled(
                         DeliveryOutcome.Sent(outcome.sessionID, announce, outcome.appliedModel, outcome.appliedAgent),
                         item.pending,
@@ -864,6 +878,14 @@ class PromptOutbox(
     private fun prune(key: String) {
         val lane = storage.lanes[key] ?: return
         if (lane.items.isEmpty() && !lane.isWorking && !lane.isDraft && lane.admitted.isEmpty()) storage.lanes.remove(key)
+    }
+
+    /** A delivered send is shown for [ADMITTED_MEMORY_SECONDS], then let go with its attachment bytes. */
+    private fun expireAdmitted() {
+        val cutoff = now().minusMillis((ADMITTED_MEMORY_SECONDS * 1000).toLong())
+        for (lane in storage.lanes.values) {
+            if (lane.admitted.any { it.at <= cutoff }) lane.admitted = lane.admitted.filter { it.at > cutoff }
+        }
     }
 
     private fun locate(messageID: String): Pair<String, Int>? {

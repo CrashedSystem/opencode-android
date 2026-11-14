@@ -57,6 +57,8 @@ class ComposerPersistence(
     val removeServer: (serverID: String) -> Unit = {},
     val flush: suspend () -> Unit = {},
     val removeAll: () -> Unit = {},
+    /** Attachment bytes held in memory: those drafts, outbox and failed sends refer to. */
+    val retainedAttachmentBytes: () -> Int = { 0 },
 ) {
     companion object Key : DependencyKey<ComposerPersistence> {
         /** `filesDir/support`, where `TranscriptCachePersistence` also writes. */
@@ -112,6 +114,7 @@ class ComposerPersistence(
                 // The write never blocks the caller's thread.
                 flush = { withContext(Dispatchers.IO) { writer.flush() } },
                 removeAll = writer::removeAll,
+                retainedAttachmentBytes = writer::retainedAttachmentBytes,
             )
         }
     }

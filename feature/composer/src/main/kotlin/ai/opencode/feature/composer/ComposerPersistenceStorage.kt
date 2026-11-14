@@ -14,10 +14,13 @@ import java.util.UUID
 class ComposerPersistenceStorage(
     val identity: String,
     val readStateData: () -> ByteArray?,
-    val writeStateData: (ByteArray?) -> Unit,
+    /** Writes the state file atomically, or removes it for null; true once it's done. */
+    val writeStateData: (ByteArray?) -> Boolean,
     val readAttachment: (UUID) -> ByteArray?,
-    /** Writes [writes], then removes every blob not in `keeping`. */
-    val writeAttachments: (writes: Map<UUID, ByteArray>, keeping: Set<UUID>) -> Unit,
+    /** Writes one attachment blob; true once it's safely on disk. */
+    val writeAttachment: (id: UUID, data: ByteArray) -> Boolean,
+    /** Deletes every blob not in `keeping`; returns the IDs left on disk. */
+    val removeAttachments: (keeping: Set<UUID>) -> Set<UUID>,
     val removeAll: () -> Unit,
 ) {
     companion object {
@@ -32,35 +35,41 @@ class ComposerPersistenceStorage(
                 readStateData = { runCatching { stateFile.takeIf(File::exists)?.readBytes() }.getOrNull() },
                 writeStateData = { data ->
                     if (data == null) {
-                        stateFile.delete()
+                        stateFile.delete() || !stateFile.exists()
                     } else {
                         try {
                             writeAtomically(stateFile, data, baseDirectory)
+                            true
                         } catch (error: Exception) {
                             AppLog.app.error { "Couldn’t write composer state: ${error::class.java.simpleName}" }
+                            false
                         }
                     }
                 },
                 readAttachment = { id -> runCatching { File(attachmentsDirectory, id.toString()).takeIf(File::exists)?.readBytes() }.getOrNull() },
-                writeAttachments = { writes, keeping ->
-                    if (writes.isNotEmpty()) {
-                        attachmentsDirectory.mkdirs()
-                        for ((id, data) in writes) {
-                            try {
-                                writeAtomically(File(attachmentsDirectory, id.toString()), data, baseDirectory)
-                            } catch (error: Exception) {
-                                AppLog.app.error { "Couldn’t write composer attachment (${data.size} bytes): ${error::class.java.simpleName}" }
-                            }
-                        }
+                writeAttachment = { id, data ->
+                    try {
+                        writeAtomically(File(attachmentsDirectory, id.toString()), data, baseDirectory)
+                        true
+                    } catch (error: Exception) {
+                        AppLog.app.error { "Couldn’t write composer attachment (${data.size} bytes): ${error::class.java.simpleName}" }
+                        false
                     }
+                },
+                removeAttachments = { keeping ->
+                    val kept = HashSet<UUID>()
                     attachmentsDirectory.listFiles()?.let { files ->
                         for (file in files) {
                             val id = runCatching { UUID.fromString(file.name) }.getOrNull()
-                            if (id != null && id in keeping) continue
+                            if (id != null && id in keeping) {
+                                kept += id
+                                continue
+                            }
                             file.delete()
                         }
                         if (keeping.isEmpty()) attachmentsDirectory.delete()
                     }
+                    kept
                 },
                 removeAll = {
                     stateFile.delete()
@@ -76,12 +85,19 @@ class ComposerPersistenceStorage(
             return ComposerPersistenceStorage(
                 identity = "in-memory-${UUID.randomUUID()}",
                 readStateData = { synchronized(lock) { stateData } },
-                writeStateData = { data -> synchronized(lock) { stateData = data } },
+                writeStateData = { data ->
+                    synchronized(lock) { stateData = data }
+                    true
+                },
                 readAttachment = { id -> synchronized(lock) { attachments[id] } },
-                writeAttachments = { writes, keeping ->
+                writeAttachment = { id, data ->
+                    synchronized(lock) { attachments[id] = data }
+                    true
+                },
+                removeAttachments = { keeping ->
                     synchronized(lock) {
-                        attachments.putAll(writes)
                         attachments.keys.retainAll(keeping)
+                        attachments.keys.toSet()
                     }
                 },
                 removeAll = {

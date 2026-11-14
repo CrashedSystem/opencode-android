@@ -33,13 +33,40 @@ internal class ComposerPersistenceWriter(
         var dirty = false
         var generation = 0
         var pendingTask: Job? = null
-        val attachmentCache = HashMap<UUID, ByteArray>()
+        /** Bytes of the attachments drafts, outbox and failed sends refer to; the rest go at the next manifest commit. */
+        var attachmentCache = HashMap<UUID, ByteArray>()
         var pendingAttachmentWrites = HashMap<UUID, ByteArray>()
+        /** Blobs known to be on disk. An attachment's bytes never change for its ID, so each is written once. */
+        var storedAttachmentIDs = HashSet<UUID>()
+        /** Blobs the flush under way is writing; they count as stored only once it lands. */
+        var writingAttachmentIDs = emptySet<UUID>()
+        /** The references the blob directory was last cleaned to; null until the first clean after launch. */
+        var cleanedAttachmentIDs: Set<UUID>? = null
         val inMemoryFiles = HashMap<DraftKey, List<ComposerFileAttachment>>()
         val waitingShares = HashMap<DraftKey, SharedComposerDraft>()
+        /** Bumped by [removeAll], so a write already under way can't vouch for blobs it removed. */
+        var epoch = 0
     }
 
+    /** One flush's work, taken under [lock] and written outside it. */
+    private class Snapshot(
+        val diskState: PersistedComposerState,
+        val writes: Map<UUID, ByteArray>,
+        /** The references to clean the blob directory to, when they've changed. */
+        val clean: Set<UUID>?,
+        val epoch: Int,
+    )
+
+    private class Written(
+        val blobs: Set<UUID>,
+        /** The manifest landed; until it does, the one before it stands. */
+        val committed: Boolean,
+        val onDisk: Set<UUID>?,
+    )
+
     private val lock = Any()
+    /** One flush writes at a time, so a clean can't delete a blob a later flush just wrote. */
+    private val flushing = Any()
     private var state = WriterState()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -357,25 +384,36 @@ internal class ComposerPersistenceWriter(
     fun flush() {
         val task = synchronized(lock) { state.pendingTask.also { state.pendingTask = null } }
         task?.cancel()
-        val snapshot = synchronized(lock) {
-            val current = state.loaded
-            if (!state.dirty || current == null) return@synchronized null
-            state.dirty = false
-            val writes = state.pendingAttachmentWrites
-            state.pendingAttachmentWrites = HashMap()
-            current to writes
+        synchronized(flushing) {
+            val snapshot = synchronized(lock) {
+                val current = state.loaded
+                if (!state.dirty || current == null) return
+                takeSnapshot(current)
+            }
+            val written = persist(snapshot)
+            synchronized(lock) { commit(written, snapshot) }
         }
-        snapshot?.let { (current, writes) -> persist(current, writes) }
     }
 
     fun removeAll() {
         val task = synchronized(lock) {
             val task = state.pendingTask
-            state = WriterState().also { it.loaded = PersistedComposerState() }
+            val epoch = state.epoch + 1
+            state = WriterState().also {
+                it.loaded = PersistedComposerState()
+                it.epoch = epoch
+            }
             task
         }
         task?.cancel()
         storage.removeAll()
+    }
+
+    fun retainedAttachmentBytes(): Int = synchronized(lock) {
+        // Every queued write is also in the cache.
+        var total = 0
+        for (data in state.attachmentCache.values) total += data.size
+        total
     }
 
     // Private helpers (call with the lock held)
@@ -388,7 +426,11 @@ internal class ComposerPersistenceWriter(
         val pruned = decoded.prunedStale(now())
         val current = pruned ?: decoded
         state.loaded = current
-        if (pruned != null) persist(current, emptyMap())
+        if (pruned != null) {
+            // Nothing can be flushing before the state is loaded, so this writes in place.
+            val snapshot = takeSnapshot(current)
+            commit(persist(snapshot), snapshot)
+        }
         return current
     }
 
@@ -487,12 +529,16 @@ internal class ComposerPersistenceWriter(
             if (attachment.data.isEmpty()) continue
             val id = PersistedComposerState.attachmentUUID(attachment.id)
             state.attachmentCache[id] = attachment.data
-            state.pendingAttachmentWrites[id] = attachment.data
+            if (id !in state.storedAttachmentIDs && id !in state.writingAttachmentIDs) {
+                state.pendingAttachmentWrites[id] = attachment.data
+            }
         }
     }
 
     private fun scheduleWrite(generation: Int) {
         synchronized(lock) {
+            // A later change already scheduled its own flush, which covers this one.
+            if (state.generation != generation) return
             state.pendingTask?.cancel()
             state.pendingTask = scope.launch {
                 delay(debounce)
@@ -502,27 +548,87 @@ internal class ComposerPersistenceWriter(
     }
 
     private fun flushIfGenerationMatches(generation: Int) {
-        val snapshot = synchronized(lock) {
-            val current = state.loaded
-            if (!state.dirty || state.generation != generation || current == null) return@synchronized null
-            state.dirty = false
-            state.pendingTask = null
-            val writes = state.pendingAttachmentWrites
-            state.pendingAttachmentWrites = HashMap()
-            current to writes
+        synchronized(flushing) {
+            val snapshot = synchronized(lock) {
+                val current = state.loaded
+                if (!state.dirty || state.generation != generation || current == null) return
+                state.pendingTask = null
+                takeSnapshot(current)
+            }
+            val written = persist(snapshot)
+            synchronized(lock) { commit(written, snapshot) }
         }
-        snapshot?.let { (current, writes) -> persist(current, writes) }
     }
 
-    private fun persist(current: PersistedComposerState, attachments: Map<UUID, ByteArray>) {
+    private fun takeSnapshot(current: PersistedComposerState): Snapshot {
+        state.dirty = false
         val diskState = current.copy(drafts = current.drafts.filter { it.hasPersistedContent })
-        storage.writeAttachments(attachments, diskState.referencedAttachmentIDs)
-        if (diskState.isEmpty) {
+        val referenced = diskState.referencedAttachmentIDs
+        val writes = state.pendingAttachmentWrites.filterKeys { it in referenced }
+        state.pendingAttachmentWrites = HashMap()
+        state.writingAttachmentIDs = writes.keys
+        return Snapshot(
+            diskState = diskState,
+            writes = writes,
+            clean = if (state.cleanedAttachmentIDs == referenced) null else referenced,
+            epoch = state.epoch,
+        )
+    }
+
+    /**
+     * New blobs, then the manifest naming them, then the blobs it no longer names: a manifest
+     * only goes out once every blob it names is on disk, and a blob only goes once a manifest
+     * without it has landed.
+     */
+    private fun persist(snapshot: Snapshot): Written {
+        val blobs = HashSet<UUID>()
+        for ((id, data) in snapshot.writes) {
+            if (storage.writeAttachment(id, data)) blobs += id
+        }
+        if (blobs.size != snapshot.writes.size) return Written(blobs, committed = false, onDisk = null)
+        val committed = if (snapshot.diskState.isEmpty) {
             storage.writeStateData(null)
         } else {
-            runCatching { PersistedComposerState.json.encodeToString(PersistedComposerState.serializer(), diskState) }
-                .getOrNull()
-                ?.let { storage.writeStateData(it.toByteArray(Charsets.UTF_8)) }
+            val encoded = runCatching { PersistedComposerState.json.encodeToString(PersistedComposerState.serializer(), snapshot.diskState) }.getOrNull()
+            encoded != null && storage.writeStateData(encoded.toByteArray(Charsets.UTF_8))
+        }
+        if (!committed) return Written(blobs, committed = false, onDisk = null)
+        return Written(blobs, committed = true, onDisk = snapshot.clean?.let(storage.removeAttachments))
+    }
+
+    /**
+     * Records what reached disk, lets go of bytes nothing refers to any more, and queues again any
+     * referenced blob that isn't on disk (a failed write, or one cleaned away while it was being
+     * added back). A flush that didn't land keeps its bytes and stays dirty, so the next flush
+     * tries again.
+     */
+    private fun commit(written: Written, snapshot: Snapshot) {
+        if (snapshot.epoch != state.epoch) return
+        state.writingAttachmentIDs = emptySet()
+        state.storedAttachmentIDs.addAll(written.blobs)
+        if (!written.committed) {
+            state.dirty = true
+            for ((id, data) in snapshot.writes) {
+                if (id in written.blobs || state.pendingAttachmentWrites.containsKey(id)) continue
+                state.pendingAttachmentWrites[id] = data
+                state.attachmentCache[id] = data
+            }
+        }
+        if (written.onDisk != null) {
+            state.cleanedAttachmentIDs = snapshot.clean
+            state.storedAttachmentIDs = HashSet(written.onDisk)
+        }
+        val referenced = state.loaded?.referencedAttachmentIDs ?: emptySet()
+        val kept = HashMap<UUID, ByteArray>()
+        for ((id, data) in state.attachmentCache) {
+            if (id in referenced || state.pendingAttachmentWrites.containsKey(id)) kept[id] = data
+        }
+        state.attachmentCache = kept
+        for (id in referenced) {
+            if (id in state.storedAttachmentIDs || state.pendingAttachmentWrites.containsKey(id)) continue
+            val data = state.attachmentCache[id] ?: continue
+            state.pendingAttachmentWrites[id] = data
+            state.dirty = true
         }
     }
 
@@ -569,7 +675,10 @@ internal class ComposerPersistenceWriter(
 
     private fun restoreAttachment(record: PersistedComposerState.AttachmentRecord): OpenCodeOutgoingAttachment? {
         val data = state.attachmentCache[record.id]
-            ?: storage.readAttachment(record.id)?.also { state.attachmentCache[record.id] = it }
+            ?: storage.readAttachment(record.id)?.also {
+                state.attachmentCache[record.id] = it
+                state.storedAttachmentIDs += record.id
+            }
             ?: if (record.mediaHash != null) ByteArray(0) else return null
         val pastedText = if (record.hasPastedText && data.isNotEmpty()) runCatching {
             Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(data)).toString()
