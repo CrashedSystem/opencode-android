@@ -903,7 +903,7 @@ class AgentImagePreviews(
 
         private fun cacheKey(key: AgentImageKey): String = key.path + "|" + key.server
 
-        /** Notes for the motion trace (iOS `TranscriptMotionTrace`, DEBUG): debug-level perf lines, counts and timings only. */
+        /** Debug-level perf lines: counts and timings only. */
         private fun trace(name: String, vararg values: Pair<String, Any>) {
             AppLog.perf.debug { (listOf(name) + values.map { "${it.first}=${it.second}" }).joinToString(" ") }
         }

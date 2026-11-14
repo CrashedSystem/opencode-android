@@ -14,7 +14,7 @@ import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.feature.transcript.links.LinkPreviewReplyEnd
 import ai.opencode.feature.transcript.markdown.OpenCodeMarkdownBlock
 import ai.opencode.feature.transcript.markdown.rememberMarkdownBlocks
-import ai.opencode.feature.transcript.markdown.ui.DisclosedTransition
+import ai.opencode.feature.transcript.markdown.ui.DisclosedContent
 import ai.opencode.feature.transcript.markdown.ui.LocalQuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.LocalSessionLinks
 import ai.opencode.feature.transcript.markdown.ui.LocalMarkdownSecondary
@@ -23,7 +23,6 @@ import ai.opencode.feature.transcript.markdown.ui.QuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.SessionLinkContext
 import ai.opencode.server.model.OpenCodeCompaction
 import ai.opencode.server.model.OpenCodeTranscriptItem
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -190,36 +189,38 @@ private fun CompactionView(entry: TranscriptEntry, id: String, info: OpenCodeCom
             if (usage != null) Text("· $usage", style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"))
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.standard)) {
-        if (expandable) {
-            rule(
-                Modifier.rowHitTarget(
-                    top = TranscriptMetrics.sectionHalf,
-                    bottom = TranscriptMetrics.sectionHalf,
-                    target = Modifier
-                        .clickable(role = Role.Button, onClick = toggle)
-                        .clearAndSetSemantics {
-                            contentDescription = label
-                            stateDescription = if (isExpanded) expandedLabel else collapsedLabel
-                            role = Role.Button
-                            onClick(showSummaryLabel) { toggle(); true }
-                        },
-                ),
-            )
-        } else {
-            rule(Modifier.clearAndSetSemantics { contentDescription = label })
-        }
-        if (failed) {
-            info.errorMessage?.let { message ->
-                SelectionContainer {
-                    Text(message, Modifier.fillMaxWidth(), style = OpenCodeTextStyles.footnote, color = colors.danger)
+    Column {
+        Column(verticalArrangement = Arrangement.spacedBy(TranscriptMetrics.standard)) {
+            if (expandable) {
+                rule(
+                    Modifier.rowHitTarget(
+                        top = TranscriptMetrics.sectionHalf,
+                        bottom = TranscriptMetrics.sectionHalf,
+                        target = Modifier
+                            .rowClickable(onClick = toggle)
+                            .clearAndSetSemantics {
+                                contentDescription = label
+                                stateDescription = if (isExpanded) expandedLabel else collapsedLabel
+                                role = Role.Button
+                                onClick(showSummaryLabel) { toggle(); true }
+                            },
+                    ),
+                )
+            } else {
+                rule(Modifier.clearAndSetSemantics { contentDescription = label })
+            }
+            if (failed) {
+                info.errorMessage?.let { message ->
+                    SelectionContainer {
+                        Text(message, Modifier.fillMaxWidth(), style = OpenCodeTextStyles.footnote, color = colors.danger)
+                    }
                 }
             }
         }
-        AnimatedVisibility(isExpanded, enter = DisclosedTransition.enter, exit = DisclosedTransition.exit) {
+        DisclosedContent(isExpanded) {
             val blocks = rememberMarkdownBlocks("$id-summary", info.summary)
             CompositionLocalProvider(LocalContentColor provides colors.secondaryText, LocalMarkdownSecondary provides true) {
-                MarkdownBlocksView(blocks, Modifier.fillMaxWidth().padding(start = 16.dp))
+                MarkdownBlocksView(blocks, Modifier.fillMaxWidth().padding(start = 16.dp, top = TranscriptMetrics.standard))
             }
         }
     }

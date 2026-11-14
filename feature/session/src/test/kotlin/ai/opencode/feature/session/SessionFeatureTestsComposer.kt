@@ -2,12 +2,10 @@ package ai.opencode.feature.session
 
 import ai.opencode.core.dependencies.UuidClient
 import ai.opencode.core.files.ComposerStagedFile
-import ai.opencode.core.motion.MotionSpring
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.feature.composer.ComposerFileAttachment
 import ai.opencode.feature.composer.ComposerLineGrowth
-import ai.opencode.feature.composer.ComposerSendTransition
 import ai.opencode.feature.composer.ComposerTextInputTunables
 import ai.opencode.feature.composer.DictationClient
 import ai.opencode.feature.composer.DictationFeature
@@ -15,7 +13,6 @@ import ai.opencode.feature.session.SessionFeature.Action
 import ai.opencode.feature.session.SessionFeature.State
 import ai.opencode.feature.session.SessionTestSupport.Harness
 import ai.opencode.feature.session.SessionTestSupport.sessionTest
-import ai.opencode.feature.transcript.TranscriptTunables
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeDelivery
@@ -31,7 +28,6 @@ import org.junit.Test
 import java.io.File
 import java.time.Instant
 import java.util.UUID
-import kotlin.math.PI
 import kotlin.math.abs
 
 /**
@@ -176,7 +172,6 @@ class SessionFeatureTestsComposer {
         val two = INSET + 2 * LINE
         val spring = ComposerLineGrowth.typedLineSpring("One", "One\nTwo", returnKeySends = false, reduceMotion = false)
         assertEquals(ComposerTextInputTunables.lineGrowth, spring)
-        assertTrue(ComposerLineGrowth.rides(spring, shrinks = false, from = one, oneLine = one))
         // The spring takes the frame through every height in between; the caret is on the new line.
         for (height in listOf(one, (one + two) / 2, two - 2)) {
             val hold = ComposerLineGrowth.holdOffset(two, height, caretLineTop = LINE)
@@ -191,38 +186,8 @@ class SessionFeatureTestsComposer {
         // Reduce Motion: the new height at once.
         val reduced = ComposerLineGrowth.typedLineSpring("One", "One\nTwo", returnKeySends = false, reduceMotion = true)
         assertNull(reduced)
-        assertFalse(ComposerLineGrowth.rides(reduced, shrinks = false, from = one, oneLine = one))
         // A Return that sends never animates the line it would add.
         assertNull(ComposerLineGrowth.typedLineSpring("One", "One\n", returnKeySends = true, reduceMotion = false))
-    }
-
-    /**
-     * A send clears a multiline draft on a spring quicker than the list's arrival glide, the text
-     * held like a typed line's; Reduce Motion and a one-line draft clear at once.
-     */
-    @Test fun aSendsClearShrinksTheFieldAheadOfTheGlide() {
-        val one = INSET + LINE
-        val three = INSET + 3 * LINE
-        val omega = ComposerSendTransition.sendShrinkOmega(TranscriptTunables.arrivalOmega)
-        val shrink = ComposerLineGrowth.sendShrinkSpring(omega, reduceMotion = false)
-        assertEquals(MotionSpring(duration = 2 * PI / (TranscriptTunables.arrivalOmega * ComposerTextInputTunables.SEND_SHRINK_SPEED), bounce = 0.0), shrink)
-        assertNull(ComposerLineGrowth.sendShrinkSpring(omega, reduceMotion = true))
-        // A one-line draft has nothing to shrink.
-        assertFalse(ComposerLineGrowth.rides(shrink, shrinks = true, from = one, oneLine = one))
-        assertTrue(ComposerLineGrowth.rides(shrink, shrinks = true, from = three, oneLine = one))
-
-        // Sent: the send hands the clear its spring once; the field takes it on the clear.
-        val transition = ComposerSendTransition()
-        transition.shrinkOnNextClear(omega)
-        assertEquals(shrink, ComposerLineGrowth.sendShrinkSpring(transition.takeShrinkOmega(), reduceMotion = false))
-        val height = (one + three) / 2
-        assertTrue("held to the bottom", abs(ComposerLineGrowth.holdOffset(one, height, caretLineTop = 0f) - (one - height)) < 0.5f)
-
-        // Without an animation (a send that didn't go, or any other clear) it takes one line at once.
-        assertNull(ComposerLineGrowth.sendShrinkSpring(transition.takeShrinkOmega(), reduceMotion = false))
-        transition.shrinkOnNextClear(omega)
-        transition.cancelShrink()
-        assertNull(ComposerLineGrowth.sendShrinkSpring(transition.takeShrinkOmega(), reduceMotion = false))
     }
 
     /**

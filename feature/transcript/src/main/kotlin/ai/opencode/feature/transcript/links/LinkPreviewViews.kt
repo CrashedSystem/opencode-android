@@ -13,7 +13,6 @@ import ai.opencode.feature.media.GitHubLink
 import ai.opencode.feature.media.GitHubPreview
 import ai.opencode.feature.media.LinkPreview
 import ai.opencode.feature.media.LinkPreviewBitmap
-import ai.opencode.feature.media.LocalAgentImageRowGrowth
 import ai.opencode.feature.media.LocalLinkPreviewRevision
 import ai.opencode.feature.media.LocalLinkPreviewStore
 import ai.opencode.feature.media.RichLinkSource
@@ -25,7 +24,7 @@ import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.TranscriptAction
 import ai.opencode.feature.transcript.TranscriptDisclosureState
 import ai.opencode.feature.transcript.markdown.OpenCodeMarkdownBlock
-import ai.opencode.feature.transcript.markdown.ui.DisclosedTransition
+import ai.opencode.feature.transcript.markdown.ui.DisclosedContent
 import ai.opencode.feature.transcript.markdown.ui.HairlineRule
 import ai.opencode.feature.transcript.markdown.ui.MarkdownLinks
 import ai.opencode.feature.transcript.markdown.ui.MarkdownStyle
@@ -141,8 +140,6 @@ fun LinkPreviewReplyEnd(
     }
     val previews = targets.map(store::preview)
     val disclosure = LocalTranscriptRowContext.current.disclosure
-    val growth = LocalAgentImageRowGrowth.current
-    val reduceMotion = rememberReduceMotion()
     LaunchedEffect(store, key, targets) {
         for (target in targets) store.appeared(target, key)
     }
@@ -155,10 +152,7 @@ fun LinkPreviewReplyEnd(
     ) {
         LinkPreviewEntries(previews, isOpen = disclosure.isOpen(TranscriptDisclosureState.Kind.LinkLists, key), presentation = store.presentation(key) { LinkPreviewRowPresentation() })
         Row(
-            Modifier
-                .fillMaxWidth()
-                // Holds still while the links above it grow, as the rows below do.
-                .graphicsLayer { translationY = if (reduceMotion || growth == null) 0f else -growth.lift(previews.size) * density },
+            Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             actions()
@@ -183,21 +177,15 @@ object LinkPreviewEntries {
 fun LinkPreviewEntries(previews: List<LinkPreview>, isOpen: Boolean, presentation: LinkPreviewRowPresentation? = null) {
     val scaledIcon = LinkPreviewEntry.iconSide * LocalDensity.current.fontScale
     val inset = min(scaledIcon, LinkPreviewEntry.maximumIconSide.value).dp + LinkPreviewEntry.iconSpacing
-    val growth = LocalAgentImageRowGrowth.current
-    val reduceMotion = rememberReduceMotion()
 
-    /** A hairline from the text column to the trailing edge, drawn up by what the links above it still have to grow. */
+    /** A hairline from the text column to the trailing edge. */
     @Composable
-    fun separator(before: Int) = HairlineRule(
-        Modifier
-            .padding(start = inset)
-            .graphicsLayer { translationY = if (reduceMotion || growth == null) 0f else -growth.lift(before) * density },
-    )
+    fun separator() = HairlineRule(Modifier.padding(start = inset))
 
     @Composable
-    fun entry(preview: LinkPreview, index: Int) {
+    fun entry(preview: LinkPreview) {
         if (presentation != null) {
-            ArrivingLinkPreview(preview, block = index, presentation = presentation)
+            ArrivingLinkPreview(preview, presentation = presentation)
         } else {
             LinkPreviewButton(preview) { LinkPreviewEntry(preview) }
         }
@@ -206,16 +194,16 @@ fun LinkPreviewEntries(previews: List<LinkPreview>, isOpen: Boolean, presentatio
     Column(Modifier.fillMaxWidth()) {
         previews.take(LinkPreviewEntries.shown).forEachIndexed { index, preview ->
             key(preview.id) {
-                if (index > 0) separator(index)
-                entry(preview, index)
+                if (index > 0) separator()
+                entry(preview)
             }
         }
-        AnimatedVisibility(isOpen && previews.size > LinkPreviewEntries.shown, enter = DisclosedTransition.enter, exit = DisclosedTransition.exit) {
+        DisclosedContent(isOpen && previews.size > LinkPreviewEntries.shown) {
             Column(Modifier.fillMaxWidth()) {
-                previews.drop(LinkPreviewEntries.shown).forEachIndexed { offset, preview ->
+                previews.drop(LinkPreviewEntries.shown).forEach { preview ->
                     key(preview.id) {
-                        separator(LinkPreviewEntries.shown + offset)
-                        entry(preview, LinkPreviewEntries.shown + offset)
+                        separator()
+                        entry(preview)
                     }
                 }
             }

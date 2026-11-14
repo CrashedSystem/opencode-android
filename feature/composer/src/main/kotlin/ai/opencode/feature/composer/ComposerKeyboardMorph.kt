@@ -170,7 +170,8 @@ val LocalComposerKeyboardMorph = staticCompositionLocalOf<ComposerKeyboardMorphS
  * intent, not a layout clock: it changes before the keys show and after an interactive hide.
  * Gaining focus opens the row on the keyboard's spring from the same frame, whether or not the
  * keyboard follows yet (it lags behind a sheet's dismissal); [pinned] (a draft or a panel holding
- * the row open) moves it on the keyboard's curve too.
+ * the row open) moves it on the keyboard's curve too. With [snapsUnpin] the row closes at once
+ * when [pinned] ends: the card's own size animation carries the change instead.
  */
 @Composable
 fun ComposerKeyboardMorph(
@@ -178,6 +179,7 @@ fun ComposerKeyboardMorph(
     expanded: Boolean,
     pinned: Boolean,
     reducedMotion: Boolean,
+    snapsUnpin: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val keyboard = rememberComposerKeyboardProgress()
@@ -186,6 +188,7 @@ fun ComposerKeyboardMorph(
     val pinnedProgress = remember { Animatable(if (pinned) 1f else 0f) }
     var reducedExpanded by remember { mutableStateOf(if (reducedMotion) expanded else null) }
     val seen = remember { booleanArrayOf(focused, pinned) }
+    val snapsUnpinNow by rememberUpdatedState(snapsUnpin)
 
     LaunchedEffect(focused) {
         if (seen[0] == focused) return@LaunchedEffect
@@ -214,7 +217,13 @@ fun ComposerKeyboardMorph(
         if (seen[1] == pinned) return@LaunchedEffect
         seen[1] = pinned
         // Already open with the keyboard: nothing moves.
-        val spec = if (pinned && keyboard.progress > 0.99f) null else DockedKeyboard.focusAnimation(reducedMotion, excludes)
+        val spec = if (pinned && keyboard.progress > 0.99f) {
+            null
+        } else if (!pinned && snapsUnpinNow) {
+            null
+        } else {
+            DockedKeyboard.focusAnimation(reducedMotion, excludes)
+        }
         pinnedProgress.settle(if (pinned) 1f else 0f, spec)
     }
 

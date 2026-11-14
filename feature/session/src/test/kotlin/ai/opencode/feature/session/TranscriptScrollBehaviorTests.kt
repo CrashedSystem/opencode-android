@@ -26,11 +26,12 @@ import java.util.Locale
  * Here: `browsingWindowKeepsItsLeadingBoundaryAcrossTailAppends`, and the `SessionFeature` halves of
  * `jumpToLatestWhenWindowTrimsGlidesToBottomWithoutTopGapOrLossOfPosition` (the store's window trim) and
  * `openingShortCachedSessionAndFinishingPrewarmedLoadingRefreshStayAlignedWithinOnePointFivePt` (`hasEarlierItems` on a short
- * cached session). Their `TranscriptListController` / `UICollectionView` halves are UIKit-only, as are
+ * cached session). Their list halves are UIKit-only, as are
  * `openingAndDelayedLoadsKeepTheReaderPinnedToTheBottom`, `browsingAnchorHoldsAcrossDelayedLoadsStreamingReconnectPagingAndSelfSizing`,
  * `visiblePreTailRowResizingAfterOpeningSettleDoesNotGrowOrMoveHeldTailRow` and
  * `shortTranscriptHistoryRowLeavingGlidesTopGapClosedOverSeveralFrames`, which only use an inert `SessionFeature` store
- * to drive the UIKit list. Every other test in the file is :feature:transcript's (`TranscriptScrollBehavior` and the list).
+ * to drive the UIKit list. The rest of the file pins the iOS list's follower and row growth, which Android's
+ * bottom-anchored list doesn't have (deliberate divergence, docs/parity/transcript.md).
  *
  * Also here: the [SessionTranscriptView.ProjectionCache] half of
  * `TranscriptAssistiveScrollTests.projectionCacheIsolatesEntryBuildingAndRowPropsReconfigureOnlyAffectedCells`; its

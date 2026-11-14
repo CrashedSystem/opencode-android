@@ -1,6 +1,9 @@
 package ai.opencode.feature.transcript.user
 
 import ai.opencode.core.R as CoreR
+import ai.opencode.feature.transcript.rows.LocalRowHeightMotion
+import ai.opencode.feature.transcript.rows.DisclosureMotion
+import androidx.compose.animation.core.Animatable
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
@@ -138,8 +141,6 @@ internal fun TranscriptUserBubble(
 
     // The bubble lifts while its menu is open, as iOS's context menu lifts its preview.
     val lift by animateFloatAsState(if (menu) 1.03f else 1f, if (reduceMotion) Motion.reducedFadeSpec() else Motion.microPop.spec(), label = "lift")
-    // iOS `SendLandingProbe(itemID:)` on the bubble: a send flies into it.
-    val landingProbe = rememberSendLandingProbe(itemID)
     TrailingFractionLayout(TranscriptMetrics.maximumUserBubbleFraction, modifier) {
         Box {
             val face: @Composable (Modifier) -> Unit = { faceModifier ->
@@ -154,7 +155,7 @@ internal fun TranscriptUserBubble(
                     reduceMotion = reduceMotion,
                     onCopy = onCopy,
                     onEndSelection = { isSelecting = false },
-                    modifier = faceModifier.sendLandingProbe(landingProbe).graphicsLayer {
+                    modifier = faceModifier.graphicsLayer {
                         scaleX = lift
                         scaleY = lift
                     },
@@ -316,20 +317,38 @@ private fun UserBubbleFoldView(
     modifier: Modifier = Modifier,
 ) {
     val fadePx = with(LocalDensity.current) { UserBubbleFold.fade.toPx() }
-    val currentFold by rememberUpdatedState(fold)
+    // Read only while laying out and drawing.
+    val openness = remember { Animatable(if (fold.isExpanded) 1f else 0f) }
+    val rowHeight = LocalRowHeightMotion.current
+    val reduceMotion = rememberReduceMotion()
+    LaunchedEffect(fold.isExpanded) {
+        val target = if (fold.isExpanded) 1f else 0f
+        if (openness.value == target) return@LaunchedEffect
+        if (reduceMotion) {
+            openness.snapTo(target)
+            return@LaunchedEffect
+        }
+        rowHeight?.animatesItself = true
+        try {
+            openness.animateTo(target, DisclosureMotion.spring(fold.isExpanded).spec())
+        } finally {
+            rowHeight?.animatesItself = false
+        }
+    }
     Layout(
         contents = listOf(
             {
                 Box(
                     Modifier.drawWithContent {
-                        if (!folds[0] || currentFold.isExpanded) {
+                        val open = openness.value
+                        if (!folds[0] || open >= 1f) {
                             drawContent()
                             return@drawWithContent
                         }
-                        // The fade masks a layer only as tall as the folded text. A layer as tall
+                        // The fade masks a layer only as tall as the text shown. A layer as tall
                         // as the whole text can be bigger than the GPU's largest texture; Android
                         // then draws it without the layer, and the mask erases the window to black.
-                        val end = metrics.folded
+                        val end = metrics.folded + (size.height - metrics.folded) * open
                         val start = max(0f, end - fadePx)
                         val shown = Rect(0f, 0f, size.width, end)
                         drawIntoCanvas { canvas ->
@@ -341,7 +360,8 @@ private fun UserBubbleFoldView(
                                 Brush.verticalGradient(
                                     0f to Color.Black,
                                     (start / end) to Color.Black,
-                                    1f to Color.Transparent,
+                                    // The cut fades less as the fold opens, and not at all once open.
+                                    1f to Color.Black.copy(alpha = open),
                                     startY = 0f,
                                     endY = end,
                                 ),
@@ -379,7 +399,8 @@ private fun UserBubbleFoldView(
         val ctl = controlMeasurables.first().measure(
             Constraints(minWidth = text.width, maxWidth = max(text.width, constraints.maxWidth), minHeight = controlMin),
         )
-        val textHeight = if (fold.isExpanded) text.height else metrics.folded.toInt()
+        val folded = metrics.folded
+        val textHeight = (folded + (text.height - folded) * openness.value).toInt()
         val width = max(text.width, ctl.width)
         layout(width, textHeight + ctl.height) {
             text.placeRelative(0, 0)

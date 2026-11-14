@@ -190,14 +190,11 @@ object ComposerTextInputTunables {
 
     /** `composer.lines.grow`: a typed line's growth or shrink (0.28 s, no bounce). */
     val lineGrowth: MotionSpring = MotionSpring(duration = 0.28, bounce = 0.0)
-
-    /** `composer.lines.sendShrinkSpeed`: the send shrink's ω as a multiple of the list's arrival ω. */
-    const val SEND_SHRINK_SPEED = 1.25
 }
 
 /**
  * iOS `ImagePasteTextView`'s line growth (`lineGrowthAnimation`, `beginLineGrowth`,
- * `holdLineGrowth`, `sendShrinkAnimation`) as the plain rules [ComposerTextInput]'s layout follows.
+ * `holdLineGrowth`) as the plain rules [ComposerTextInput]'s layout follows.
  * Heights and offsets are px; a hold is iOS `contentOffset.y`, how far the text (laid out at the
  * target height) sits above the field's top while the field's height springs.
  *
@@ -214,20 +211,6 @@ object ComposerLineGrowth {
      */
     fun typedLineSpring(old: String, new: String, returnKeySends: Boolean, reduceMotion: Boolean): MotionSpring? =
         if (reduceMotion || (returnKeySends && new == old + "\n")) null else ComposerTextInputTunables.lineGrowth
-
-    /**
-     * iOS `sendShrinkAnimation`: a send's clear rides a critical spring of ω [omega]
-     * ([ComposerSendTransition.sendShrinkOmega]); under reduce motion (or with no send) it lands at once.
-     */
-    fun sendShrinkSpring(omega: Double?, reduceMotion: Boolean): MotionSpring? =
-        omega?.takeIf { !reduceMotion && it > 0 }?.let { MotionSpring(duration = 2 * PI / it, bounce = 0.0) }
-
-    /**
-     * Whether a height change from [from] rides [spring]: a typed line's, any change; a send's
-     * shrink ([shrinks]), only a field taller than one line ([oneLine]).
-     */
-    fun rides(spring: MotionSpring?, shrinks: Boolean, from: Float, oneLine: Float): Boolean =
-        spring != null && (!shrinks || from - oneLine > 0.5f)
 
     /**
      * iOS `holdLineGrowth`: while the field is [height] tall on its way to [target], the text is
@@ -436,7 +419,6 @@ class ComposerTextInputController {
      */
     var heightSpring: MotionSpring? = null
     var heightSpringText: String? = null
-    var heightSpringShrinks = false
 
     /** iOS `measuredHeight` (px): the height the field's lines last laid out to, without the top inset. */
     var measuredHeight: Float? = null
@@ -632,9 +614,8 @@ private class ComposerFieldSwipeInput : ComposerSwipeInput {
  *   (a held mic, [isHoldingMic]) owns the touch.
  * - **Line growth.** A typed line's growth or shrink rides [ComposerTextInputTunables.lineGrowth]
  *   with the text held to the field's bottom, so the caret's line stays put while the top
- *   moves; none under reduce motion or for a Return that sends. A send's clear shrinks on
- *   [ComposerSendTransition.shrinkOnNextClear]'s spring, the one animation the composer around
- *   it follows ([ComposerSendTransition.isShrinking]).
+ *   moves; none under reduce motion or for a Return that sends. Any other change takes its
+ *   height at once.
  * - **Selecting.** A drag the text is selecting with (it starts on or near the selection, or
  *   rests first) is never a swipe ([ComposerSwipeDown.textOwnsDrag]).
  * - **Keyboard insets.** The field only takes and drops focus; the session's composer docks
@@ -672,7 +653,7 @@ fun ComposerTextInput(
     onNonSendNewline: ((String) -> Unit)? = null,
     onDropTargetedChange: ((Boolean) -> Unit)? = null,
     returnKeySends: Boolean = false,
-    sendTransition: ComposerSendTransition? = null,
+    fieldLink: ComposerFieldLink? = null,
     autocompleteBridge: ComposerAutocompleteTextBridge? = null,
     lineLimit: Int? = null,
     accessibilityLabel: String = stringResource(R.string.composer_message_placeholder),
@@ -731,11 +712,9 @@ fun ComposerTextInput(
     val growthScope = rememberCoroutineScope()
 
     fun syncFromParent() {
-        controller.syncText(state, text, currentText, focusRequest, hasFocus, autocompleteBridge) { newText ->
-            // A send's clear shrinks on its own spring (`sendShrinkAnimation`); any other change lands at once.
-            controller.heightSpring = ComposerLineGrowth.sendShrinkSpring(sendTransition?.takeShrinkOmega(), reduceMotion)
-            controller.heightSpringText = newText
-            controller.heightSpringShrinks = true
+        controller.syncText(state, text, currentText, focusRequest, hasFocus, autocompleteBridge) {
+            controller.heightSpring = null
+            controller.heightSpringText = null
         }
     }
 
@@ -873,7 +852,6 @@ fun ComposerTextInput(
                 val new = asCharSequence().toString()
                 controller.heightSpring = ComposerLineGrowth.typedLineSpring(old, new, currentReturnKeySends, currentReduceMotion)
                 controller.heightSpringText = new
-                controller.heightSpringShrinks = false
             }
         }
     }
@@ -1059,11 +1037,11 @@ fun ComposerTextInput(
      */
     fun takesDoubleTap(now: Long): Boolean {
         val tap = controller.lastTap ?: return false
-        val latest = sendTransition?.windowTouches?.latest
+        val latest = fieldLink?.windowTouches?.latest
         if (latest != null && latest.time <= tap.began) return false
         controller.lastTap = null
         val coordinates = controller.swipeCoordinates?.takeIf { it.isAttached } ?: return false
-        val second = sendTransition?.windowTouches?.latest ?: return false
+        val second = fieldLink?.windowTouches?.latest ?: return false
         val secondPoint = coordinates.localPositionOf(coordinates.findRootCoordinates(), second.rootPoint)
         val tapViewportX = tap.point.x
         val isSecondHalf = ComposerDoubleTap.isSecondHalf(
@@ -1144,13 +1122,13 @@ fun ComposerTextInput(
         swipeInput.sync = {
             if (controller.isPublishingText) controller.syncsAfterPublish = true else syncFromParent()
         }
-        sendTransition?.input = swipeInput
+        fieldLink?.input = swipeInput
     }
-    DisposableEffect(sendTransition, swipeInput) {
+    DisposableEffect(fieldLink, swipeInput) {
         onDispose {
             // iOS `didMoveToWindow`: a field leaving the screen forgets its tap.
             controller.lastTap = null
-            if (sendTransition?.input === swipeInput) sendTransition.input = null
+            if (fieldLink?.input === swipeInput) fieldLink.input = null
         }
     }
 
@@ -1210,12 +1188,6 @@ fun ComposerTextInput(
 
     Box(
         modifier
-            .onGloballyPositioned { coordinates ->
-                sendTransition?.let {
-                    it.inputText = state.text.toString()
-                    it.inputBounds = coordinates.boundsInWindow()
-                }
-            }
             // iOS `beginLineGrowth`/`holdLineGrowth`: the field's height springs to the laid-out
             // one with the text held to its bottom; the line coming or going passes under the top.
             .layout { measurable, constraints ->
@@ -1237,18 +1209,12 @@ fun ComposerTextInput(
                     controller.heightSpring = null
                     val running = controller.heightAnimation?.isActive == true
                     val from = if (running) controller.animatedHeight.value else previous
-                    // A send's shrink takes a field taller than one line; a typed line, any change.
-                    if (spring != null && ComposerLineGrowth.rides(spring, controller.heightSpringShrinks, from, lineHeightPx)) {
+                    if (spring != null) {
                         height = (from + inset).roundToInt()
-                        val shrinks = controller.heightSpringShrinks
                         controller.heightAnimation = growthScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                            try {
-                                // A retarget keeps the running spring's velocity, as SwiftUI's does.
-                                if (!running) controller.animatedHeight.snapTo(from)
-                                controller.animatedHeight.animateTo(lines, spring.spec(visibilityThreshold = 0.5f))
-                            } finally {
-                                if (shrinks) sendTransition?.endShrink()
-                            }
+                            // A retarget keeps the running spring's velocity, as SwiftUI's does.
+                            if (!running) controller.animatedHeight.snapTo(from)
+                            controller.animatedHeight.animateTo(lines, spring.spec(visibilityThreshold = 0.5f))
                         }
                     } else {
                         controller.heightAnimation?.cancel()
@@ -1256,12 +1222,6 @@ fun ComposerTextInput(
                     }
                 } else if (controller.heightAnimation?.isActive == true) {
                     height = (controller.animatedHeight.value + inset).roundToInt()
-                }
-                sendTransition?.let { transition ->
-                    transition.inputIsMultiline = height - (lineHeightPx + insetPx) > 0.5f
-                    // A send's clear that rode no spring leaves the composer to resize as usual.
-                    val shrinking = Snapshot.withoutReadObservation { transition.isShrinking }
-                    if (shrinking && controller.heightAnimation?.isActive != true) transition.endShrink()
                 }
                 val caretLineTop = if (height < target) {
                     Snapshot.withoutReadObservation {
@@ -1389,7 +1349,6 @@ fun ComposerTextInput(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = appliedTopInset)
-                .onGloballyPositioned { coordinates -> sendTransition?.textOrigin = coordinates.positionInWindow() }
                 .focusRequester(focusRequester)
                 .drawerKeyboardField(fieldKey)
                 .onFocusChanged { focus ->
@@ -1449,7 +1408,6 @@ fun ComposerTextInput(
                 // layout result is the field's input; the rest is bookkeeping for other readers.
                 Snapshot.withoutReadObservation {
                     controller.layout = result
-                    sendTransition?.textLayout = result
                     autocompleteBridge?.textLayout = result
                     if (result != null) autocompleteBridge?.updateLineBreaks(result)
                     controller.layoutTick += 1

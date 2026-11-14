@@ -165,11 +165,6 @@ private fun VoiceMessage(
     val overhang = VoiceMessageBadge.overhang(badgeDiameter)
     val pendingAlpha by animateFloatAsState(if (isPending) 0.6f else 1f, PromotionMotion.animation(reduceMotion, morphs), label = "pending")
     var menu by remember { mutableStateOf(false) }
-    // Marks its bubble, the surfaces above it (the badge's overhang included) and its label, so a
-    // send's flight and a promotion's morph carry it like any message (iOS `SendLandingProbe`).
-    val bubbleProbe = rememberSendLandingProbe(messageID.ifEmpty { null })
-    val surfacesProbe = rememberSendLandingProbe(messageID.ifEmpty { null }, SendLanding.SURFACES_SUFFIX)
-    val labelProbe = rememberSendLandingProbe(messageID.ifEmpty { null }, SendLanding.LABEL_SUFFIX)
     val badgeRoom by animateDpAsState(if (chrome.badge && !run.joinsAbove) overhang else 0.dp, PromotionMotion.animation(reduceMotion, morphs), label = "badge")
     Column(
         horizontalAlignment = Alignment.End,
@@ -195,8 +190,7 @@ private fun VoiceMessage(
             Row(
                 Modifier
                     .graphicsLayer { alpha = reveal.body.toFloat() }
-                    .padding(end = TranscriptMetrics.contentGutter)
-                    .sendLandingProbe(labelProbe),
+                    .padding(end = TranscriptMetrics.contentGutter),
                 horizontalArrangement = Arrangement.spacedBy(TranscriptMetrics.clustered),
             ) {
                 for (part in shownLabels.value) {
@@ -218,13 +212,12 @@ private fun VoiceMessage(
             TranscriptMetrics.maximumUserBubbleFraction,
             Modifier.padding(top = badgeRoom),
         ) {
-            Box(Modifier.extendTop(if (chrome.badge) overhang else 0.dp).sendLandingProbe(surfacesProbe).insetTop(if (chrome.badge) overhang else 0.dp)) {
+            Box {
                 Text(
                     delegation.displayText,
                     style = UserBubbleTextStyle,
                     color = OpenCodeTheme.colors.text,
                     modifier = Modifier
-                        .sendLandingProbe(bubbleProbe)
                         // Long press opens the menu (with the prompt above it), not text selection.
                         .transcriptDragSource(payload = null, onLift = { menu = true })
                         .voiceMessageBackground(style, isPending, reveal, corners)
@@ -321,22 +314,4 @@ private fun VoicePromptPreview(prompt: String) {
             modifier = Modifier.fillMaxWidth().padding(16.dp),
         )
     }
-}
-
-/**
- * Lays the content out as before but makes this node [extra] taller, reaching above it: with
- * [insetTop] inside, a marker between the two covers what overhangs the top (the badge).
- */
-private fun Modifier.extendTop(extra: Dp): Modifier = layout { measurable, constraints ->
-    val px = extra.roundToPx()
-    val placeable = measurable.measure(constraints.copy(maxHeight = if (constraints.hasBoundedHeight) constraints.maxHeight + px else constraints.maxHeight))
-    val height = (placeable.height - px).coerceAtLeast(0)
-    layout(placeable.width, height) { placeable.placeRelative(0, -px) }
-}
-
-/** The inner half of [extendTop]: the content sits [extra] down in the taller node. */
-private fun Modifier.insetTop(extra: Dp): Modifier = layout { measurable, constraints ->
-    val px = extra.roundToPx()
-    val placeable = measurable.measure(constraints.copy(minHeight = (constraints.minHeight - px).coerceAtLeast(0), maxHeight = if (constraints.hasBoundedHeight) (constraints.maxHeight - px).coerceAtLeast(0) else constraints.maxHeight))
-    layout(placeable.width, placeable.height + px) { placeable.placeRelative(0, px) }
 }

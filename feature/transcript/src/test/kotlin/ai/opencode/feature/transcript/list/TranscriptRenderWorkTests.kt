@@ -1,13 +1,9 @@
 package ai.opencode.feature.transcript.list
 
 import ai.opencode.core.testing.TestIsolationRule
-import ai.opencode.feature.transcript.list.TranscriptScrollBehavior.Command
-import ai.opencode.feature.transcript.list.TranscriptScrollBehavior.Event
 import ai.opencode.feature.transcript.markdown.ui.InlineMath
 import ai.opencode.feature.transcript.markdown.ui.MathRenderer
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,37 +20,16 @@ import kotlin.random.Random
  * reloads, which a LazyColumn doesn't have; `aTailDeltaRedrawsOnlyTheGrowingBlock` counts SwiftUI
  * bodies (Compose skips a finished `MarkdownBlockView` because its `@Immutable` block and other
  * arguments are equal, and there is no Compose UI test harness here to count recompositions).
+ *
+ * Dropped (deliberate Android divergence, see docs/parity/transcript.md):
+ * `scrollingUpAsksForEarlierHistoryFurtherAhead` pinned `TranscriptScrollBehavior`'s lookahead in
+ * screens. The bottom-anchored list asks for the earlier page when its oldest rows come into
+ * view, which needs a LazyColumn layout to test.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class TranscriptRenderWorkTests {
     @get:Rule val isolation = TestIsolationRule()
-
-    /**
-     * Scrolling up, the reader asks for the earlier page 2.5 screens before the top, so it lands
-     * before they reach it; scrolling down or at rest, only within a screen of it.
-     */
-    @Test
-    fun scrollingUpAsksForEarlierHistoryFurtherAhead() {
-        fun viewport(offset: Float) = TranscriptScrollBehavior.Viewport(
-            offsetY = offset,
-            contentHeight = 4_000f,
-            visibleHeight = 500f,
-            trailingSpace = 0f,
-            canRequestEarlierHistory = true,
-        )
-        val up = TranscriptScrollBehavior()
-        up.handle(Event.UserLeftBottom)
-        assertFalse("Nearly three screens down", up.handle(Event.UserScrolled(viewport(1_400f))).contains(Command.RequestEarlierHistory))
-        assertTrue("Two screens down, moving up", up.handle(Event.UserScrolled(viewport(1_000f))).contains(Command.RequestEarlierHistory))
-
-        val down = TranscriptScrollBehavior()
-        down.handle(Event.UserLeftBottom)
-        assertFalse(down.handle(Event.UserScrolled(viewport(900f))).contains(Command.RequestEarlierHistory))
-        assertFalse("Moving down", down.handle(Event.UserScrolled(viewport(1_000f))).contains(Command.RequestEarlierHistory))
-        assertFalse("At rest", down.handle(Event.UserSettled(viewport(1_000f), contentArrived = false)).contains(Command.RequestEarlierHistory))
-        assertTrue("Within a screen", down.handle(Event.UserScrolled(viewport(400f))).contains(Command.RequestEarlierHistory))
-    }
 
     /**
      * A formula drawn in the text is typeset once: asking whether it typesets (building the

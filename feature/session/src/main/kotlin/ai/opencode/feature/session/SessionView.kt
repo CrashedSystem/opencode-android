@@ -39,8 +39,6 @@ import ai.opencode.feature.composer.LocationPermissionPrompt
 import ai.opencode.feature.composer.PastedTextViewer
 import ai.opencode.feature.composer.RequestDockContext
 import ai.opencode.feature.composer.RequestReviewSheet
-import ai.opencode.feature.composer.SentImageFlight
-import ai.opencode.feature.composer.SentImageFlightOverlay
 import ai.opencode.feature.composer.composerKeyboardStepHold
 import ai.opencode.feature.composer.plusmenu.PhotoFlightCanvas
 import ai.opencode.feature.composer.plusmenu.PlusMenuGlassSurface
@@ -259,7 +257,7 @@ fun SessionView(
         composerHost.isImportingImages = isImportingImages
         composerHost.importer = importer
         composerHost.headerHeight = headerHeight
-        if (composerHost.pendingAttachmentsRow == null) composerHost.pendingAttachmentsRow = { expanded -> SessionPendingAttachments(store, composerHost.sendTransition.images, expanded) }
+        if (composerHost.pendingAttachmentsRow == null) composerHost.pendingAttachmentsRow = { expanded -> SessionPendingAttachments(store, expanded) }
     }
     if (!isInertPreview) {
         SessionPermissionPrompts(isCovered)
@@ -277,7 +275,7 @@ fun SessionView(
         // The + menu draws above the background-work capsule (iOS: the menu's glass covers it).
         // iOS `ComposerWindowTouchObserver` on the window: the screen's latest touch-down, for the
         // model chip's double-tap check.
-        Box(modifier.rootOffsetOnScreen { if (it != rootOffset) rootOffset = it }.composerWindowTouches(composerHost.sendTransition.windowTouches)) {
+        Box(modifier.rootOffsetOnScreen { if (it != rootOffset) rootOffset = it }.composerWindowTouches(composerHost.fieldLink.windowTouches)) {
         BackgroundWorkPresentation(
             anchor = backgroundWorkAnchor,
             sessionID = work.sessionID,
@@ -407,10 +405,6 @@ fun SessionView(
                     SessionComposer(store, Modifier.modelPanelsComposer(composerHost), callStore = callStore)
                 }
                 if (!isInertPreview) {
-                    // A send's words fly from the field into its bubble, over both.
-                    SessionSendFlightOverlay(composerHost, scrollEdgeBridge, Modifier.matchParentSize())
-                    // Its photos fly into their slots above the words (iOS installs the copies in the window).
-                    SentImageFlightOverlay(composerHost.sendTransition.images, Modifier.matchParentSize())
                     RequestPanelRoomProbe(composerHost, Modifier.matchParentSize())
                     SessionModelPickerOverlays(store, headerHeight)
                 }
@@ -814,7 +808,7 @@ private fun SessionMediaHost(content: @Composable () -> Unit) = content()
 
 /** What the composer holds, above its field (iOS `pendingAttachmentsRow`). */
 @Composable
-private fun SessionPendingAttachments(store: StoreOf<State, Action>, sendImages: SentImageFlight, composerExpanded: Boolean) {
+private fun SessionPendingAttachments(store: StoreOf<State, Action>, composerExpanded: Boolean) {
     val attachments by store.observe { it.pendingAttachments }
     val files by store.observe { it.pendingFiles }
     val canRetry by store.observe { it.supportsFileUploads }
@@ -852,7 +846,6 @@ private fun SessionPendingAttachments(store: StoreOf<State, Action>, sendImages:
         },
         onOpenLocation = { store.send(Action.LinkTapped(it)) },
         flights = LocalSessionPhotoSheet.current?.flights,
-        sendImages = sendImages,
         onOpenPhoto = { id -> presentComposerPhoto(store, id, presenter, host, reducedMotion, context) },
         composerExpanded = composerExpanded,
         server = store.state.server,

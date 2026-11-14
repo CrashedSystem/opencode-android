@@ -2,22 +2,24 @@ package ai.opencode.feature.transcript.list
 
 import ai.opencode.feature.transcript.NewMessagesPlacement
 import ai.opencode.feature.transcript.TranscriptEntry
-import ai.opencode.feature.transcript.list.TranscriptScrollBehavior.Command
-import ai.opencode.feature.transcript.list.TranscriptScrollBehavior.Event
 import ai.opencode.feature.transcript.rows.TranscriptTimeStamps
 import ai.opencode.server.model.OpenCodePromptSource
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Port of iOS `OpenCodeTests/NewMessagesTests.swift`: the transcript half (`NewMessagesMark.firstUnseen`,
- * `NewMessagesPlacement.resolve`, and `TranscriptScrollBehavior`'s reveals). The tests that drive
- * `SessionFeature`/`HomeFeature` belong to `:feature:session` and `:feature:drawer`.
- * iOS `NewMessagesPlacement.resolve` is [NewMessagesMark.resolve] here.
+ * Port of iOS `OpenCodeTests/NewMessagesTests.swift`: the transcript half (`NewMessagesMark.firstUnseen`
+ * and `NewMessagesPlacement.resolve`). The tests that drive `SessionFeature`/`HomeFeature` belong to
+ * `:feature:session` and `:feature:drawer`. iOS `NewMessagesPlacement.resolve` is
+ * [NewMessagesMark.resolve] here.
+ *
+ * Dropped with `TranscriptScrollBehavior` (deliberate Android divergence, see
+ * docs/parity/transcript.md): `revealsBrowseFromTheDividerOrFollowAtTheEnd` and
+ * `landingAtTheDividerDoesntPageInHistory`. The bottom-anchored list keeps both behaviours (the jump
+ * button follows the scroll position; `TranscriptListScroller.holdsEarlierHistory`), but they need
+ * a LazyColumn layout to test.
  */
 class NewMessagesTests {
     private fun agent(id: String): OpenCodeTranscriptItem =
@@ -97,31 +99,5 @@ class NewMessagesTests {
             stamp.id,
             NewMessagesMark.resolve(NewMessagesMark(itemID = "m4", generation = 1), listOf(reply("m3"), user("m4")), dated)?.entryID,
         )
-    }
-
-    @Test
-    fun revealsBrowseFromTheDividerOrFollowAtTheEnd() {
-        val behavior = TranscriptScrollBehavior()
-        assertTrue(behavior.handle(Event.RevealBegan).isEmpty())
-        assertEquals(TranscriptScrollBehavior.Mode.Browsing, behavior.mode)
-        assertEquals(listOf(Command.ShowJumpButton(true)), behavior.handle(Event.RevealEnded(atEnd = false)))
-        assertTrue(behavior.showsJumpButton)
-        behavior.handle(Event.RevealBegan)
-        assertEquals(listOf(Command.ShowJumpButton(false)), behavior.handle(Event.RevealEnded(atEnd = true)))
-        assertEquals(TranscriptScrollBehavior.Mode.Following, behavior.mode)
-    }
-
-    /** Put at the divider near the top of what's loaded, the reader hasn't asked for older history; their own scroll does. */
-    @Test
-    fun landingAtTheDividerDoesntPageInHistory() {
-        val behavior = TranscriptScrollBehavior()
-        val top = TranscriptScrollBehavior.Viewport(
-            offsetY = 0f, contentHeight = 3000f, visibleHeight = 700f, trailingSpace = 0f, canRequestEarlierHistory = true,
-        )
-        behavior.handle(Event.RevealBegan)
-        behavior.handle(Event.RevealEnded(atEnd = false))
-        assertFalse(behavior.handle(Event.LayoutChanged(top)).contains(Command.RequestEarlierHistory))
-        behavior.handle(Event.DragBegan(top))
-        assertTrue(behavior.handle(Event.UserScrolled(top)).contains(Command.RequestEarlierHistory))
     }
 }

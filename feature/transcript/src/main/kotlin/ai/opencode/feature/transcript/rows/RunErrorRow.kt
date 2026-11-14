@@ -173,7 +173,7 @@ fun RunErrorRow(
 private fun RunErrorAction(action: OpenCodeRunError.Action, modifier: Modifier, onClick: () -> Unit) {
     val colors = OpenCodeTheme.colors
     Row(
-        modifier.rowHitTarget(target = Modifier.clip(OpenCodeShape.control).clickable(role = Role.Button, onClick = onClick)),
+        modifier.rowHitTarget(target = Modifier.rowClickable(onClick = onClick)),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -211,7 +211,7 @@ fun UndoneRow(redo: () -> Unit, modifier: Modifier = Modifier) {
             Modifier
                 .alignByBaseline()
                 .rowHitTarget(
-                    target = Modifier.clip(OpenCodeShape.control).clickable(
+                    target = Modifier.rowClickable(
                         role = Role.Button,
                         onClickLabel = stringResource(R.string.transcript_undone_undo_click_label),
                         onClick = redo,

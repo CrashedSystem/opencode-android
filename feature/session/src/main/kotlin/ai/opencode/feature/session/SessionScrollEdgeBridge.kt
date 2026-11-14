@@ -45,12 +45,6 @@ class SessionScrollEdgeBridge {
     /** iOS `onBorrowedDrag`: drags on the controls over the list (Jump to latest, queued, capsule) scroll it. */
     val borrowedDrag = TranscriptBorrowedDrag()
 
-    /**
-     * iOS `sendTransition`'s list half: the transcript's landing markers and its send hand-off,
-     * which `SessionSendFlightOverlay` flies into (the composer's capture is the composer host's).
-     */
-    val sendLanding = ai.opencode.feature.transcript.user.SendLanding()
-
     private val workingRunStamps = HashMap<String, Double>()
     private val workingRunOrder = ArrayDeque<String>()
 

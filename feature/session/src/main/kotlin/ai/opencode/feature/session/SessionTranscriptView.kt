@@ -119,6 +119,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -247,18 +249,12 @@ fun SessionTranscriptView(
     val safeTop = WindowInsets.statusBarsIgnoringVisibility.inContainer().asPaddingValues().calculateTopPadding()
     val bottomObstruction = WindowInsets.ime.union(WindowInsets.bottomSafeArea).inContainer().asPaddingValues().calculateBottomPadding()
     // Separate from the projection, so geometry and jumps never rebuild the configuration.
-    CompositionLocalProvider(
-        LocalTranscriptRowSlots provides rowSlots,
-        ai.opencode.feature.transcript.user.LocalSendLanding provides scrollEdgeBridge.sendLanding,
-    ) {
+    CompositionLocalProvider(LocalTranscriptRowSlots provides rowSlots) {
         TranscriptList(
             configuration = projection.configuration,
             send = send,
             modifier = modifier.fillMaxSize().nestedScroll(dismissOnDrag),
-            contentPadding = PaddingValues(
-                top = safeTop + top.contentTop.dp,
-                bottom = bottomObstruction + scrollEdgeBridge.composerHeight.dp,
-            ),
+            contentPadding = AboveComposerPadding(safeTop + top.contentTop.dp, bottomObstruction, scrollEdgeBridge),
             jumpRequest = scrollEdgeBridge.jumpRequest,
             onShowsJumpButtonChanged = {
                 host?.showsJumpButton = it
@@ -1032,4 +1028,16 @@ private fun MoveToBackgroundAction(activity: WorkingActivity, onMove: () -> Unit
             }
         }
     }
+}
+
+/** Reads the composer's height while the list measures, after the composer has measured in the same frame. */
+private class AboveComposerPadding(
+    private val top: Dp,
+    private val bottomObstruction: Dp,
+    private val bridge: SessionScrollEdgeBridge,
+) : PaddingValues {
+    override fun calculateTopPadding(): Dp = top
+    override fun calculateBottomPadding(): Dp = bottomObstruction + bridge.composerHeight.dp
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
 }

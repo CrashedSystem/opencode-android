@@ -100,12 +100,6 @@ object LabMarks {
         post(mapOf("name" to "promotion_trace", "t" to System.currentTimeMillis(), "sessionID" to (sessionID ?: ""), "frames" to frames))
     }
 
-    /** A send flight's frames under `lab-promotion-trace` (see `ComposerSendTransition`). */
-    fun sendFlightTrace(frames: List<List<Double>>) {
-        endpoint ?: return
-        post(mapOf("name" to "send_flight_trace", "t" to System.currentTimeMillis(), "frames" to frames))
-    }
-
     /**
      * `lab-working-trace`'s frames: `[ms, row (0 Working, 1 reply end), rowTop, rowHeight,
      * indicatorBlur, indicatorAlpha, copyBlur, copyAlpha, offset]`.
@@ -113,19 +107,6 @@ object LabMarks {
     fun workingTrace(sessionID: String?, frames: List<List<Double>>) {
         endpoint ?: return
         post(mapOf("name" to "working_trace", "t" to System.currentTimeMillis(), "sessionID" to (sessionID ?: ""), "frames" to frames))
-    }
-
-    /** `lab-motion-trace`'s frames (see `TranscriptMotionTrace`). Split so every post stays under the lab's 128 KB body limit. */
-    fun motionTrace(frames: List<Map<String, Any>>) {
-        endpoint ?: return
-        if (frames.isEmpty()) return
-        val body = encode(mapOf("name" to "motion_trace", "t" to System.currentTimeMillis(), "frames" to frames))
-        if (body.toByteArray().size > 100_000 && frames.size > 1) {
-            motionTrace(frames.subList(0, frames.size / 2))
-            motionTrace(frames.subList(frames.size / 2, frames.size))
-            return
-        }
-        send(body)
     }
 
     fun transcriptSnapshot(

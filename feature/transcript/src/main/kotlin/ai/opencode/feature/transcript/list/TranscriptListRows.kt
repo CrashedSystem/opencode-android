@@ -212,14 +212,11 @@ data class EmptyStateMotion(
 }
 
 /**
- * How long a load waits before the mark shows, and how long it stays once it has (iOS
- * `MarkLoadingTunables`, `mark.loading.*`). Its fades are `Motion.swap`'s.
+ * How long a load waits before the mark shows (iOS `MarkLoadingTunables.appearDelay`). Its fade
+ * is `Motion.swap`'s.
  */
 object MarkLoadingTunables {
     const val appearDelay = 0.3
-    const val minimumTime = 0.4
-    /** Upper end of iOS's `minimumTime` (0...1) tuning range. */
-    const val minimumTimeUpperBound = 1.0
 }
 
 /**
@@ -229,11 +226,8 @@ object MarkLoadingTunables {
 data class MarkLoadingTiming(
     val start: Double?,
     val delay: Double = MarkLoadingTunables.appearDelay,
-    val minimum: Double = MarkLoadingTunables.minimumTime,
     /** The mark arrives on `Motion.swap`'s entrance. */
     val fadeIn: Double = MotionTunables.swapInDuration.value,
-    /** The hand-off: the content arrives on `Motion.swap`'s entrance as the mark leaves. */
-    val fadeOut: Double = MotionTunables.swapInDuration.value,
 ) {
     fun opacity(now: Double): Double {
         val start = start ?: return 0.0
@@ -241,45 +235,9 @@ data class MarkLoadingTiming(
         return progress * progress * (3 - 2 * progress)
     }
 
-    /** Null means content arrived before the indicator appeared. Never delay it. */
-    fun handoffDelay(now: Double): Double? {
-        val start = start ?: return null
-        if (now <= start + delay) return null
-        return max(0.0, start + delay + max(minimum, fadeIn) - now)
-    }
-
     fun isSettled(now: Double): Boolean {
         val start = start ?: return true
         return now >= start + delay + fadeIn
-    }
-
-    companion object {
-        /**
-         * Real seconds the touch net lets a hand-off hold the list (iOS
-         * `TranscriptTouchSafety.handoffDeadline`): its longest supported hold and fade, plus a
-         * second, however slow lab motion runs.
-         */
-        val handoffTouchDeadline: Double get() = maximumDuration + 1
-
-        /**
-         * The longest a hand-off can take: its longest supported hold and fade (iOS
-         * `TranscriptMarkHandoff.maximumDuration`).
-         */
-        val maximumDuration: Double
-            get() = MarkLoadingTunables.minimumTimeUpperBound + (MotionTunables.swapInDuration.range?.endInclusive ?: 0.5)
-
-        /**
-         * Wall seconds after which a hand-off ends even if its frames never ran (iOS
-         * `TranscriptMarkHandoff` deadline): the longest supported hold and fade, in wall time at
-         * [timeScale] so slow motion still plays, plus 0.1 s.
-         */
-        fun handoffDeadlineSeconds(
-            hold: Double,
-            fade: Double,
-            timeScale: ai.opencode.core.tuning.AnimationTimeScale = ai.opencode.core.tuning.AnimationTimeScale.shared,
-        ): Double {
-            return timeScale.wallSeconds(max(hold + fade, maximumDuration)) + 0.1
-        }
     }
 }
 

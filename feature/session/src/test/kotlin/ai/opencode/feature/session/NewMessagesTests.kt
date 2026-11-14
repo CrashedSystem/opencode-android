@@ -44,11 +44,10 @@ import kotlin.time.Duration.Companion.seconds
  * shown only when it doesn't fit on screen, and the reads that bring it
  * before they're back.
  *
- * Not ported here (:feature:transcript, `NewMessagesMark` / `NewMessagesPlacement` / `TranscriptScrollBehavior` alone):
+ * Not ported here (:feature:transcript, `NewMessagesMark` / `NewMessagesPlacement` alone):
  * `firstUnseenSkipsWhatWasOnScreenAndClientNotices`, `ownMessagesNeverCountAndReadWhatsAboveThem`,
  * `placementFallsToTheNextEntryWithNewItems`, `olderRowsPagedInAboveWhatWasSeenArentNew`,
- * `placementSkipsRowsTheReaderHadAndKeepsATimeWithItsMessage`, `revealsBrowseFromTheDividerOrFollowAtTheEnd`,
- * `landingAtTheDividerDoesntPageInHistory`.
+ * `placementSkipsRowsTheReaderHadAndKeepsATimeWithItsMessage`.
  * Not ported here (:feature:drawer, `HomeFeature`): `switchingBackMarksWhatArrivedSince`,
  * `theDrawerReadsLikelySessionsBeforeATap`, `leavingTheAppHoldsTheStreamUntilTheReturn`.
  */

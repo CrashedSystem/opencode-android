@@ -22,17 +22,15 @@ import kotlinx.coroutines.launch
 
 /**
  * Port of iOS `TranscriptListViewController+TextSelection`: the list's side of the reply
- * selection. It builds the document of the reply a touch lands in, tells the selection where the
- * reader can see text (below the header, above the composer and keyboard), autoscrolls while a
- * handle or a hold drags near those edges, and reports selections beginning and ending to the
- * controller, which holds following while one lasts.
+ * selection, with autoscroll near the visible edges.
  */
 internal class TranscriptListSelection(
-    private val controller: TranscriptListController,
-    private val state: LazyListState,
+    private val scroller: TranscriptListScroller,
+    private val rows: TranscriptSnapshotBuilder,
     private val scope: CoroutineScope,
 ) : TranscriptReplySelection.Host {
-    val selection: TranscriptReplySelection get() = controller.replySelection
+    val selection: TranscriptReplySelection get() = scroller.selection
+    private val state: LazyListState get() = scroller.state
 
     /** Set each composition: what the rows present with, so the document reads as they draw. */
     var configuration: TranscriptConfiguration = TranscriptConfiguration()
@@ -52,18 +50,18 @@ internal class TranscriptListSelection(
     override val visibleBottom: Float
         get() = state.layoutInfo.viewportSize.height - bottomPadding
 
-    override val isCoasting: Boolean get() = controller.isCoasting
+    override val isCoasting: Boolean get() = scroller.isCoasting
 
     override fun document(itemID: String): TranscriptSelectionDocument? {
         val style = style ?: return null
         val items = TranscriptSelectionDocument.replyRows(itemID, configuration.entries)
         if (items.isEmpty()) return null
-        val rows = ArrayList<TranscriptSelectionRow>()
+        val selectionRows = ArrayList<TranscriptSelectionRow>()
         for (item in items) {
             // The same blocks the row draws (`rememberMarkdownBlocks`), from the same cache.
-            val growing = controller.isGrowingEntry(item.id)
+            val growing = rows.isGrowingEntry(item.id)
             val text = if (growing) OpenCodeMarkdownBlock.holdingPendingMarker(item.text) else item.text
-            rows += TranscriptSelectionRow(item.id, markdown.blocks(item.id, text, growing))
+            selectionRows += TranscriptSelectionRow(item.id, markdown.blocks(item.id, text, growing))
         }
         val context = TranscriptSelectionContext(
             style = style,
@@ -72,14 +70,14 @@ internal class TranscriptListSelection(
             linkStyle = linkStyle,
             // The list keeps a link preview store, so its rows' links get their icon slots.
             decoratesLinks = true,
-            isGrowing = { id -> controller.isGrowingEntry(id) },
+            isGrowing = { id -> rows.isGrowingEntry(id) },
         )
-        return TranscriptSelectionDocument.make(rows, context)
+        return TranscriptSelectionDocument.make(selectionRows, context)
     }
 
     override fun activeChanged(active: Boolean, byReader: Boolean) {
         if (!active) autoscroll?.cancel()
-        controller.replySelectionActiveChanged(active, byReader)
+        scroller.selectionActiveChanged(active, byReader)
     }
 
     override fun observeLayout() {
@@ -97,7 +95,7 @@ internal class TranscriptListSelection(
     }
 
     private suspend fun runAutoscroll() {
-        controller.cancelBorrowedDrag()
+        scroller.cancelBorrowedDrag()
         state.scroll(MutatePriority.UserInput) {
             var last = withFrameNanos { it }
             while (selection.isDragging) {
@@ -113,8 +111,9 @@ internal class TranscriptListSelection(
                     if (velocity != 0f) {
                         val step = TranscriptSelectionAutoscroller.step(0f, velocity, dt, scrollBounds())
                         if (step != 0f) {
-                            scrollBy(step)
-                            controller.replySelectionScrolled()
+                            // Reversed list: later rows are a backward scroll.
+                            scrollBy(-step)
+                            scroller.selectionScrolled()
                         }
                     }
                 }
@@ -130,17 +129,19 @@ internal class TranscriptListSelection(
     private fun scrollBounds(): ClosedFloatingPointRange<Float> {
         val itemIDs = selection.document?.itemIDs
         if (itemIDs.isNullOrEmpty()) return 0f..0f
-        val firstKey = controller.messageItemKey(itemIDs.first())
-        val lastKey = controller.messageItemKey(itemIDs.last())
+        val firstKey = rows.messageItemKey(itemIDs.first())
+        val lastKey = rows.messageItemKey(itemIDs.last())
         val info = state.layoutInfo
         val room = ROOM * density.density
-        // Item offsets start below the header's padding: 0 is the visible top.
-        val bottom = info.viewportEndOffset - bottomPadding
+        // Reversed list: an item's offset counts up from the composer's edge.
+        val contentBottom = info.viewportSize.height - bottomPadding
         var lower = Float.NEGATIVE_INFINITY
         var upper = Float.POSITIVE_INFINITY
         for (item in info.visibleItemsInfo) {
-            if (item.key == firstKey) lower = minOf(0f, item.offset - room)
-            if (item.key == lastKey) upper = maxOf(0f, item.offset + item.size - bottom + room)
+            val itemBottom = contentBottom - item.offset
+            val itemTop = itemBottom - item.size
+            if (item.key == firstKey) lower = minOf(0f, itemTop - topPadding - room)
+            if (item.key == lastKey) upper = maxOf(0f, itemBottom - contentBottom + room)
         }
         return lower..upper
     }

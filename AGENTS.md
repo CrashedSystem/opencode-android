@@ -32,6 +32,10 @@ by hand (`gh workflow run scheduled-release.yml`) to release sooner ([docs/relea
   and predictive back, sheets, IME, TalkBack semantics, ≥48 dp targets and font scaling.
   SF Symbols → Material Symbols via `OpenCodeIcons`; BerkeleyMono only for the wordmark. No
   glass/blur imitation, no web views as the app shell, no React Native/Flutter/KMP UI.
+- The transcript list's motion (scroll following, the send, row entrances and growth) is Android-native
+  on purpose: a bottom-anchored LazyColumn with standard Compose animations. Don't port iOS's transcript
+  motion (the `TranscriptListViewController` follower, row growth, send flights); its behaviour, flows
+  and copy still follow iOS.
 
 ## Modules (fixed; never edit `settings.gradle.kts`)
 

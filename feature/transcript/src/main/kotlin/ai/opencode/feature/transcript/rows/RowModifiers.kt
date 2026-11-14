@@ -3,6 +3,22 @@ package ai.opencode.feature.transcript.rows
 import ai.opencode.core.motion.AmbientClock
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.tuning.AnimationTimeScale
+import ai.opencode.core.ui.OpenCodeShape
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.semantics.Role
+import ai.opencode.core.ui.LocalOpenCodeColors
+import kotlinx.coroutines.launch
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.LocalTranscriptLayoutTuning
@@ -15,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
@@ -96,14 +113,14 @@ private fun Modifier.expandedTarget(left: Dp, top: Dp, right: Dp, bottom: Dp, ta
  * iOS `rowHitTarget(top:bottom:leading:)`: keeps a quiet row's frame at its text's line box (so
  * gaps around it match the paragraphs') while [target] fills the row's own halves. `leading`
  * keeps the reply copy target within the screen edge. Pass the interaction as [target]:
- * `Modifier.rowHitTarget(target = Modifier.clickable { … })`.
+ * `Modifier.rowHitTarget(target = Modifier.rowClickable { … })`.
  */
 fun Modifier.rowHitTarget(
     top: Dp = TranscriptMetrics.flowHalf,
     bottom: Dp = TranscriptMetrics.flowHalf,
     leading: Dp = TranscriptMetrics.flowHalf,
     target: Modifier,
-): Modifier = expandedTarget(leading, top, TranscriptMetrics.flowHalf, bottom, target)
+): Modifier = expandedTarget(leading, top, TranscriptMetrics.flowHalf, bottom, Modifier.clip(OpenCodeShape.control).then(target))
 
 /**
  * iOS `minimumHitTarget(side:topReach:)`: a 48 × 48 dp target at least (or [side]), grown evenly
@@ -171,3 +188,42 @@ fun Modifier.inlineRowPulse(isActive: Boolean): Modifier {
     }
     return this.graphicsLayer { alpha = (0.45 + 0.55 * InlineRowPulse.level(InlineRowPulse.referenceSeconds(now))).toFloat() }
 }
+
+/** A quiet row's tap with a flat press tint. */
+fun Modifier.rowClickable(role: Role? = Role.Button, onClickLabel: String? = null, onClick: () -> Unit): Modifier =
+    clickable(interactionSource = null, indication = RowPress, role = role, onClickLabel = onClickLabel, onClick = onClick)
+
+/** The Material pressed state layer (8 %), fading out shortly after the release. */
+private object RowPress : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = RowPressNode(interactionSource)
+    override fun equals(other: Any?): Boolean = other === this
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+private class RowPressNode(private val interactionSource: InteractionSource) :
+    Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+    private val strength = Animatable(0f)
+
+    override fun onAttach() {
+        coroutineScope.launch {
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> launch {
+                        strength.snapTo(1f)
+                        invalidateDraw()
+                    }
+                    is PressInteraction.Release, is PressInteraction.Cancel -> launch {
+                        strength.animateTo(0f, tween(durationMillis = 150, delayMillis = 80)) { invalidateDraw() }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
+        drawContent()
+        val alpha = strength.value
+        if (alpha > 0f) drawRect(currentValueOf(LocalOpenCodeColors).text.copy(alpha = 0.08f * alpha))
+    }
+}
+

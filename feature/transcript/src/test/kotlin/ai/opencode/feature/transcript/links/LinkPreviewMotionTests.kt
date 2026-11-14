@@ -11,9 +11,7 @@ import org.junit.Test
 class LinkPreviewMotionTests {
     // catchUpBeforeFirstLayoutCannotDisableLaterMetadataGrowth: dropped. It drives the UIKit
     // `TranscriptListViewController` harness (`establishContentLayoutIfNeeded` on a hosted collection
-    // view). Android's `TranscriptListController.landArrivals` sets `catchUpLandsUntil` from now plus
-    // `BottomSpring.OPENING_SETTLE` (never from `arrivalsGlideAfter`), and its first layout sets
-    // `arrivalsGlideAfter` on its own, so a catch-up before the first layout can't hold it forever.
+    // view), and Android's bottom-anchored list has no arrival glide for a catch-up to hold.
 
     private fun preview(title: String? = null): LinkPreview {
         val target = requireNotNull(LinkPreviewTarget.of("https://github.com/acme/widget/pull/1240"))
@@ -25,15 +23,8 @@ class LinkPreviewMotionTests {
         val pending = preview()
         val loaded = preview("A title wrapping onto three lines")
         assertEquals("History has no entrance", 1.0, row.change(pending, now = 1.0, duration = 0.2).progress(1.0), 0.0)
-        assertEquals(0f, row.measure(44f, pending))
         val arrival = row.change(loaded, now = 2.0, duration = 0.2)
         assertEquals("A cell reload cannot replay metadata", arrival.started, row.change(loaded, now = 2.1, duration = 0.2).started, 0.0)
-        assertEquals(66f, row.measure(110f, loaded))
-        assertEquals("A reload cannot report growth twice", 0f, row.measure(110f, loaded))
-        assertEquals("A departing cell cannot overwrite the new measurement", 0f, row.measure(44f, pending))
-        val failed = LinkPreview.of(pending.target, LinkPreviewResult.Unavailable)
-        row.change(failed, now = 3.0, duration = 0.2)
-        assertEquals("Failures use the same signed height path", -66f, row.measure(44f, failed))
     }
 
     @Test fun aLaterMetadataUpdateKeepsEveryVisibleLayerAtItsCurrentOpacity() {
@@ -53,8 +44,6 @@ class LinkPreviewMotionTests {
         val row = LinkPreviewRowPresentation()
         row.arrives = true
         val pending = preview()
-        assertEquals(0.0, row.change(pending, now = 1.0, duration = 0.2).progress(1.0), 0.0)
-        assertEquals("Copy rides the same block growth as the new links", 44f, row.measure(44f, pending))
-        assertEquals(0f, row.measure(44f, pending))
+        assertEquals("An arriving row's links fade in", 0.0, row.change(pending, now = 1.0, duration = 0.2).progress(1.0), 0.0)
     }
 }

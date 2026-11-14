@@ -46,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -63,7 +62,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -264,12 +262,6 @@ val LocalAgentImageSiblings = staticCompositionLocalOf<List<AgentFileReference>>
 /** The place these blocks are shown (a reply's item): each new place an image is named rechecks it, and its full-screen flight starts there. */
 val LocalAgentImageOccurrence = staticCompositionLocalOf { "blocks" }
 
-/** The height last laid out, for this gallery's place (a reused row's state belongs to another). */
-private class AgentImageLaidOut {
-    var place: String? = null
-    var height: Float = 0f
-}
-
 /**
  * A block's named files (iOS `AgentImageGallery`): previews as bentos in decided batches, Not
  * found and Tap to load cards, and file cards, in the order named. Tapping a loaded tile opens
@@ -289,11 +281,8 @@ fun AgentImageGallery(
     val siblings = LocalAgentImageSiblings.current
     val occurrence = LocalAgentImageOccurrence.current
     val block = LocalAgentImageBlock.current
-    val rowGrowth = LocalAgentImageRowGrowth.current
     val gap = LocalAgentImageGap.current
     val gathering = LocalAgentImageGathering.current
-    val density = LocalDensity.current
-    val laidOut = remember { AgentImageLaidOut() }
     val serverID = server.persistenceID
     val targets = remember(files, directory) { files.map { it.target(directory) } }
     val notFoundState = stringResource(R.string.media_image_not_found)
@@ -372,14 +361,7 @@ fun AgentImageGallery(
 
     Box(
         modifier.onSizeChanged { size ->
-            // Reports its own growth (from nothing too), so the text below holds still while the row eases.
-            val height = with(density) { size.height.toDp().value }
-            if (laidOut.place == place && abs(height - laidOut.height) > 0.5f && block != null) {
-                rowGrowth?.add(block, height - laidOut.height)
-            }
-            laidOut.place = place
-            laidOut.height = height
-            if (height > 0.5f) previews.markPresented(place)
+            if (size.height > 0) previews.markPresented(place)
         },
     ) {
         Box(Modifier.matchParentSize()) {

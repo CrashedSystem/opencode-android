@@ -183,7 +183,7 @@ private fun SessionComposerEnv.ModelButton(enabled: Boolean) {
  * iOS `composerTextTakesDoubleTap`: a chip's or the composer's own tap that's really a double
  * tap's second half on the text ([ai.opencode.feature.composer.ComposerSwipeInput.takesDoubleTap]).
  */
-internal fun SessionComposerEnv.composerTextTakesDoubleTap(): Boolean = host.sendTransition.input?.takesDoubleTap() == true
+internal fun SessionComposerEnv.composerTextTakesDoubleTap(): Boolean = host.fieldLink.input?.takesDoubleTap() == true
 
 /**
  * iOS `attachmentButton`: :feature:composer's [AttachmentPickerButton]. + opens the attachment

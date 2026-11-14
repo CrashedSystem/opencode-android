@@ -1,7 +1,6 @@
 package ai.opencode.feature.transcript.rows
 
 import ai.opencode.feature.media.MermaidDiagramMetrics
-import ai.opencode.feature.transcript.list.GrowthSoftEdge
 import ai.opencode.feature.transcript.markdown.ui.MarkdownImage
 import ai.opencode.server.model.OpenCodeImageAttachment
 import androidx.compose.ui.geometry.Size
@@ -17,8 +16,10 @@ import kotlin.math.roundToInt
 /*
  * Port of iOS `TranscriptLayoutTests.swift`.
  *
- * The two growth soft-edge tests drive iOS `TranscriptHostingCell`'s mask; here they drive the
- * same rules on the list's [GrowthSoftEdge] (the row's height and measured content each frame).
+ * Dropped with row growth (deliberate Android divergence, see docs/parity/transcript.md: the
+ * bottom-anchored list lays rows out at their full height, so no edge fades in what a growth
+ * brings): growthSoftEdgeNeverDimsWhatTheRowAlreadyShowed, growthSoftEdgeWidensWithTheRowAndEasesAway,
+ * aPromotionThatTakesTheGrowthOverEasesItsEdgeAway.
  *
  * Dropped (`TranscriptLayoutTests`, UIKit layout probes):
  * - layoutDuringScrollCommandDoesNotRecursivelyScroll (content-offset KVO re-entering
@@ -27,76 +28,6 @@ import kotlin.math.roundToInt
  * - hairlineSnapsWithoutMovingItsMeasurement (`HairlineRule.pixelOffset`; Compose places the
  *   one-pixel rule on whole pixels, so Android has no offset to compute)
  */
-class TranscriptLayoutTests {
-    /**
-     * A row growing by a line (streamed text wrapping) fades in only what the growth brings: the
-     * soft edge never reaches above the height the row already showed.
-     */
-    @Test
-    fun growthSoftEdgeNeverDimsWhatTheRowAlreadyShowed() {
-        val edge = GrowthSoftEdge()
-        // Not on screen (iOS: a cell outside a window), so the last edge goes at once.
-        fun grow(height: Float): Float {
-            edge.update(height, measured = 45f, now = 0.0, maxFade = 28f, onScreen = false)
-            return edge.drawn(0.0)
-        }
-        // The growth starts where the row stood: nothing new yet, a hard edge.
-        assertEquals(0f, grow(28f))
-        for (height in listOf(30f, 34f, 38f, 42f)) {
-            val fade = grow(height)
-            assertTrue("the line already shown keeps full strength at $height dp", fade > 0.5f && height - fade >= 28 - 0.01f)
-        }
-        // Grown to its full height: no edge.
-        assertEquals(0f, grow(45f))
-    }
-
-    /**
-     * On screen, a new line arriving mid-growth never widens the soft edge faster than the row
-     * grows, and a growth that lands with its edge still soft eases it away rather than dropping
-     * it in one frame.
-     */
-    @Test
-    fun growthSoftEdgeWidensWithTheRowAndEasesAway() {
-        val edge = GrowthSoftEdge()
-        var content = 34f
-        fun grow(height: Float): Float {
-            edge.update(height, measured = content, now = 0.0, maxFade = 28f)
-            return edge.drawn(0.0)
-        }
-        assertEquals(0f, grow(28f))
-        assertEquals(3f, grow(31f), 0.01f)
-        // Nearly there, the edge narrows to what is left.
-        assertEquals(1f, grow(33f), 0.01f)
-        // A new line arrives: a point of growth widens the edge by a point, not to everything
-        // since the growth began (which would dim what was shown).
-        content = 200f
-        assertEquals(2f, grow(34f), 0.01f)
-        // Landed (the row reached its content) with the edge still soft: it stays, easing away.
-        edge.update(200f, measured = 200f, now = 1.0, maxFade = 28f)
-        assertTrue(edge.isLeaving)
-        assertEquals(2f, edge.drawn(1.0), 0.01f)
-        assertTrue(edge.drawn(1.0 + GrowthSoftEdge.LEAVE_DURATION / 2) in 0.01f..1.99f)
-        assertEquals(0f, edge.drawn(1.0 + GrowthSoftEdge.LEAVE_DURATION + 0.001), 0.001f)
-        assertTrue(edge.isIdle(1.0 + GrowthSoftEdge.LEAVE_DURATION + 0.001))
-    }
-
-    /**
-     * iOS 79bfa45f: a promotion that takes the growth over (the row stands below where its edge
-     * began, still short of its content) eases the edge away instead of dropping it in one frame.
-     */
-    @Test
-    fun aPromotionThatTakesTheGrowthOverEasesItsEdgeAway() {
-        val edge = GrowthSoftEdge()
-        edge.update(28f, measured = 34f, now = 0.0, maxFade = 28f)
-        edge.update(31f, measured = 34f, now = 0.0, maxFade = 28f)
-        assertEquals(3f, edge.drawn(0.0), 0.01f)
-        edge.update(27f, measured = 40f, now = 1.0, maxFade = 28f)
-        assertTrue(edge.isLeaving)
-        assertEquals(3f, edge.drawn(1.0), 0.01f)
-        assertEquals(0f, edge.drawn(1.0 + GrowthSoftEdge.LEAVE_DURATION + 0.001), 0.001f)
-    }
-}
-
 class JustifiedImageRowsTests {
     private val width = 402f
 

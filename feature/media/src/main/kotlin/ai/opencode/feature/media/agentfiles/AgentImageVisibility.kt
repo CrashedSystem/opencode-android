@@ -9,9 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -22,7 +20,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.toSize
 import java.util.Collections
 import java.util.WeakHashMap
-import kotlin.math.abs
 
 /**
  * A scrolling list image previews live in (the transcript list; iOS `AgentImageViewport`): what
@@ -188,141 +185,7 @@ class AgentImageVisibility(private val previews: AgentImagePreviews) {
     }
 }
 
-/**
- * What a row's images still have to grow, block by block, while the list eases the row
- * (iOS `AgentImageRowGrowth`, driven by the transcript's `RowGrowth`). Each gallery reports its
- * own height change ([add]); the list scales them all to the growth still to come each frame
- * ([update]). A block below an image is drawn up by what the images above it still have to
- * grow, and an image's block is clipped by its own, so everything below an image holds still on
- * screen while the row's edge eases, as the rows below do. Block IDs run in reading order within
- * a row. Heights in dp.
- */
-class AgentImageRowGrowth(private val now: () -> Double = ::agentImageNow) {
-    /** Growth still to come per image block, as drawn: the shares following the row's growth, plus changes it hasn't measured yet. */
-    var pending: Map<Int, Float> by mutableStateOf(emptyMap())
-        private set
-    /** Shares following the row's current growth, as they were when it was last rebased, and how much it had still to grow then. */
-    private var following: MutableMap<Int, Float> = HashMap()
-    private var followingNow: Map<Int, Float> = emptyMap()
-    private var baseRemaining: Float? = null
-    /** Changes reported that no growth of the row has taken up yet: held whole. */
-    private val unmeasured = HashMap<Int, Float>()
-    private var unmeasuredSince: Double? = null
-    private var growthBegan = Double.NEGATIVE_INFINITY
-    private val handler by lazy { Handler(Looper.getMainLooper()) }
-
-    val isAwaitingGrowth: Boolean get() = unmeasured.isNotEmpty()
-
-    /** A block's layout grew (or shrank) by [delta] just now. */
-    fun add(block: Int, delta: Float) {
-        val now = now()
-        if (now - growthBegan <= JOIN_WINDOW) {
-            // The list measured first: it's part of the growth already under way.
-            following = HashMap(followingNow)
-            val total = (following[block] ?: 0f) + delta
-            if (abs(total) < 0.5f) following.remove(block) else following[block] = total
-            followingNow = HashMap(following)
-            baseRemaining = null
-        } else {
-            val total = (unmeasured[block] ?: 0f) + delta
-            if (abs(total) < 0.5f) unmeasured.remove(block) else unmeasured[block] = total
-            if (unmeasuredSince == null) unmeasuredSince = now
-            val since = unmeasuredSince
-            handler.postDelayed({
-                if (unmeasuredSince == since && since != null) clearUnmeasured()
-            }, (UNMEASURED_LIFETIME * 1000).toLong())
-        }
-        publish()
-    }
-
-    /** The list started (or retargeted) the row's growth to its new height: everything held now follows it. */
-    fun beginGrowth() {
-        growthBegan = now()
-        following = HashMap(pending)
-        followingNow = HashMap(following)
-        unmeasured.clear()
-        unmeasuredSince = null
-        baseRemaining = null
-    }
-
-    /** The row has [remaining] still to grow: every following share eases by the same fraction of the way. Changes it hasn't measured stay whole. */
-    fun update(remaining: Float) {
-        if (following.isEmpty()) return
-        val start = baseRemaining ?: remaining
-        baseRemaining = start
-        if (abs(start) < 0.5f || abs(remaining) < 0.5f || Math.signum(remaining) != Math.signum(start)) return endFollowing()
-        val fraction = minOf(1f, remaining / start)
-        // Swift `.rounded()`: to the nearest half, ties away from zero (Math.round ties up).
-        followingNow = following.mapValues { entry ->
-            val doubled = entry.value * fraction * 2
-            Math.copySign(kotlin.math.floor(abs(doubled) + 0.5f), doubled) / 2f
-        }
-        publish()
-    }
-
-    /** The row's growth ended: its shares are done; changes it never measured still wait for their own. */
-    fun growthFinished() = endFollowing()
-
-    /**
-     * The row was measured without a new height (at rest, or confirming the target of the growth
-     * under way). Changes that add up to nothing (one image growing as another shrinks) never get
-     * a growth: they let go.
-     */
-    fun measuredUnchanged() {
-        if (abs(unmeasured.values.sum()) < 0.5f) clearUnmeasured()
-    }
-
-    /** The row landed at its new height: nothing is held. */
-    fun settle() {
-        growthBegan = Double.NEGATIVE_INFINITY
-        following = HashMap()
-        followingNow = emptyMap()
-        baseRemaining = null
-        unmeasured.clear()
-        unmeasuredSince = null
-        publish()
-    }
-
-    private fun endFollowing() {
-        // A report after this belongs to no growth: it waits for its own.
-        growthBegan = Double.NEGATIVE_INFINITY
-        following = HashMap()
-        followingNow = emptyMap()
-        baseRemaining = null
-        publish()
-    }
-
-    private fun clearUnmeasured() {
-        unmeasured.clear()
-        unmeasuredSince = null
-        publish()
-    }
-
-    private fun publish() {
-        val drawn = HashMap(followingNow)
-        for ((block, value) in unmeasured) drawn[block] = (drawn[block] ?: 0f) + value
-        val filtered = drawn.filterValues { abs(it) >= 0.5f }
-        if (filtered != pending) pending = filtered
-    }
-
-    /** How far a block (or bubble) starting at [block] is drawn up. */
-    fun lift(before: Int): Float = pending.entries.sumOf { if (it.key < before) it.value.toDouble() else 0.0 }.toFloat()
-
-    /** How much of the bottom of the blocks [blocks] is cut off. */
-    fun cut(blocks: Iterable<Int>): Float = maxOf(0f, blocks.sumOf { (pending[it] ?: 0f).toDouble() }.toFloat())
-
-    companion object {
-        /** A report this soon after a growth began belongs to it (seconds). */
-        const val JOIN_WINDOW = 0.1
-        /** A change no growth takes up in this long lets go (seconds). */
-        const val UNMEASURED_LIFETIME = 1.0
-    }
-}
-
-/** The row's [AgentImageRowGrowth], from the list (iOS `agentImageRowGrowth` environment). */
-val LocalAgentImageRowGrowth = staticCompositionLocalOf<AgentImageRowGrowth?> { null }
-
-/** The block a gallery is in, so it can report its growth (iOS `agentImageBlock`). */
+/** The block a gallery is in, keying its laid-out place (iOS `agentImageBlock`). */
 val LocalAgentImageBlock = staticCompositionLocalOf<Int?> { null }
 
 /**

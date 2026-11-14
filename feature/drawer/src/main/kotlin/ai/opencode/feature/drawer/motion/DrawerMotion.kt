@@ -2,7 +2,6 @@ package ai.opencode.feature.drawer.motion
 
 import ai.opencode.core.diagnostics.PerfTimeline
 import ai.opencode.core.log.AppLog
-import ai.opencode.feature.transcript.list.TranscriptMotionTrace
 import ai.opencode.core.motion.MotionFrameAction
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionRelease
@@ -537,7 +536,6 @@ class DrawerMotionState(
             if (value == movingState.value) return
             movingState.value = value
             PerfTimeline.cardMoving(value)
-            if (TranscriptMotionTrace.isActive) TranscriptMotionTrace.noteDrawerMoving(value)
         }
 
     /** Where the drawer is headed (iOS `isPresented`). */

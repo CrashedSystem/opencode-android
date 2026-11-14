@@ -2,11 +2,8 @@ package ai.opencode.feature.transcript.links
 
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.feature.media.AgentImageMarkerView
-import ai.opencode.feature.media.AgentImageRowGrowth
 import ai.opencode.feature.media.AgentImageSize
 import ai.opencode.feature.media.AgentImageVisibilityMarker
-import ai.opencode.feature.media.LocalAgentImageBlock
-import ai.opencode.feature.media.LocalAgentImageRowGrowth
 import ai.opencode.feature.media.ImageLinkPolicy
 import ai.opencode.feature.media.ImageLinkPreviewClient
 import ai.opencode.feature.media.MediaThumbnail
@@ -38,8 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -49,7 +44,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.currentCoroutineContext
@@ -58,12 +52,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 // The transcript's half of iOS Image Link Previews (`Transcript/ImageLinkPreviews.swift`): the
 // policy and the bounded reads are `:feature:media`'s (`ImageLinkPolicy`, `ImageLinkPreviewClient`).
-
-/** A block an image's growth can start in: only these are ever clipped (iOS `MarkdownBlocksView.holdsImages`). */
-internal fun holdsImages(block: OpenCodeMarkdownBlock, imageLinks: List<String> = emptyList()): Boolean {
-    if (imageLinks.isNotEmpty()) return true
-    return block.kind is OpenCodeMarkdownBlock.Kind.Files || block.kind is OpenCodeMarkdownBlock.Kind.Image
-}
 
 /**
  * The message's image-link plan when this surface previews images (iOS `MarkdownBlocksView`:
@@ -105,8 +93,7 @@ fun BlockImageLinks(
 /**
  * The prose keeps its original links, including while a read fails or waits (iOS
  * `ImageLinkPreviews`). A visible image reserves its aspect-fit space as soon as its header
- * arrives, and reports its height change to the row's [AgentImageRowGrowth] under its block
- * ([LocalAgentImageBlock]), so the text below holds still while the list eases the row.
+ * arrives.
  */
 @Composable
 fun ImageLinkPreviews(
@@ -116,33 +103,13 @@ fun ImageLinkPreviews(
     onPreview: (TranscriptImagePreview) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val block = LocalAgentImageBlock.current
-    val rowGrowth = LocalAgentImageRowGrowth.current
-    val density = LocalDensity.current
-    val laidOut = remember { ImageLinksLaidOut() }
-    Column(
-        modifier.onSizeChanged { size ->
-            val height = with(density) { size.height.toDp().value }
-            val place = laidOut.place
-            if (place != null && place == occurrence && abs(height - laidOut.height) > 0.5f && block != null) {
-                rowGrowth?.add(block, height - laidOut.height)
-            }
-            laidOut.place = occurrence
-            laidOut.height = height
-        },
-    ) {
+    Column(modifier) {
         for (url in urls) {
             key(url) {
                 ImageLinkThumbnail(url, mediaID = "image-link:$occurrence|$url", maxHeight = maxHeight, onPreview = onPreview)
             }
         }
     }
-}
-
-/** iOS `ImageLinkPreviews.laidOut`: where and how tall the previews last laid out (dp). */
-private class ImageLinksLaidOut {
-    var place: String? = null
-    var height = 0f
 }
 
 /** iOS `ImageLinkThumbnailModel`: the cached image, else a bounded read while the thumbnail is on screen. */

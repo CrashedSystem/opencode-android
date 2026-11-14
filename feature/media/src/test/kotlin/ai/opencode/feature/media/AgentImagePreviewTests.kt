@@ -767,8 +767,15 @@ class AgentImagePreviewReadTests {
 }
 
 /**
- * Port of iOS `AgentImageGrowthAndMarkerTests`: the plan's order, bentos, batches and row
- * growth. Times are seconds on an injected clock (iOS sleeps past the join window).
+ * Port of iOS `AgentImageGrowthAndMarkerTests`: the plan's order, bentos and batches.
+ *
+ * Dropped with row growth (the transcript list no longer grows rows at their images; AGENTS.md,
+ * Android-native transcript motion): eachImageHoldsOnlyTheTextBelowIt,
+ * anEarlierGrowthEndingNeverLetsGoOfANewChange, aChangeReportedJustAfterItsGrowthBeganJoinsIt,
+ * cancellingChangesDuringAGrowthNeverFreezeIt, absorbingANeighbourKeepsTheHoldContinuous,
+ * aGrowthDroppedOffScreenLetsGoOfItsHold, imagesGrowingAndShrinkingTogetherNeverFreeze,
+ * aShrinkHoldsTheTextBelowDown, and the framework cases aReportAfterAGrowthEndedNeverJoinsIt
+ * and anUnmeasuredChangeExpiresOnItsOwn.
  */
 class AgentImageGrowthAndMarkerTests {
     @get:Rule val isolation = TestIsolationRule()
@@ -940,84 +947,6 @@ class AgentImageGrowthAndMarkerTests {
     }
 
     @Test
-    fun eachImageHoldsOnlyTheTextBelowIt() {
-        val growth = AgentImageRowGrowth(now = { 1000.0 })
-        // Image A in block 1 grew 100, image B in block 3 grew 50.
-        growth.add(block = 1, delta = 100f)
-        growth.add(block = 3, delta = 50f)
-        assertEquals("text between the images: A's growth only", 100f, growth.lift(before = 2))
-        assertEquals("text below both", 150f, growth.lift(before = 4))
-        assertEquals(0f, growth.lift(before = 1))
-        assertEquals(100f, growth.cut(listOf(1)))
-        // The row starts growing all of it, then has eased half: both halve together.
-        growth.beginGrowth()
-        growth.update(remaining = 150f)
-        growth.update(remaining = 75f)
-        assertEquals(50f, growth.lift(before = 2))
-        assertEquals(75f, growth.lift(before = 4))
-        // B grows again mid-growth: A's share is kept.
-        growth.add(block = 3, delta = 20f)
-        growth.update(remaining = 95f)
-        assertEquals(50f, growth.lift(before = 2))
-        growth.update(remaining = 0f)
-        assertTrue(growth.pending.isEmpty())
-    }
-
-    @Test
-    fun anEarlierGrowthEndingNeverLetsGoOfANewChange() {
-        var clock = 1000.0
-        val growth = AgentImageRowGrowth(now = { clock })
-        // The row is still finishing an earlier growth when an image reports 100 more.
-        clock += 0.15
-        growth.add(block = 2, delta = 100f)
-        assertTrue(growth.isAwaitingGrowth)
-        growth.update(remaining = 3f)
-        growth.growthFinished()
-        growth.measuredUnchanged()
-        assertEquals("held whole until its own growth starts", 100f, growth.lift(before = 3))
-        // Its own growth starts, then eases.
-        growth.beginGrowth()
-        growth.update(remaining = 100f)
-        growth.update(remaining = 40f)
-        assertEquals(40f, growth.lift(before = 3))
-        growth.update(remaining = 0f)
-        assertTrue(growth.pending.isEmpty())
-    }
-
-    @Test
-    fun aChangeReportedJustAfterItsGrowthBeganJoinsIt() {
-        val growth = AgentImageRowGrowth(now = { 1000.0 })
-        growth.beginGrowth()
-        growth.add(block = 1, delta = 80f)
-        assertFalse("the list measured first", growth.isAwaitingGrowth)
-        growth.update(remaining = 80f)
-        growth.update(remaining = 20f)
-        assertEquals(20f, growth.lift(before = 2))
-    }
-
-    @Test
-    fun cancellingChangesDuringAGrowthNeverFreezeIt() {
-        var clock = 1000.0
-        val growth = AgentImageRowGrowth(now = { clock })
-        growth.add(block = 1, delta = 60f)
-        growth.beginGrowth()
-        growth.update(remaining = 60f)
-        growth.update(remaining = 30f)
-        assertEquals(30f, growth.lift(before = 2))
-        // Past the join window, two other galleries change by +40 and −40.
-        clock += 0.15
-        growth.add(block = 3, delta = 40f)
-        growth.add(block = 5, delta = -40f)
-        // The row's target holds: they cancel and let go; the first still eases.
-        growth.measuredUnchanged()
-        assertFalse(growth.isAwaitingGrowth)
-        growth.update(remaining = 15f)
-        assertEquals(15f, growth.lift(before = 2))
-        growth.growthFinished()
-        assertTrue("every hold clears", growth.pending.isEmpty())
-    }
-
-    @Test
     fun aReloadedTileNeverReplaysItsFade() {
         val previews = previews()
         val landed = 1000.0
@@ -1033,40 +962,6 @@ class AgentImageGrowthAndMarkerTests {
     }
 
     @Test
-    fun absorbingANeighbourKeepsTheHoldContinuous() {
-        for (absorbed in listOf(40f, 120f)) {
-            val growth = AgentImageRowGrowth(now = { 1000.0 })
-            growth.add(block = 1, delta = 100f)
-            growth.beginGrowth()
-            growth.update(remaining = 100f)
-            growth.update(remaining = 60f)
-            assertEquals(60f, growth.lift(before = 2))
-            // The row absorbs a removed neighbour: its remaining distance jumps.
-            growth.beginGrowth()
-            growth.update(remaining = 60 + absorbed)
-            assertEquals("$absorbed: no step at the absorption", 60f, growth.lift(before = 2))
-            growth.update(remaining = (60 + absorbed) / 2)
-            assertEquals("$absorbed: eases with the row", 30f, growth.lift(before = 2))
-            growth.update(remaining = 0f)
-            assertTrue(growth.pending.isEmpty())
-        }
-    }
-
-    @Test
-    fun aGrowthDroppedOffScreenLetsGoOfItsHold() {
-        val growth = AgentImageRowGrowth(now = { 1000.0 })
-        growth.add(block = 1, delta = 60f)
-        growth.beginGrowth()
-        growth.update(remaining = 60f)
-        growth.update(remaining = 30f)
-        assertEquals(30f, growth.lift(before = 2))
-        // The list drops the growth off screen (its cell recycled) and settles the hold.
-        growth.settle()
-        growth.measuredUnchanged()
-        assertTrue(growth.pending.isEmpty())
-    }
-
-    @Test
     fun aGalleryThatShowedKeepsShowingAcrossReloads() {
         val previews = previews()
         assertFalse(previews.isPresented("s|reply#3"))
@@ -1075,35 +970,4 @@ class AgentImageGrowthAndMarkerTests {
         previews.close()
     }
 
-    @Test
-    fun imagesGrowingAndShrinkingTogetherNeverFreeze() {
-        val growth = AgentImageRowGrowth(now = { 1000.0 })
-        // Equal and opposite: the row doesn't grow, so it lands and lets go.
-        growth.add(block = 1, delta = 100f)
-        growth.add(block = 3, delta = -100f)
-        growth.measuredUnchanged()
-        assertTrue("nothing left held", growth.pending.isEmpty())
-        // Unequal: each share eases with the row's progress.
-        growth.add(block = 1, delta = 100f)
-        growth.add(block = 3, delta = -60f)
-        growth.beginGrowth()
-        growth.update(remaining = 40f)
-        growth.update(remaining = 20f)
-        assertEquals(50f, growth.pending[1])
-        assertEquals(-30f, growth.pending[3])
-        assertEquals(50f, growth.lift(before = 2))
-        assertEquals(20f, growth.lift(before = 4))
-    }
-
-    @Test
-    fun aShrinkHoldsTheTextBelowDown() {
-        val growth = AgentImageRowGrowth(now = { 1000.0 })
-        growth.add(block = 2, delta = -40f)
-        growth.beginGrowth()
-        growth.update(remaining = -40f)
-        assertEquals("drawn down while the row closes", -40f, growth.lift(before = 5))
-        assertEquals(0f, growth.cut(listOf(2)))
-        growth.settle()
-        assertEquals(0f, growth.lift(before = 5))
-    }
 }

@@ -7,13 +7,20 @@ import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.rows.DisclosureMotion
+import ai.opencode.feature.transcript.rows.LocalRowHeightMotion
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,10 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -38,6 +45,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.exp
@@ -87,7 +95,8 @@ val LocalBandReveal = compositionLocalOf<() -> Float> { { 1f } }
  * Opening, the band is in the layout at its full height at once and drawn as far as the
  * spring has reached; closing, it leaves the layout at once (so the row's own height
  * animation closes over it) and is drawn below it ([BelowLayout]) until the spring settles.
- * Only drawing changes per frame. Under Reduce Motion it only cross-fades, and a closing band
+ * It brings its own [TranscriptMetrics.clustered] gap, so its container must not add spacing for
+ * it. Only drawing changes per frame. Under Reduce Motion it only cross-fades, and a closing band
  * just goes.
  */
 @Composable
@@ -98,26 +107,20 @@ fun BandClock(
 ) {
     val reduceMotion = rememberReduceMotion()
     val progress = remember { Animatable(if (open) 1f else 0f) }
-    var closing by remember { mutableStateOf(false) }
+    val shown by remember { derivedStateOf { progress.value > 0f } }
+    val closing = !open && !reduceMotion && shown
     LaunchedEffect(open, reduceMotion) {
         val target = if (open) 1f else 0f
-        if (progress.value == target) {
-            closing = false
-            return@LaunchedEffect
-        }
-        closing = !open && !reduceMotion
+        if (progress.value == target) return@LaunchedEffect
         if (reduceMotion) {
             progress.animateTo(target, tween((Motion.reducedFade * 1000).toInt(), easing = SmoothStep))
         } else {
-            // The list's disclosure spring: `spring(duration:bounce: 0)`, ω = 2π / duration.
-            val omega = 2 * PI / BandMotion.duration(open)
-            progress.animateTo(target, spring(dampingRatio = 1f, stiffness = (omega * omega).toFloat(), visibilityThreshold = 0.001f))
+            progress.animateTo(target, DisclosureMotion.spring(open).spec(0.001f))
         }
-        closing = false
     }
     val reveal: () -> Float = remember(progress) { { progress.value } }
     when {
-        open -> CompositionLocalProvider(LocalBandReveal provides reveal) { Box(modifier) { content() } }
+        open -> CompositionLocalProvider(LocalBandReveal provides reveal) { Box(modifier.padding(top = TranscriptMetrics.clustered)) { content() } }
         closing -> BelowLayout(spacing = TranscriptMetrics.clustered, modifier = modifier) {
             CompositionLocalProvider(LocalBandReveal provides reveal) { content() }
         }
@@ -203,14 +206,39 @@ fun TranscriptBand(
     }
 }
 
+/** What a disclosure reveals below its header, opening and closing its height on [DisclosureMotion]. */
+@Composable
+fun DisclosedContent(visible: Boolean, modifier: Modifier = Modifier, content: @Composable AnimatedVisibilityScope.() -> Unit) {
+    val reduceMotion = rememberReduceMotion()
+    val rowHeight = LocalRowHeightMotion.current
+    val state = remember { MutableTransitionState(visible) }
+    state.targetState = visible
+    val moving = !state.isIdle
+    LaunchedEffect(moving) {
+        rowHeight?.animatesItself = moving
+    }
+    val opening = if (reduceMotion) snap() else DisclosureMotion.spring(opening = true).spec(IntSize.VisibilityThreshold)
+    val closing = if (reduceMotion) snap() else DisclosureMotion.spring(opening = false).spec(IntSize.VisibilityThreshold)
+    AnimatedVisibility(
+        visibleState = state,
+        modifier = modifier,
+        enter = DisclosedTransition.enter + expandVertically(opening, expandFrom = Alignment.Top),
+        exit = fadeOut(Motion.swap.animation(MotionPhase.Exit, reduceMotion = reduceMotion)) +
+            shrinkVertically(closing, shrinkTowards = Alignment.Top),
+        content = content,
+    )
+}
+
 /**
  * What a disclosure reveals fades in on `Motion.swap` as the row grows over it, and out on its
  * quicker exit as the row closes over it (`Motion.reduced` under Reduce Motion; iOS
- * `AnyTransition.disclosed(reduceMotion:)`).
+ * `AnyTransition.disclosed(reduceMotion:)`). [DisclosedContent] uses it for content below a header.
  */
 object DisclosedTransition {
     val enter: EnterTransition
         @Composable get() = fadeIn(Motion.swap.animation(reduceMotion = rememberReduceMotion()))
+
     val exit: ExitTransition
-        @Composable get() = fadeOut(Motion.swap.animation(MotionPhase.Exit, reduceMotion = rememberReduceMotion()))
+        @Composable get() = fadeOut(Motion.swap.animation(MotionPhase.Exit, reduceMotion = rememberReduceMotion())) +
+            shrinkVertically(snap(), shrinkTowards = Alignment.Top, clip = false)
 }

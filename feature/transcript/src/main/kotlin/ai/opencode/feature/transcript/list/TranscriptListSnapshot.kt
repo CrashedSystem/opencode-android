@@ -4,6 +4,7 @@ import ai.opencode.feature.transcript.NewMessagesPlacement
 import ai.opencode.feature.transcript.RowProps
 import ai.opencode.feature.transcript.TranscriptConfiguration
 import ai.opencode.feature.transcript.TranscriptEntry
+import ai.opencode.feature.transcript.TranscriptRowIdentityPlan
 import ai.opencode.feature.transcript.user.TranscriptSendFailure
 import ai.opencode.feature.transcript.user.UserMessageRun
 import ai.opencode.server.model.OpenCodeDelivery
@@ -219,4 +220,70 @@ data class TranscriptListSnapshot(
             return true
         }
     }
+}
+
+/** Builds each [TranscriptListSnapshot], keeping row keys stable across queued → sent and server re-keys. */
+internal class TranscriptSnapshotBuilder {
+    private var entryStableIDs: Map<String, String> = emptyMap()
+    private var queuedStableIDs: Map<String, String> = emptyMap()
+    private var previousEntries: List<TranscriptEntry> = emptyList()
+    private var previousQueued: List<OpenCodeQueuedInput> = emptyList()
+    private var lastConfiguration: TranscriptConfiguration? = null
+    private var lastFitGeneration: Int? = null
+    private var lastDividerDecision: Pair<String, Boolean>? = null
+
+    var snapshot: TranscriptListSnapshot = TranscriptListSnapshot.empty
+        private set
+
+    /** Null for a cached transcript, whose refresh never shows the loading mark. */
+    var emptyLoadingSince: Double? = null
+        private set
+
+    /** [dividerDecision] is the New mark's entry and whether its divider shows. */
+    fun build(
+        configuration: TranscriptConfiguration,
+        fitGeneration: Int?,
+        dividerDecision: Pair<String, Boolean>?,
+    ): TranscriptListSnapshot {
+        if (configuration == lastConfiguration && fitGeneration == lastFitGeneration && dividerDecision == lastDividerDecision) {
+            return snapshot
+        }
+        if (configuration.isLoading && emptyLoadingSince == null && configuration.entries.isEmpty()) {
+            emptyLoadingSince = transcriptNow()
+        }
+        if (!configuration.isLoading && configuration.entries.isNotEmpty()) emptyLoadingSince = null
+        if (configuration != lastConfiguration) {
+            val plan = TranscriptRowIdentityPlan.make(
+                previousEntries = previousEntries,
+                previousQueued = previousQueued,
+                previousEntryStableIDs = entryStableIDs,
+                previousQueuedStableIDs = queuedStableIDs,
+                entries = configuration.entries,
+                queued = configuration.queuedInputs,
+            )
+            entryStableIDs = plan.entryStableIDs
+            queuedStableIDs = plan.queuedStableIDs
+            supersededQueuedIDs = plan.supersededQueuedIDs
+            previousEntries = configuration.entries
+            previousQueued = configuration.queuedInputs
+        }
+        lastConfiguration = configuration
+        lastFitGeneration = fitGeneration
+        lastDividerDecision = dividerDecision
+        snapshot = TranscriptListSnapshot.build(
+            configuration = configuration,
+            entryStableIDs = entryStableIDs,
+            queuedStableIDs = queuedStableIDs,
+            supersededQueuedIDs = supersededQueuedIDs,
+            sessionLinkIDsByStableID = emptyMap(),
+            drawsNewDivider = { mark -> TranscriptListSnapshot.drawsNewMessagesDivider(mark, fitGeneration, dividerDecision) },
+        )
+        return snapshot
+    }
+
+    private var supersededQueuedIDs: Set<String> = emptySet()
+
+    fun messageItemKey(entryID: String): String = TranscriptItemID.Message(entryStableIDs[entryID] ?: entryID).key
+
+    fun isGrowingEntry(entryID: String): Boolean = snapshot.props[entryStableIDs[entryID] ?: entryID]?.isGrowing == true
 }

@@ -14,7 +14,7 @@ import kotlin.math.min
 
 /**
  * Port of iOS `MotionAudit.swift` (`OpenCode/Transcript/`): the transcript as the app drew it,
- * frame by frame (`lab-motion-trace`, `TranscriptMotionTrace`, [MotionWatch]), and the jumps a
+ * frame by frame (`lab-motion-trace`, [MotionWatch]), and the jumps a
  * reader would see in it. Lives in `:core` so the transcript, the drawer and Diagnostics share it.
  * JSON keys match iOS's Codable keys; `MotionFrame(raw)` reads the compact lab wire format.
  */

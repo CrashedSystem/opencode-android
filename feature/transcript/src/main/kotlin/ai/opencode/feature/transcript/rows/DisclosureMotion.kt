@@ -4,6 +4,10 @@ import ai.opencode.core.motion.Motion
 import ai.opencode.core.motion.MotionPhase
 import ai.opencode.core.motion.MotionSpring
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
  * A row opening or closing (iOS `DisclosureMotion`): opening on `Motion.layout`, closing on its
@@ -23,3 +27,10 @@ object DisclosureMotion {
     /** The rows moving inside the row, on the same curve (iOS `animation(opening:)`). */
     fun <T> animation(opening: Boolean): FiniteAnimationSpec<T> = Motion.layout.animation(phase(opening))
 }
+
+/** Set [animatesItself] while a part animates its own height, so the list row doesn't animate it again. */
+class RowHeightMotion {
+    var animatesItself by mutableStateOf(false)
+}
+
+val LocalRowHeightMotion = staticCompositionLocalOf<RowHeightMotion?> { null }

@@ -104,9 +104,7 @@ internal fun UserImageAttachmentTile(
     val isUnavailable = attachment.isUnavailable ||
         retryState.failure == MediaAttachmentFailure.Unavailable ||
         MediaReferenceResolver.isUnavailable(attachment, server)
-    // Every state marks the slot a sent photo lands in (iOS `SendLandingProbe.imageID`).
-    val marker = rememberSendLandingMarker(messageID?.let { SendLanding.imageID(it, index) })
-    val tile = Modifier.sendLandingMarker(marker).size(side).clip(shape)
+    val tile = Modifier.size(side).clip(shape)
     when {
         image != null && !isUnavailable -> {
             val dragData = MediaReferenceResolver.resolvedData(attachment)

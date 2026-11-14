@@ -107,7 +107,7 @@ fun ReplyActions(texts: List<String>, modifier: Modifier = Modifier, onCopy: (St
                 leading = 0.dp,
                 target = Modifier
                     .transcriptDragSource(dragPayload, cornerRadius = 8.dp)
-                    .clickable(role = Role.Button, onClick = copy)
+                    .rowClickable(onClick = copy)
                     .clearAndSetSemantics {
                         contentDescription = label
                         role = Role.Button

@@ -58,8 +58,7 @@ data class MotionWatchEvent(
 /**
  * Port of iOS `MotionWatch` (`Diagnostics/Traces/MotionWatch.swift`): the live in-app motion
  * detector (Developer Mode › Motion Watch, off by default; internal builds with Developer Mode
- * on). Runs [MotionAuditDetector] continuously while the transcript or drawer moves (frames from
- * the transcript's `TranscriptMotionTrace`), records jump/pop-in/snap events with 2 s of
+ * on). Runs [MotionAuditDetector] on the frames it is given ([ingest]), records jump/pop-in/snap events with 2 s of
  * surrounding frames (no message content), surfaces them in Troubleshooting, and attaches them to
  * problem reports. Zero cost when off: [isActive] is one volatile read.
  */

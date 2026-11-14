@@ -7,7 +7,6 @@ import ai.opencode.core.tuning.TuningPreset
 import ai.opencode.core.tuning.TuningPresets
 import ai.opencode.core.tuning.TuningStore
 import ai.opencode.feature.media.AgentImageTunables
-import ai.opencode.feature.media.SendImageTunables
 import ai.opencode.feature.transcript.markdown.ui.SessionLinkTunables
 import ai.opencode.feature.transcript.markdown.ui.TextRevealTunables
 import androidx.compose.runtime.Immutable
@@ -26,7 +25,7 @@ import androidx.compose.ui.unit.dp
 object TranscriptTunables {
     /** The Tuning Panel sections it registers (the key segment after the group), in order (iOS `sectionTitles`). */
     val sectionTitles = listOf(
-        "Arrivals", "Text Reveal", "Growth", "Follow", "Promotion", "Send", "Jump", "Reveal", "Divider", "Typography", "Row", "Bubble", "Card",
+        "Arrivals", "Text Reveal", "Promotion", "Reveal", "Divider", "Typography", "Row", "Bubble", "Card",
     )
 
     /** The declarations (iOS `TranscriptTunables.<name>` tunables). */
@@ -36,37 +35,10 @@ object TranscriptTunables {
         val workingFinale = Tunable("transcript.arrivals.workingFinale", "Working finale flash", default = 0.55, range = 0.15..1.4, step = 0.05)
         val workingHandoff = Tunable("transcript.arrivals.workingHandoff", "Working → Copy handoff", default = 0.34, range = 0.1..1.0, step = 0.02)
 
-        // Growth
-        val growthMinDuration = Tunable("transcript.growth.minDuration", "Min growth duration", default = 0.22, range = 0.08..0.6, step = 0.02)
-        val growthMaxDuration = Tunable("transcript.growth.maxDuration", "Max growth duration", default = 0.55, range = 0.2..1.5, step = 0.05)
-        val growthMaxFrameChange = Tunable("transcript.growth.maxFrameChange", "Max frame Δ (pt/frame²)", default = 1.5f, range = 0.25..6.0, step = 0.25)
-        val growthSoftEdge = Tunable("transcript.growth.softEdge", "Soft edge fade (pt)", default = 28f, range = 0.0..64.0, step = 2.0)
-
-        // Follow
-        val arrivalOmega = Tunable("transcript.follow.arrivalOmega", "Arrival spring ω", default = 20.0, range = 10.0..60.0, step = 1.0)
-        val viewportOmega = Tunable("transcript.follow.viewportOmega", "Viewport/keyboard ω", default = 18.0, range = 8.0..50.0, step = 1.0)
-        val maxFrameStep = Tunable("transcript.follow.maxFrameStep", "Max step (pt/frame)", default = 18.0, range = 4.0..24.0, step = 1.0)
-        val arrivalReach = Tunable("transcript.follow.arrivalReach", "Glide window (screens)", default = 2.5f, range = 0.5..6.0, step = 0.25)
-
         // Promotion
         val promotionLabelRise = Tunable("transcript.promotion.labelRise", "Label exit rise (pt)", default = 6f, range = 0.0..20.0, step = 1.0)
 
-        // Send
-        val sendFlightOmega = Tunable("transcript.send.flightOmega", "Send flight ω", default = 14.0, range = 6.0..32.0, step = 0.5)
-        /** iOS `sendBubbleWaitMax` (declared with the send flights): how long a send's words hold level over a bubble below them. */
-        val sendBubbleWaitMax = Tunable("transcript.send.bubbleWaitMax", "Hold over low bubble (s)", default = 0.3, range = 0.0..0.8, step = 0.02)
-        /** iOS `sendLiftSoftness` (dp): how far either side of level the words' lift rounds off. */
-        val sendLiftSoftness = Tunable("transcript.send.liftSoftness", "Lift softness (pt)", default = 24.0, range = 0.0..40.0, step = 1.0)
-
-        // Jump
-        val jumpDuration = Tunable("transcript.jump.duration", "Jump glide duration", default = 0.5, range = 0.15..1.2, step = 0.02)
-        val jumpReach = Tunable("transcript.jump.reach", "Full-glide reach (screens)", default = 2.5f, range = 1.0..6.0, step = 0.25)
-        val jumpLead = Tunable("transcript.jump.lead", "Cut-in lead (screens)", default = 1.5f, range = 0.5..4.0, step = 0.25)
-
         // Reveal
-        val newMinDuration = Tunable("transcript.reveal.newMinDuration", "New divider min glide", default = 0.28, range = 0.1..0.8, step = 0.02)
-        val newMaxDuration = Tunable("transcript.reveal.newMaxDuration", "New divider max glide", default = 0.62, range = 0.2..1.4, step = 0.02)
-        val newOverflow = Tunable("transcript.reveal.newOverflow", "New divider: overflow before it shows (pt)", default = 120f, range = 0.0..320.0, step = 10.0)
         val agentGlowRise = Tunable("transcript.reveal.agentGlowRise", "Agent glow rise (s)", default = 0.07, range = 0.02..0.25, step = 0.01)
         val agentGlowDuration = Tunable("transcript.reveal.agentGlowDuration", "Agent glow decay (s)", default = 1.39, range = 0.4..3.0, step = 0.05)
 
@@ -104,40 +76,12 @@ object TranscriptTunables {
     val workingFinale: Double get() = Knobs.workingFinale.value
     val workingHandoff: Double get() = Knobs.workingHandoff.value
 
-    // Growth
-    val growthMinDuration: Double get() = Knobs.growthMinDuration.value
-    val growthMaxDuration: Double get() = Knobs.growthMaxDuration.value
-    val growthMaxFrameChange: Float get() = Knobs.growthMaxFrameChange.value
-    val growthSoftEdge: Float get() = Knobs.growthSoftEdge.value
-
-    // Follow
-    val arrivalOmega: Double get() = Knobs.arrivalOmega.value
-    val viewportOmega: Double get() = Knobs.viewportOmega.value
-    val maxFrameStep: Double get() = Knobs.maxFrameStep.value
-    val arrivalReach: Float get() = Knobs.arrivalReach.value
-
     // Promotion
     val promotionLabelRise: Float get() = Knobs.promotionLabelRise.value
 
-    // Send
-    val sendFlightOmega: Double get() = Knobs.sendFlightOmega.value
-    val sendBubbleWaitMax: Double get() = Knobs.sendBubbleWaitMax.value
-    val sendLiftSoftness: Double get() = Knobs.sendLiftSoftness.value
-    /** iOS `sendImageDuration` (the knob is `:feature:media`'s [SendImageTunables], which the composer reads too). */
-    val sendImageDuration: Double get() = SendImageTunables.duration
-
-    // Jump
-    val jumpDuration: Double get() = Knobs.jumpDuration.value
-    val jumpReach: Float get() = Knobs.jumpReach.value
-    val jumpLead: Float get() = Knobs.jumpLead.value
-
     // Reveal
-    val newMinDuration: Double get() = Knobs.newMinDuration.value
-    val newMaxDuration: Double get() = Knobs.newMaxDuration.value
     val agentGlowRise: Double get() = Knobs.agentGlowRise.value
     val agentGlowDuration: Double get() = Knobs.agentGlowDuration.value
-    /** What's under the New divider may run this far past the screen and still read from the end (pt). */
-    val newOverflow: Float get() = Knobs.newOverflow.value
 
     // Divider
     /** The first time a mark's divider is on screen it starts this much brighter and dims. */
@@ -168,9 +112,6 @@ object TranscriptTunables {
 
     /** `0` inherits `flowHalf * 2` (`MarkdownStyle.inheritedParagraphGap`). */
     val paragraphGap: Float get() = Knobs.paragraphGap.value
-
-    /** Backwards-compatible alias for `maxFrameStep * 60` (points per second). */
-    val arrivalSpeedPointsPerSecond: Double get() = maxFrameStep * 60
 
     fun resolvedParagraphGap(paragraphGap: Float, flowHalf: Float): Float =
         if (paragraphGap > 0) paragraphGap else flowHalf * 2
@@ -222,24 +163,6 @@ object TranscriptTunables {
                     resetting = listOf(textFadeDuration, workingFinale, workingHandoff).map { it.descriptor },
                 ),
                 TuningPresets(
-                    "transcript.growth.presets", "Growth",
-                    listOf(
-                        TuningPreset("Native"),
-                        TuningPreset("Snappy", growthMinDuration.preset(0.16), growthMaxDuration.preset(0.4), growthSoftEdge.preset(20f)),
-                        TuningPreset("Gentle", growthMinDuration.preset(0.3), growthMaxDuration.preset(0.65), growthSoftEdge.preset(32f)),
-                    ),
-                    resetting = listOf(growthMinDuration, growthMaxDuration, growthMaxFrameChange, growthSoftEdge).map { it.descriptor },
-                ),
-                TuningPresets(
-                    "transcript.follow.presets", "Following",
-                    listOf(
-                        TuningPreset("Native"),
-                        TuningPreset("Snappy", arrivalOmega.preset(26.0), viewportOmega.preset(24.0)),
-                        TuningPreset("Gentle", arrivalOmega.preset(16.0), viewportOmega.preset(15.0), maxFrameStep.preset(15.0), arrivalReach.preset(2.25f)),
-                    ),
-                    resetting = listOf(arrivalOmega.descriptor, viewportOmega.descriptor, maxFrameStep.descriptor, arrivalReach.descriptor),
-                ),
-                TuningPresets(
                     "transcript.promotion.presets", "Steering",
                     listOf(
                         TuningPreset("Native"),
@@ -249,31 +172,13 @@ object TranscriptTunables {
                     resetting = listOf(promotionLabelRise.descriptor),
                 ),
                 TuningPresets(
-                    "transcript.send.presets", "Sending",
-                    listOf(
-                        TuningPreset("Native"),
-                        TuningPreset("Snappy", sendFlightOmega.preset(18.0)),
-                        TuningPreset("Gentle", sendFlightOmega.preset(11.0)),
-                    ),
-                    resetting = listOf(sendFlightOmega.descriptor),
-                ),
-                TuningPresets(
-                    "transcript.jump.presets", "Jump to Latest",
-                    listOf(
-                        TuningPreset("Native"),
-                        TuningPreset("Snappy", jumpDuration.preset(0.35), jumpReach.preset(2f)),
-                        TuningPreset("Gentle", jumpDuration.preset(0.65), jumpReach.preset(3f), jumpLead.preset(1.75f)),
-                    ),
-                    resetting = listOf(jumpDuration.descriptor, jumpReach.descriptor, jumpLead.descriptor),
-                ),
-                TuningPresets(
                     "transcript.reveal.presets", "Return & Glow",
                     listOf(
                         TuningPreset("Native"),
-                        TuningPreset("Snappy", newMinDuration.preset(0.2), newMaxDuration.preset(0.46), agentGlowRise.preset(0.05), agentGlowDuration.preset(1.05)),
-                        TuningPreset("Gentle", newMinDuration.preset(0.36), newMaxDuration.preset(0.76), agentGlowRise.preset(0.1), agentGlowDuration.preset(1.7)),
+                        TuningPreset("Snappy", agentGlowRise.preset(0.05), agentGlowDuration.preset(1.05)),
+                        TuningPreset("Gentle", agentGlowRise.preset(0.1), agentGlowDuration.preset(1.7)),
                     ),
-                    resetting = listOf(newMinDuration.descriptor, newMaxDuration.descriptor, agentGlowRise.descriptor, agentGlowDuration.descriptor),
+                    resetting = listOf(agentGlowRise.descriptor, agentGlowDuration.descriptor),
                 ),
                 TuningPresets(
                     "transcript.typography.presets", "Typography",
@@ -295,18 +200,10 @@ object TranscriptTunables {
     fun register(store: TuningStore = TuningStore.shared) {
         if (!store.isEnabled) return
         with(Knobs) {
-            store.register(
-                textFadeDuration, workingFinale, workingHandoff,
-                growthMinDuration, growthMaxDuration,
-            )
-            store.register(growthMaxFrameChange, growthSoftEdge)
-            store.register(arrivalOmega, viewportOmega, maxFrameStep)
-            store.register(arrivalReach)
-            store.register(sendFlightOmega, sendBubbleWaitMax, sendLiftSoftness, jumpDuration, SendImageTunables.sendImageDuration)
-            store.register(promotionLabelRise, jumpReach, jumpLead)
-            store.register(newMinDuration, newMaxDuration, agentGlowRise, agentGlowDuration)
+            store.register(textFadeDuration, workingFinale, workingHandoff)
+            store.register(promotionLabelRise)
+            store.register(agentGlowRise, agentGlowDuration)
             store.register(dividerGlowLift, dividerGlowDuration)
-            store.register(newOverflow)
             store.register(typography)
             for (presets in cardPresets) store.register(presets)
             TextRevealTunables.register(store)

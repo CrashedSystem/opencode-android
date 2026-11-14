@@ -31,12 +31,10 @@ import ai.opencode.feature.composer.ComposerPhotoViewer
 import ai.opencode.feature.composer.ComposerPickers
 import ai.opencode.feature.composer.PastedTextCard
 import ai.opencode.feature.composer.PlusMenuTunables
-import ai.opencode.feature.composer.SentImageFlight
 import ai.opencode.feature.composer.SharedLocation
 import ai.opencode.feature.composer.plusmenu.LibraryPhoto
 import ai.opencode.feature.composer.plusmenu.PhotoFlights
 import ai.opencode.feature.composer.plusmenu.VideoDurationBadge
-import ai.opencode.feature.composer.sentImageSource
 import ai.opencode.feature.media.FileAttachmentCard
 import ai.opencode.feature.media.MediaImageResult
 import ai.opencode.feature.media.MediaReferenceResolver
@@ -526,8 +524,6 @@ fun PendingAttachmentsRow(
      * importer is still decoding.
      */
     flights: PhotoFlights? = null,
-    /** iOS `SentImageSource`: each thumbnail reports where a send's copy of it leaves from. */
-    sendImages: SentImageFlight? = null,
     /** iOS `presentComposerPhoto(id)`: a tap opens the pending photo full screen. */
     onOpenPhoto: ((String) -> Unit)? = null,
     /** iOS `composerExpanded`: the composer pads its content at the top only when collapsed. */
@@ -612,7 +608,6 @@ fun PendingAttachmentsRow(
                             index,
                             Modifier
                                 .then(if (flights != null && id != null) Modifier.onGloballyPositioned { flights.slot(id, it.boundsOnScreen()) } else Modifier)
-                                .then(if (sendImages != null) Modifier.sentImageSource(sendImages, attachment.id) else Modifier)
                                 .mediaZoomSource(ComposerPhotoViewer.mediaID(attachment.id), radius)
                                 // The image waits for its flight to land (~0.3 s), or shows full screen.
                                 .alpha(if (arriving || viewing) 0f else 1f),

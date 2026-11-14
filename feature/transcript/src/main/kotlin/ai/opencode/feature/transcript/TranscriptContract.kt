@@ -79,13 +79,6 @@ data class NewMessagesPlacement(val entryID: String, val generation: Int) {
     companion object {
         /** The reader has read past the divider once its bottom is above the top of what they can see. */
         fun isPassed(dividerMaxY: Float, offsetY: Float, topInset: Float): Boolean = dividerMaxY <= offsetY + topInset
-
-        /**
-         * At the end with any of the divider still below the header (a reply a screen tall leaves
-         * it straddling the header's edge): everything under it is on screen.
-         */
-        fun isOnLastScreen(dividerMaxY: Float, offsetY: Float, topInset: Float, end: Float): Boolean =
-            offsetY >= end - 1 && !isPassed(dividerMaxY, offsetY, topInset)
     }
 }
 

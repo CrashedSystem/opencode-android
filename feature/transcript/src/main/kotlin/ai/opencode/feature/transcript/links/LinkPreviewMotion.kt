@@ -3,16 +3,13 @@ package ai.opencode.feature.transcript.links
 import ai.opencode.core.motion.MotionTunables
 import ai.opencode.core.motion.motionBlurReveal
 import ai.opencode.core.motion.rememberReduceMotion
-import ai.opencode.feature.media.AgentImageRowGrowth
 import ai.opencode.feature.media.LinkPreview
 import ai.opencode.feature.media.LinkPreviewStore
-import ai.opencode.feature.media.LocalAgentImageRowGrowth
 import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.feature.transcript.list.MessageRow
 import ai.opencode.feature.transcript.list.TranscriptItemID
 import ai.opencode.feature.transcript.list.TranscriptListSnapshot
 import ai.opencode.feature.transcript.markdown.OpenCodeMarkdownBlock
-import ai.opencode.feature.transcript.markdown.ui.agentImageGrowthHold
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,20 +18,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -73,7 +66,6 @@ class LinkPreviewRowPresentation {
 
     var arrives: Boolean = false
     private val changes = HashMap<String, Change>()
-    private val heights = HashMap<String, Float>()
 
     fun change(to: LinkPreview, now: Double = referenceNow(), duration: Double): Change {
         val old = changes[to.id]
@@ -87,42 +79,14 @@ class LinkPreviewRowPresentation {
         changes[to.id] = change
         return change
     }
-
-    /** The height change since [preview] last measured (iOS `measure(_:preview:)`). */
-    fun measure(height: Float, preview: LinkPreview): Float {
-        // A departing row can deliver a final measurement after its reload.
-        if (changes[preview.id]?.preview != preview) return 0f
-        val previous = heights.put(preview.id, height)
-        return previous?.let { height - it } ?: if (arrives) height else 0f
-    }
 }
 
-/**
- * One clock for the pixels only (iOS `ArrivingLinkPreview`). Layout takes its final size at once;
- * the row's [AgentImageRowGrowth] owns every point of travel, including the Copy row: each link
- * reports its height change under its [block] (its index), and is drawn up by what the links
- * above it still have to grow and cut by its own, so nothing below moves ahead of the row's edge.
- */
+/** One clock for the pixels only (iOS `ArrivingLinkPreview`): layout takes its final size at once. */
 @Composable
-internal fun ArrivingLinkPreview(preview: LinkPreview, block: Int, presentation: LinkPreviewRowPresentation) {
+internal fun ArrivingLinkPreview(preview: LinkPreview, presentation: LinkPreviewRowPresentation) {
     // A preview materialises on `Motion.swap`, out of a subtle blur.
     val change = presentation.change(preview, duration = MotionTunables.swapInDuration.value)
-    val growth = LocalAgentImageRowGrowth.current
-    val reduceMotion = rememberReduceMotion()
-    val density = LocalDensity.current
-    val currentPreview by rememberUpdatedState(preview)
-    Box(
-        Modifier
-            .onSizeChanged { size ->
-                val delta = presentation.measure(with(density) { size.height.toDp().value }, currentPreview)
-                if (!reduceMotion && abs(delta) > 0.5f) growth?.add(block, delta)
-            }
-            .agentImageGrowthHold(
-                lift = { if (reduceMotion || growth == null) 0f else growth.lift(block) * density.density },
-                cut = { if (reduceMotion || growth == null) 0f else growth.cut(listOf(block)) * density.density },
-                clips = true,
-            ),
-    ) {
+    Box {
         LinkPreviewButton(preview) {
             LinkPreviewMaterialisation(change)
         }

@@ -6,6 +6,7 @@ import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.feature.transcript.R
+import ai.opencode.feature.transcript.rows.rowClickable
 import ai.opencode.feature.transcript.rows.rowHitTarget
 import ai.opencode.server.model.OpenCodeDelivery
 import androidx.compose.foundation.clickable
@@ -230,7 +231,7 @@ internal fun TranscriptFailedSendLine(failedSend: TranscriptFailedSend, modifier
                 color = OpenCodeTheme.colors.secondaryText,
                 glyphColor = OpenCodeTheme.colors.destructive,
                 modifier = Modifier
-                    .rowHitTarget(top = 12.dp, bottom = 12.dp, target = Modifier.clickable { menu = true })
+                    .rowHitTarget(top = 12.dp, bottom = 12.dp, target = Modifier.rowClickable(role = null) { menu = true })
                     .clearAndSetSemantics {
                         contentDescription = TranscriptFailedSend.status
                         stateDescription = failedSend.failure.reason
@@ -260,7 +261,7 @@ internal fun TranscriptFailedSendLine(failedSend: TranscriptFailedSend, modifier
                     .rowHitTarget(
                         top = 12.dp,
                         bottom = 12.dp,
-                        target = Modifier.clickable(onClick = if (moveTitle == null) failedSend.retry else failedSend.move),
+                        target = Modifier.rowClickable(role = null, onClick = if (moveTitle == null) failedSend.retry else failedSend.move),
                     )
                     .semantics { }
                     .testTag(if (moveTitle == null) "failed-send-retry" else "failed-send-move"),
