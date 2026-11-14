@@ -318,7 +318,7 @@ private fun HomeFeature.snapshotRefreshed(state: State, action: Action.SnapshotR
     val needsAttentionRefresh = !wasConnected ||
         !s.isEventStreamLive ||
         s.noticeReadiness != State.NoticeReadiness.settled ||
-        HomeFeature.attentionDirectories(s) != previousAttentionDirectories
+        HomeFeature.attentionDirectories(s).toSet() != previousAttentionDirectories.toSet()
     val attention = if (needsAttentionRefresh) refreshAttention(s) else Effect.none()
     val ancestry = resolveActiveAncestry(s)
     // A few at a time, behind the open session's own read.
@@ -395,7 +395,8 @@ private fun HomeFeature.activeAncestryResolved(state: State, resolved: Map<Strin
     val detailReread = s.sessionDetail?.let {
         if (reread(it)) sendToDetail(s, SessionFeature.Action.FamilyRefreshRequested) else Effect.none()
     } ?: Effect.none()
-    val attention = if (HomeFeature.attentionDirectories(s) == previousDirectories) Effect.none() else refreshAttention(s)
+    // Only a new directory needs a read; the same ones reordered don't.
+    val attention = if (HomeFeature.attentionDirectories(s).toSet() == previousDirectories.toSet()) Effect.none() else refreshAttention(s)
     return Reduced(s, Effect.merge(attention, pushed, detailReread))
 }
 

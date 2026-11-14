@@ -473,6 +473,28 @@ class WireRequestTests {
         }
     }
 
+    /** One directory booting doesn't hold up the rest: an attention read asks the hot directories at once. */
+    @Test fun homeAttentionAsksHotDirectoriesAtOnce() = runBlocking {
+        val fixture = WireFixture { request ->
+            if (request.queryValue("location[directory]") == "/booting") {
+                Reply.Open(200, "")
+            } else if (request.route == "GET /api/permission/request" || request.route == "GET /api/form") {
+                Reply.Json(200, """{"data":[]}""")
+            } else {
+                Reply.Json(404, "{}")
+            }
+        }
+        withFixture(fixture) {
+            val held = launch(Dispatchers.Default) { OpenCodeClient.liveValue.homeAttention(fixture.server, emptyList(), listOf("/booting", "/ready")) }
+            for (attempt in 0 until 500) {
+                if (fixture.requests.count { it.queryValue("location[directory]") == "/ready" } >= 2) break
+                delay(10)
+            }
+            held.cancel()
+            assertEquals(2, fixture.requests.count { it.queryValue("location[directory]") == "/ready" })
+        }
+    }
+
     /** A cold catalog costs one round trip: the default is asked for while the list is still loading, and failing it leaves the list. */
     @Test fun modelCatalogReadsTheListAndDefaultTogether() = runBlocking {
         // Held open: the list never finishes, so only a concurrent read asks for the default.
