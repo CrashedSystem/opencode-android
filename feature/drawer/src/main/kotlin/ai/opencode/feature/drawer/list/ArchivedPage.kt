@@ -37,6 +37,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import ai.opencode.core.diagnostics.ScrollFrameEffect
+import ai.opencode.core.diagnostics.ScrollSurface
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -116,7 +119,9 @@ internal fun ArchivedPage(
                 }
             }
         }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
+        val listState = rememberLazyListState()
+        ScrollFrameEffect(ScrollSurface.Sidebar, listState)
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
             item(key = "archived-search") {
                 OpenCodeTextField(
                     value = search,

@@ -249,7 +249,7 @@ private fun MainPage(
                     send(DevToolsFeature.Action.ExportBundleTapped)
                 }
             }
-            footer("Exports the timeline, app log, device and build as a zip. No server addresses, credentials or message text.")
+            footer("Exports the timeline, app log, device and build as a zip. While Developer Mode is on, includes sidebar and transcript scroll frame counts and timings. No server addresses, credentials or message text.")
         }
 
         if (onOpenServerDetails != null) {

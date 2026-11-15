@@ -78,6 +78,8 @@ import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import ai.opencode.core.diagnostics.ScrollFrameEffect
+import ai.opencode.core.diagnostics.ScrollSurface
 import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.magnifier
 import androidx.compose.material3.Text
@@ -632,6 +634,7 @@ private fun TranscriptListContent(
                     onCopy = { currentSend(TranscriptAction.CopyTextTapped(it)) },
                     onQuote = { currentSend(TranscriptAction.QuoteTextTapped(it)) },
                 )
+                ScrollFrameEffect(ScrollSurface.Transcript, listState)
                 LazyColumn(
                     state = listState,
                     reverseLayout = true,

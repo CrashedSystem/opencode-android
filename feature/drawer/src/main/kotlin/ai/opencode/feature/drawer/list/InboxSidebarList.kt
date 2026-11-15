@@ -34,6 +34,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import ai.opencode.core.diagnostics.ScrollFrameEffect
+import ai.opencode.core.diagnostics.ScrollSurface
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -138,6 +140,7 @@ internal fun InboxSidebarList(
     }
     val colors = OpenCodeTheme.colors
     Box(modifier) {
+        ScrollFrameEffect(ScrollSurface.Sidebar, listState)
         LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
             archiveError?.let { error ->
                 item(key = "inbox-error") {

@@ -14,6 +14,32 @@ import kotlin.math.abs
 class PerfFrameWindowTests {
     @get:Rule val isolation = TestIsolationRule()
 
+    @Test
+    fun scrollFrameRecordingIsBoundedSeparatedAndDiscardedOnDisable() {
+        val recorder = ScrollFrames()
+        assertEquals(null, recorder.recordings.value)
+        assertEquals(null, recorder.exportText())
+        recorder.setEnabled(true)
+        val recording = requireNotNull(recorder.recordings.value)
+        val sidebar = recording.getValue(ScrollSurface.Sidebar)
+        repeat(10_000) {
+            sidebar.scrolls++
+            sidebar.add(8, 8)
+            sidebar.add(17, 16)
+        }
+        sidebar.add(-1, 16)
+        sidebar.add(100, -1)
+        recording.getValue(ScrollSurface.Transcript).apply { scrolls++; add(24, 12) }
+        recorder.setEnabled(true)
+        assertEquals(listOf("Sidebar,10000,20000,10000,17", "Transcript,1,1,1,24"),
+            recorder.exportText()!!.trimEnd().lines().drop(1))
+        recorder.setEnabled(false)
+        assertEquals(null, recorder.exportText())
+        recorder.setEnabled(true)
+        sidebar.add(100, 16)
+        assertTrue(recorder.exportText()!!.endsWith("Sidebar,0,0,0,0\nTranscript,0,0,0,0\n"))
+    }
+
     /** Feeds callbacks at [timestamps], each scheduled for the next by [periods] (seconds), and sums every frame after the first. */
     private fun window(timestamps: List<Double>, periods: List<Double>): Pair<PerfFrameWindow, List<PerfFrameClock.Frame>> {
         val clock = PerfFrameClock()

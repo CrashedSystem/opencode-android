@@ -93,7 +93,7 @@ gated on `SharedKeys.developerMode` exactly as iOS.
 | Network inspector | `DevToolsView.kt` (Network), `server/.../DiagnosticsInstrumentation.kt` | method, redacted path, status, duration, wire/decoded bytes, protocol, reuse, DNS/connect/TLS/TTFB/download, address family/scope, op/attempt, SSE marks; failures filter |
 | Troubleshooting | `DevToolsView.kt`, `Troubleshooting.kt` | iOS summary + navigation epochs; Share Text/JSON, Clear |
 | Session Lab switcher | `DevToolsFeature.kt` (Lab), `DevToolsClient.kt` | `GET /lab/state` (checks `session-rendering-v1`), checkpoint select (`POST /lab/select`), Use as Server (saves `http://<address>` with empty password, flushes, relaunches) |
-| Export Diagnostics | `DevToolsFeature.kt`, `DevToolsClient.kt` | zip of `report-<id>.md`, `timeline.txt/json`, `app-log.txt` via FileProvider (`<appId>.devtools.files`); no addresses, credentials or message text |
+| Export Diagnostics | `DevToolsFeature.kt`, `DevToolsClient.kt`, `core/.../diagnostics/ScrollFrames.kt` | Manual zip via FileProvider (`<appId>.devtools.files`). Developer Mode adds `scroll-frames.csv`: two process-local rows for sidebar (including inbox/archive) and transcript. Counts observed scroll intervals and valid window frames delivered during them, frames with total duration above the platform deadline, and worst total duration (ns). Not display presentation times. Independent of HUD and timeline; turning Developer Mode off discards the counters. Not attached to uploaded reports. |
 | Lab launch extras | `DevTools.kt` | `tuning-enabled`, `tuning-as-release`, `tuning-panel`, `lab-time-scale`, `lab-marks-url`, `diagnostics-enabled`, `lab-tuning-perf` |
 
 ## Tests

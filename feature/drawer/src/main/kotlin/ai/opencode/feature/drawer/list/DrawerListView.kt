@@ -36,6 +36,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
+import ai.opencode.core.diagnostics.ScrollFrameEffect
+import ai.opencode.core.diagnostics.ScrollSurface
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -467,6 +469,7 @@ fun DrawerListView(
         // Beneath the rows: they move out of its way, and the lifted row (drawn in the list) stays
         // above it.
         DrawerPinDropZoneOverlay(pinDrag)
+        ScrollFrameEffect(ScrollSurface.Sidebar, listState)
         LazyColumn(
             state = listState,
             contentPadding = contentPadding,

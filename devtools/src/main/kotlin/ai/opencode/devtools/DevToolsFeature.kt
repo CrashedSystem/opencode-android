@@ -10,6 +10,7 @@ import ai.opencode.core.diagnostics.MotionWatch
 import ai.opencode.core.diagnostics.MotionWatchEvent
 import ai.opencode.core.diagnostics.ProblemReportBuilder
 import ai.opencode.core.diagnostics.ProblemReportContext
+import ai.opencode.core.diagnostics.ScrollFrames
 import ai.opencode.core.haptics.Haptic
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.log.AppLog
@@ -126,6 +127,7 @@ class DevToolsFeature : Reducer<DevToolsFeature.State, DevToolsFeature.Action> {
 
         is Action.DeveloperModeChanged -> {
             shared(SharedKeys.developerMode).set(action.on)
+            dependency(ScrollFrames).setEnabled(action.on)
             AppLog.app.info { "developer_mode on=${action.on}" }
             // While Developer Mode is on, recording stays on too, so reports have a timeline.
             val recorder = dependency(DiagnosticsRecorder)
@@ -208,7 +210,7 @@ class DevToolsFeature : Reducer<DevToolsFeature.State, DevToolsFeature.Action> {
                 val now = dependency(DateClient).now()
                 val id = dependency(UuidClient).next()
                 val server = shared(ServerSharedKeys.savedServer).value
-                val bundle = ProblemReportBuilder.make(
+                val report = ProblemReportBuilder.make(
                     id = id,
                     context = ProblemReportContext(serverID = server?.persistenceID.orEmpty(), screen = "Settings › Developer"),
                     device = client.device(),
@@ -218,6 +220,9 @@ class DevToolsFeature : Reducer<DevToolsFeature.State, DevToolsFeature.Action> {
                     previousRun = recorder.previousRunEvents(),
                     motionJumps = dependency(MotionWatch).snapshot(),
                 )
+                val bundle = dependency(ScrollFrames).exportText()?.let { csv ->
+                    report.copy(files = report.files + ("scroll-frames.csv" to csv.toByteArray()))
+                } ?: report
                 Reduced(
                     state.copy(isExporting = true),
                     Effect.run(onError = { error, send -> send(Action.BundleExported(error.javaClass.simpleName)) }) { send ->

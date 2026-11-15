@@ -13,11 +13,13 @@ import ai.opencode.core.diagnostics.ProblemReportBuilder
 import ai.opencode.core.diagnostics.ProblemReportBundle
 import ai.opencode.core.diagnostics.ProblemReportContext
 import ai.opencode.core.diagnostics.ProblemReportDevice
+import ai.opencode.core.diagnostics.ScrollFrames
 import ai.opencode.core.haptics.HapticsClient
 import ai.opencode.core.sharing.SharedStore
 import ai.opencode.core.store.TestStore
 import ai.opencode.core.testing.TestIsolationRule
 import ai.opencode.devtools.DevToolsClient
+import ai.opencode.devtools.DevToolsFeature
 import ai.opencode.devtools.Troubleshooting
 import ai.opencode.devtools.traces.TraceUploadsFeature.Action
 import ai.opencode.devtools.traces.TraceUploadsFeature.State
@@ -97,6 +99,23 @@ class TraceUploadsTests {
     )
     private val server = OpenCodeServer(url = "https://box.ts.net:4096", username = "opencode", password = "pw")
     private val id = UUID(0, 0)
+
+    @Test
+    fun manualExportIncludesScrollFramesOnlyWhileEnabled() = storeTest { job ->
+        for (enabled in listOf(true, false)) {
+            val exported = CompletableDeferred<ProblemReportBundle>()
+            val store = TestStore(DevToolsFeature.State(), DevToolsFeature(), CoroutineScope(coroutineContext + job)) {
+                this[ScrollFrames] = ScrollFrames(enabled)
+                this[DateClient] = DateClient { Instant.EPOCH }
+                this[UuidClient] = UuidClient.incrementing()
+                this[DevToolsClient] = DevToolsClient(writeBundle = { exported.complete(it); java.io.File("unused") })
+            }
+            store.send(DevToolsFeature.Action.ExportBundleTapped) { it.copy(isExporting = true) }
+            store.receive(DevToolsFeature.Action.BundleExported(null)) { it.copy(isExporting = false) }
+            val csv = exported.await().files["scroll-frames.csv"]?.decodeToString()
+            assertEquals(if (enabled) "surface,scrolls,total_frames,late_frames,worst_frame_ns\nSidebar,0,0,0,0\nTranscript,0,0,0,0\n" else null, csv)
+        }
+    }
 
     private val haptics = Recorded<String>()
 
