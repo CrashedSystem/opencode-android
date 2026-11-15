@@ -23,7 +23,7 @@ import ai.opencode.server.transcriptWithContextUsageAndCursor
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
+import ai.opencode.core.dependencies.Clock
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.time.Duration
@@ -81,19 +81,18 @@ internal fun SessionFeature.watchdog(
     // reducer tests do not inherit a perpetual timer.
     val watchdogClock = watchdogClock
     if (!sessionTimers.watchdog || watchdogClock == null) return Reduced(state)
-    // No session (a draft), a server that isn't answering, or an app in the background: no
-    // reconciliation timer. A reconnect or the return re-arms it.
+    // No session (a draft), a server that isn't answering, an app in the background or a covered
+    // screen: no reconciliation timer. A reconnect, the return or the uncover re-arms it.
     val session = state.session
-    if (session == null || !state.pollsServer) return stopWatchdog(state)
-    val seconds = when {
-        state.streamIsHealthy && state.streamSupportsProjection -> 20
-        state.isRunning -> 3
-        else -> 30
+    if (session == null || !state.pollsServer) {
+        // Covered, what arrives still moves the deadline the watchdog would have had, so the
+        // uncover reads only once it's truly due.
+        if (session != null && state.isPollingPaused && state.pausedWatchdogDeadline != null) {
+            return stopWatchdog(state.copy(pausedWatchdogDeadline = watchdogClock.now() + watchdogInterval(state, session)))
+        }
+        return stopWatchdog(state)
     }
-    // Stable per-session jitter avoids synchronized clients while remaining deterministic within
-    // one process and friendly to TestClock.
-    val jitter = abs(session.id.hashCode() % maxOf(1, seconds / 5 + 1))
-    val interval = (seconds + jitter).seconds
+    val interval = watchdogInterval(state, session)
     val schedule = WatchdogSchedule(sessionID = session.id, interval = interval, deadline = watchdogClock.now() + interval)
     val previous = state.watchdogSchedule
     val scheduled = state.copy(watchdogSchedule = schedule)
@@ -102,6 +101,14 @@ internal fun SessionFeature.watchdog(
     if (previous?.sessionID == schedule.sessionID && previous?.interval == interval) return Reduced(scheduled)
     val generation = scheduled.watchdogGeneration + 1
     return Reduced(scheduled.copy(watchdogGeneration = generation), sleepWatchdog(schedule, generation))
+}
+
+private fun watchdogInterval(state: SessionFeature.State, session: OpenCodeSession): Duration {
+    val seconds = state.watchdogSeconds
+    // Stable per-session jitter avoids synchronized clients while remaining deterministic within
+    // one process and friendly to TestClock.
+    val jitter = abs(session.id.hashCode() % maxOf(1, seconds / 5 + 1))
+    return (seconds + jitter).seconds
 }
 
 internal fun SessionFeature.watchdogElapsed(
@@ -157,7 +164,7 @@ internal fun quietServerPolling(state: SessionFeature.State): Reduced<SessionFea
 }
 
 /**
- * Back in front with the server reachable, polls and the watchdog start again at once, and a
+ * Back in front (or uncovered) with the server reachable, polls and the watchdog start again at once, and a
  * request read that was owed its retry gets it.
  */
 internal fun SessionFeature.resumeServerPolling(state: SessionFeature.State): Reduced<SessionFeature.State, Action> {
@@ -186,9 +193,9 @@ private fun SessionFeature.sleepWatchdog(schedule: WatchdogSchedule, generation:
 /**
  * Permission/question prompts and queued input are both ephemeral server state that a dropped
  * event stream would desync, so one timer re-reads both while the session is open. (Re)starting it
- * adopts the cadence the stream's current health warrants. Nothing reads while the server isn't
- * answering; in the background (a reconnect during a call) it reads once and the return starts the
- * timer.
+ * reads at once and adopts [pendingWorkPollCadence]. Nothing reads while the server isn't
+ * answering; in the background (a reconnect during a call) or under a cover it reads once, and the
+ * return or the uncover starts the timer.
  */
 internal fun SessionFeature.pollPendingWork(
     state: SessionFeature.State,
@@ -197,22 +204,24 @@ internal fun SessionFeature.pollPendingWork(
     if (session == null || !state.requestsConnectionIsAvailable) {
         return Reduced(state.copy(pendingWorkPollSeconds = null))
     }
-    val seconds = SessionFeature.pendingWorkPollSeconds(streamIsHealthy = state.streamIsHealthy)
-    val repeats = !state.isBackgrounded
+    val seconds = state.pendingWorkPollCadence
+    val repeats = state.pollsServer
     val server = state.server
     val family = state.familySessions.map { it.id }
+    // Tests that drive the watchdog's TestClock drive these sleeps too.
+    val clock = watchdogClock ?: Clock.liveValue
     val requests = Effect.run<Action> { send ->
         while (currentCoroutineContext().isActive) {
             readPendingRequests(server, session, family, send)
             if (!repeats) return@run
-            delay(seconds.seconds)
+            clock.sleep(seconds.seconds)
         }
     }.cancellable(CancelID.Requests, cancelInFlight = true)
     val inbox = Effect.run<Action> { send ->
         while (currentCoroutineContext().isActive) {
             send(Action.PendingInputsRequested(sessionID = session.id))
             if (!repeats) return@run
-            delay(seconds.seconds)
+            clock.sleep(seconds.seconds)
         }
     }.cancellable(CancelID.Inbox, cancelInFlight = true)
     val pollSeconds = if (repeats) seconds else null
@@ -241,16 +250,23 @@ internal fun SessionFeature.startPendingWork(
     return pollPendingWork(state.withRequestLoadAttempt(attempt).withRequestLoadError(null).withRequestArrivalsAreLive(false))
 }
 
-/** A poll started before the stream proved healthy keeps its fallback cadence until restarted; restart it once the stream is healthy. */
+/** A running poll keeps the cadence it started with; restart it when the session warrants another. */
 internal fun SessionFeature.retunePendingWork(
     state: SessionFeature.State,
 ): Reduced<SessionFeature.State, Action> {
     val running = state.pendingWorkPollSeconds
-    if (running == null || running == SessionFeature.pendingWorkPollSeconds(streamIsHealthy = state.streamIsHealthy)) return Reduced(state)
+    if (running == null || running == state.pendingWorkPollCadence) return Reduced(state)
     return pollPendingWork(state)
 }
 
-internal fun SessionFeature.Companion.pendingWorkPollSeconds(streamIsHealthy: Boolean): Int = if (streamIsHealthy) 12 else 2
+/**
+ * The stream connected (again): what it may have missed while it was down is read now. A poll on
+ * the settled cadence restarts, which reads at once; any other retunes.
+ */
+internal fun SessionFeature.pendingWorkAfterStreamConnected(
+    state: SessionFeature.State,
+): Reduced<SessionFeature.State, Action> =
+    if (state.pendingWorkPollSeconds == SETTLED_PENDING_WORK_SECONDS) pollPendingWork(state) else retunePendingWork(state)
 
 internal fun SessionFeature.refreshRequests(state: SessionFeature.State): Effect<Action> {
     val session = state.session ?: return Effect.none()

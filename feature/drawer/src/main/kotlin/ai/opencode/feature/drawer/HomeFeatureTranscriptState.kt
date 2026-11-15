@@ -3,6 +3,8 @@ package ai.opencode.feature.drawer
 import ai.opencode.feature.session.*
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.sharing.shared
+import ai.opencode.core.store.Effect
+import ai.opencode.core.store.Reduced
 import ai.opencode.feature.drawer.HomeFeature.State.StatusSnapshot
 import ai.opencode.feature.session.SessionFeature
 import ai.opencode.feature.transcript.rows.TranscriptTimeStamps
@@ -101,6 +103,54 @@ fun HomeFeature.State.syncingTranscriptCover(): HomeFeature.State {
     val top = subagentStack.lastOrNull()?.navigationID
     val stack = subagentStack.map { it.setTranscriptCovered(coversTranscript(it, onTop = it.navigationID == top)) }
     return copy(sessionDetail = detail, subagentStack = stack)
+}
+
+/**
+ * Whether a screen's timed reads wait ([SessionFeature.State.isPollingPaused]): its transcript is
+ * covered, and neither a live call nor an Ask still under way in its browser needs it current.
+ */
+private fun HomeFeature.State.pausesPolling(detail: SessionFeature.State, onTop: Boolean): Boolean {
+    // A draft has no timers; the session it becomes is paused on creation.
+    if (detail.session == null || !coversTranscript(detail, onTop)) return false
+    if (onTop && !isSettingsShown && detail.browserAskIsLive) return false
+    val ownCall = detail.voice
+    if (ownCall != null && !ownCall.phase.isTerminal) return false
+    val call = sessionDetail?.voice
+    if (call == null || call.phase.isTerminal) return true
+    return call.target.sessionID != detail.session?.id
+}
+
+val HomeFeature.State.pollingPauseIsStale: Boolean
+    get() {
+        val detail = sessionDetail
+        if (detail != null && detail.isPollingPaused != pausesPolling(detail, onTop = subagentStack.isEmpty())) return true
+        val top = subagentStack.lastOrNull()?.navigationID
+        return subagentStack.any { it.isPollingPaused != pausesPolling(it, onTop = it.navigationID == top) }
+    }
+
+/** Marks each screen's pause, and tells each that changed so it stops or starts its timers. */
+fun HomeFeature.State.syncingPollingPause(): Reduced<HomeFeature.State, HomeFeature.Action> {
+    val effects = mutableListOf<Effect<HomeFeature.Action>>()
+    var detail = sessionDetail
+    if (detail != null) {
+        val paused = pausesPolling(detail, onTop = subagentStack.isEmpty())
+        if (detail.isPollingPaused != paused) {
+            detail = detail.copy(isPollingPaused = paused)
+            effects.add(Effect.send(HomeFeature.Action.detail(SessionFeature.Action.PollingPauseChanged(paused))))
+        }
+    }
+    val top = subagentStack.lastOrNull()?.navigationID
+    val stack = mutableListOf<SessionFeature.State>()
+    for (child in subagentStack) {
+        val paused = pausesPolling(child, onTop = child.navigationID == top)
+        if (child.isPollingPaused == paused) {
+            stack.add(child)
+            continue
+        }
+        stack.add(child.copy(isPollingPaused = paused))
+        effects.add(Effect.send(HomeFeature.Action.SubagentStack(child.navigationID, SessionFeature.Action.PollingPauseChanged(paused))))
+    }
+    return Reduced(copy(sessionDetail = detail, subagentStack = stack), Effect.merge(effects))
 }
 
 /**

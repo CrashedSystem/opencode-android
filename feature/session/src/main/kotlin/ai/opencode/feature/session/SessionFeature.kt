@@ -86,6 +86,7 @@ import ai.opencode.server.model.OpenCodeTranscriptPage
 import ai.opencode.server.retry.NetworkPathClient
 import java.time.Instant
 import java.util.UUID
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import ai.opencode.feature.transcript.list.NewMessagesFold
 import ai.opencode.feature.transcript.list.NewMessagesEarlierBaseline
@@ -169,6 +170,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         /** The cadence of the running pending-work poll; null while it is stopped. */
         val pendingWorkPollSeconds: Int? = null,
         val watchdogSchedule: WatchdogSchedule? = null,
+        /** When the watchdog would have read had a cover not paused it; the uncover reads only once that's passed. */
+        val pausedWatchdogDeadline: Duration? = null,
         val watchdogGeneration: Int = 0,
         val streamSupportsProjection: Boolean = false,
         /** Raw live text, retained separately from rendered markdown so batches append exactly once. */
@@ -294,6 +297,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         val isCovered: Boolean = false,
         /** Something sits over the transcript (a pushed subagent, its browser, Settings): what arrives isn't in front of the reader. */
         val isTranscriptCovered: Boolean = false,
+        /** Covered, with no call on it and no Ask answering in its browser: the timed reads wait until it's back. */
+        val isPollingPaused: Boolean = false,
         /** The in-app browser over this session (Experimental). */
         val browser: BrowserFeature.State = BrowserFeature.State(),
         /** A link tap waiting on the system to say whether an app claims it. */
@@ -561,6 +566,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class SceneActiveChanged(val isActive: Boolean) : Action
         /** The scene went to the background (not merely inactive). */
         data object SceneEnteredBackground : Action
+        /** Home paused or resumed this screen's timed reads ([State.isPollingPaused]). */
+        data class PollingPauseChanged(val paused: Boolean) : Action
         /** The empty composer's call button: logs its trigger, then [VoiceTapped]. */
         data object CallButtonTapped : Action
         data object VoiceTapped : Action
@@ -671,6 +678,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class FamilyResponse(val result: Result<OpenCodeSessionFamily>) : Action
         data class SessionSnapshotUpdated(val session: OpenCodeSession) : Action
         data class FamilyRunStateChanged(val sessionID: String, val isRunning: Boolean) : Action
+        /** Home's list read says which sessions are running now. */
+        data class ActiveSessionsRead(val sessionIDs: Set<String>) : Action
         data class FamilySessionRenamed(val sessionID: String, val title: String) : Action
         data class FamilySessionDeleted(val sessionID: String) : Action
         data class ShellsResponse(val sessionID: String, val result: Result<List<OpenCodeShell>>) : Action

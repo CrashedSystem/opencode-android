@@ -86,6 +86,13 @@ internal fun SessionFeature.composedBody(): Reducer<State, Action> {
             // A queued send's message started with its pick still waiting.
             .onChange({ it.queuedPickDue }) { _, _, state -> applyDueModelPick(state) }
             .onChange({ it.queuedAgentPickDue }) { _, _, state -> applyDueAgentPick(state) }
+            // A run starting or settling, a request or a queued message, the stream's health:
+            // running timers move to the cadence that now fits.
+            .onChange({ it.timedReadCadence }) { old, new, state ->
+                val polls = if (old.pendingWork != new.pendingWork) retunePendingWork(state) else Reduced(state)
+                val watched = if (old.watchdog != new.watchdog && polls.state.watchdogSchedule != null) watchdog(polls.state) else Reduced(polls.state)
+                Reduced(watched.state, Effect.merge(polls.effect, watched.effect))
+            }
     }
 
     val coreChain: Reducer<State, Action> = run {

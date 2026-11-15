@@ -53,6 +53,15 @@ fun State.withDraft(text: String): State =
 
 // region State members
 
+/** The browser's Ask is queued, on its way, or its turn runs: the page over the session shows what it brings. */
+val State.browserAskIsLive: Boolean
+    get() {
+        if (!browser.isOpen) return false
+        val id = browser.peekMessageID ?: return false
+        if (failedSends.withID(id) != null || id in cancelledInputIDs) return false
+        return promptStates[id] != null || queuedInputs.any { it.id == id } || isRunning
+    }
+
 /** Null when there's nothing to show: the send failed or was cancelled, or the turn ended without prose. */
 val State.browserPeek: State.BrowserPeek?
     get() {
