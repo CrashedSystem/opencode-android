@@ -100,8 +100,8 @@ sealed interface OpenCodeLiveContentEvent {
     ) : OpenCodeLiveContentEvent
     data class TextEnded(override val messageID: String, val ordinal: Int, val text: String) : OpenCodeLiveContentEvent
     data class ReasoningStarted(override val messageID: String, val ordinal: Int) : OpenCodeLiveContentEvent
-    data class ReasoningDelta(override val messageID: String, val ordinal: Int, val delta: String) : OpenCodeLiveContentEvent
-    data class ReasoningEnded(override val messageID: String, val ordinal: Int, val text: String) : OpenCodeLiveContentEvent
+    data class ReasoningDelta(override val messageID: String, val ordinal: Int) : OpenCodeLiveContentEvent
+    data class ReasoningEnded(override val messageID: String, val ordinal: Int) : OpenCodeLiveContentEvent
     data class ToolInputStarted(override val messageID: String, val toolID: String, val name: String) : OpenCodeLiveContentEvent
     data class ToolInputDelta(override val messageID: String, val toolID: String, val delta: String) : OpenCodeLiveContentEvent
     data class ToolInputEnded(override val messageID: String, val toolID: String, val text: String) : OpenCodeLiveContentEvent
@@ -156,8 +156,7 @@ sealed interface OpenCodeLiveContentEvent {
         this is TextDelta && next is TextDelta && accumulatedText == null && next.accumulatedText == null &&
             messageID == next.messageID && ordinal == next.ordinal ->
             TextDelta(messageID, ordinal, delta + next.delta)
-        this is ReasoningDelta && next is ReasoningDelta && messageID == next.messageID && ordinal == next.ordinal ->
-            ReasoningDelta(messageID, ordinal, delta + next.delta)
+        this is ReasoningDelta && next is ReasoningDelta && messageID == next.messageID && ordinal == next.ordinal -> this
         this is ToolInputDelta && next is ToolInputDelta && messageID == next.messageID && toolID == next.toolID ->
             ToolInputDelta(messageID, toolID, delta + next.delta)
         else -> null

@@ -490,7 +490,7 @@ class AgentRevealAndOrbModelTests {
         val subagent = SubagentActivity(sessionID = id, phase = SubagentActivity.Phase.running)
         // Its execution started before the stream connected: only content arrives.
         AgentActivityLedger.shared.record(
-            OpenCodeServerEvent.ContentBatch(sessionID = id, events = listOf(OpenCodeLiveContentEvent.ReasoningDelta(messageID = "m", ordinal = 0, delta = "…"))),
+            OpenCodeServerEvent.ContentBatch(sessionID = id, events = listOf(OpenCodeLiveContentEvent.ReasoningDelta(messageID = "m", ordinal = 0))),
             now,
         )
         assertEquals(AgentActivity.thinking, subagent.activity(now + 1))

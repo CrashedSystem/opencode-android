@@ -2,6 +2,7 @@ package ai.opencode.server
 
 import ai.opencode.core.testing.TestIsolationRule
 import ai.opencode.server.OpenCodeLiveContentEvent.ReasoningDelta
+import ai.opencode.server.OpenCodeLiveContentEvent.ReasoningEnded
 import ai.opencode.server.OpenCodeLiveContentEvent.TextDelta
 import ai.opencode.server.OpenCodeLiveContentEvent.TextEnded
 import ai.opencode.server.OpenCodeLiveContentEvent.ToolInputDelta
@@ -186,6 +187,19 @@ class OpenCodeEventDecodingTests {
     }
 
     @Test
+    fun reasoningFramesDecodeWithoutTheirText() {
+        val thinking = "hmm ".repeat(10_000)
+        val cases = listOf(
+            Triple("session.reasoning.delta", "delta", ReasoningDelta("m", 2)),
+            Triple("session.reasoning.ended", "text", ReasoningEnded("m", 2)),
+        )
+        for ((type, key, event) in cases) {
+            val frame = "{\"type\":\"$type\",\"data\":{\"sessionID\":\"s\",\"assistantMessageID\":\"m\",\"ordinal\":2,\"$key\":\"$thinking\"}}"
+            assertEquals(OpenCodeServerEvent.ContentBatch("s", listOf(event)), decodeStreamFrame(frame))
+        }
+    }
+
+    @Test
     fun adjacentDeltasForOnePartCoalesceWithoutReordering() {
         val pending = mutableListOf<OpenCodeLiveContentEvent>()
         pending.appendCoalescingDeltas(
@@ -193,8 +207,8 @@ class OpenCodeEventDecodingTests {
                 TextDelta("m", 0, "Hel"),
                 TextDelta("m", 0, "lo"),
                 TextDelta("m", 1, "Other part"),
-                ReasoningDelta("m", 0, "Why"),
-                ReasoningDelta("m", 0, " not"),
+                ReasoningDelta("m", 0),
+                ReasoningDelta("m", 0),
                 ToolInputDelta("m", "t", "{\"a\""),
             ),
         )
@@ -212,7 +226,7 @@ class OpenCodeEventDecodingTests {
             listOf(
                 TextDelta("m", 0, "Hello"),
                 TextDelta("m", 1, "Other part"),
-                ReasoningDelta("m", 0, "Why not"),
+                ReasoningDelta("m", 0),
                 ToolInputDelta("m", "t", "{\"a\":1}"),
                 ToolInputDelta("m", "u", "{}"),
                 TextDelta("m", 0, "!"),
@@ -272,7 +286,7 @@ class OpenCodeEventDecodingTests {
             )
         }
         assertNull(decodeStreamFrame("""{"type":"session.compaction.delta","data":{"sessionID":"ses_compact","text":"Summary"}}"""))
-        assertFalse(OpenCodeLiveContentEvent.ReasoningEnded("m", 0, "thinking").isDurableBoundary)
+        assertFalse(OpenCodeLiveContentEvent.ReasoningEnded("m", 0).isDurableBoundary)
         assertTrue(TextEnded("m", 0, "hello").isDurableBoundary)
     }
 

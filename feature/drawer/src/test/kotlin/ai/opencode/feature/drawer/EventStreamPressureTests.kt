@@ -84,7 +84,7 @@ class EventStreamPressureTests {
             batch(
                 "ses_other",
                 OpenCodeLiveContentEvent.TextDelta("msg_other", 0, delta),
-                OpenCodeLiveContentEvent.ReasoningDelta("msg_other", 1, delta),
+                OpenCodeLiveContentEvent.ReasoningDelta("msg_other", 1),
                 OpenCodeLiveContentEvent.ToolInputDelta("msg_other", "call_1", delta),
             )
         }
