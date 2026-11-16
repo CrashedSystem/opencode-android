@@ -91,6 +91,15 @@ A second line in the same paragraph.
     }
 
     @Test
+    fun paragraphSelectionStopsAtMarkdownBoundaries() {
+        val document = document("Above.\n\nFirst 👩🏽‍💻 sentence.\nSecond sentence.\n\n```swift\nfirst\nsecond\n```\n\nBelow.")
+        val paragraph = TextRange(range("First", document).start, range("Second sentence.", document).end - range("First", document).start)
+        assertEquals(paragraph, document.paragraphRange(range("Second", document).start))
+        val codeLine = range("second", document)
+        assertEquals(codeLine, document.paragraphRange(codeLine.end))
+    }
+
+    @Test
     fun copyJoinsBlocksListsTablesAndCodeLikeTheirMarkdown() {
         val document = document(markdown)
         // Inside one block: just the words.
