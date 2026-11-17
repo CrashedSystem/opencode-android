@@ -339,7 +339,7 @@ private fun HeaderTitle(
     }
     val infoFocus = rememberAccessibilityFocusRequest(infoCloses.takeIf { it > 0 })
     // Auto Rename's new title waits for the breath to ease back to full; another session switched
-    // in place shows its own title at once.
+    // in place rolls its own title in.
     BreathingTitleHold(identity = model.identity, title = latestTitle, isBreathing = model.isSyncing) { title, animates ->
         val subtitle = if (model.autoRenameFailed) stringResource(R.string.session_sheet_rename_failed) else project
         val titleDescription = if (subtitle == null) title else stringResource(R.string.session_list_two, title, subtitle)

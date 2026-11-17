@@ -65,6 +65,7 @@ import ai.opencode.server.model.OpenCodeShell
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +112,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
@@ -241,6 +243,8 @@ fun SessionView(
     val agentScope by store.observe { "${it.server.persistenceID}|${it.session?.id ?: "draft"}" }
     val errorMessage by store.observe { it.errorMessage }
     val identity by store.observe { it.transcriptIdentity }
+    var transcriptShown by remember { mutableStateOf(false) }
+    val reducedMotion = rememberReduceMotion()
     // Read in composition, not in the SideEffect: SideEffect reads aren't observed, so an import
     // finishing would leave the host's copy stale.
     val isImportingImages = importer.isLoadingImages
@@ -320,7 +324,18 @@ fun SessionView(
                         // A draft's transcript carries on into the session it became, so the first
                         // send's bubble and Working never remount mid-flight.
                         key(identity) {
-                            SessionTranscriptView(store, scrollEdgeBridge, transcriptTop, holdsWorking = listContext.connection != null)
+                            val fade = remember { Animatable(if (transcriptShown) 0f else 1f) }
+                            LaunchedEffect(Unit) {
+                                transcriptShown = true
+                                fade.animateTo(1f, Motion.swap.animation(MotionPhase.Enter, reducedMotion))
+                            }
+                            SessionTranscriptView(
+                                store,
+                                scrollEdgeBridge,
+                                transcriptTop,
+                                modifier = Modifier.graphicsLayer { alpha = fade.value },
+                                holdsWorking = listContext.connection != null,
+                            )
                         }
                     }
                 }

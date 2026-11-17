@@ -58,12 +58,10 @@ import android.content.Intent
 import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -795,7 +793,7 @@ object CachedImage {
  * out, the new rises in), breathing while the session syncs or the server writes a title.
  *
  * @param isLastKnown the last refresh failed: the title is secondary until it syncs again.
- * @param animates false on the frame a session switched in place first shows: it swaps at once.
+ * @param animates false on the frame a session switched in place first shows: its bounds don't animate.
  */
 @Composable
 fun SyncingSessionTitle(
@@ -814,9 +812,9 @@ fun SyncingSessionTitle(
         targetState = title,
         modifier = modifier.titleBreathing(isSyncing),
         transitionSpec = {
-            // iOS `.titleRoll` timed by `Motion.swap`; a title swapped in place without animation doesn't move.
-            if (!animates) (fadeIn(snap()) togetherWith fadeOut(snap())) using null
-            else MotionTransition.roll(MotionRollDirection.Up, reducedMotion, density, Motion.swap).content
+            // iOS `.titleRoll` timed by `Motion.swap`; a session switched in place keeps the title's bounds still.
+            val roll = MotionTransition.roll(MotionRollDirection.Up, reducedMotion, density, Motion.swap).content
+            if (animates) roll else roll using null
         },
         label = "syncingSessionTitle",
     ) { shown ->
