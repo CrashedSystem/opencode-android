@@ -1202,16 +1202,18 @@ private fun SessionComposerEnv.DraftProjectsOverlay(modifier: Modifier) {
  */
 @Composable
 private fun SessionComposerEnv.ComposerPills() {
-    val hasActivity = s.hasBackgroundWork
     val hasQueued = s.queuedMessages.isNotEmpty()
-    if (!hasActivity && !hasQueued) return
+    // The background work the row last held keeps its place while the row leaves.
+    var work by remember { mutableStateOf(s.backgroundAgents to s.backgroundShells) }
+    if (s.hasBackgroundWork || hasQueued) work = s.backgroundAgents to s.backgroundShells
+    val hasActivity = work.first > 0 || work.second > 0
     val fontScale = LocalDensity.current.fontScale
     // iOS `ViewThatFits`: the row unless large text makes it overflow.
     val stacks = fontScale >= 1.8f
     val showsJump = host.showsJumpButton && !holdsClientToolCard
     if (!stacks) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (hasActivity) BackgroundActivity()
+            if (hasActivity) BackgroundActivity(work)
             Spacer(Modifier.weight(1f))
             // Beside the queued pill the jump slot carries its own gap, so the queued pill slides over as it closes.
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1221,7 +1223,7 @@ private fun SessionComposerEnv.ComposerPills() {
         }
     } else {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (hasActivity) Box(Modifier.fillMaxWidth()) { BackgroundActivity() }
+            if (hasActivity) Box(Modifier.fillMaxWidth()) { BackgroundActivity(work) }
             if (hasQueued || showsJump) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     QueuedActivity(hasQueued)
@@ -1234,11 +1236,11 @@ private fun SessionComposerEnv.ComposerPills() {
 
 /** iOS `backgroundActivity`: the capsule's place in the pill row; [BackgroundWorkPresentation] draws it. */
 @Composable
-private fun SessionComposerEnv.BackgroundActivity() {
+private fun SessionComposerEnv.BackgroundActivity(work: Pair<Int, Int>) {
     val anchor = host.backgroundWorkAnchor
     BackgroundWorkCapsuleSpace(
-        agents = s.backgroundAgents,
-        shells = s.backgroundShells,
+        agents = work.first,
+        shells = work.second,
         modifier = if (anchor != null) Modifier.backgroundActivityAnchor(anchor) else Modifier,
     )
 }
@@ -1246,7 +1248,8 @@ private fun SessionComposerEnv.BackgroundActivity() {
 /** iOS `queuedActivity`: delivered or sent now, a message lifts out toward the transcript. */
 @Composable
 private fun SessionComposerEnv.QueuedActivity(hasQueued: Boolean) {
-    val count = s.queuedMessages.size
+    var count by remember { mutableStateOf(s.queuedMessages.size) }
+    if (hasQueued) count = s.queuedMessages.size
     AnimatedVisibility(
         visible = hasQueued,
         enter = if (reducedMotion) fadeIn(composerColumnAnimation(opening = true)) else scaleIn(composerColumnAnimation(opening = true), initialScale = 0.92f) + fadeIn(composerColumnAnimation(opening = true)),
