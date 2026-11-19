@@ -72,6 +72,7 @@
     <string name="system_session_input">Invoer</string>
     <string name="system_session_done">Klaar</string>
     <string name="system_session_failed">Mislukt</string>
+    <string name="system_session_answer_unsent">Je antwoord verzenden is mislukt. Open de sessie om het opnieuw te proberen.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Nieuwe activiteit</string>

@@ -72,6 +72,7 @@
     <string name="system_session_input">Vnos</string>
     <string name="system_session_done">Končano</string>
     <string name="system_session_failed">Ni uspelo</string>
+    <string name="system_session_answer_unsent">Odgovora ni bilo mogoče poslati. Odprite sejo in poskusite znova.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Nova dejavnost</string>

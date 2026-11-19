@@ -72,6 +72,7 @@
     <string name="system_session_input">ထည့်သွင်းမှု</string>
     <string name="system_session_done">ပြီးပါပြီ</string>
     <string name="system_session_failed">မအောင်မြင်ပါ။</string>
+    <string name="system_session_answer_unsent">သင့်အဖြေကို မပို့နိုင်ပါ။ ပြန်ကြိုးစားရန် စက်ရှင်ကို ဖွင့်ပါ။</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">လုပ်ဆောင်ချက်အသစ်</string>

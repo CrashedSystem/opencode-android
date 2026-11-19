@@ -72,6 +72,7 @@
     <string name="system_session_input">輸入</string>
     <string name="system_session_done">完成</string>
     <string name="system_session_failed">失敗</string>
+    <string name="system_session_answer_unsent">無法傳送你的答案。請開啟此工作階段再試一次。</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">新動態</string>

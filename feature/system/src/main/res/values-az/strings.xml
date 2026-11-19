@@ -72,6 +72,7 @@
     <string name="system_session_input">Giriş</string>
     <string name="system_session_done">Hazırdır</string>
     <string name="system_session_failed">Uğursuz</string>
+    <string name="system_session_answer_unsent">Cavabınızı göndərmək mümkün olmadı. Yenidən cəhd etmək üçün sessiyanı açın.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Yeni fəaliyyət</string>

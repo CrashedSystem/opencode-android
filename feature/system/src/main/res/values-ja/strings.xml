@@ -72,6 +72,7 @@
     <string name="system_session_input">入力</string>
     <string name="system_session_done">完了</string>
     <string name="system_session_failed">失敗</string>
+    <string name="system_session_answer_unsent">回答を送信できませんでした。セッションを開いてもう一度試してください。</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">新しいアクティビティ</string>

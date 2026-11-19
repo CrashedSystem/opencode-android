@@ -72,6 +72,7 @@
     <string name="system_session_input">Input</string>
     <string name="system_session_done">Færdig</string>
     <string name="system_session_failed">Mislykkedes</string>
+    <string name="system_session_answer_unsent">Kunne ikke sende dit svar. Åbn sessionen for at prøve igen.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Ny aktivitet</string>

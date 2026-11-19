@@ -72,6 +72,7 @@
     <string name="system_session_input">Syöte</string>
     <string name="system_session_done">Valmis</string>
     <string name="system_session_failed">Epäonnistui</string>
+    <string name="system_session_answer_unsent">Vastauksesi lähetys epäonnistui. Avaa istunto ja yritä uudelleen.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Uutta toimintaa</string>

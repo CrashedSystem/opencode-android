@@ -72,6 +72,7 @@
     <string name="system_session_input">Intrare</string>
     <string name="system_session_done">Gata</string>
     <string name="system_session_failed">Eroare</string>
+    <string name="system_session_answer_unsent">Nu s-a putut trimite răspunsul tău. Deschide sesiunea pentru a încerca din nou.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Activitate nouă</string>

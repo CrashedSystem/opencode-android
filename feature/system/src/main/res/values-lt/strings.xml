@@ -72,6 +72,7 @@
     <string name="system_session_input">Įvestis</string>
     <string name="system_session_done">Atlikta</string>
     <string name="system_session_failed">Nepavyko</string>
+    <string name="system_session_answer_unsent">Nepavyko išsiųsti jūsų atsakymo. Atidarykite seansą ir bandykite dar kartą.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Nauja veikla</string>

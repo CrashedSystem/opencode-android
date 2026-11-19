@@ -11,6 +11,7 @@ import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
 import ai.opencode.feature.drawer.HomeFeature.Action
 import ai.opencode.feature.drawer.HomeFeature.State
+import ai.opencode.feature.drawer.notices.DeliveredNotificationsClient
 import ai.opencode.feature.composer.ComposerPersistence
 import ai.opencode.feature.composer.unsentDrafts
 import ai.opencode.feature.session.SessionFeature
@@ -57,6 +58,7 @@ internal fun HomeFeature.reduceConnection(state: State, action: Action): HomeRed
         // The call's and the recording's ongoing-notification buttons.
         val voiceLiveActivity = dependency(VoiceLiveActivityClient)
         val dictationLiveActivity = dependency(DictationLiveActivityClient)
+        val delivered = dependency(DeliveredNotificationsClient)
         Reduced(
             load.state,
             Effect.merge(
@@ -67,6 +69,8 @@ internal fun HomeFeature.reduceConnection(state: State, action: Action): HomeRed
                     .cancellable(HomeFeature.CancelID.DictationCommands, cancelInFlight = true),
                 Effect.run<Action> { send -> composerPersistence.outboxChanges.collect { send(Action.UnsentDraftsChanged) } }
                     .cancellable(HomeFeature.CancelID.UnsentDrafts, cancelInFlight = true),
+                Effect.run<Action> { send -> delivered.replies().collect { send(Action.NotificationReplied(it)) } }
+                    .cancellable(HomeFeature.CancelID.NotificationReplies, cancelInFlight = true),
             ),
         )
     }

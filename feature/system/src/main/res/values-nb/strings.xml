@@ -72,6 +72,7 @@
     <string name="system_session_input">Inndata</string>
     <string name="system_session_done">Ferdig</string>
     <string name="system_session_failed">Mislyktes</string>
+    <string name="system_session_answer_unsent">Kunne ikke sende svaret ditt. Åpne sesjonen for å prøve igjen.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Ny aktivitet</string>

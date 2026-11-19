@@ -90,6 +90,8 @@ private fun HomeFeature.coreRoute(state: State, action: Action): Reduced<State, 
     is Action.AttentionRefreshed,
     -> reduceConnection(state, action)
 
+    is Action.NotificationReplied -> answerFromNotification(state, action.reply)
+
     is Action.ServerEvent -> reduceServerEvent(state, action.event)
 
     is Action.SessionPages -> reduceSessionPages(state, action.action)

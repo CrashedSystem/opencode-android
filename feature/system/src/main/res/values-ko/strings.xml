@@ -72,6 +72,7 @@
     <string name="system_session_input">입력</string>
     <string name="system_session_done">완료</string>
     <string name="system_session_failed">실패</string>
+    <string name="system_session_answer_unsent">답변을 보낼 수 없어요. 세션을 열어 다시 시도해 주세요.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">새 활동</string>

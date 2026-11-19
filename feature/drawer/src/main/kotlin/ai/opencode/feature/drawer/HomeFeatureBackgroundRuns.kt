@@ -20,6 +20,25 @@ import ai.opencode.feature.system.notifications.SessionPushNotifications
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import kotlinx.coroutines.CancellationException
+import ai.opencode.core.strings.localized
+import ai.opencode.feature.composer.PermissionSummary
+import ai.opencode.feature.composer.RequestDockAnswer
+import ai.opencode.feature.system.notifications.SessionNotificationReply
+import ai.opencode.feature.system.notifications.SessionNotificationRequest
+import ai.opencode.server.OpenCodeClientError
+import ai.opencode.server.model.OpenCodeFormFieldType
+import ai.opencode.server.model.OpenCodeFormRequest
+import ai.opencode.server.model.OpenCodeFormValue
+import ai.opencode.server.model.OpenCodePendingRequests
+import ai.opencode.server.model.OpenCodePermissionReply
+import ai.opencode.server.model.OpenCodePermissionRequest
+import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.model.OpenCodeSession
+import ai.opencode.server.model.OpenCodeToolCall
+import ai.opencode.server.replyForm
+import ai.opencode.feature.composer.R as ComposerR
+import ai.opencode.feature.system.R as SystemR
+import ai.opencode.server.R as ServerR
 
 /** What Stay Connected During Runs' service follows. */
 internal data class BackgroundRunDemand(val wanted: Boolean, val isInBackground: Boolean)
@@ -101,6 +120,7 @@ private fun postBackgroundNotice(state: State, event: InAppNotice.Event): Effect
     val server = state.server
     val sessionID = event.sessionID
     val isNeedsInput = event.kind == InAppNotice.Kind.needsInput
+    val root = state.sessions.firstOrNull { it.id == sessionID }
     return Effect.run<Action> {
         val end = background.begin("Session notification")
         try {
@@ -117,6 +137,10 @@ private fun postBackgroundNotice(state: State, event: InAppNotice.Event): Effect
             }
             if (status == null) {
                 AppLog.stream.info { "background_notice_skipped session=$sessionID stopped" }
+            } else if (isNeedsInput) {
+                val request = if (root == null) null else notificationRequest(client, server, root)
+                AppLog.stream.info { "background_notice_posted session=$sessionID status=$status answers=${request?.choices?.size ?: 0}" }
+                delivered.postRequest(server.persistenceID, sessionID, event.title, request, null)
             } else {
                 AppLog.stream.info { "background_notice_posted session=$sessionID status=$status" }
                 delivered.post(server.persistenceID, sessionID, event.title, status)
@@ -140,4 +164,175 @@ internal fun runOutcomeStatus(items: List<OpenCodeTranscriptItem>?): String? {
         }
     }
     return SessionPushNotifications.STATUS_SUCCEEDED
+}
+
+/** The one request a session's family waits on, with the answers a notification can offer; null when it's not exactly one. */
+private suspend fun notificationRequest(client: OpenCodeClient, server: OpenCodeServer, root: OpenCodeSession): SessionNotificationRequest? {
+    val pending = try {
+        familyRequests(client, server, root)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        return null
+    }
+    if (pending.permissions.size + pending.forms.size != 1) return null
+    val permission = pending.permissions.firstOrNull()
+    if (permission != null) {
+        val source = permission.source
+        var call: OpenCodeToolCall? = null
+        if (source != null) {
+            val items = try {
+                client.message(server, permission.sessionID, source.messageID)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                emptyList()
+            }
+            call = RequestDockAnswer.toolCall(permission, listOf(items))
+        }
+        return permissionNotification(permission, call)
+    }
+    return formNotification(pending.forms.first())
+}
+
+private suspend fun familyRequests(client: OpenCodeClient, server: OpenCodeServer, root: OpenCodeSession): OpenCodePendingRequests {
+    val family = client.sessionFamily(server, root)
+    val ids = mutableListOf(root.id)
+    for (session in family.sessions) {
+        if (session.id !in ids) ids += session.id
+    }
+    return client.familyPendingRequests(server, ids, root.directory)
+}
+
+/** The permission card's caption and summary, with Allow Once and Deny; Always Allow needs the card's scope check. */
+internal fun permissionNotification(permission: OpenCodePermissionRequest, call: OpenCodeToolCall?): SessionNotificationRequest {
+    var heading = OpenCodeToolCall.displayName(permission.action)
+    var description = call?.input?.obj?.get("description")?.string?.trim()
+    if (description.isNullOrEmpty()) description = permission.filePreview?.first?.substringAfterLast('/')
+    if (!description.isNullOrEmpty()) heading = "$heading · $description"
+    val command = call?.input?.obj?.get("command")?.string?.ifEmpty { null }
+    return SessionNotificationRequest(
+        sessionID = permission.sessionID,
+        requestID = permission.id,
+        isPermission = true,
+        heading = heading,
+        detail = PermissionSummary(permission, command).text,
+        choices = listOf(
+            SessionNotificationRequest.Choice(localized(ComposerR.string.composer_request_allow_once), permissionOnce),
+            SessionNotificationRequest.Choice(localized(ComposerR.string.composer_request_deny), permissionReject),
+        ),
+    )
+}
+
+/**
+ * A form with one question: its choices as buttons when there are a few, an inline reply when it
+ * takes typed text, or nothing to answer from the notification.
+ */
+internal fun formNotification(form: OpenCodeFormRequest): SessionNotificationRequest {
+    val fields = form.activeFields(form.defaultAnswers)
+    val field = fields.singleOrNull()
+    var heading = form.title
+    var detail = ""
+    if (field != null) {
+        val header = field.title?.trim()
+        if (!header.isNullOrEmpty()) heading = header
+        detail = field.description?.trim() ?: ""
+    }
+    val choices = mutableListOf<SessionNotificationRequest.Choice>()
+    var textReply: SessionNotificationRequest.TextReply? = null
+    if (field != null && field.type == OpenCodeFormFieldType.String) {
+        val options = field.options ?: emptyList()
+        if (options.size <= maxNotificationChoices) {
+            for (option in options) {
+                choices += SessionNotificationRequest.Choice(option.label, option.value)
+            }
+        }
+        val takesText = options.isEmpty() || field.custom == true
+        if (takesText && choices.size < maxNotificationChoices && options.size == choices.size) {
+            textReply = SessionNotificationRequest.TextReply(
+                localized(R.string.drawer_notification_answer),
+                localized(ComposerR.string.composer_review_answer_placeholder),
+            )
+        }
+    }
+    return SessionNotificationRequest(
+        sessionID = form.sessionID,
+        requestID = form.id,
+        isPermission = false,
+        heading = heading,
+        detail = detail,
+        choices = choices,
+        textReply = textReply,
+    )
+}
+
+private const val maxNotificationChoices = 3
+private const val permissionOnce = "once"
+private const val permissionReject = "reject"
+
+/**
+ * Sends an answer given from a notification through the same client calls the request card uses,
+ * after checking the request still waits. Success clears the notification; anything else puts a
+ * short line on it so it never reads as answered.
+ */
+internal fun answerFromNotification(state: State, reply: SessionNotificationReply): HomeReduced {
+    val delivered = dependency(DeliveredNotificationsClient)
+    val client = dependency(OpenCodeClient)
+    val background = dependency(BackgroundTaskClient)
+    val server = state.server
+    val root = state.sessions.firstOrNull { it.id == reply.rootSessionID }
+    val isOn = dependency(ExperimentalFeatures)(ExperimentalFeature.backgroundRuns)
+    if (!isOn || reply.serverKey != server.persistenceID || root == null) {
+        val failure = localized(SystemR.string.system_session_answer_unsent)
+        return Reduced(state, Effect.run { delivered.postRequest(reply.serverKey, reply.rootSessionID, reply.title, null, failure) })
+    }
+    return Reduced(
+        state,
+        Effect.run<Action> {
+            val end = background.begin("Notification answer")
+            try {
+                val failure = sendNotificationAnswer(client, server, root, reply)
+                if (failure == null) {
+                    AppLog.send.info { "notification_answer_sent request=${reply.requestID}" }
+                    delivered.cancel(reply.rootSessionID)
+                } else {
+                    AppLog.send.notice { "notification_answer_failed request=${reply.requestID}" }
+                    delivered.postRequest(server.persistenceID, reply.rootSessionID, reply.title, null, failure)
+                }
+            } finally {
+                end()
+            }
+        }.cancellable(HomeFeature.CancelID.NotificationReply(reply.requestID), cancelInFlight = false),
+    )
+}
+
+/** Null once the answer went through, else the line the notification shows instead. */
+private suspend fun sendNotificationAnswer(client: OpenCodeClient, server: OpenCodeServer, root: OpenCodeSession, reply: SessionNotificationReply): String? {
+    try {
+        val pending = familyRequests(client, server, root)
+        if (reply.isPermission) {
+            val permission = pending.permissions.firstOrNull { it.id == reply.requestID }
+                ?: return localized(ServerR.string.server_request_no_longer_waiting)
+            val answer = if (reply.value == permissionOnce) OpenCodePermissionReply.Once else OpenCodePermissionReply.Reject
+            client.replyPermission(server, permission.sessionID, permission.id, answer, null)
+            return null
+        }
+        val form = pending.forms.firstOrNull { it.id == reply.requestID }
+            ?: return localized(ServerR.string.server_request_no_longer_waiting)
+        val field = form.activeFields(form.defaultAnswers).singleOrNull()
+            ?: return localized(SystemR.string.system_session_answer_unsent)
+        val answers = form.defaultAnswers + (field.key to OpenCodeFormValue.Str(reply.value))
+        val validated = form.validatedAnswer(answers)
+        val invalid = validated.exceptionOrNull()
+        if (invalid != null) return invalid.message ?: localized(SystemR.string.system_session_answer_unsent)
+        client.replyForm(server, form.sessionID, form.id, validated.getOrThrow(), directory = root.directory)
+        return null
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: OpenCodeClientError) {
+        if (error.requestSettled) return error.message
+        return localized(SystemR.string.system_session_answer_unsent)
+    } catch (_: Exception) {
+        return localized(SystemR.string.system_session_answer_unsent)
+    }
 }

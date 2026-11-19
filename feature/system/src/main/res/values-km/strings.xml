@@ -72,6 +72,7 @@
     <string name="system_session_input">ធាតុបញ្ចូល</string>
     <string name="system_session_done">រួចរាល់</string>
     <string name="system_session_failed">បរាជ័យ</string>
+    <string name="system_session_answer_unsent">មិនអាចផ្ញើចម្លើយរបស់អ្នកបាន។ បើកសម័យនេះ ដើម្បីព្យាយាមម្តងទៀត។</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">សកម្មភាពថ្មី</string>

@@ -127,6 +127,9 @@
         <receiver
             android:name=".liveactivity.LiveActivityActionReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".notifications.SessionNotificationActionReceiver"
+            android:exported="false" />
 
         <!-- Quick Settings tiles (iOS Control Center controls). -->
         <service

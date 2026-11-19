@@ -72,6 +72,7 @@
     <string name="system_session_input">Вхідні дані</string>
     <string name="system_session_done">Готово</string>
     <string name="system_session_failed">Помилка</string>
+    <string name="system_session_answer_unsent">Не вдалося надіслати вашу відповідь. Відкрийте сесію, щоб спробувати ще раз.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Нова активність</string>

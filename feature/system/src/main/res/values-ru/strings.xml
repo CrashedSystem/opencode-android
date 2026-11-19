@@ -72,6 +72,7 @@
     <string name="system_session_input">Ввод</string>
     <string name="system_session_done">Готово</string>
     <string name="system_session_failed">Ошибка</string>
+    <string name="system_session_answer_unsent">Не удалось отправить ответ. Откройте сессию, чтобы попробовать снова.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Новая активность</string>

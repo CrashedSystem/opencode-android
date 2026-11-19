@@ -72,6 +72,7 @@
     <string name="system_session_input">Entrada</string>
     <string name="system_session_done">Fet</string>
     <string name="system_session_failed">Ha fallat</string>
+    <string name="system_session_answer_unsent">No s\'ha pogut enviar la teva resposta. Obre la sessió per tornar-ho a provar.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Nova activitat</string>

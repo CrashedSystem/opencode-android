@@ -13,6 +13,7 @@ import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.Reducer
 import ai.opencode.feature.drawer.catchup.CatchUpFeature
 import ai.opencode.feature.drawer.notices.InAppNoticeSignal
+import ai.opencode.feature.system.notifications.SessionNotificationReply
 import ai.opencode.devtools.traces.TraceUploadsFeature
 import ai.opencode.feature.session.InAppNotice
 import ai.opencode.feature.composer.ComposerPersistence
@@ -674,6 +675,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         /** The network path came back or moved to another interface. */
         data object NetworkRerouted : Action
         data class BackgroundHoldChanged(val held: Boolean) : Action
+        /** An answer given from a session's needs-input notification. */
+        data class NotificationReplied(val reply: SessionNotificationReply) : Action
         data class ServerEvent(val event: OpenCodeServerEvent) : Action
         /** Handled by `AppFeature`. */
         data class Delegate(val action: DelegateAction) : Action
@@ -807,6 +810,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         data object LiveUpdatesAfterLeaving : CancelID
         data object BackgroundHold : CancelID
         data class BackgroundNotice(val sessionID: String) : CancelID
+        data object NotificationReplies : CancelID
+        data class NotificationReply(val requestID: String) : CancelID
         data object SessionActivityWait : CancelID
         data class CachedTranscript(val sessionID: String) : CancelID
         data object LinkedSessionOpen : CancelID

@@ -72,6 +72,7 @@
     <string name="system_session_input">Input</string>
     <string name="system_session_done">Selesai</string>
     <string name="system_session_failed">Gagal</string>
+    <string name="system_session_answer_unsent">Tidak dapat menghantar jawapan anda. Buka sesi ini untuk cuba lagi.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Aktiviti baharu</string>

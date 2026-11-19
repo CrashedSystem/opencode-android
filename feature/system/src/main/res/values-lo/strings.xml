@@ -72,6 +72,7 @@
     <string name="system_session_input">ວັດສະດຸປ້ອນ</string>
     <string name="system_session_done">ສຳເລັດ</string>
     <string name="system_session_failed">ລົ້ມເຫລວ</string>
+    <string name="system_session_answer_unsent">ສົ່ງຄຳຕອບຂອງເຈົ້າບໍ່ໄດ້. ເປີດເຊດຊັນເພື່ອລອງໃໝ່.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">ມີການເຄື່ອນໄຫວໃໝ່</string>

@@ -72,6 +72,7 @@
     <string name="system_session_input">Inputi</string>
     <string name="system_session_done">U krye</string>
     <string name="system_session_failed">Dështoi</string>
+    <string name="system_session_answer_unsent">Nuk u dërgua dot përgjigjja jote. Hap sesionin për të provuar sërish.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Aktivitet i ri</string>

@@ -72,6 +72,7 @@
     <string name="system_session_input">Inntak</string>
     <string name="system_session_done">Liðugt</string>
     <string name="system_session_failed">Mistókst</string>
+    <string name="system_session_answer_unsent">Kundi ikki senda títt svar. Opna setuna og royn aftur.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Nýtt virksemi</string>

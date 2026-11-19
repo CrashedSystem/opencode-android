@@ -72,6 +72,7 @@
     <string name="system_session_input">Оролт</string>
     <string name="system_session_done">Болсон</string>
     <string name="system_session_failed">Амжилтгүй</string>
+    <string name="system_session_answer_unsent">Хариултыг тань илгээж чадсангүй. Сессийг нээгээд дахин оролдоно уу.</string>
 
     <!-- Session notifications -->
     <string name="system_notification_placeholder_body">Шинэ үйлдэл</string>
