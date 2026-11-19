@@ -507,6 +507,7 @@ private fun Reducer<State, Action>.homeChildrenObservers(feature: HomeFeature): 
         // snapshots, the open screen, the background wait).
         .onChange({ it.sessionActivityRun }) { _, _, state -> feature.syncSessionActivity(state) }
         .onChange({ it.backgroundRunDemand }) { _, _, state -> syncBackgroundRuns(state) }
+        .onChange({ backgroundNoticeReading(it) }) { _, new, state -> backgroundNoticesChanged(new, state) }
         .onChange({ if (LabMarks.isEnabled) it.sessionIndicators else emptyMap() }) { old, _, state ->
             for ((sessionID, indicator) in state.sessionIndicators) {
                 if (old[sessionID] != indicator) LabMarks.mark("indicator:${indicator.labMarkName}", sessionID = sessionID)
