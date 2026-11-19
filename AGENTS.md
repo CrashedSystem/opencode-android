@@ -164,6 +164,9 @@ a one-frame change is not a bug by itself.
 - **Switching views is instant.** Sessions, tabs and the content behind a segmented control swap
   on the next frame; only the indicator moves. Pushed pages, sheets, menus and dialogs keep
   Material's and the platform's own motion.
+- **Open from the trigger.** A menu, popover or panel that a control opens grows from that control,
+  not from its own centre. Sheets and dialogs keep Material's motion, and this adds no motion where
+  there is none.
 - **Lists animate only what the person just did.** Archive, delete and pin slide the neighbours.
   Loading, re-sorting and search results don't animate rows.
 - **Press scale is for buttons** (`motionPress`). Rows, tabs and bubbles answer with their
