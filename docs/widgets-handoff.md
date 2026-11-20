@@ -18,14 +18,14 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
   is the app's: step inputs, output parsing and validation, the 2,000-command cap, rendering.
   `scripts/psychoscript.sh <dir>` installs the `.so` files (gitignored) and refreshes the committed Kotlin
   bindings; without them widgets show "The widget runtime isn't available". When the generic API's names
-  land, only `NativeAgentWidgetEngine` changes.
-- Shader: `AgentWidgetTransport.shader(server, wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
-  names; `AgentWidgetShaderStore` caches it by sha256(target + wgsl) in memory and under
-  `files/support/widget-shaders/`. Until the server's `opencode.widget` translation RPC exists, the transport
-  translates on device (`LocalAgentWidgetShaderTranslator`, the spec's header and a GL entry that flips
-  `frag.y`); the swap is that one lambda. `AgentWidgetGL` (one GL thread and context, programs cached by GLSL,
-  96-byte UBO bound to the reported blocks), `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`,
-  pause off screen / list not resumed, 50 ms × 3 stop, poster/alt on failure).
+  land, only `NativeAgentWidgetEngine` changes (steps and shader translation).
+- Shader: `AgentWidgetEngine.translateShader(wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
+  names. `NativeAgentWidgetEngine` wraps the node's WGSL in the spec's header and a GL entry that flips
+  `frag.y`, then calls the runner's `translateWgsl` (feature `shader`). `AgentWidgetShaderStore` caches the
+  result by sha256(target + wgsl) in memory and under `files/support/widget-shaders/`. `AgentWidgetGL` (one
+  GL thread and context, programs cached by GLSL, 96-byte UBO bound to the reported blocks),
+  `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`, pause off screen / list not resumed,
+  50 ms × 3 stop, poster/alt on failure).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
 
@@ -38,12 +38,12 @@ event. Everything server-facing lives in `widgets/AgentWidgetAdapter.kt`:
 - `AgentWidgetState` (keyed by tool call ID, `handle` = what the server answers it by) is all
   the runtime and renderer see. The session passes `TranscriptConfiguration.widgets`
   (`AgentWidgetAdapter.states(items)`); `LocalAgentWidgetStates` reaches the rows.
-- `AgentWidgetTransport` (program, shader, respond, send) wraps the REST `AgentWidgetClient` today.
+- `AgentWidgetTransport` (program, respond, send) wraps the REST `AgentWidgetClient` today.
 - A `widget` tool call is its own transcript row (`ToolView` → `AgentWidgetToolRow`); a failed
   call stays in its tool group; the `widget` message adds no row.
 
 For the swap: replace `states(items)` with the plugin's per-session states (refreshed on
-`changed`) and the transport's calls (program, shader, respond, send) with the RPC methods; drop `OpenCodeWidgetMessage`
+`changed`) and the transport's calls (program, respond, send) with the RPC methods; drop `OpenCodeWidgetMessage`
 decoding in `:server`.
 
 ## Workflow (Mac)

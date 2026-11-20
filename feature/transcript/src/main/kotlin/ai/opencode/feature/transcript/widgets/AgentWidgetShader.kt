@@ -4,7 +4,6 @@ import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
-import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.R
 import android.graphics.SurfaceTexture
 import android.view.TextureView
@@ -51,7 +50,6 @@ import kotlinx.coroutines.CancellationException
 @Composable
 fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, modifier: Modifier = Modifier) {
     val shaders = remember { dependency(AgentWidgetShaderStore) }
-    val server = LocalTranscriptRowContext.current.server
     val density = LocalDensity.current.density
     val paused = LocalAgentWidgetPaused.current
     var failure by remember(node.wgsl) { mutableStateOf<String?>(null) }
@@ -61,10 +59,9 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     var stopped by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(server, node.wgsl) {
-        server ?: return@LaunchedEffect
+    LaunchedEffect(node.wgsl) {
         try {
-            val stages = shaders.stages(server, node.wgsl)
+            val stages = shaders.stages(node.wgsl)
             vertex = stages.vertex
             fragment = stages.fragment
         } catch (error: CancellationException) {

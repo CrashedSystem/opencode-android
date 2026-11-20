@@ -4,7 +4,6 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
-import ai.opencode.server.OpenCodeServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -24,26 +23,26 @@ import java.security.MessageDigest
 /**
  * Translated shaders by the hash of their WGSL (and target): the few most recent in memory, all of
  * them on disk, so a template's banner translates once per device. A failure is kept for the
- * process only, so a fixed server or runner gets another try next launch.
+ * process only, so a newer runner gets another try next launch.
  */
 class AgentWidgetShaderStore(
     private val directory: File?,
-    private val transport: () -> AgentWidgetTransport,
+    private val engine: () -> AgentWidgetEngine,
 ) {
     private val memory = object : LinkedHashMap<String, Result<AgentWidgetShaderStages>>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Result<AgentWidgetShaderStages>>) = size > 16
     }
 
     /** The node's stages, or throws why it can't run. */
-    suspend fun stages(server: OpenCodeServer, wgsl: String): AgentWidgetShaderStages {
+    suspend fun stages(wgsl: String): AgentWidgetShaderStages {
         val bytes = wgsl.toByteArray()
-        if (bytes.size > AgentWidgetNode.MAX_SHADER_BYTES) throw AgentWidgetTransportException("The shader is ${bytes.size} bytes, over the 16 KB cap.")
+        if (bytes.size > AgentWidgetNode.MAX_SHADER_BYTES) throw AgentWidgetEngineException("The shader is ${bytes.size} bytes, over the 16 KB cap.")
         val key = hash(bytes)
         synchronized(memory) { memory[key] }?.let { return it.getOrThrow() }
         val result = withContext(Dispatchers.IO) {
             read(key)?.let { Result.success(it) } ?: run {
                 val started = System.nanoTime()
-                val translated = runCatching { transport().shader(server, wgsl) }
+                val translated = runCatching { engine().translateShader(wgsl) }
                 AppLog.perf.info { "Widget shader translated in ${(System.nanoTime() - started) / 1_000} µs (${bytes.size} bytes)" }
                 translated.onSuccess { write(key, it) }
             }
@@ -96,9 +95,9 @@ class AgentWidgetShaderStore(
         private const val TARGET = "glsl-es-300"
 
         override val liveValue: AgentWidgetShaderStore by lazy {
-            AgentWidgetShaderStore(File(File(dependency(AppContext).filesDir, "support"), "widget-shaders")) { dependency(AgentWidgetTransport) }
+            AgentWidgetShaderStore(File(File(dependency(AppContext).filesDir, "support"), "widget-shaders")) { dependency(AgentWidgetEngine) }
         }
         override val testValue: AgentWidgetShaderStore
-            get() = AgentWidgetShaderStore(null) { dependency(AgentWidgetTransport) }
+            get() = AgentWidgetShaderStore(null) { dependency(AgentWidgetEngine) }
     }
 }
