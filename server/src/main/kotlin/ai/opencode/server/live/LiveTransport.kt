@@ -141,6 +141,15 @@ internal fun requestBody(method: String, body: ByteArray?): RequestBody? = when 
     else -> null
 }
 
+/** A plugin RPC's `{ _tag: "RpcError", type, message }` 400: its type and message. */
+internal fun rpcError(status: Int, body: ByteArray?): Pair<String, String>? {
+    if (status != 400 || body == null || body.size > 64 * 1024) return null
+    val o = runCatching { WireJson.parseToJsonElement(body.decodeToString()) as? kotlinx.serialization.json.JsonObject }.getOrNull() ?: return null
+    if ((o["_tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content != "RpcError") return null
+    val type = (o["type"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return null
+    return type to ((o["message"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: type)
+}
+
 /** The status error copy shared by every route. */
 internal fun statusError(status: Int, retryAfterHeader: String?, locationMissing: Boolean = false): OpenCodeClientError = OpenCodeClientError(
     message = when {
@@ -315,6 +324,8 @@ private suspend fun performOnce(
         AppLog.network.notice {
             "$method ${loggablePath(path)}: HTTP ${response.code}${if (locationMissing) " (location missing)" else ""} after ${(clock.now() - started).logSummary}"
         }
+        val rpc = rpcError(response.code, response.body)
+        if (rpc != null) throw statusError(response.code, response.headers["Retry-After"]).copy(message = rpc.second, rpcErrorType = rpc.first)
         throw statusError(response.code, response.headers["Retry-After"], locationMissing)
     }
     ServerContact.shared.heard(server.persistenceID, response.url)

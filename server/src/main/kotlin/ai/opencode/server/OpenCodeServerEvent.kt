@@ -1,5 +1,6 @@
 package ai.opencode.server
 
+import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodePendingInput
 import ai.opencode.server.model.OpenCodeProject
@@ -44,6 +45,9 @@ sealed interface OpenCodeServerEvent {
     /** A durable event changed projected history in a way cheaper and safer to settle from REST. */
     data class MessageInvalidated(val sessionID: String) : OpenCodeServerEvent
 
+    /** The widget plugin posted or answered a widget (`rpc.opencode.widget.changed`). */
+    data class WidgetChanged(val sessionID: String, val state: OpenCodeWidgetState) : OpenCodeServerEvent
+
     /** An undo was staged ([messageID]), redone (null), or made final by a new prompt ([committed]). */
     data class RevertChanged(val sessionID: String, val messageID: String?, val committed: Boolean) : OpenCodeServerEvent
 
@@ -78,6 +82,7 @@ sealed interface OpenCodeServerEvent {
             is InputCancelled -> sessionID
             is ContentBatch -> sessionID
             is MessageInvalidated -> sessionID
+            is WidgetChanged -> sessionID
             is RevertChanged -> sessionID
             is ShellStarted -> shell.sessionID
             Connected, is SessionCreated, is AttentionChanged, is ShellEnded, is ProjectUpdated, ModelsChanged, AgentsChanged -> null

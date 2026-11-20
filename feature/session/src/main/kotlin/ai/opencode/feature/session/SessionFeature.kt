@@ -36,6 +36,8 @@ import ai.opencode.core.sharing.ExperimentalFeature
 import ai.opencode.core.sharing.ExperimentalFeatures
 import ai.opencode.feature.media.LinkMenuAction
 import ai.opencode.feature.media.LinkProbe
+import ai.opencode.server.AgentWidgetClient
+import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.model.ModelVisibility
 import ai.opencode.feature.transcript.list.NewMessagesMark
 import ai.opencode.feature.media.OpenURLClient
@@ -280,6 +282,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         val familyReadAt: Instant? = null,
         val familyRootID: String? = null,
         val activeFamilySessionIDs: Set<String> = emptySet(),
+        /** The widget plugin's states of this session's widgets, by `messageID/callID`. */
+        val widgetStates: Map<String, OpenCodeWidgetState> = emptyMap(),
         /** Runs that started or ended since the latest family read began. */
         val familyRunChanges: Map<String, Boolean> = emptyMap(),
         val familyTranscriptCache: Map<String, List<OpenCodeTranscriptItem>> = emptyMap(),
@@ -684,6 +688,10 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class SessionSnapshotUpdated(val session: OpenCodeSession) : Action
         data class FamilyRunStateChanged(val sessionID: String, val isRunning: Boolean) : Action
         data class ActiveSessionsRead(val sessionIDs: Set<String>) : Action
+        /** The session's widget states, read when it opens, resumes or reconnects. */
+        data class WidgetStatesRead(val sessionID: String, val states: List<OpenCodeWidgetState>) : Action
+        /** The widget plugin posted or answered one of the session's widgets. */
+        data class WidgetChanged(val sessionID: String, val state: OpenCodeWidgetState) : Action
         data class FamilySessionRenamed(val sessionID: String, val title: String) : Action
         data class FamilySessionDeleted(val sessionID: String) : Action
         data class ShellsResponse(val sessionID: String, val result: Result<List<OpenCodeShell>>) : Action
@@ -934,6 +942,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
 
     sealed interface CancelID {
         data object UniversalLink : CancelID
+        data object WidgetStates : CancelID
         data object Models : CancelID
         data object Requests : CancelID
         data object Inbox : CancelID
@@ -1007,6 +1016,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
     // region Dependencies (resolved on each read from the store's values)
 
     internal val openCodeClient by Dependency(OpenCodeClient)
+    internal val widgetClient by Dependency(AgentWidgetClient)
     internal val clock by Dependency(Clock)
     /** The watchdog's clock, captured at init only when [SessionTimers.watchdog] is on. */
     internal val watchdogClock: Clock? = if (dependency(SessionTimers).watchdog) dependency(Clock) else null

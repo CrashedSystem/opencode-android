@@ -76,3 +76,27 @@ sealed interface OpenCodeWidgetResponse {
 data class OpenCodeWidgetMessageValue(val json: String, val wake: Boolean) {
     val body: String get() = "{\"value\":$json,\"wake\":$wake}"
 }
+
+/**
+ * The widget plugin's record of one widget (`opencode.widget` `State`): the `widget` tool call it
+ * belongs to ([messageID], [callID]), the pinned template, and how it ended. [response] is JSON text.
+ */
+data class OpenCodeWidgetState(
+    val sessionID: String,
+    val messageID: String,
+    val callID: String,
+    val template: OpenCodeWidgetRef,
+    val title: String? = null,
+    val status: OpenCodeWidgetMessage.Status,
+    val response: String? = null,
+    val wait: Boolean = false,
+    /** Hosts a live template may fetch from (`capabilities.https.hosts`). */
+    val httpsHosts: List<String>? = null,
+) {
+    /** One widget in a session: a call ID is unique only within its message. */
+    val key: String get() = key(messageID, callID)
+
+    companion object {
+        fun key(messageID: String, callID: String): String = "$messageID/$callID"
+    }
+}

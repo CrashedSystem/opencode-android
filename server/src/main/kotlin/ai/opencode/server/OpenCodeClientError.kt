@@ -37,6 +37,8 @@ data class OpenCodeClientError(
     val urlErrorCode: Int? = null,
     /** The request this answered was already settled, or is gone, on the server: trying again can't help. */
     val requestSettled: Boolean = false,
+    /** A plugin RPC's `RpcError` `type` (`closed`, `rate_limited`, `rpc.unavailable`, ...). */
+    val rpcErrorType: String? = null,
 ) : Exception(message) {
 
     /**

@@ -12,7 +12,7 @@ import ai.opencode.core.ui.openCodeHairline
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
-import ai.opencode.server.model.OpenCodeToolCall
+import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,8 +45,9 @@ import androidx.compose.ui.unit.dp
  * then), run by a controller the list's [AgentWidgetStore] keeps.
  */
 @Composable
-fun AgentWidgetToolRow(call: OpenCodeToolCall, modifier: Modifier = Modifier) {
-    val widget = LocalAgentWidgetStates.current[call.callID]
+fun AgentWidgetToolRow(item: OpenCodeTranscriptItem.Tool, modifier: Modifier = Modifier) {
+    val call = item.call
+    val widget = LocalAgentWidgetStates.current[AgentWidgetAdapter.key(item)]
     if (widget == null) {
         AgentWidgetFrame(Phase.Loading(AgentWidgetMachine.Status.Open), AgentWidgetAdapter.title(call) ?: AgentWidgetAdapter.TOOL, modifier)
     } else {
@@ -65,7 +66,7 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
         AgentWidgetFrame(Phase.Loading(AgentWidgetMachine.Status.Open), widget.label, modifier = modifier)
         return
     }
-    val controller = remember(store, server, sessionID, widget.callID) { store.controller(widget, server, sessionID) }
+    val controller = remember(store, server, sessionID, widget.key) { store.controller(widget, server, sessionID, context.directory) }
     LaunchedEffect(controller) { controller.start() }
     LaunchedEffect(controller, widget) { controller.update(widget) }
     AgentWidgetFrame(controller.phase, widget.label, controller = controller, modifier = modifier)

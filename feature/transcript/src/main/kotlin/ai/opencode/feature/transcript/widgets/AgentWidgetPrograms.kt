@@ -29,13 +29,13 @@ class AgentWidgetPrograms(
     class Compiled(val text: String, val program: AgentWidgetProgram)
 
     /** Throws the fetch's or the compile's error; a failed version is fetched again next time. */
-    suspend fun program(server: OpenCodeServer, ref: OpenCodeWidgetRef): Compiled {
+    suspend fun program(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): Compiled {
         val engine = engine()
         val transport = transport()
         val deferred = synchronized(entries) {
             entries.getOrPut(ref.key) {
                 scope.async {
-                    val text = transport.program(server, ref)
+                    val text = transport.program(server, directory, ref)
                     val started = System.nanoTime()
                     val compiled = engine.compile(text)
                     AppLog.perf.info { "Widget ${ref.key} compiled in ${(System.nanoTime() - started) / 1_000} µs (${text.length} chars)" }

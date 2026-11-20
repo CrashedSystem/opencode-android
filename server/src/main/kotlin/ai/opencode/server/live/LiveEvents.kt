@@ -414,6 +414,8 @@ internal data class EventPayload(
     @Serializable(with = LenientLocationSerializer::class) val location: Location? = null,
     /** `session.inbox.enqueued`'s admitted item; one the app can't read leaves the rest intact. */
     @Serializable(with = LenientInboxItemSerializer::class) val item: InboxItem? = null,
+    /** `rpc.opencode.widget.changed`'s widget state; read loosely, any JSON. */
+    val state: OpenCodeJSONValue? = null,
 ) {
     @Serializable data class Form(val sessionID: String)
     @Serializable data class Location(val directory: String? = null)
@@ -436,6 +438,7 @@ internal object LenientInboxItemSerializer : ElementSerializer<EventPayload.Inbo
 
 private val HANDLED_TYPES = setOf(
     "server.connected",
+    "rpc.opencode.widget.changed",
     "session.execution.started",
     "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted",
     "session.created", "session.forked", "session.viewed",
@@ -499,6 +502,10 @@ private fun serverEvent(type: String, data: EventPayload?): OpenCodeServerEvent?
     }
     return when (type) {
         "server.connected" -> OpenCodeServerEvent.Connected
+        "rpc.opencode.widget.changed" -> {
+            val state = decodeWidgetState(data?.state?.let(OpenCodeJSONValue::toElement)) ?: return null
+            OpenCodeServerEvent.WidgetChanged(data?.sessionID ?: state.sessionID, state)
+        }
         "session.execution.started" -> data?.sessionID?.let(OpenCodeServerEvent::ExecutionStarted)
         "session.execution.succeeded", "session.execution.failed" ->
             data?.sessionID?.let(OpenCodeServerEvent::ExecutionEnded)

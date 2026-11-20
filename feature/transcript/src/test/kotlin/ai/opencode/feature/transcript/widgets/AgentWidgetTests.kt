@@ -201,7 +201,8 @@ class AgentWidgetTests {
                 metadata = mapOf("widget" to json("""{"template":{"version":"0123456789abcdef"},"status":"submitted","response":{"confirmed":true}}""")),
             ),
         )!!
-        assertEquals("call_1", widget.handle)
+        assertEquals(AgentWidgetState.Route.Call, widget.route)
+        assertEquals("call_1", widget.callID)
         assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.template)
         assertEquals(AgentWidgetState.Status.Submitted, widget.status)
         assertEquals("""{"confirmed":true}""", widget.response)
@@ -231,5 +232,35 @@ class AgentWidgetTests {
         )
         val entries = TranscriptEntry.build(items)
         assertTrue(entries.any { ((it as? TranscriptEntry.Single)?.item as? OpenCodeTranscriptItem.Tool)?.call?.name == "widget" })
+    }
+
+    /** Android: the plugin's state pins the version and says how the widget ended; an older server's widget message does instead. */
+    @Test
+    fun aToolCallTakesItsStateFromThePlugin() {
+        val tool = OpenCodeTranscriptItem.Tool("msg_a-tool-0", call("""{"template":"confirm","data":{"a":1}}""").copy(messageID = "msg_a"))
+        val record = ai.opencode.server.model.OpenCodeWidgetState(
+            sessionID = "ses", messageID = "msg_a", callID = "call_1", template = OpenCodeWidgetRef("confirm", "0123456789abcdef"),
+            title = "Deploy?", status = ai.opencode.server.model.OpenCodeWidgetMessage.Status.Submitted, response = "true",
+        )
+        val pinned = AgentWidgetAdapter.states(listOf(tool), mapOf(record.key to record))["msg_a/call_1"]!!
+        assertEquals("0123456789abcdef", pinned.template.version)
+        assertEquals(AgentWidgetState.Status.Submitted, pinned.status)
+        assertEquals("true", pinned.response)
+        assertEquals("Deploy?", pinned.label)
+        assertEquals("""{"a":1}""", pinned.data)
+        assertEquals(AgentWidgetState.Route.Call, pinned.route)
+        assertEquals("msg_a/call_1", AgentWidgetAdapter.key(tool))
+
+        val message = ai.opencode.server.model.OpenCodeWidgetMessage(
+            messageID = "msg_w", template = OpenCodeWidgetRef("confirm", "0123456789abcdef"), data = "{}",
+            status = ai.opencode.server.model.OpenCodeWidgetMessage.Status.Dismissed, callID = "call_1",
+        )
+        val legacy = AgentWidgetAdapter.states(listOf(tool, OpenCodeTranscriptItem.Widget("msg_w", message)))["msg_a/call_1"]!!
+        assertEquals(AgentWidgetState.Status.Dismissed, legacy.status)
+        assertEquals(AgentWidgetState.Route.Message("msg_w"), legacy.route)
+
+        val unpinned = AgentWidgetAdapter.states(listOf(tool))["msg_a/call_1"]!!
+        assertEquals("", unpinned.template.version)
+        assertEquals(AgentWidgetState.Status.Open, unpinned.status)
     }
 }

@@ -2,7 +2,9 @@ package ai.opencode.feature.session
 
 import ai.opencode.core.strings.localized
 import ai.opencode.feature.composer.RequestDockFeature
+import ai.opencode.core.log.AppLog
 import ai.opencode.core.store.Effect
+import ai.opencode.server.OpenCodeClientError
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
 import ai.opencode.core.store.map
@@ -225,8 +227,14 @@ internal fun SessionFeature.reduceStream(
         else Reduced(state, Effect.send(Action.RefreshRequested(RefreshReason.Invalidation)))
     is Action.RefreshRequested -> {
         val refreshed = refreshRequested(state, action.reason)
-        Reduced(refreshed.state, Effect.merge(refreshed.effect, recheckFiles(state, action.reason)))
+        Reduced(refreshed.state, Effect.merge(refreshed.effect, recheckFiles(state, action.reason), readWidgetStates(state, action.reason)))
     }
+    is Action.WidgetStatesRead ->
+        if (action.sessionID != state.session?.id) Reduced(state)
+        else Reduced(state.copy(widgetStates = state.widgetStates + action.states.associateBy { it.key }))
+    is Action.WidgetChanged ->
+        if (action.sessionID != state.session?.id || state.widgetStates[action.state.key] == action.state) Reduced(state)
+        else Reduced(state.copy(widgetStates = state.widgetStates + (action.state.key to action.state)))
     is Action.RefreshResponse -> refreshResponse(state, action)
     is Action.SceneActiveChanged -> sceneActiveChanged(state, action.isActive)
     is Action.ActiveSessionsRead -> Reduced(state.copy(activeFamilySessionIDs = action.sessionIDs))
@@ -1021,3 +1029,23 @@ private fun upsertLiveTool(
 }
 
 // endregion
+
+/**
+ * The widget plugin's states, read when the session opens, comes back or the stream reconnects
+ * (changes published meanwhile were missed); `changed` events keep them current in between.
+ */
+private fun SessionFeature.readWidgetStates(state: SessionFeature.State, reason: RefreshReason): Effect<Action> {
+    if (reason != RefreshReason.Open && reason != RefreshReason.Resume && reason != RefreshReason.Reconnect) return Effect.none()
+    val session = state.session ?: return Effect.none()
+    val server = state.server
+    val client = widgetClient
+    return Effect.run<Action> { send ->
+        val states = try {
+            client.states(server, session.directory, session.id)
+        } catch (error: OpenCodeClientError) {
+            AppLog.network.notice { "Widget states didn't load: ${error.rpcErrorType ?: error.statusCode ?: "transport"}" }
+            return@run
+        }
+        if (states.isNotEmpty()) send(Action.WidgetStatesRead(session.id, states))
+    }.cancellable(SessionFeature.CancelID.WidgetStates, cancelInFlight = true)
+}

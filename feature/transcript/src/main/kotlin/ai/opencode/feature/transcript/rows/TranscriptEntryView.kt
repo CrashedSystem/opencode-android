@@ -21,7 +21,9 @@ import ai.opencode.feature.transcript.markdown.ui.LocalMarkdownSecondary
 import ai.opencode.feature.transcript.markdown.ui.MarkdownBlocksView
 import ai.opencode.feature.transcript.markdown.ui.QuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.SessionLinkContext
+import ai.opencode.feature.transcript.widgets.AgentWidgetAdapter
 import ai.opencode.feature.transcript.widgets.AgentWidgetResponseLine
+import ai.opencode.feature.transcript.widgets.AgentWidgetToolRow
 import ai.opencode.server.model.OpenCodeCompaction
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.foundation.clickable
@@ -115,6 +117,8 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
                 MarkdownBlocksView(blocks, Modifier.fillMaxWidth(), rowID = item.id, isGrowing = props.isGrowing, selectionItemID = item.id)
             }
         }
+
+        is OpenCodeTranscriptItem.Tool if AgentWidgetAdapter.isWidget(item.call) -> AgentWidgetToolRow(item)
 
         is OpenCodeTranscriptItem.Tool -> ToolView(entry, item.id, item.call, props.subagents)
 

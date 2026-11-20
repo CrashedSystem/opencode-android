@@ -123,6 +123,9 @@ internal fun HomeFeature.reduceServerEvent(state: State, event: OpenCodeServerEv
         is OpenCodeServerEvent.MessageInvalidated ->
             return Reduced(state, forwardToSession(state, event.sessionID, SessionFeature.Action.MessageInvalidated(event.sessionID)))
 
+        is OpenCodeServerEvent.WidgetChanged ->
+            return Reduced(state, forwardToSession(state, event.sessionID, SessionFeature.Action.WidgetChanged(event.sessionID, event.state)))
+
         is OpenCodeServerEvent.RevertChanged -> {
             val s = state.updatingSession(event.sessionID) { it.copy(revertMessageID = event.messageID) }
                 .updatingSnapshot(event.sessionID) { it.copy(session = it.session.copy(revertMessageID = event.messageID)) }

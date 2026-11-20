@@ -100,7 +100,7 @@ fun AgentWidgetNodeView(node: AgentWidgetNode, scope: AgentWidgetScope, modifier
         is AgentWidgetNode.Row -> RowNode(node, scope, modifier, path)
         is AgentWidgetNode.Text -> TextNode(node, modifier)
         is AgentWidgetNode.Markdown -> {
-            val blocks = rememberMarkdownBlocks("widget-$path-${scope.controller?.callID}", node.text)
+            val blocks = rememberMarkdownBlocks("widget-$path-${scope.controller?.key}", node.text)
             MarkdownBlocksView(blocks, modifier.fillMaxWidth())
         }
         is AgentWidgetNode.Image -> AgentWidgetImage(node.src, node.alt, node.aspect, modifier)

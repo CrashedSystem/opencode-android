@@ -34,9 +34,9 @@ class AgentWidgetStore(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val controllers = HashMap<String, AgentWidgetController>()
 
-    fun controller(widget: AgentWidgetState, server: OpenCodeServer, sessionID: String): AgentWidgetController {
-        val key = "${server.persistenceID}/$sessionID/${widget.callID}"
-        return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, scope, programs, transport, engine) }
+    fun controller(widget: AgentWidgetState, server: OpenCodeServer, sessionID: String, directory: String?): AgentWidgetController {
+        val key = "${server.persistenceID}/$sessionID/${widget.key}"
+        return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, directory, scope, programs, transport, engine) }
     }
 
     fun close() {
@@ -56,12 +56,13 @@ class AgentWidgetController internal constructor(
     widget: AgentWidgetState,
     private val server: OpenCodeServer,
     private val sessionID: String,
+    private val directory: String?,
     private val scope: CoroutineScope,
     private val programs: AgentWidgetPrograms,
     private val transport: AgentWidgetTransport,
     val engine: AgentWidgetEngine,
 ) {
-    val callID: String = widget.callID
+    val key: String = widget.key
     val data: String = widget.data
     private val ref = widget.template
     private var widget = widget
@@ -179,7 +180,7 @@ class AgentWidgetController internal constructor(
             when (effect) {
                 Effect.Fetch -> scope.launch {
                     val event = try {
-                        val compiled = programs.program(server, ref)
+                        val compiled = programs.program(server, directory, ref)
                         program = compiled.program
                         Event.Loaded
                     } catch (error: CancellationException) {
@@ -213,16 +214,21 @@ class AgentWidgetController internal constructor(
                 }
                 is Effect.Send -> scope.launch {
                     try {
-                        transport.send(server, sessionID, widget, effect.message)
+                        transport.send(server, directory, sessionID, widget, effect.message)
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: AgentWidgetTransportException) {
-                        feed(Event.SendFailed(if (error.isClosed) localized(R.string.transcript_widget_not_open) else error.message ?: ""))
+                        // Past 10 a second the server drops sends; so does the widget.
+                        if (error.isRateLimited) {
+                            AppLog.app.notice { "Widget ${ref.name} send dropped: rate limited" }
+                        } else {
+                            feed(Event.SendFailed(if (error.isClosed) localized(R.string.transcript_widget_not_open) else error.message ?: ""))
+                        }
                     }
                 }
                 is Effect.Respond -> scope.launch {
                     val failure = try {
-                        transport.respond(server, sessionID, widget, effect.response)
+                        transport.respond(server, directory, sessionID, widget, effect.response)
                         null
                     } catch (error: CancellationException) {
                         throw error

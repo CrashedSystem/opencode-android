@@ -60,6 +60,19 @@ class OpenCodeEventDecodingTests {
         assertTrue(OpenCodeLiveContentEvent.ToolSucceeded("msg_fixture", "tool_fixture", listOf("done"), emptyMap()) in content)
     }
 
+    /** The widget plugin's `changed` event (`rpc.opencode.widget.changed`, specs/v2/widgets.md). */
+    @Test
+    fun widgetChangedCarriesThePluginsState() {
+        val frame = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","template":{"name":"confirm","version":"0123456789abcdef"},"title":"Deploy?","status":"submitted","response":{"confirmed":true},"wait":false,"time":{"created":1,"responded":2}}}}"""
+        val event = decodeStreamFrame(frame) as OpenCodeServerEvent.WidgetChanged
+        assertEquals("ses_w", event.sessionID)
+        assertEquals("msg_a/call_1", event.state.key)
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), event.state.template)
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetMessage.Status.Submitted, event.state.status)
+        assertEquals("""{"confirmed":true}""", event.state.response)
+        assertEquals(null, decodeStreamFrame("""{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"status":"open"}}}"""))
+    }
+
     /**
      * V2's `session.created`, `session.forked` and `session.viewed` frames
      * (packages/schema/src/session-event.ts), as `GET /api/event` sends them.

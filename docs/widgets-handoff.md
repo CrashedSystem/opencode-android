@@ -27,22 +27,28 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
 
-## Server seam (contract change pending)
+## Server seam: the `opencode.widget` plugin
 
-Widgets are becoming an internal server plugin: the history entry is the `widget` tool call,
-and the REST routes become RPC calls on `/api/rpc/opencode.widget/<method>` with a `changed`
-event. Everything server-facing lives in `widgets/AgentWidgetAdapter.kt`:
+A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found by `(messageID, callID)`.
+`:server` talks to the plugin over `POST /api/rpc/opencode.widget/<method>?location[directory]=…`
+(`live/LiveWidgets.kt`, `AgentWidgetClient`): `program` (pinned versions cached on disk forever),
+`states`, `respond`, `send`; RPC errors keep their `type` (`OpenCodeClientError.rpcErrorType`: `closed`,
+`rate_limited`, `not_found`, `rpc.unavailable`). `rpc.opencode.widget.changed` becomes
+`OpenCodeServerEvent.WidgetChanged`, which Home forwards to the session screen.
 
-- `AgentWidgetState` (keyed by tool call ID, `handle` = what the server answers it by) is all
-  the runtime and renderer see. The session passes `TranscriptConfiguration.widgets`
-  (`AgentWidgetAdapter.states(items)`); `LocalAgentWidgetStates` reaches the rows.
-- `AgentWidgetTransport` (program, respond, send) wraps the REST `AgentWidgetClient` today.
-- A `widget` tool call is its own transcript row (`ToolView` → `AgentWidgetToolRow`); a failed
-  call stays in its tool group; the `widget` message adds no row.
-
-For the swap: replace `states(items)` with the plugin's per-session states (refreshed on
-`changed`) and the transport's calls (program, respond, send) with the RPC methods; drop `OpenCodeWidgetMessage`
-decoding in `:server`.
+- `SessionFeature` reads `states` when the session opens, resumes or reconnects
+  (`readWidgetStates`) and applies `WidgetChanged`; `State.widgetStates` goes to the transcript as
+  `TranscriptConfiguration.widgets` through `AgentWidgetAdapter.states(items, records)`.
+- `widgets/AgentWidgetAdapter.kt` pairs each `widget` tool call with its plugin state (else the call
+  alone: `metadata.template`, or the latest version, open) and routes answers. Rows, runtime and
+  renderer see only `AgentWidgetState` and `AgentWidgetTransport`.
+- `send` over 10 a second fails `rate_limited` and is dropped; `closed` shows "This widget isn't open
+  any more." / "already answered".
+- Synthetic answer and send messages carry `metadata.widget { messageID, callID, kind }` and show as
+  the quiet `◈` line.
+- Legacy: widgets that pre-plugin servers stored as `widget` messages still render and answer through
+  the old REST routes (`Route.Message`), and `program`/`states` fall back on `rpc.unavailable`.
+  Delete this path (and `OpenCodeWidgetMessage` decoding) once no such server is in use.
 
 ## The runner build
 
