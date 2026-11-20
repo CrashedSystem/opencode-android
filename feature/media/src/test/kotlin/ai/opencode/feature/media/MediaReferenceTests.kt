@@ -153,6 +153,41 @@ class MediaReferenceTests {
     }
 
     @Test
+    fun theDiskTierTrimsLeastRecentlyUsedBlobsPastItsBudget() = runTest {
+        val tempDir = tempDir()
+        try {
+            val server = OpenCodeServer(url = "https://server-one.invalid", username = "user", password = "secret")
+            val hashes = listOf("c3", "d4", "e5", "f6").map { it.repeat(32) }
+            var fetches = 0
+            val loader = MediaReferenceLoader(
+                directory = tempDir,
+                fetch = MediaReferenceLoader.Fetch { _, _ ->
+                    synchronized(this@MediaReferenceTests) { fetches += 1 }
+                    MediaReferenceFetch.Response(200, ByteArray(1024))
+                },
+                memoryWarnings = MemoryWarningCenter(),
+                maxDiskBytes = 3 * 1024,
+            )
+            fun onDisk(hash: String) = File(tempDir, "$hash.blob").isFile
+
+            for (hash in hashes.take(3)) loader.load(server, hash)
+            assertTrue("at the budget, nothing goes", hashes.take(3).all(::onDisk))
+            // The oldest is read again from disk, which makes it the newest.
+            loader.purgeMemory()
+            Thread.sleep(20)
+            loader.load(server, hashes[0])
+            assertEquals(3, fetches)
+
+            loader.load(server, hashes[3])
+            assertTrue(onDisk(hashes[0]) && onDisk(hashes[3]))
+            assertTrue(!onDisk(hashes[1]) && !onDisk(hashes[2]))
+            assertTrue(MediaReferenceLoader.trim(tempDir, Long.MAX_VALUE, keeping = "") <= 3 * 1024 / 4 * 3)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun retryStateClearsTransientFailureAndImageViewerRetriesFailedPage() = runTest {
         var retryState = MediaAttachmentRetryState(failure = MediaAttachmentFailure.Failed, attempt = 0)
         assertTrue(retryState.isTransientFailure)

@@ -140,14 +140,15 @@ class MemoryWarningCenter {
 }
 
 /**
- * Memory (LRU, [MAX_MEMORY_BYTES] / [MAX_MEMORY_ENTRIES]) and disk (`<hash>.blob`) tiers over one
- * coalesced fetch per server and hash. A memory warning drops the memory tier; the disk tier and
- * the per-server 404s stay.
+ * Memory (LRU, [MAX_MEMORY_BYTES] / [MAX_MEMORY_ENTRIES]) and disk (`<hash>.blob`, [MAX_DISK_BYTES])
+ * tiers over one coalesced fetch per server and hash. A memory warning drops the memory tier; the
+ * disk tier and the per-server 404s stay.
  */
 class MediaReferenceLoader(
     private val directory: File?,
     private val fetch: Fetch = Fetch(MediaReferenceFetch::live),
     memoryWarnings: MemoryWarningCenter = MemoryWarningCenter.default,
+    private val maxDiskBytes: Long = MAX_DISK_BYTES,
 ) : CoalescedLoaderActor<MediaReferenceLoadResult>() {
     /** Throws [OpenCodeClientError]. */
     fun interface Fetch {
@@ -161,6 +162,9 @@ class MediaReferenceLoader(
     private val order = ArrayList<String>()
     private var totalBytes = 0
     private val unavailable = HashSet<UnavailableKey>()
+    private val diskLock = Any()
+    /** Bytes on disk, counted once from metadata, then kept by writes. */
+    private var diskBytes: Long? = null
 
     init {
         memoryWarnings.observe(::purgeMemory)
@@ -288,7 +292,10 @@ class MediaReferenceLoader(
         val directory = directory ?: return null
         val file = File(directory, "$hash.blob")
         if (!file.isFile || file.length() > MAX_BLOB_BYTES) return null
-        return runCatching { file.readBytes() }.getOrNull()?.takeIf { it.size <= MAX_BLOB_BYTES }
+        val data = runCatching { file.readBytes() }.getOrNull()?.takeIf { it.size <= MAX_BLOB_BYTES } ?: return null
+        // A read is a use: the trim goes by modification date.
+        file.setLastModified(System.currentTimeMillis())
+        return data
     }
 
     private fun writeDisk(hash: String, data: ByteArray) {
@@ -305,6 +312,11 @@ class MediaReferenceLoader(
             }
         } catch (error: Exception) {
             AppLog.network.error { "Media ref ${shortHash(hash)}: couldn’t write disk cache (${error::class.java.simpleName})" }
+            return
+        }
+        synchronized(diskLock) {
+            val total = diskBytes?.let { it + data.size } ?: trim(directory, Long.MAX_VALUE, keeping = hash)
+            diskBytes = if (total > maxDiskBytes) trim(directory, maxDiskBytes / 4 * 3, keeping = hash) else total
         }
     }
 
@@ -312,12 +324,36 @@ class MediaReferenceLoader(
         const val MAX_MEMORY_BYTES = 48 * 1024 * 1024
         const val MAX_MEMORY_ENTRIES = 64
         const val MAX_BLOB_BYTES = 25 * 1024 * 1024
+        /**
+         * The disk tier's budget. Past it, least recently used blobs go until a quarter of it is free.
+         * Every blob here came from a server and can be fetched again.
+         */
+        const val MAX_DISK_BYTES = 256L * 1024 * 1024
 
         internal val shared: MediaReferenceLoader by lazy {
             MediaReferenceLoader(LinkPreviewLoader.cachesDirectory("media-references"))
         }
 
         fun shortHash(hash: String): String = MediaReferenceFetch.shortHash(hash)
+
+        /**
+         * Deletes the least recently used blobs, reading only file metadata, until at most [limit] bytes
+         * remain (never [keeping], just written). Returns the bytes left.
+         */
+        internal fun trim(directory: File, limit: Long, keeping: String): Long {
+            val files = directory.listFiles() ?: return 0
+            var total = 0L
+            for (file in files) total += file.length()
+            if (total <= limit) return total
+            for (file in files.sortedBy { it.lastModified() }) {
+                if (total <= limit) break
+                if (file.name == "$keeping.blob") continue
+                val bytes = file.length()
+                if (file.delete()) total -= bytes else AppLog.network.error { "Media refs: couldn’t trim a blob" }
+            }
+            AppLog.network.info { "Media refs: trimmed disk cache to $total bytes" }
+            return total
+        }
 
         /** The error's kind, never its message. */
         private fun logDescription(error: OpenCodeClientError): String =
