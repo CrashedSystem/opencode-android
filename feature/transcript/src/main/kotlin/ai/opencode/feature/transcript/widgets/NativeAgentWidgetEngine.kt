@@ -37,11 +37,10 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     private inline fun <T> mapped(block: () -> T): T = try {
         block()
     } catch (error: WidgetException) {
-        val kind = error.javaClass.simpleName
         throw AgentWidgetEngineException(
-            error.message ?: kind,
+            error.message ?: error.javaClass.simpleName,
             isTimeout = error is WidgetException.Timeout,
-            isBudget = kind == "Budget",
+            isBudget = error is WidgetException.Budget,
         )
     }
 }

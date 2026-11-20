@@ -846,10 +846,10 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_entry() and 0xFFFF) != 43218) {
+    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_entry() and 0xFFFF) != 26028) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_header() and 0xFFFF) != 42944) {
+    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_header() and 0xFFFF) != 25395) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_source() and 0xFFFF) != 51927) {
@@ -861,7 +861,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_opencode_widget_ffi_checksum_func_vertex_shader() and 0xFFFF) != 51902) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_method_widgetprogram_step() and 0xFFFF) != 34487) {
+    if ((lib.uniffi_opencode_widget_ffi_checksum_method_widgetprogram_step() and 0xFFFF) != 47827) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_opencode_widget_ffi_checksum_constructor_widgetprogram_new() and 0xFFFF) != 23250) {
@@ -1189,12 +1189,12 @@ public interface WidgetProgramInterface {
     /**
      * Runs one step of the step ABI: `input_json` is a step input (`{ phase: "init", data }`,
      * `{ phase: "event", data, state, event }` or `{ phase: "draw", data, state, frame }`) and the
-     * result is the program's output as JSON: `{ state, view, submit?, dismiss? }` for `init` and
+     * result is its output as JSON: `{ state, view, submit?, dismiss?, send? }` for `init` and
      * `event`, `{ commands }` for `draw`.
      *
-     * The output is the program's own value once checked: a view that isn't a valid node tree, or
-     * a draw over 2,000 commands, fails with `Output`. Nodes and props this crate doesn't know
-     * pass through untouched for the renderer to skip.
+     * Outputs are checked and normalized as the desktop reads them (`opencode-widget`'s types):
+     * an invalid view or draw command fails with `Output`, a draw over 8 ms or 2,000 commands
+     * with `Budget`; unknown node types read as `{ "type": "unknown" }`.
      */
     fun `step`(`inputJson`: kotlin.String): kotlin.String
     
@@ -1325,12 +1325,12 @@ open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
     /**
      * Runs one step of the step ABI: `input_json` is a step input (`{ phase: "init", data }`,
      * `{ phase: "event", data, state, event }` or `{ phase: "draw", data, state, frame }`) and the
-     * result is the program's output as JSON: `{ state, view, submit?, dismiss? }` for `init` and
+     * result is its output as JSON: `{ state, view, submit?, dismiss?, send? }` for `init` and
      * `event`, `{ commands }` for `draw`.
      *
-     * The output is the program's own value once checked: a view that isn't a valid node tree, or
-     * a draw over 2,000 commands, fails with `Output`. Nodes and props this crate doesn't know
-     * pass through untouched for the renderer to skip.
+     * Outputs are checked and normalized as the desktop reads them (`opencode-widget`'s types):
+     * an invalid view or draw command fails with `Output`, a draw over 8 ms or 2,000 commands
+     * with `Budget`; unknown node types read as `{ "type": "unknown" }`.
      */
     @Throws(WidgetException::class)override fun `step`(`inputJson`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
@@ -1453,8 +1453,14 @@ sealed class WidgetException(message: String): kotlin.Exception(message) {
         class Timeout(message: String) : WidgetException(message)
         
     /**
-     * The step returned something that isn't a step output: no view, an invalid view, too many
-     * draw commands.
+     * A draw step ran past its 8 ms or returned over 2,000 commands: three in a row and the
+     * canvas stops animating.
+     */
+        class Budget(message: String) : WidgetException(message)
+        
+    /**
+     * The step returned something that isn't a step output: no view, an invalid view, a draw
+     * command of the wrong shape.
      */
         class Output(message: String) : WidgetException(message)
         
@@ -1485,9 +1491,10 @@ public object FfiConverterTypeWidgetError : FfiConverterRustBuffer<WidgetExcepti
             1 -> WidgetException.Compile(FfiConverterString.read(buf))
             2 -> WidgetException.Script(FfiConverterString.read(buf))
             3 -> WidgetException.Timeout(FfiConverterString.read(buf))
-            4 -> WidgetException.Output(FfiConverterString.read(buf))
-            5 -> WidgetException.Input(FfiConverterString.read(buf))
-            6 -> WidgetException.Shader(FfiConverterString.read(buf))
+            4 -> WidgetException.Budget(FfiConverterString.read(buf))
+            5 -> WidgetException.Output(FfiConverterString.read(buf))
+            6 -> WidgetException.Input(FfiConverterString.read(buf))
+            7 -> WidgetException.Shader(FfiConverterString.read(buf))
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
         
@@ -1511,16 +1518,20 @@ public object FfiConverterTypeWidgetError : FfiConverterRustBuffer<WidgetExcepti
                 buf.putInt(3)
                 Unit
             }
-            is WidgetException.Output -> {
+            is WidgetException.Budget -> {
                 buf.putInt(4)
                 Unit
             }
-            is WidgetException.Input -> {
+            is WidgetException.Output -> {
                 buf.putInt(5)
                 Unit
             }
-            is WidgetException.Shader -> {
+            is WidgetException.Input -> {
                 buf.putInt(6)
+                Unit
+            }
+            is WidgetException.Shader -> {
+                buf.putInt(7)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -1528,7 +1539,7 @@ public object FfiConverterTypeWidgetError : FfiConverterRustBuffer<WidgetExcepti
 
 }
         /**
-         * [`SHADER_ENTRY`].
+         * The contract's fragment entry point every client puts after a template's WGSL: `widget_main`.
          */ fun `shaderEntry`(): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCall() { _status ->
@@ -1541,7 +1552,8 @@ public object FfiConverterTypeWidgetError : FfiConverterRustBuffer<WidgetExcepti
     
 
         /**
-         * [`SHADER_HEADER`].
+         * The contract's header every client puts before a template's WGSL: the `Widget` uniforms (96
+         * bytes, the same layout in WGSL, MSL and std140) at group 0, binding 0.
          */ fun `shaderHeader`(): kotlin.String {
             return FfiConverterString.lift(
     uniffiRustCall() { _status ->
