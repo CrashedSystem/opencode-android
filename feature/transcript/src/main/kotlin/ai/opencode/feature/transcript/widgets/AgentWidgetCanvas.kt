@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -30,13 +31,12 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /**
@@ -64,10 +64,12 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     var revision by remember { mutableIntStateOf(0) }
     val drawState = controller?.phase?.state
     val currentScope by rememberUpdatedState(scope)
+    var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark) {
+    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible) {
         controller ?: return@LaunchedEffect
-        if (state.size == IntSize.Zero) return@LaunchedEffect
+        // Off screen it keeps its last frame; the first one waits until it's seen.
+        if (state.size == IntSize.Zero || !visible) return@LaunchedEffect
         var last = 0L
         var overruns = 0
         val interval = if (node.fps > 0) 1_000_000_000L / node.fps else Long.MAX_VALUE
@@ -79,32 +81,23 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             val t = (now - state.startNanos) / 1e9
             val dt = if (last == 0L) 0.0 else (now - last) / 1e9
             last = now
-            val frame = state.frameJSON(node.id, t, dt, density, dark)
-            val started = System.nanoTime()
-            val text = try { controller.draw(frame) } catch (error: Exception) {
-                AppLog.app.notice { "Widget canvas draw failed: ${error.javaClass.simpleName}" }
-                null
-            } ?: break
-            val stepped = System.nanoTime()
-            val decoded = withContext(Dispatchers.Default) {
-                val next = state.spare
-                runCatching { AgentWidgetDrawList.decode(text, palette, next) }.isSuccess
-            }
-            if (decoded) {
-                state.swap()
-                revision++
-            }
-            val stepMicros = (stepped - started) / 1_000
-            state.noteFrame(stepMicros, (System.nanoTime() - stepped) / 1_000)
-            overruns = if (stepMicros > DRAW_BUDGET_MICROS || state.shown.truncated) overruns + 1 else 0
-            if (overruns >= 3) {
-                AppLog.perf.notice { "Widget canvas stopped: over budget three frames in a row" }
-                break
-            }
+            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark), node.fps > 0, palette) ?: break
+            if (step.drawn) revision++
+            overruns = if (step.overBudget) overruns + 1 else 0
             first = false
             val duration = node.duration
+            if (overruns >= 3) {
+                AppLog.perf.notice { "Widget canvas stopped: over budget three frames in a row" }
+                // An intro stopped early still lands on its end state.
+                if (duration != null && t < duration) {
+                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark), true, palette)
+                    if (end?.drawn == true) revision++
+                }
+                break
+            }
             if (node.fps <= 0 || (duration != null && t >= duration)) break
         }
+        state.report()
     }
 
     val width = node.width
@@ -115,6 +108,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             .height(node.height.dp)
             .clip(OpenCodeShape.control)
             .onSizeChanged { state.size = it }
+            .onVisibilityChanged { visible = it }
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
             .then(
                 if (node.id != null) {
@@ -175,7 +169,7 @@ private class CanvasState {
     var shown = AgentWidgetDrawList()
     var spare = AgentWidgetDrawList()
     val renderer = CanvasRenderer()
-    var size = IntSize.Zero
+    var size by mutableStateOf(IntSize.Zero)
     var startNanos = 0L
     @Volatile var pointer: FloatArray? = null
     private var frames = 0
@@ -187,6 +181,35 @@ private class CanvasState {
         val previous = shown
         shown = spare
         spare = previous
+    }
+
+    class Step(val drawn: Boolean, val overBudget: Boolean)
+
+    /** One draw step decoded into [spare] on the widget's lane, then shown; null when the canvas can't draw. */
+    suspend fun step(controller: AgentWidgetController, frame: String, animating: Boolean, palette: AgentWidgetDrawList.Palette): Step? {
+        var decoded = false
+        var decodeMicros = 0L
+        val micros = try {
+            controller.draw(frame, animating) { text ->
+                val started = System.nanoTime()
+                decoded = runCatching { AgentWidgetDrawList.decode(text, palette, spare) }.isSuccess
+                decodeMicros = (System.nanoTime() - started) / 1_000
+            } ?: return null
+        } catch (error: AgentWidgetEngineException) {
+            if (!error.isBudget) {
+                AppLog.app.notice { "Widget canvas draw failed: ${error.message?.take(120)}" }
+                return null
+            }
+            return Step(drawn = false, overBudget = true)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLog.app.notice { "Widget canvas draw failed: ${error.javaClass.simpleName}" }
+            return null
+        }
+        if (decoded) swap()
+        noteFrame(micros, decodeMicros)
+        return Step(drawn = decoded, overBudget = micros > DRAW_BUDGET_MICROS || (decoded && shown.truncated))
     }
 
     fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean): String {
@@ -209,15 +232,19 @@ private class CanvasState {
         stepTotal += stepMicros
         decodeTotal += decodeMicros
         if (stepMicros > stepMax) stepMax = stepMicros
-        if (frames == 120) {
-            AppLog.perf.info {
-                "Widget canvas: 120 frames, draw step avg ${stepTotal / frames} µs (max $stepMax), decode avg ${decodeTotal / frames} µs, ${shown.commandCount} commands"
-            }
-            frames = 0
-            stepTotal = 0
-            decodeTotal = 0
-            stepMax = 0
+        if (frames == 120) report()
+    }
+
+    /** Logs the frames since the last report: every 120, and when an animation ends. */
+    fun report() {
+        if (frames == 0) return
+        AppLog.perf.info {
+            "Widget canvas: $frames frames, draw step avg ${stepTotal / frames} µs (max $stepMax), decode avg ${decodeTotal / frames} µs, ${shown.commandCount} commands"
         }
+        frames = 0
+        stepTotal = 0
+        decodeTotal = 0
+        stepMax = 0
     }
 }
 

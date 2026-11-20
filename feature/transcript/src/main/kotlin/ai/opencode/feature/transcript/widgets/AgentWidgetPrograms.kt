@@ -24,10 +24,13 @@ class AgentWidgetPrograms(
     private val limit: Int = 12,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val entries = LinkedHashMap<String, Deferred<AgentWidgetProgram>>(16, 0.75f, true)
+    private val entries = LinkedHashMap<String, Deferred<Compiled>>(16, 0.75f, true)
+
+    /** A template version's program text and its shared compiled program. */
+    class Compiled(val text: String, val program: AgentWidgetProgram)
 
     /** Throws the fetch's or the compile's error; a failed version is fetched again next time. */
-    suspend fun program(server: OpenCodeServer, ref: OpenCodeWidgetRef): AgentWidgetProgram {
+    suspend fun program(server: OpenCodeServer, ref: OpenCodeWidgetRef): Compiled {
         val engine = engine()
         val client = client()
         val deferred = synchronized(entries) {
@@ -37,9 +40,10 @@ class AgentWidgetPrograms(
                     val started = System.nanoTime()
                     val compiled = engine.compile(text)
                     AppLog.perf.info { "Widget ${ref.key} compiled in ${(System.nanoTime() - started) / 1_000} µs (${text.length} chars)" }
-                    compiled
+                    Compiled(text, compiled)
                 }
             }.also {
+                // An evicted program a widget still holds keeps stepping; the collector frees it.
                 while (entries.size > limit) entries.remove(entries.keys.first())
             }
         }

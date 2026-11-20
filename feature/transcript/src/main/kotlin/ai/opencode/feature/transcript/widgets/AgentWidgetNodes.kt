@@ -8,7 +8,7 @@ import ai.opencode.core.ui.OpenCodeTextField
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.openCodeHairline
-import ai.opencode.core.ui.openCodeTapTarget
+import ai.opencode.core.ui.OpenCodeMinTapTarget
 import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.markdown.rememberMarkdownBlocks
 import ai.opencode.feature.transcript.markdown.ui.MarkdownBlocksView
@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -276,7 +277,7 @@ private fun CheckboxNode(node: AgentWidgetNode.Checkbox, scope: AgentWidgetScope
         modifier
             .clip(OpenCodeShape.control)
             .toggleable(node.checked, enabled = enabled, role = Role.Checkbox) { scope.send(AgentWidgetEvent.change(node.id, it)) }
-            .openCodeTapTarget()
+            .heightIn(min = OpenCodeMinTapTarget)
             .padding(end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -313,7 +314,12 @@ private fun SliderNode(node: AgentWidgetNode.Slider, scope: AgentWidgetScope, mo
             enabled = scope.live,
             valueRange = node.min..maxOf(node.max, node.min + 0.0001f),
             steps = if (steps in 1..100) steps else 0,
-            colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent),
+            colors = SliderDefaults.colors(
+                thumbColor = colors.accent,
+                activeTrackColor = colors.accent,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
             modifier = Modifier.semantics { contentDescription = node.label ?: "" },
         )
     }
@@ -369,7 +375,7 @@ private fun SelectNode(node: AgentWidgetNode.Select, scope: AgentWidgetScope, mo
                         .fillMaxWidth()
                         .clip(OpenCodeShape.control)
                         .selectable(selected, enabled = scope.live, role = if (node.multiple) Role.Checkbox else Role.RadioButton) { pick(option.value) }
-                        .openCodeTapTarget()
+                        .heightIn(min = OpenCodeMinTapTarget)
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

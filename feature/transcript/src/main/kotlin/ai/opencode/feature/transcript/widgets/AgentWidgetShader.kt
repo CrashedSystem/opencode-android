@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -57,6 +58,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     var vertex by remember { mutableStateOf<String?>(null) }
     var ready by remember { mutableStateOf(false) }
     var stopped by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(engine, node.wgsl) {
         val translated = withContext(Dispatchers.Default) { AgentWidgetShaderSources.translate(engine, node.wgsl) }
@@ -100,8 +102,8 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     val values by rememberUpdatedState(node.values)
     val start = remember { longArrayOf(0L) }
     val valuesKey = if (node.fps == 0) node.values.contentHashCode() else 0
-    LaunchedEffect(surface, ready, paused, stopped, node.fps, valuesKey) {
-        if (!ready || paused || stopped) return@LaunchedEffect
+    LaunchedEffect(surface, ready, paused, stopped, visible, node.fps, valuesKey) {
+        if (!ready || paused || stopped || !visible) return@LaunchedEffect
         val interval = if (node.fps > 0) 1_000_000_000L / node.fps else 0L
         var last = 0L
         while (true) {
@@ -116,6 +118,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
 
     Box(
         size
+            .onVisibilityChanged { visible = it }
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
