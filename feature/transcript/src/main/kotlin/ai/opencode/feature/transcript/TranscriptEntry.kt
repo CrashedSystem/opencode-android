@@ -288,8 +288,6 @@ sealed interface TranscriptEntry {
                         flush()
                         entries += Single(item.copy(name = models.model(item.model)?.name))
                     }
-                    // Its state, drawn at its tool call.
-                    is OpenCodeTranscriptItem.Widget -> continue
                     is OpenCodeTranscriptItem.WidgetResponse -> {
                         endReply()
                         turnHasRunError = false
@@ -313,7 +311,6 @@ sealed interface TranscriptEntry {
                 item is OpenCodeTranscriptItem.Tool && isPendingQuestion(item) ->
                     if (isRunningOrStreaming(item.call)) "passes" else "breaks"
                 item is OpenCodeTranscriptItem.Tool && isWidget(item) -> "breaks"
-                item is OpenCodeTranscriptItem.Widget -> "passes"
                 item is OpenCodeTranscriptItem.Tool || item is OpenCodeTranscriptItem.Notice -> "run:tools"
                 item is OpenCodeTranscriptItem.UserText || item is OpenCodeTranscriptItem.UserImages ||
                     item is OpenCodeTranscriptItem.UserFiles -> "run:user:${promptID(item) ?: item.id}"

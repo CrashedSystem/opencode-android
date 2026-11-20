@@ -312,8 +312,6 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
 
     "synthetic" -> listOfNotNull(syntheticNotice(message.id, message.description, message.metadata))
 
-    "widget" -> listOfNotNull(message.widget?.let { OpenCodeTranscriptItem.Widget(message.id, it) })
-
     // Only a widget's answer shows; other system updates are model-facing.
     "system" -> listOfNotNull(
         syntheticNotice(message.id, message.description, message.metadata)?.takeIf { it is OpenCodeTranscriptItem.WidgetResponse },

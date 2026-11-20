@@ -68,7 +68,7 @@ class OpenCodeEventDecodingTests {
         assertEquals("ses_w", event.sessionID)
         assertEquals("msg_a/call_1", event.state.key)
         assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), event.state.template)
-        assertEquals(ai.opencode.server.model.OpenCodeWidgetMessage.Status.Submitted, event.state.status)
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetStatus.Submitted, event.state.status)
         assertEquals("""{"confirmed":true}""", event.state.response)
         assertEquals(null, decodeStreamFrame("""{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"status":"open"}}}"""))
     }

@@ -7,10 +7,7 @@ import ai.opencode.core.log.AppLog
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.live.decodeWidgetProgram
 import ai.opencode.server.live.isWidgetRPCUnavailable
-import ai.opencode.server.live.requestRespondToWidget
 import ai.opencode.server.live.requestRespondToWidgetRPC
-import ai.opencode.server.live.requestWidgetMessage
-import ai.opencode.server.live.requestWidgetProgram
 import ai.opencode.server.live.requestWidgetProgramRPC
 import ai.opencode.server.live.requestWidgetSendRPC
 import ai.opencode.server.live.requestWidgetStates
@@ -20,6 +17,7 @@ import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
@@ -31,43 +29,28 @@ import java.io.File
  * Agent widgets' server half, the `opencode.widget` plugin RPC: template programs by
  * `name@version` (immutable, so kept on disk forever), the session's widget states, and the one
  * answer to and messages from an open widget. Throws [OpenCodeClientError]; `isWidgetClosed` means
- * it isn't open any more. The `legacy` calls are the REST routes of servers from before the plugin,
- * for the widgets those servers describe as `widget` messages.
+ * it isn't open any more, `isWidgetRPCUnavailable` that the plugin isn't loaded in the location yet.
  */
 class AgentWidgetClient(
     val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> OpenCodeWidgetProgram,
     val states: suspend (server: OpenCodeServer, directory: String?, sessionID: String) -> List<OpenCodeWidgetState>,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, response: OpenCodeWidgetResponse) -> Unit,
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, message: OpenCodeWidgetMessageValue) -> Unit,
-    val legacyRespond: suspend (server: OpenCodeServer, sessionID: String, widgetMessageID: String, response: OpenCodeWidgetResponse) -> Unit,
-    val legacySend: suspend (server: OpenCodeServer, sessionID: String, widgetMessageID: String, message: OpenCodeWidgetMessageValue) -> Unit,
 ) {
     companion object Key : DependencyKey<AgentWidgetClient> {
         override val liveValue: AgentWidgetClient by lazy {
             val cache = AgentWidgetProgramCache(File(File(dependency(AppContext).filesDir, "support"), "widget-templates"))
             AgentWidgetClient(
                 program = { server, directory, ref ->
-                    cache.read(ref) ?: try {
-                        requestWidgetProgramRPC(server, directory, ref)
-                    } catch (error: OpenCodeClientError) {
-                        if (!error.isWidgetRPCUnavailable) throw error
-                        requestWidgetProgram(server, ref)
-                    }.also { cache.write(ref, it) }
+                    cache.read(ref) ?: whileUnavailable { requestWidgetProgramRPC(server, directory, ref) }.also { cache.write(ref, it) }
                 },
-                states = { server, directory, sessionID ->
-                    try {
-                        requestWidgetStates(server, directory, sessionID)
-                    } catch (error: OpenCodeClientError) {
-                        if (!error.isWidgetRPCUnavailable) throw error
-                        emptyList()
-                    }
-                },
+                states = ::requestWidgetStates,
                 respond = { server, directory, sessionID, messageID, callID, response ->
-                    requestRespondToWidgetRPC(server, directory, sessionID, messageID, callID, response)
+                    whileUnavailable { requestRespondToWidgetRPC(server, directory, sessionID, messageID, callID, response) }
                 },
-                send = ::requestWidgetSendRPC,
-                legacyRespond = ::requestRespondToWidget,
-                legacySend = ::requestWidgetMessage,
+                send = { server, directory, sessionID, messageID, callID, message ->
+                    whileUnavailable { requestWidgetSendRPC(server, directory, sessionID, messageID, callID, message) }
+                },
             )
         }
 
@@ -77,9 +60,26 @@ class AgentWidgetClient(
                 states = { _, _, _ -> emptyList() },
                 respond = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.respond") },
                 send = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.send") },
-                legacyRespond = { _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.legacyRespond") },
-                legacySend = { _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.legacySend") },
             )
+
+        /**
+         * A fresh server answers `rpc.unavailable` until the session's location has booted (a
+         * transcript read boots it), so the call goes again a few times, a little later each time.
+         */
+        private suspend fun <T> whileUnavailable(block: suspend () -> T): T {
+            var attempt = 0
+            while (true) {
+                try {
+                    return block()
+                } catch (error: OpenCodeClientError) {
+                    if (!error.isWidgetRPCUnavailable || attempt >= UNAVAILABLE_RETRIES) throw error
+                    attempt++
+                    delay(attempt * 750L)
+                }
+            }
+        }
+
+        private const val UNAVAILABLE_RETRIES = 4
     }
 }
 

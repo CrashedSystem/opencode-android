@@ -222,9 +222,6 @@ sealed interface OpenCodeTranscriptItem {
     @Serializable @SerialName("undone")
     data class Undone(override val id: String, val messages: Int) : OpenCodeTranscriptItem
 
-    /** An interactive widget an agent posted; its ID is the message's. */
-    @Serializable @SerialName("widget")
-    data class Widget(override val id: String, val widget: OpenCodeWidgetMessage) : OpenCodeTranscriptItem
 
     /** The prompt a widget's response sent the agent: one quiet line, [text] the server's `Responded to "…"`. */
     @Serializable @SerialName("widgetResponse")

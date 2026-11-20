@@ -26,8 +26,6 @@ import ai.opencode.server.model.OpenCodeProject
 import ai.opencode.server.model.OpenCodeProjectIcon
 import ai.opencode.server.model.OpenCodeShell
 import ai.opencode.server.model.OpenCodeTranscriptFile
-import ai.opencode.server.model.OpenCodeWidgetMessage
-import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.PastedText
 import ai.opencode.server.model.ProjectMark
 import ai.opencode.server.model.instantFromMillis
@@ -293,8 +291,6 @@ internal data class MessagePayload(
     val retry: RetryPayload? = null,
     /** `idle`: how the run ended (`succeeded`, `failed`, `interrupted`). */
     val outcome: String? = null,
-    /** `widget`: its message. */
-    val widget: OpenCodeWidgetMessage? = null,
 ) {
     companion object {
         private fun metadata(o: JsonObject) = o.opt("metadata") { it.stringMap(OpenCodeJSONValue::of) }
@@ -337,7 +333,6 @@ internal data class MessagePayload(
                     model = c.opt("model", ModelRefPayload::decode),
                     previous = c.opt("previous", ModelRefPayload::decode),
                 )
-                "widget" -> base.copy(widget = widgetMessage(id, c))
                 // Model-facing `text` is never shown; skip decoding it.
                 "synthetic", "system" -> base.copy(description = c.opt("description") { it.str() }, metadata = metadata(c))
                 "idle" -> {
@@ -351,25 +346,6 @@ internal data class MessagePayload(
             }
         }
     }
-}
-
-/** A widget message, or null when its template ref or status isn't one this client reads. */
-private fun widgetMessage(id: String, c: JsonObject): OpenCodeWidgetMessage? {
-    val template = c.lenient("template") { t ->
-        val o = t.obj()
-        OpenCodeWidgetRef(o.req("name") { it.str() }, o.req("version") { it.str() })
-    } ?: return null
-    if (!template.isValid) return null
-    val status = OpenCodeWidgetMessage.Status.of(c.lenient("status") { it.str() }) ?: return null
-    return OpenCodeWidgetMessage(
-        messageID = id,
-        title = c.lenient("title") { it.str() },
-        template = template,
-        data = (c["data"] ?: JsonNull).toString(),
-        status = status,
-        response = if (status == OpenCodeWidgetMessage.Status.Submitted) (c["response"] ?: JsonNull).toString() else null,
-        callID = c.lenient("tool") { t -> t.obj().req("callID") { it.str() } },
-    )
 }
 
 /** A model ref where one may appear; anything else (an agent switch's `previous` string) reads as null. */

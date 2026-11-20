@@ -9,7 +9,7 @@ import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.server.internal.WireJson
-import ai.opencode.server.model.OpenCodeWidgetMessage
+import ai.opencode.server.model.OpenCodeWidgetStatus
 import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.retry.RequestIdempotency
@@ -22,13 +22,6 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** One immutable template version's runnable program (`prelude + "\n" + source`). */
-internal suspend fun requestWidgetProgram(server: OpenCodeServer, ref: OpenCodeWidgetRef): OpenCodeWidgetProgram {
-    val path = if (ref.isPinned) "${ref.name}/${ref.version}" else ref.name
-    val data = perform("/api/experimental/widget/template/$path", server = server)
-    return decoded(data.data, "widget template") { decodeWidgetProgram(it.obj()["data"]) }
-}
-
 /** A `Program` (`Summary` + `program`): its program text, mode and https hosts. */
 internal fun decodeWidgetProgram(element: JsonElement?): OpenCodeWidgetProgram {
     val o = element as? JsonObject ?: throw OpenCodeClientError("The widget template has no program.")
@@ -37,30 +30,6 @@ internal fun decodeWidgetProgram(element: JsonElement?): OpenCodeWidgetProgram {
     val hosts = ((o["capabilities"] as? JsonObject)?.get("https") as? JsonObject)?.get("hosts") as? JsonArray
     return OpenCodeWidgetProgram(program, mode == "live", hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content })
 }
-
-/** Answers an open widget once; a second answer, from here or another client, is a 409. */
-internal suspend fun requestRespondToWidget(server: OpenCodeServer, sessionID: String, messageID: String, response: OpenCodeWidgetResponse) {
-    perform(
-        "/api/experimental/session/$sessionID/widget/$messageID/respond",
-        method = "POST",
-        body = response.body.toByteArray(),
-        idempotency = RequestIdempotency.Idempotent,
-        server = server,
-    )
-}
-
-/** Sends the agent a message from an open widget; a 409 means it isn't open any more. */
-internal suspend fun requestWidgetMessage(server: OpenCodeServer, sessionID: String, messageID: String, message: OpenCodeWidgetMessageValue) {
-    perform(
-        "/api/experimental/session/$sessionID/widget/$messageID/message",
-        method = "POST",
-        body = message.body.toByteArray(),
-        server = server,
-    )
-}
-
-/** The respond endpoint's conflict: the widget was already answered. */
-val OpenCodeClientError.isWidgetAlreadyAnswered: Boolean get() = statusCode == 409
 
 /** `POST /api/rpc/opencode.widget/<method>` in [directory]'s location: `{ input }` in, `output` back. */
 internal suspend fun requestWidgetRPC(
@@ -141,7 +110,7 @@ internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
     val template = o["template"] as? JsonObject ?: return null
     val ref = OpenCodeWidgetRef(str("name", template) ?: return null, str("version", template) ?: return null)
     if (!ref.isValid || !ref.isPinned) return null
-    val status = OpenCodeWidgetMessage.Status.of(str("status")) ?: return null
+    val status = OpenCodeWidgetStatus.of(str("status")) ?: return null
     val hosts = ((o["capabilities"] as? JsonObject)?.get("https") as? JsonObject)?.get("hosts") as? JsonArray
     return OpenCodeWidgetState(
         sessionID = str("sessionID") ?: return null,
@@ -150,14 +119,14 @@ internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
         template = ref,
         title = str("title"),
         status = status,
-        response = if (status == OpenCodeWidgetMessage.Status.Submitted) (o["response"] ?: JsonNull).toString() else null,
+        response = if (status == OpenCodeWidgetStatus.Submitted) (o["response"] ?: JsonNull).toString() else null,
         wait = (o["wait"] as? JsonPrimitive)?.booleanOrNull ?: false,
         httpsHosts = hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content },
     )
 }
 
 /** A plugin RPC error's type: the widget isn't open any more. */
-val OpenCodeClientError.isWidgetClosed: Boolean get() = rpcErrorType == "closed" || statusCode == 409
+val OpenCodeClientError.isWidgetClosed: Boolean get() = rpcErrorType == "closed"
 
-/** The server has no widget plugin (an older server): fall back to its REST routes. */
+/** The plugin isn't loaded in the location yet (a fresh server, until something boots it): try again shortly. */
 val OpenCodeClientError.isWidgetRPCUnavailable: Boolean get() = rpcErrorType == "rpc.unavailable"

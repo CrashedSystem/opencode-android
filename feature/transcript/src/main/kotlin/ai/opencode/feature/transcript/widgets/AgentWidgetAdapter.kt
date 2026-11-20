@@ -9,19 +9,19 @@ import ai.opencode.server.live.isWidgetClosed
 import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
-import ai.opencode.server.model.OpenCodeWidgetMessage
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.server.model.OpenCodeWidgetState
+import ai.opencode.server.model.OpenCodeWidgetStatus
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.json.JsonPrimitive
 import androidx.compose.runtime.compositionLocalOf
 
 /**
  * One widget as the transcript shows it: a `widget` tool call ([messageID], [callID]) with what the
- * server says of it. [route] is how it's answered; [data] and [response] are JSON text.
+ * widget plugin says of it. [data] and [response] are JSON text.
  */
 @Immutable
 data class AgentWidgetState(
@@ -32,18 +32,11 @@ data class AgentWidgetState(
     val data: String,
     val status: Status,
     val response: String? = null,
-    val route: Route,
     /** Hosts a live template may fetch from; shown on the widget. */
     val httpsHosts: List<String>? = null,
 ) {
     enum class Status { Open, Submitted, Dismissed }
 
-    sealed interface Route {
-        /** The widget plugin's `respond` and `send` by tool call. */
-        data object Call : Route
-        /** A server from before the plugin: its REST routes by the `widget` message's ID. */
-        data class Message(val widgetMessageID: String) : Route
-    }
 
     /** One widget in a session: a call ID is unique only within its message. */
     val key: String get() = OpenCodeWidgetState.key(messageID, callID)
@@ -100,50 +93,31 @@ object AgentWidgetAdapter {
 
     /**
      * The session's widgets by `messageID/callID`: every `widget` tool call in [items], with its
-     * state from the widget plugin ([records]), else from a `widget` message naming the call (a
-     * server from before the plugin), else from the call alone (its `metadata.template`, or the
-     * template's latest version, open).
+     * state from the widget plugin ([records]), else from the call alone (its `metadata.template`,
+     * or the template's latest version, open).
      */
     fun states(items: List<OpenCodeTranscriptItem>, records: Map<String, OpenCodeWidgetState> = emptyMap()): Map<String, AgentWidgetState> {
-        var legacy: HashMap<String, OpenCodeWidgetMessage>? = null
-        for (item in items) {
-            val message = (item as? OpenCodeTranscriptItem.Widget)?.widget ?: continue
-            val callID = message.callID ?: continue
-            (legacy ?: HashMap<String, OpenCodeWidgetMessage>().also { legacy = it })[callID] = message
-        }
         var states: HashMap<String, AgentWidgetState>? = null
         for (item in items) {
             if (item !is OpenCodeTranscriptItem.Tool) continue
             val base = widget(item.call, messageID(item)) ?: continue
             val record = records[base.key]
-            val message = legacy?.get(base.callID)
-            val state = when {
-                record != null -> base.copy(
-                    title = base.title ?: record.title,
-                    template = record.template,
-                    status = status(record.status),
-                    response = record.response,
-                    httpsHosts = record.httpsHosts,
-                )
-                message != null -> base.copy(
-                    title = base.title ?: message.title,
-                    template = message.template,
-                    data = message.data,
-                    status = status(message.status),
-                    response = message.response,
-                    route = AgentWidgetState.Route.Message(message.messageID),
-                )
-                else -> base
-            }
+            val state = if (record == null) base else base.copy(
+                title = base.title ?: record.title,
+                template = record.template,
+                status = status(record.status),
+                response = record.response,
+                httpsHosts = record.httpsHosts,
+            )
             (states ?: HashMap<String, AgentWidgetState>().also { states = it })[state.key] = state
         }
         return states ?: emptyMap()
     }
 
-    private fun status(status: OpenCodeWidgetMessage.Status) = when (status) {
-        OpenCodeWidgetMessage.Status.Open -> AgentWidgetState.Status.Open
-        OpenCodeWidgetMessage.Status.Submitted -> AgentWidgetState.Status.Submitted
-        OpenCodeWidgetMessage.Status.Dismissed -> AgentWidgetState.Status.Dismissed
+    private fun status(status: OpenCodeWidgetStatus) = when (status) {
+        OpenCodeWidgetStatus.Open -> AgentWidgetState.Status.Open
+        OpenCodeWidgetStatus.Submitted -> AgentWidgetState.Status.Submitted
+        OpenCodeWidgetStatus.Dismissed -> AgentWidgetState.Status.Dismissed
     }
 
     /**
@@ -153,7 +127,7 @@ object AgentWidgetAdapter {
     internal fun widget(call: OpenCodeToolCall, messageID: String = call.messageID ?: ""): AgentWidgetState? {
         if (!isWidget(call) || call.status == OpenCodeToolCall.Status.Streaming || call.status == OpenCodeToolCall.Status.Error) return null
         val input = call.input.obj ?: return null
-        // The plugin's `metadata.template`; session-lab's older `metadata.widget` with status and response.
+        // The plugin's `metadata.template`; session-lab's `metadata.widget` also carries status and response.
         val legacy = call.metadata["widget"]?.obj
         val template = call.metadata["template"]?.obj ?: legacy?.get("template")?.obj
         val name = input["template"]?.string ?: template?.get("name")?.string ?: return null
@@ -172,7 +146,6 @@ object AgentWidgetAdapter {
             data = input["data"]?.let(::json) ?: "null",
             status = status,
             response = if (status == AgentWidgetState.Status.Submitted) legacy?.get("response")?.let(::json) ?: "null" else null,
-            route = AgentWidgetState.Route.Call,
         )
     }
 }
@@ -190,20 +163,10 @@ class AgentWidgetTransport(
             AgentWidgetTransport(
                 program = { server, directory, ref -> mapped { client.program(server, directory, ref) } },
                 respond = { server, directory, sessionID, widget, response ->
-                    mapped {
-                        when (val route = widget.route) {
-                            AgentWidgetState.Route.Call -> client.respond(server, directory, sessionID, widget.messageID, widget.callID, response)
-                            is AgentWidgetState.Route.Message -> client.legacyRespond(server, sessionID, route.widgetMessageID, response)
-                        }
-                    }
+                    mapped { client.respond(server, directory, sessionID, widget.messageID, widget.callID, response) }
                 },
                 send = { server, directory, sessionID, widget, message ->
-                    mapped {
-                        when (val route = widget.route) {
-                            AgentWidgetState.Route.Call -> client.send(server, directory, sessionID, widget.messageID, widget.callID, message)
-                            is AgentWidgetState.Route.Message -> client.legacySend(server, sessionID, route.widgetMessageID, message)
-                        }
-                    }
+                    mapped { client.send(server, directory, sessionID, widget.messageID, widget.callID, message) }
                 },
             )
         }

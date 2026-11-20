@@ -147,8 +147,6 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
 
         is OpenCodeTranscriptItem.Undone -> UndoneRow(redo = { context.send(TranscriptAction.RedoTapped) })
 
-        is OpenCodeTranscriptItem.Widget -> Unit
-
         is OpenCodeTranscriptItem.WidgetResponse -> AgentWidgetResponseLine(item.text)
     }
 }

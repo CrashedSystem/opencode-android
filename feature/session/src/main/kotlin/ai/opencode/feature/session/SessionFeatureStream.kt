@@ -231,10 +231,19 @@ internal fun SessionFeature.reduceStream(
     }
     is Action.WidgetStatesRead ->
         if (action.sessionID != state.session?.id) Reduced(state)
-        else Reduced(state.copy(widgetStates = state.widgetStates + action.states.associateBy { it.key }))
-    is Action.WidgetChanged ->
-        if (action.sessionID != state.session?.id || state.widgetStates[action.state.key] == action.state) Reduced(state)
-        else Reduced(state.copy(widgetStates = state.widgetStates + (action.state.key to action.state)))
+        else Reduced(state.copy(widgetStates = state.widgetStates + action.states.associateBy { it.key }, widgetStatesUnread = false))
+    is Action.WidgetStatesFailed ->
+        if (action.sessionID != state.session?.id || state.widgetStatesUnread) Reduced(state)
+        else Reduced(state.copy(widgetStatesUnread = true))
+    is Action.WidgetChanged -> {
+        if (action.sessionID != state.session?.id) {
+            Reduced(state)
+        } else {
+            val s = if (state.widgetStates[action.state.key] == action.state) state else state.copy(widgetStates = state.widgetStates + (action.state.key to action.state))
+            // A change after a failed read: the plugin answers now, so read the rest.
+            Reduced(s, if (state.widgetStatesUnread) readWidgetStates(s, RefreshReason.Reconnect) else Effect.none())
+        }
+    }
     is Action.RefreshResponse -> refreshResponse(state, action)
     is Action.SceneActiveChanged -> sceneActiveChanged(state, action.isActive)
     is Action.ActiveSessionsRead -> Reduced(state.copy(activeFamilySessionIDs = action.sessionIDs))
@@ -1032,10 +1041,12 @@ private fun upsertLiveTool(
 
 /**
  * The widget plugin's states, read when the session opens, comes back or the stream reconnects
- * (changes published meanwhile were missed); `changed` events keep them current in between.
+ * (changes published meanwhile were missed), and after a failed read on the next refresh or
+ * `changed` event; `changed` events keep them current in between.
  */
 private fun SessionFeature.readWidgetStates(state: SessionFeature.State, reason: RefreshReason): Effect<Action> {
-    if (reason != RefreshReason.Open && reason != RefreshReason.Resume && reason != RefreshReason.Reconnect) return Effect.none()
+    val due = reason == RefreshReason.Open || reason == RefreshReason.Resume || reason == RefreshReason.Reconnect || state.widgetStatesUnread
+    if (!due) return Effect.none()
     val session = state.session ?: return Effect.none()
     val server = state.server
     val client = widgetClient
@@ -1044,8 +1055,9 @@ private fun SessionFeature.readWidgetStates(state: SessionFeature.State, reason:
             client.states(server, session.directory, session.id)
         } catch (error: OpenCodeClientError) {
             AppLog.network.notice { "Widget states didn't load: ${error.rpcErrorType ?: error.statusCode ?: "transport"}" }
+            send(Action.WidgetStatesFailed(session.id))
             return@run
         }
-        if (states.isNotEmpty()) send(Action.WidgetStatesRead(session.id, states))
+        if (states.isNotEmpty() || state.widgetStatesUnread) send(Action.WidgetStatesRead(session.id, states))
     }.cancellable(SessionFeature.CancelID.WidgetStates, cancelInFlight = true)
 }

@@ -284,6 +284,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         val activeFamilySessionIDs: Set<String> = emptySet(),
         /** The widget plugin's states of this session's widgets, by `messageID/callID`. */
         val widgetStates: Map<String, OpenCodeWidgetState> = emptyMap(),
+        /** The last read of [widgetStates] failed (on a fresh server the plugin answers once the location boots): read again on the next change. */
+        val widgetStatesUnread: Boolean = false,
         /** Runs that started or ended since the latest family read began. */
         val familyRunChanges: Map<String, Boolean> = emptyMap(),
         val familyTranscriptCache: Map<String, List<OpenCodeTranscriptItem>> = emptyMap(),
@@ -692,6 +694,7 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class WidgetStatesRead(val sessionID: String, val states: List<OpenCodeWidgetState>) : Action
         /** The widget plugin posted or answered one of the session's widgets. */
         data class WidgetChanged(val sessionID: String, val state: OpenCodeWidgetState) : Action
+        data class WidgetStatesFailed(val sessionID: String) : Action
         data class FamilySessionRenamed(val sessionID: String, val title: String) : Action
         data class FamilySessionDeleted(val sessionID: String) : Action
         data class ShellsResponse(val sessionID: String, val result: Result<List<OpenCodeShell>>) : Action

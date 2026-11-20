@@ -21,42 +21,15 @@ data class OpenCodeWidgetRef(val name: String, val version: String = "") {
     }
 }
 
-/**
- * A widget message (`type: "widget"`): the template and the JSON data every step takes, and how
- * it ended. [data] and [response] stay raw JSON text, passed to the program as they are.
- */
-@Serializable
-data class OpenCodeWidgetMessage(
-    val messageID: String,
-    val title: String? = null,
-    val template: OpenCodeWidgetRef,
-    val data: String,
-    val status: Status,
-    /** The submitted value's JSON; set only when [status] is [Status.Submitted] (may be `null`). */
-    val response: String? = null,
-    /** The `widget` tool call that posted it. */
-    val callID: String? = null,
-) {
-    @Serializable
-    enum class Status {
-        @SerialName("open") Open,
-        @SerialName("submitted") Submitted,
-        @SerialName("dismissed") Dismissed;
+/** Where a widget stands: open until its one answer, then submitted or dismissed. */
+enum class OpenCodeWidgetStatus(val wireName: String) {
+    Open("open"),
+    Submitted("submitted"),
+    Dismissed("dismissed");
 
-        companion object {
-            fun of(raw: String?): Status? = entries.firstOrNull { it.wireName == raw }
-        }
-
-        val wireName: String
-            get() = when (this) {
-                Open -> "open"
-                Submitted -> "submitted"
-                Dismissed -> "dismissed"
-            }
+    companion object {
+        fun of(raw: String?): OpenCodeWidgetStatus? = entries.firstOrNull { it.wireName == raw }
     }
-
-    /** The label the server names it by in the response prompt: the title, else the template's name. */
-    val label: String get() = title?.trimmedWhitespace()?.nonEmpty ?: template.name
 }
 
 /** How the user ended an open widget: the respond endpoint's body. */
@@ -87,7 +60,7 @@ data class OpenCodeWidgetState(
     val callID: String,
     val template: OpenCodeWidgetRef,
     val title: String? = null,
-    val status: OpenCodeWidgetMessage.Status,
+    val status: OpenCodeWidgetStatus,
     val response: String? = null,
     val wait: Boolean = false,
     /** Hosts a live template may fetch from (`capabilities.https.hosts`). */

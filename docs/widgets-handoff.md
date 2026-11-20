@@ -38,7 +38,8 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
 
 - `SessionFeature` reads `states` when the session opens, resumes or reconnects
   (`readWidgetStates`) and applies `WidgetChanged`; `State.widgetStates` goes to the transcript as
-  `TranscriptConfiguration.widgets` through `AgentWidgetAdapter.states(items, records)`.
+  `TranscriptConfiguration.widgets` through `AgentWidgetAdapter.states(items, records)`. The pre-plugin
+  `widget` message type and REST routes are gone (servers from 877be1f02 on).
 - `widgets/AgentWidgetAdapter.kt` pairs each `widget` tool call with its plugin state (else the call
   alone: `metadata.template`, or the latest version, open) and routes answers. Rows, runtime and
   renderer see only `AgentWidgetState` and `AgentWidgetTransport`.
@@ -46,9 +47,9 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   any more." / "already answered".
 - Synthetic answer and send messages carry `metadata.widget { messageID, callID, kind }` and show as
   the quiet `◈` line.
-- Legacy: widgets that pre-plugin servers stored as `widget` messages still render and answer through
-  the old REST routes (`Route.Message`), and `program`/`states` fall back on `rpc.unavailable`.
-  Delete this path (and `OpenCodeWidgetMessage` decoding) once no such server is in use.
+- A fresh server answers `rpc.unavailable` until the session's location boots: `program`, `respond` and
+  `send` try again a few times (0.75 s, 1.5 s, …); a failed `states` read marks the session
+  (`widgetStatesUnread`) and is read again on the next transcript refresh or `changed` event.
 
 ## Full screen (`specs/v2/widgets-fullscreen.md`)
 
