@@ -12,6 +12,7 @@ import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Status
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeWidgetError
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -336,15 +337,21 @@ class AgentWidgetController internal constructor(
         phase = Phase.Closed(phase.view, how, phase.state)
     }
 
-    /** Lines of prelude before the template's source in its program. */
+    /** Where the template's source sits in its program: lines of prelude before it, and its own lines. */
     private var sourceLineOffset = 0
+    private var sourceLineCount = 0
+
+    private fun sourceLines(info: OpenCodeWidgetProgram) {
+        sourceLineOffset = info.sourceLineOffset
+        sourceLineCount = if (info.sourceLineOffset > 0) info.program.count { it == '\n' } + 1 - info.sourceLineOffset else 0
+    }
     private val reported = HashSet<String>()
 
     /** Reports a failure in [phase] to the widget plugin (and so the agent), once per distinct error. */
     fun reportError(phase: String, error: Throwable) {
         val engine = error as? AgentWidgetEngineException
         // Shader lines are already the template's; program lines count the prelude.
-        val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l > 0 } }
+        val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l in 1..sourceLineCount } }
         reportError(phase, error.message ?: error.javaClass.simpleName, line, if (line != null) engine?.column else null)
     }
 
@@ -436,7 +443,7 @@ class AgentWidgetController internal constructor(
                 Effect.Fetch -> scope.launch {
                     val event = try {
                         val compiled = programs.program(server, directory, ref)
-                        sourceLineOffset = compiled.info.sourceLineOffset
+                        sourceLines(compiled.info)
                         val live = compiled.live
                         if (live != null) {
                             startLiveMode(live, compiled.info.httpsHosts)
@@ -448,6 +455,10 @@ class AgentWidgetController internal constructor(
                         throw error
                     } catch (error: Exception) {
                         AppLog.app.notice { "Widget ${ref.key} didn't load: ${error.javaClass.simpleName}" }
+                        if (error is AgentWidgetPrograms.CompileFailed) {
+                            sourceLines(error.info)
+                            reportError(if (error.info.isLive) "main" else "init", error.cause)
+                        }
                         Event.LoadFailed(error.message ?: error.javaClass.simpleName)
                     }
                     feed(event)

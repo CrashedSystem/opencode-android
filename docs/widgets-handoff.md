@@ -52,7 +52,8 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   phase and message, at most 8 per widget, never once answered. Phases: `init`/`update` (step throws),
   `view` (invalid view, step or live post), `draw` (canvas draw throws; budget overruns don't count),
   `main` (live exit), `shader` (WGSL translation or GL compile), `fetch` (transfer failures, not
-  cancels). Program lines subtract the prelude before the template source (`sourceLineOffset`, from
+  cancels), plus a program that doesn't compile (`init` for step, `main` for live, as the TUI does). Program
+  lines subtract the prelude before the template source (`sourceLineOffset`, from
   `program`'s `source`, kept in the disk cache); shader lines are already the template WGSL's. The agent
   gets a synthetic `kind: "error"` message and can fix and re-post.
 - `rpc.unavailable` means the plugin isn't loaded yet (a cold server never waits for plugins; ~0.5 s),
@@ -126,6 +127,8 @@ widgets show "The widget runtime isn't available".
   without waiting") right after the timeout fires; `minigame` hits it after a pause/resume. Repro: the
   `wait-probe` live template (render, `await widget.next({ timeout: 10000 })`, `await widget.sleep(3000)`).
 
+- psychoscript-mobile `3d0dc94` gives no line or column for a thrown error (`Runtime`, `ExecutionFailure`), so
+  reports of `throw` in update/main carry none; syntax errors do.
 - Translations: the 10 `transcript_widget_*` strings have English only. `scripts/translate.py`'s
   default model (`opencode/gpt-6.1-sol`) was unavailable; rerun it (or with `--model`).
 - No `@Preview`s for widgets yet; `AgentWidgetTests` covers the readers, machine and tool call.

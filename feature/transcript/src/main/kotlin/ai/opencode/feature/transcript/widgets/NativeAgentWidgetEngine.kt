@@ -34,16 +34,16 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     }
 
     override fun compile(program: String): AgentWidgetProgram {
-        val compiled = run { Program(program + ENTRY) }
+        val compiled = mapping { Program(program + ENTRY) }
         return object : AgentWidgetProgram {
-            override fun step(input: String): String = run { compiled.run(input, STEP) }
-            override fun draw(input: String): String = run(draw = true) { compiled.run(input, DRAW) }
+            override fun step(input: String): String = mapping { compiled.run(input, STEP) }
+            override fun draw(input: String): String = mapping(draw = true) { compiled.run(input, DRAW) }
             override fun close() = compiled.close()
         }
     }
 
     override fun compileLive(program: String): AgentWidgetLiveProgram {
-        val compiled = run { Program(program + LIVE_ENTRY) }
+        val compiled = mapping { Program(program + LIVE_ENTRY) }
         return object : AgentWidgetLiveProgram {
             override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
                 val handler = object : LiveHandler {
@@ -53,7 +53,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
                 }
                 val options = LiveOptions(sliceBudgetMs = 50uL, maxPostsPerSecond = 240u, httpsHosts = httpsHosts)
                 val transport = if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport(listener::fetchFailed)
-                val live = run { compiled.startLive(inputJson, handler, options, transport) }
+                val live = mapping { compiled.startLive(inputJson, handler, options, transport) }
                 return NativeLiveRun(live)
             }
 
@@ -112,7 +112,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         return if (at != null && at in 1..templateLines) "$reason (line $at, column ${column ?: 0u})" else reason
     }
 
-    private inline fun <T> run(draw: Boolean = false, block: () -> T): T = try {
+    private inline fun <T> mapping(draw: Boolean = false, block: () -> T): T = try {
         block()
     } catch (error: PsychoScriptException) {
         throw mapped(error, draw)

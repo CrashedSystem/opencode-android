@@ -29,7 +29,10 @@ class AgentWidgetPrograms(
     /** A template version's compiled program, shared by every widget using it: [step] or [live] by its mode. */
     class Compiled(val info: OpenCodeWidgetProgram, val step: AgentWidgetProgram?, val live: AgentWidgetLiveProgram?)
 
-    /** Throws the fetch's or the compile's error; a failed version is fetched again next time. */
+    /** The template's program doesn't compile on this device. */
+    class CompileFailed(override val cause: AgentWidgetEngineException, val info: OpenCodeWidgetProgram) : Exception(cause.message, cause)
+
+    /** Throws the fetch's error or [CompileFailed]; a failed version is fetched again next time. */
     suspend fun program(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): Compiled {
         val engine = engine()
         val transport = transport()
@@ -38,10 +41,14 @@ class AgentWidgetPrograms(
                 scope.async {
                     val info = transport.program(server, directory, ref)
                     val started = System.nanoTime()
-                    val compiled = if (info.isLive) {
-                        Compiled(info, null, engine.compileLive(info.program))
-                    } else {
-                        Compiled(info, engine.compile(info.program), null)
+                    val compiled = try {
+                        if (info.isLive) {
+                            Compiled(info, null, engine.compileLive(info.program))
+                        } else {
+                            Compiled(info, engine.compile(info.program), null)
+                        }
+                    } catch (error: AgentWidgetEngineException) {
+                        throw CompileFailed(error, info)
                     }
                     AppLog.perf.info {
                         "Widget ${ref.key} compiled${if (info.isLive) " (live)" else ""} in ${(System.nanoTime() - started) / 1_000} µs (${info.program.length} chars)"
