@@ -47,9 +47,11 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   any more." / "already answered".
 - Synthetic answer and send messages carry `metadata.widget { messageID, callID, kind }` and show as
   the quiet `◈` line.
-- A fresh server answers `rpc.unavailable` until the session's location boots: `program`, `respond` and
-  `send` try again a few times (0.75 s, 1.5 s, …); a failed `states` read marks the session
-  (`widgetStatesUnread`) and is read again on the next transcript refresh or `changed` event.
+- `rpc.unavailable` means the plugin isn't loaded yet (a cold server never waits for plugins; ~0.5 s),
+  never "no widgets": `program`, `respond` and `send` try again a few times (0.75 s, 1.5 s, …); a failed
+  `states` read marks the session (`widgetStatesUnread`) and is read again on the location's
+  `plugin.updated` (`OpenCodeServerEvent.PluginsUpdated`, forwarded by Home), the next transcript refresh or a
+  `changed` event.
 
 ## Full screen (`specs/v2/widgets-fullscreen.md`)
 

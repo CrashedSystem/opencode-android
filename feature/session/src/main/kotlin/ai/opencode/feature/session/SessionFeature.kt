@@ -695,6 +695,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         /** The widget plugin posted or answered one of the session's widgets. */
         data class WidgetChanged(val sessionID: String, val state: OpenCodeWidgetState) : Action
         data class WidgetStatesFailed(val sessionID: String) : Action
+        /** A location's plugins loaded (`plugin.updated`): a failed widget states read can go again. */
+        data class PluginsUpdated(val directory: String?) : Action
         data class FamilySessionRenamed(val sessionID: String, val title: String) : Action
         data class FamilySessionDeleted(val sessionID: String) : Action
         data class ShellsResponse(val sessionID: String, val result: Result<List<OpenCodeShell>>) : Action

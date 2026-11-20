@@ -235,6 +235,11 @@ internal fun SessionFeature.reduceStream(
     is Action.WidgetStatesFailed ->
         if (action.sessionID != state.session?.id || state.widgetStatesUnread) Reduced(state)
         else Reduced(state.copy(widgetStatesUnread = true))
+    is Action.PluginsUpdated -> {
+        val session = state.session
+        val here = action.directory == null || action.directory == session?.directory
+        Reduced(state, if (state.widgetStatesUnread && session != null && here) readWidgetStates(state, RefreshReason.Reconnect) else Effect.none())
+    }
     is Action.WidgetChanged -> {
         if (action.sessionID != state.session?.id) {
             Reduced(state)
@@ -1041,7 +1046,8 @@ private fun upsertLiveTool(
 
 /**
  * The widget plugin's states, read when the session opens, comes back or the stream reconnects
- * (changes published meanwhile were missed), and after a failed read on the next refresh or
+ * (changes published meanwhile were missed). A failed read (`rpc.unavailable` while a cold
+ * server loads its plugins) goes again on the location's `plugin.updated`, the next refresh or a
  * `changed` event; `changed` events keep them current in between.
  */
 private fun SessionFeature.readWidgetStates(state: SessionFeature.State, reason: RefreshReason): Effect<Action> {

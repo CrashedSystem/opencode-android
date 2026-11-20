@@ -439,6 +439,7 @@ internal object LenientInboxItemSerializer : ElementSerializer<EventPayload.Inbo
 private val HANDLED_TYPES = setOf(
     "server.connected",
     "rpc.opencode.widget.changed",
+    "plugin.updated",
     "session.execution.started",
     "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted",
     "session.created", "session.forked", "session.viewed",
@@ -478,6 +479,11 @@ internal fun decodeStreamFrame(text: String): OpenCodeServerEvent? {
     if (tag != null) throw OpenCodeClientError(localized(R.string.server_error_event_stream_server_failure))
     type ?: return null
     if (type !in HANDLED_TYPES) return null
+    if (type == "plugin.updated") {
+        val directory = (envelope["location"] as? kotlinx.serialization.json.JsonObject)?.get("directory")
+            ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+        return OpenCodeServerEvent.PluginsUpdated(directory)
+    }
     val data: EventPayload? = envelope["data"]?.takeUnless { it is JsonNull }?.let(::decodePayload)
     return serverEvent(type, data)
 }

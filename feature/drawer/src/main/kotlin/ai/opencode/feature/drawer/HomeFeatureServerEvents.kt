@@ -123,6 +123,9 @@ internal fun HomeFeature.reduceServerEvent(state: State, event: OpenCodeServerEv
         is OpenCodeServerEvent.MessageInvalidated ->
             return Reduced(state, forwardToSession(state, event.sessionID, SessionFeature.Action.MessageInvalidated(event.sessionID)))
 
+        is OpenCodeServerEvent.PluginsUpdated ->
+            return Reduced(state, forwardToScreens(state, SessionFeature.Action.PluginsUpdated(event.directory)))
+
         is OpenCodeServerEvent.WidgetChanged ->
             return Reduced(state, forwardToSession(state, event.sessionID, SessionFeature.Action.WidgetChanged(event.sessionID, event.state)))
 

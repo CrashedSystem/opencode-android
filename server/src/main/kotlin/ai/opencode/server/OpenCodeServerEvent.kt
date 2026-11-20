@@ -45,6 +45,9 @@ sealed interface OpenCodeServerEvent {
     /** A durable event changed projected history in a way cheaper and safer to settle from REST. */
     data class MessageInvalidated(val sessionID: String) : OpenCodeServerEvent
 
+    /** A location's plugins loaded or changed (`plugin.updated`); [directory] null when the frame names no location. */
+    data class PluginsUpdated(val directory: String?) : OpenCodeServerEvent
+
     /** The widget plugin posted or answered a widget (`rpc.opencode.widget.changed`). */
     data class WidgetChanged(val sessionID: String, val state: OpenCodeWidgetState) : OpenCodeServerEvent
 
@@ -85,7 +88,7 @@ sealed interface OpenCodeServerEvent {
             is WidgetChanged -> sessionID
             is RevertChanged -> sessionID
             is ShellStarted -> shell.sessionID
-            Connected, is SessionCreated, is AttentionChanged, is ShellEnded, is ProjectUpdated, ModelsChanged, AgentsChanged -> null
+            Connected, is SessionCreated, is AttentionChanged, is PluginsUpdated, is ShellEnded, is ProjectUpdated, ModelsChanged, AgentsChanged -> null
         }
 }
 
