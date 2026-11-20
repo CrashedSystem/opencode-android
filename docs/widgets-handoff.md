@@ -22,6 +22,23 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
 
+## Server seam (contract change pending)
+
+Widgets are becoming an internal server plugin: the history entry is the `widget` tool call,
+and the REST routes become RPC calls on `/api/rpc/opencode.widget/<method>` with a `changed`
+event. Everything server-facing lives in `widgets/AgentWidgetAdapter.kt`:
+
+- `AgentWidgetState` (keyed by tool call ID, `handle` = what the server answers it by) is all
+  the runtime and renderer see. The session passes `TranscriptConfiguration.widgets`
+  (`AgentWidgetAdapter.states(items)`); `LocalAgentWidgetStates` reaches the rows.
+- `AgentWidgetTransport` (program, respond, send) wraps the REST `AgentWidgetClient` today.
+- A `widget` tool call is its own transcript row (`ToolView` → `AgentWidgetToolRow`); a failed
+  call stays in its tool group; the `widget` message adds no row.
+
+For the swap: replace `states(items)` with the plugin's per-session states (refreshed on
+`changed`) and the transport's three calls with the RPC methods; drop `OpenCodeWidgetMessage`
+decoding in `:server`.
+
 ## Workflow (Mac)
 
 - JDK: Android Studio's JBR (`/Applications/Android Studio.app/Contents/jbr/Contents/Home`);
@@ -34,8 +51,5 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 
 - Translations: the 10 `transcript_widget_*` strings have English only. `scripts/translate.py`'s
   default model (`opencode/gpt-6.1-sol`) was unavailable; rerun it (or with `--model`).
-- `image` canvas draw command is parsed but not drawn.
 - A vertical drag that starts inside a multiline widget `input` doesn't scroll the list.
-- The bundled `.so` predates the FFI source's `Budget` error and view normalisation; rebuild
-  with `build-android.sh` (NDK 29 is installed) when the FFI agent publishes again.
-- No unit tests or `@Preview`s for widgets yet (machine, node parse, draw-list decode, payloads).
+- No `@Preview`s for widgets yet; `AgentWidgetTests` covers the readers, machine and tool call.
