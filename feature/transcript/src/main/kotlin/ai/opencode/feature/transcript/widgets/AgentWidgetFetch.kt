@@ -1,15 +1,15 @@
 package ai.opencode.feature.transcript.widgets
 
+import ai.opencode.core.tuning.DeveloperMode
+import ai.opencode.core.tuning.InternalBuild
 import com.anomalyco.psychoscript.FetchCompletion
 import com.anomalyco.psychoscript.FetchRequest
 import com.anomalyco.psychoscript.FetchResponse
 import com.anomalyco.psychoscript.FetchTransport
 import com.anomalyco.psychoscript.HttpHeader
-import com.anomalyco.psychoscript.isPublicAddress
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.CookieJar
-import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,6 +17,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.internal.http.HttpMethod
 import java.io.IOException
+import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -27,12 +28,16 @@ import java.util.concurrent.TimeUnit
  */
 object AgentWidgetCapabilities {
     fun grantedHosts(declared: List<String>?): List<String>? = declared?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
+
+    /** Dev mode (a debug build or Developer Mode): `fetch` may also reach declared local hosts, `http:` included. */
+    val allowsLocalNetwork: Boolean get() = InternalBuild.isDebug || DeveloperMode.isEnabled
 }
 
 /**
  * A live widget's `fetch` transfer through OkHttp, one per run. The runner checks the URL, hosts,
- * methods, headers, sizes, rates and redirects; this carries one exchange: no redirects, no
- * cookies, and only public addresses from DNS, so a name can't rebind to the phone's network.
+ * methods, headers, sizes, rates and redirects, and resolves the host once; this carries one
+ * exchange to one of those checked addresses (no second lookup that could rebind), with no
+ * redirects and no cookies.
  * [failed] hears of each transfer that failed (for the widget's error report).
  */
 internal class AgentWidgetFetchTransport(private val failed: (String) -> Unit) : FetchTransport {
@@ -43,7 +48,12 @@ internal class AgentWidgetFetchTransport(private val failed: (String) -> Unit) :
                 ?: if (HttpMethod.requiresRequestBody(request.method)) ByteArray(0).toRequestBody(type) else null
             val builder = Request.Builder().url(request.url).method(request.method, body)
             request.headers.forEach { builder.addHeader(it.name, it.value) }
-            client.newBuilder().callTimeout(request.timeoutMs.toLong(), TimeUnit.MILLISECONDS).build().newCall(builder.build())
+            val addresses = request.addresses.map { InetAddress.getByName(it) }
+            client.newBuilder()
+                .callTimeout(request.timeoutMs.toLong(), TimeUnit.MILLISECONDS)
+                .dns { host -> addresses.ifEmpty { throw UnknownHostException("$host wasn't resolved by the runner") } }
+                .build()
+                .newCall(builder.build())
         } catch (error: IllegalArgumentException) {
             completion.fail(error.message ?: "invalid request")
             return
@@ -85,10 +95,6 @@ internal class AgentWidgetFetchTransport(private val failed: (String) -> Unit) :
                 .followSslRedirects(false)
                 .cookieJar(CookieJar.NO_COOKIES)
                 .cache(null)
-                .dns { host ->
-                    Dns.SYSTEM.lookup(host).filter { isPublicAddress(it.hostAddress ?: "") }
-                        .ifEmpty { throw UnknownHostException("$host has no public address") }
-                }
                 .build()
         }
         val calls = ConcurrentHashMap<ULong, Call>()

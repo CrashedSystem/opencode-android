@@ -92,6 +92,14 @@ widgets show "The widget runtime isn't available".
   its `REVISION`).
 - To move the pin: change `REV`, run the script, commit the script and any binding changes together.
 
+## Runner pin
+
+`scripts/psychoscript.sh` pins psychoscript-mobile `900dc23` (branch `mobile`): live slice budgets count only VM
+compute (the `next({ timeout })` → `sleep` SliceBudget stop is gone; `wait-probe` finishes), and dev-mode local
+network. `fetch` connects only to `FetchRequest.addresses` (resolved and checked once by the runner; OkHttp `Dns`
+returns them), and `LiveOptions.allowLocalNetwork` is `AgentWidgetCapabilities.allowsLocalNetwork` (a debug build
+or Developer Mode). Cleartext `http:` still needs the debug network security config (10.0.2.2 and localhost only).
+
 ## Workflow (Mac)
 
 - JDK: Android Studio's JBR (`/Applications/Android Studio.app/Contents/jbr/Contents/Home`);
@@ -133,13 +141,9 @@ widgets show "The widget runtime isn't available".
 
 ## Open
 
-- psychoscript-mobile `3d0dc94`: a live run waiting on `widget.next({ timeout })` (a `Promise.race` of
-  `receive` and `sleep`) and then on `widget.sleep` is stopped with SliceBudget ("computed for more than 50 ms
-  without waiting") right after the timeout fires; `minigame` hits it after a pause/resume. Repro: the
-  `wait-probe` live template (render, `await widget.next({ timeout: 10000 })`, `await widget.sleep(3000)`).
 
-- psychoscript-mobile `3d0dc94` gives no line or column for a thrown error (`Runtime`, `ExecutionFailure`), so
+- psychoscript-mobile `900dc23` gives no line or column for a thrown error (`Runtime`, `ExecutionFailure`), so
   reports of `throw` in update/main carry none; syntax errors do.
-- Translations: the 10 `transcript_widget_*` strings have English only. `scripts/translate.py`'s
-  default model (`opencode/gpt-6.1-sol`) was unavailable; rerun it (or with `--model`).
+- Translations were made with `--model opencode/deepseek-v4-pro --review-model opencode/deepseek-v4-pro` (the
+  default `opencode/gpt-6.1-sol` was unavailable); a maintainer may want a pass with the default models.
 - No `@Preview`s for widgets yet; `AgentWidgetTests` covers the readers, machine and tool call.

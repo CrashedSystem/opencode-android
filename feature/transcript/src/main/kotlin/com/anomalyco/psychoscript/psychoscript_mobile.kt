@@ -2768,9 +2768,15 @@ data class FetchRequest (
     var `id`: kotlin.ULong
     , 
     /**
-     * An `https:` URL whose host is allowed and resolves to public addresses.
+     * An `https:` URL (or `http:` to a local address in dev mode) whose host is allowed.
      */
     var `url`: kotlin.String
+    , 
+    /**
+     * The addresses the crate resolved the URL's host to and checked: connect to one of these, not to what the name
+     * resolves to later.
+     */
+    var `addresses`: List<kotlin.String>
     , 
     var `method`: kotlin.String
     , 
@@ -2805,6 +2811,7 @@ public object FfiConverterTypeFetchRequest: FfiConverterRustBuffer<FetchRequest>
         return FetchRequest(
             FfiConverterULong.read(buf),
             FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
             FfiConverterString.read(buf),
             FfiConverterSequenceTypeHttpHeader.read(buf),
             FfiConverterOptionalByteArray.read(buf),
@@ -2816,6 +2823,7 @@ public object FfiConverterTypeFetchRequest: FfiConverterRustBuffer<FetchRequest>
     override fun allocationSize(value: FetchRequest) = (
             FfiConverterULong.allocationSize(value.`id`) +
             FfiConverterString.allocationSize(value.`url`) +
+            FfiConverterSequenceString.allocationSize(value.`addresses`) +
             FfiConverterString.allocationSize(value.`method`) +
             FfiConverterSequenceTypeHttpHeader.allocationSize(value.`headers`) +
             FfiConverterOptionalByteArray.allocationSize(value.`body`) +
@@ -2826,6 +2834,7 @@ public object FfiConverterTypeFetchRequest: FfiConverterRustBuffer<FetchRequest>
     override fun write(value: FetchRequest, buf: ByteBuffer) {
             FfiConverterULong.write(value.`id`, buf)
             FfiConverterString.write(value.`url`, buf)
+            FfiConverterSequenceString.write(value.`addresses`, buf)
             FfiConverterString.write(value.`method`, buf)
             FfiConverterSequenceTypeHttpHeader.write(value.`headers`, buf)
             FfiConverterOptionalByteArray.write(value.`body`, buf)
@@ -2948,6 +2957,13 @@ data class LiveOptions (
      * every fetch is rejected with `CapabilityDenied`.
      */
     var `httpsHosts`: List<kotlin.String>? = null 
+    , 
+    /**
+     * Dev mode: `fetch` may also reach loopback, private and link-local addresses, and plain `http:` to them,
+     * still only for `https_hosts` (with ports, e.g. `localhost:4097`). Never on in a release build unless the user
+     * turns it on.
+     */
+    var `allowLocalNetwork`: kotlin.Boolean = false 
     
 ){
     
@@ -2967,19 +2983,22 @@ public object FfiConverterTypeLiveOptions: FfiConverterRustBuffer<LiveOptions> {
             FfiConverterULong.read(buf),
             FfiConverterUInt.read(buf),
             FfiConverterOptionalSequenceString.read(buf),
+            FfiConverterBoolean.read(buf),
         )
     }
 
     override fun allocationSize(value: LiveOptions) = (
             FfiConverterULong.allocationSize(value.`sliceBudgetMs`) +
             FfiConverterUInt.allocationSize(value.`maxPostsPerSecond`) +
-            FfiConverterOptionalSequenceString.allocationSize(value.`httpsHosts`)
+            FfiConverterOptionalSequenceString.allocationSize(value.`httpsHosts`) +
+            FfiConverterBoolean.allocationSize(value.`allowLocalNetwork`)
     )
 
     override fun write(value: LiveOptions, buf: ByteBuffer) {
             FfiConverterULong.write(value.`sliceBudgetMs`, buf)
             FfiConverterUInt.write(value.`maxPostsPerSecond`, buf)
             FfiConverterOptionalSequenceString.write(value.`httpsHosts`, buf)
+            FfiConverterBoolean.write(value.`allowLocalNetwork`, buf)
     }
 }
 
