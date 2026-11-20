@@ -31,6 +31,8 @@ data class OpenCodeWidgetMessage(
     val status: Status,
     /** The submitted value's JSON; set only when [status] is [Status.Submitted] (may be `null`). */
     val response: String? = null,
+    /** The `widget` tool call that posted it. */
+    val callID: String? = null,
 ) {
     @Serializable
     enum class Status {

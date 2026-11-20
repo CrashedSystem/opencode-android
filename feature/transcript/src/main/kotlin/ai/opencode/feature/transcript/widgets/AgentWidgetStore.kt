@@ -9,11 +9,7 @@ import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Event
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.RespondFailure
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Status
-import ai.opencode.server.AgentWidgetClient
-import ai.opencode.server.OpenCodeClientError
 import ai.opencode.server.OpenCodeServer
-import ai.opencode.server.live.isWidgetAlreadyAnswered
-import ai.opencode.server.model.OpenCodeWidgetMessage
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,15 +28,15 @@ import kotlinx.coroutines.launch
  */
 class AgentWidgetStore(
     private val programs: AgentWidgetPrograms = dependency(AgentWidgetPrograms),
-    private val client: AgentWidgetClient = dependency(AgentWidgetClient),
+    private val transport: AgentWidgetTransport = dependency(AgentWidgetTransport),
     private val engine: AgentWidgetEngine = dependency(AgentWidgetEngine),
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val controllers = HashMap<String, AgentWidgetController>()
 
-    fun controller(message: OpenCodeWidgetMessage, server: OpenCodeServer, sessionID: String): AgentWidgetController {
-        val key = "${server.persistenceID}/$sessionID/${message.messageID}"
-        return controllers.getOrPut(key) { AgentWidgetController(message, server, sessionID, scope, programs, client, engine) }
+    fun controller(widget: AgentWidgetState, server: OpenCodeServer, sessionID: String): AgentWidgetController {
+        val key = "${server.persistenceID}/$sessionID/${widget.callID}"
+        return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, scope, programs, transport, engine) }
     }
 
     fun close() {
@@ -58,17 +54,18 @@ val LocalAgentWidgetPaused = androidx.compose.runtime.compositionLocalOf { false
 /** Runs one widget's machine: fetches and compiles its template, steps it off the main thread, and answers it once. */
 @Stable
 class AgentWidgetController internal constructor(
-    message: OpenCodeWidgetMessage,
+    widget: AgentWidgetState,
     private val server: OpenCodeServer,
     private val sessionID: String,
     private val scope: CoroutineScope,
     private val programs: AgentWidgetPrograms,
-    private val client: AgentWidgetClient,
+    private val transport: AgentWidgetTransport,
     val engine: AgentWidgetEngine,
 ) {
-    val messageID: String = message.messageID
-    val data: String = message.data
-    private val ref = message.template
+    val callID: String = widget.callID
+    val data: String = widget.data
+    private val ref = widget.template
+    private var widget = widget
     private var machine: AgentWidgetMachine.Machine
     private var pendingEffects: List<Effect>
     private var started = false
@@ -79,7 +76,7 @@ class AgentWidgetController internal constructor(
     private val lane = AgentWidgetLane.make()
     private val queued = ArrayDeque<AgentWidgetEvent>()
 
-    var phase: Phase by mutableStateOf(Phase.Loading(status(message)))
+    var phase: Phase by mutableStateOf(Phase.Loading(status(widget)))
         private set
 
     /** The last event or init step's time on the lane, for the perf log. */
@@ -87,7 +84,7 @@ class AgentWidgetController internal constructor(
         private set
 
     init {
-        val (opened, effects) = AgentWidgetMachine.open(message.data, status(message))
+        val (opened, effects) = AgentWidgetMachine.open(widget.data, status(widget))
         machine = opened
         pendingEffects = effects
     }
@@ -100,9 +97,10 @@ class AgentWidgetController internal constructor(
         run(effects)
     }
 
-    /** The message as the server now reports it. */
-    fun update(message: OpenCodeWidgetMessage) {
-        val status = status(message)
+    /** The widget as the server now reports it. */
+    fun update(widget: AgentWidgetState) {
+        this.widget = widget
+        val status = status(widget)
         if (status != Status.Open) feed(Event.StatusChanged(status))
     }
 
@@ -230,21 +228,21 @@ class AgentWidgetController internal constructor(
                 }
                 is Effect.Send -> scope.launch {
                     try {
-                        client.message(server, sessionID, messageID, effect.message)
+                        transport.send(server, sessionID, widget, effect.message)
                     } catch (error: CancellationException) {
                         throw error
-                    } catch (error: OpenCodeClientError) {
-                        feed(Event.SendFailed(if (error.isWidgetAlreadyAnswered) localized(R.string.transcript_widget_not_open) else error.message))
+                    } catch (error: AgentWidgetTransportException) {
+                        feed(Event.SendFailed(if (error.isClosed) localized(R.string.transcript_widget_not_open) else error.message ?: ""))
                     }
                 }
                 is Effect.Respond -> scope.launch {
                     val failure = try {
-                        client.respond(server, sessionID, messageID, effect.response)
+                        transport.respond(server, sessionID, widget, effect.response)
                         null
                     } catch (error: CancellationException) {
                         throw error
-                    } catch (error: OpenCodeClientError) {
-                        if (error.isWidgetAlreadyAnswered) RespondFailure.Conflict else RespondFailure.Failed(error.message)
+                    } catch (error: AgentWidgetTransportException) {
+                        if (error.isClosed) RespondFailure.Conflict else RespondFailure.Failed(error.message ?: "")
                     }
                     feed(Event.Responded(effect.attempt, failure))
                 }
@@ -253,10 +251,10 @@ class AgentWidgetController internal constructor(
     }
 
     private companion object {
-        fun status(message: OpenCodeWidgetMessage): Status = when (message.status) {
-            OpenCodeWidgetMessage.Status.Open -> Status.Open
-            OpenCodeWidgetMessage.Status.Submitted -> Status.Answered(AgentWidgetMachine.Closed.Submitted(message.response ?: "null"))
-            OpenCodeWidgetMessage.Status.Dismissed -> Status.Answered(AgentWidgetMachine.Closed.Dismissed)
+        fun status(widget: AgentWidgetState): Status = when (widget.status) {
+            AgentWidgetState.Status.Open -> Status.Open
+            AgentWidgetState.Status.Submitted -> Status.Answered(AgentWidgetMachine.Closed.Submitted(widget.response ?: "null"))
+            AgentWidgetState.Status.Dismissed -> Status.Answered(AgentWidgetMachine.Closed.Dismissed)
         }
     }
 }

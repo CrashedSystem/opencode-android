@@ -3,7 +3,6 @@ package ai.opencode.feature.transcript.widgets
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
-import ai.opencode.server.AgentWidgetClient
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeWidgetRef
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +19,7 @@ import kotlinx.coroutines.withContext
  */
 class AgentWidgetPrograms(
     private val engine: () -> AgentWidgetEngine,
-    private val client: () -> AgentWidgetClient,
+    private val transport: () -> AgentWidgetTransport,
     private val limit: Int = 12,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -32,11 +31,11 @@ class AgentWidgetPrograms(
     /** Throws the fetch's or the compile's error; a failed version is fetched again next time. */
     suspend fun program(server: OpenCodeServer, ref: OpenCodeWidgetRef): Compiled {
         val engine = engine()
-        val client = client()
+        val transport = transport()
         val deferred = synchronized(entries) {
             entries.getOrPut(ref.key) {
                 scope.async {
-                    val text = client.program(server, ref)
+                    val text = transport.program(server, ref)
                     val started = System.nanoTime()
                     val compiled = engine.compile(text)
                     AppLog.perf.info { "Widget ${ref.key} compiled in ${(System.nanoTime() - started) / 1_000} µs (${text.length} chars)" }
@@ -57,10 +56,10 @@ class AgentWidgetPrograms(
 
     companion object Key : DependencyKey<AgentWidgetPrograms> {
         override val liveValue: AgentWidgetPrograms by lazy {
-            AgentWidgetPrograms(engine = { dependency(AgentWidgetEngine) }, client = { dependency(AgentWidgetClient) })
+            AgentWidgetPrograms(engine = { dependency(AgentWidgetEngine) }, transport = { dependency(AgentWidgetTransport) })
         }
         override val testValue: AgentWidgetPrograms
-            get() = AgentWidgetPrograms(engine = { dependency(AgentWidgetEngine) }, client = { dependency(AgentWidgetClient) })
+            get() = AgentWidgetPrograms(engine = { dependency(AgentWidgetEngine) }, transport = { dependency(AgentWidgetTransport) })
     }
 }
 

@@ -368,6 +368,7 @@ private fun widgetMessage(id: String, c: JsonObject): OpenCodeWidgetMessage? {
         data = (c["data"] ?: JsonNull).toString(),
         status = status,
         response = if (status == OpenCodeWidgetMessage.Status.Submitted) (c["response"] ?: JsonNull).toString() else null,
+        callID = c.lenient("tool") { t -> t.obj().req("callID") { it.str() } },
     )
 }
 

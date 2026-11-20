@@ -7,6 +7,7 @@ import ai.opencode.server.model.AgentFileReference
 import ai.opencode.server.model.OpenCodeImageAttachment
 import ai.opencode.server.model.OpenCodeModel
 import ai.opencode.server.model.OpenCodeQueuedInput
+import ai.opencode.feature.transcript.widgets.AgentWidgetAdapter
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.model
@@ -182,6 +183,9 @@ sealed interface TranscriptEntry {
                 (call.questions != null || call.status == OpenCodeToolCall.Status.Running || call.status == OpenCodeToolCall.Status.Streaming)
         }
 
+        private fun isWidget(item: OpenCodeTranscriptItem.Tool): Boolean =
+            AgentWidgetAdapter.isWidget(item.call) && item.call.status != OpenCodeToolCall.Status.Error
+
         private fun isRunningOrStreaming(call: OpenCodeToolCall): Boolean =
             call.status == OpenCodeToolCall.Status.Running || call.status == OpenCodeToolCall.Status.Streaming
 
@@ -248,6 +252,11 @@ sealed interface TranscriptEntry {
                         flush()
                         entries += Single(item)
                     }
+                    // A widget shows where its tool call sits; a failed call stays a tool row.
+                    is OpenCodeTranscriptItem.Tool if isWidget(item) -> {
+                        flush()
+                        entries += Single(item)
+                    }
                     is OpenCodeTranscriptItem.Tool, is OpenCodeTranscriptItem.Notice -> append(item, Run.Tools)
                     is OpenCodeTranscriptItem.UserText, is OpenCodeTranscriptItem.UserImages, is OpenCodeTranscriptItem.UserFiles -> {
                         endReply()
@@ -279,10 +288,8 @@ sealed interface TranscriptEntry {
                         flush()
                         entries += Single(item.copy(name = models.model(item.model)?.name))
                     }
-                    is OpenCodeTranscriptItem.Widget -> {
-                        flush()
-                        entries += Single(item)
-                    }
+                    // Its state, drawn at its tool call.
+                    is OpenCodeTranscriptItem.Widget -> continue
                     is OpenCodeTranscriptItem.WidgetResponse -> {
                         endReply()
                         turnHasRunError = false
@@ -305,6 +312,8 @@ sealed interface TranscriptEntry {
             fun kind(item: OpenCodeTranscriptItem): String = when {
                 item is OpenCodeTranscriptItem.Tool && isPendingQuestion(item) ->
                     if (isRunningOrStreaming(item.call)) "passes" else "breaks"
+                item is OpenCodeTranscriptItem.Tool && isWidget(item) -> "breaks"
+                item is OpenCodeTranscriptItem.Widget -> "passes"
                 item is OpenCodeTranscriptItem.Tool || item is OpenCodeTranscriptItem.Notice -> "run:tools"
                 item is OpenCodeTranscriptItem.UserText || item is OpenCodeTranscriptItem.UserImages ||
                     item is OpenCodeTranscriptItem.UserFiles -> "run:user:${promptID(item) ?: item.id}"

@@ -51,6 +51,8 @@ import ai.opencode.feature.transcript.rows.TranscriptTimeStamps
 import ai.opencode.feature.transcript.user.TranscriptSendFailure
 import ai.opencode.feature.transcript.user.TranscriptUserMessage
 import ai.opencode.server.OpenCodePairingLink
+import ai.opencode.feature.transcript.widgets.AgentWidgetAdapter
+import ai.opencode.feature.transcript.widgets.AgentWidgetState
 import ai.opencode.server.model.OpenCodeModel
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import android.content.Context
@@ -299,6 +301,18 @@ object SessionTranscriptView {
      * one), so equal-by-reference checks downstream stay sound.
      */
     class ProjectionCache {
+        private var widgetItems: List<OpenCodeTranscriptItem>? = null
+        private var widgets: Map<String, AgentWidgetState> = emptyMap()
+
+        /** The session's agent widgets by tool call ID, read again only when its items change. */
+        fun resolveWidgets(items: List<OpenCodeTranscriptItem>): Map<String, AgentWidgetState> {
+            if (items !== widgetItems) {
+                widgetItems = items
+                widgets = AgentWidgetAdapter.states(items)
+            }
+            return widgets
+        }
+
         private data class WindowInputs(
             val items: List<OpenCodeTranscriptItem>,
             val visibleLimit: Int,
@@ -529,6 +543,7 @@ object SessionTranscriptView {
             actionableRunErrorID = actionableErrorID,
             actionableRunErrorActions = if (actionableErrorID == null) emptyList() else state.actionableRunErrorActions,
             subagents = state.transcriptSubagents,
+            widgets = cache.resolveWidgets(state.items),
             sessionLinks = state.sessionLinks,
             isDraft = state.isDraft,
             // Steering messages land at the next step, so they sit in the transcript as dim

@@ -24,6 +24,8 @@ import ai.opencode.feature.transcript.user.TranscriptDragPayload
 import ai.opencode.feature.transcript.user.transcriptDragSource
 import ai.opencode.server.model.AgentDisplayName
 import ai.opencode.server.model.OpenCodeQuestion
+import ai.opencode.feature.transcript.widgets.AgentWidgetAdapter
+import ai.opencode.feature.transcript.widgets.AgentWidgetToolRow
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.TranscriptNoticeKind
@@ -91,6 +93,8 @@ private fun OpenCodeToolCall.isRunningOrStreaming(): Boolean =
 internal fun ToolView(entry: TranscriptEntry, id: String, call: OpenCodeToolCall, subagents: Map<String, TranscriptSubagent>) {
     if (call.isSubagent()) {
         SubagentToolView(call, subagents)
+    } else if (AgentWidgetAdapter.isWidget(call)) {
+        AgentWidgetToolRow(call)
     } else {
         val questions = call.questions ?: return
         InlineQuestionView(entry, id, call, questions)

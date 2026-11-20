@@ -12,7 +12,7 @@ import ai.opencode.core.ui.openCodeHairline
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
-import ai.opencode.server.model.OpenCodeWidgetMessage
+import ai.opencode.server.model.OpenCodeToolCall
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,23 +41,34 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
- * A widget message's row: its controller (kept by the list's [AgentWidgetStore]) runs the
- * template, and [AgentWidgetFrame] draws whatever phase it's in.
+ * A `widget` tool call's row: the widget it posted once its state is known (a placeholder until
+ * then), run by a controller the list's [AgentWidgetStore] keeps.
  */
 @Composable
-fun AgentWidgetRow(message: OpenCodeWidgetMessage, modifier: Modifier = Modifier) {
+fun AgentWidgetToolRow(call: OpenCodeToolCall, modifier: Modifier = Modifier) {
+    val widget = LocalAgentWidgetStates.current[call.callID]
+    if (widget == null) {
+        AgentWidgetFrame(Phase.Loading(AgentWidgetMachine.Status.Open), AgentWidgetAdapter.title(call) ?: AgentWidgetAdapter.TOOL, modifier)
+    } else {
+        AgentWidgetRow(widget, modifier)
+    }
+}
+
+/** A widget's frame, driven by its controller. */
+@Composable
+fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
     val context = LocalTranscriptRowContext.current
     val store = LocalAgentWidgetStore.current
     val server = context.server
     val sessionID = context.sessionID
     if (store == null || server == null || sessionID == null) {
-        AgentWidgetFrame(Phase.Loading(AgentWidgetMachine.Status.Open), message.label, modifier = modifier)
+        AgentWidgetFrame(Phase.Loading(AgentWidgetMachine.Status.Open), widget.label, modifier = modifier)
         return
     }
-    val controller = remember(store, server, sessionID, message.messageID) { store.controller(message, server, sessionID) }
+    val controller = remember(store, server, sessionID, widget.callID) { store.controller(widget, server, sessionID) }
     LaunchedEffect(controller) { controller.start() }
-    LaunchedEffect(controller, message.status, message.response) { controller.update(message) }
-    AgentWidgetFrame(controller.phase, message.label, controller = controller, modifier = modifier)
+    LaunchedEffect(controller, widget) { controller.update(widget) }
+    AgentWidgetFrame(controller.phase, widget.label, controller = controller, modifier = modifier)
 }
 
 /**

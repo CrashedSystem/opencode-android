@@ -1,6 +1,7 @@
 package ai.opencode.feature.transcript
 
 import ai.opencode.feature.transcript.user.TranscriptSendFailure
+import ai.opencode.feature.transcript.widgets.AgentWidgetState
 import ai.opencode.server.model.PastedTextSummary
 import ai.opencode.feature.media.LinkMenuAction
 import ai.opencode.feature.media.TranscriptImagePreview
@@ -115,6 +116,8 @@ data class TranscriptConfiguration(
     val actionableRunErrorID: String? = null,
     val actionableRunErrorActions: List<OpenCodeRunError.Action> = emptyList(),
     val subagents: Map<String, TranscriptSubagent> = emptyMap(),
+    /** Agent widgets by the tool call that posted them (`AgentWidgetAdapter.states`). */
+    val widgets: Map<String, AgentWidgetState> = emptyMap(),
     /** What the session IDs linked in replies name (`SessionLink`). */
     val sessionLinks: Map<String, SessionLinkTarget> = emptyMap(),
     val isDraft: Boolean = false,

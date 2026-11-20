@@ -22,7 +22,6 @@ import ai.opencode.feature.transcript.markdown.ui.MarkdownBlocksView
 import ai.opencode.feature.transcript.markdown.ui.QuoteTextHandler
 import ai.opencode.feature.transcript.markdown.ui.SessionLinkContext
 import ai.opencode.feature.transcript.widgets.AgentWidgetResponseLine
-import ai.opencode.feature.transcript.widgets.AgentWidgetRow
 import ai.opencode.server.model.OpenCodeCompaction
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.foundation.clickable
@@ -144,7 +143,7 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
 
         is OpenCodeTranscriptItem.Undone -> UndoneRow(redo = { context.send(TranscriptAction.RedoTapped) })
 
-        is OpenCodeTranscriptItem.Widget -> AgentWidgetRow(item.widget)
+        is OpenCodeTranscriptItem.Widget -> Unit
 
         is OpenCodeTranscriptItem.WidgetResponse -> AgentWidgetResponseLine(item.text)
     }

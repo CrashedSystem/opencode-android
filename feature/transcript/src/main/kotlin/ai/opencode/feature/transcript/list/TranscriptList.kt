@@ -17,6 +17,7 @@ import ai.opencode.feature.media.LocalLinkPreviewRevision
 import ai.opencode.feature.media.LocalLinkPreviewStore
 import ai.opencode.feature.transcript.widgets.AgentWidgetStore
 import ai.opencode.feature.transcript.widgets.LocalAgentWidgetPaused
+import ai.opencode.feature.transcript.widgets.LocalAgentWidgetStates
 import ai.opencode.feature.transcript.widgets.LocalAgentWidgetStore
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.LocalTranscriptLayoutTuning
@@ -610,6 +611,7 @@ private fun TranscriptListContent(
         LocalTranscriptTextReveal provides textReveal,
         LocalLinkPreviewStore provides linkPreviews,
         LocalAgentWidgetStore provides widgets,
+        LocalAgentWidgetStates provides configuration.widgets,
         LocalAgentWidgetPaused provides !resumed,
         LocalTranscriptReplySelection provides replySelection,
         // A covering screen isn't composed and a stopped activity's frame clock pauses, so
