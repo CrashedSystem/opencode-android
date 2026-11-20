@@ -58,5 +58,4 @@ decoding in `:server`.
 
 - Translations: the 10 `transcript_widget_*` strings have English only. `scripts/translate.py`'s
   default model (`opencode/gpt-6.1-sol`) was unavailable; rerun it (or with `--model`).
-- A vertical drag that starts inside a multiline widget `input` doesn't scroll the list.
 - No `@Preview`s for widgets yet; `AgentWidgetTests` covers the readers, machine and tool call.
