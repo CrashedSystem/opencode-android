@@ -44,7 +44,7 @@ internal class AgentWidgetGL private constructor() {
     }
 
     /** GL thread: the context, once; null when it's ready, else why it isn't. */
-    private fun setUp(vertex: String): String? {
+    private fun setUp(vertex: AgentWidgetShaderCode): String? {
         if (context != EGL14.EGL_NO_CONTEXT) return null
         setupFailure?.let { return it }
         val failure = runCatching {
@@ -65,7 +65,7 @@ internal class AgentWidgetGL private constructor() {
             check(context != EGL14.EGL_NO_CONTEXT) { "no GLES 3 context" }
             idle = EGL14.eglCreatePbufferSurface(display, config, intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE), 0)
             check(EGL14.eglMakeCurrent(display, idle, idle, context)) { "eglMakeCurrent failed" }
-            vertexShader = compile(GLES30.GL_VERTEX_SHADER, vertex)
+            vertexShader = compile(GLES30.GL_VERTEX_SHADER, vertex.code)
             val ids = IntArray(1)
             GLES30.glGenBuffers(1, ids, 0)
             uniforms = ids[0]
@@ -95,10 +95,10 @@ internal class AgentWidgetGL private constructor() {
         return shader
     }
 
-    /** GL thread: [fragment] linked with the vertex stage, its uniform block bound to 0. */
-    private fun program(fragment: String): Int {
-        programs[fragment]?.let { return it }
-        val shader = compile(GLES30.GL_FRAGMENT_SHADER, fragment)
+    /** GL thread: [fragment] linked with the vertex stage, its uniform blocks bound where the translator says. */
+    private fun program(fragment: AgentWidgetShaderCode): Int {
+        programs[fragment.code]?.let { return it }
+        val shader = compile(GLES30.GL_FRAGMENT_SHADER, fragment.code)
         val program = GLES30.glCreateProgram()
         GLES30.glAttachShader(program, vertexShader)
         GLES30.glAttachShader(program, shader)
@@ -111,14 +111,11 @@ internal class AgentWidgetGL private constructor() {
             GLES30.glDeleteProgram(program)
             error(log.trim().ifEmpty { "the shader didn't link" })
         }
-        var block = GLES30.glGetUniformBlockIndex(program, UNIFORM_BLOCK)
-        if (block == GLES30.GL_INVALID_INDEX) {
-            val blocks = IntArray(1)
-            GLES30.glGetProgramiv(program, GLES30.GL_ACTIVE_UNIFORM_BLOCKS, blocks, 0)
-            block = if (blocks[0] > 0) 0 else GLES30.GL_INVALID_INDEX
+        for ((name, slot) in fragment.uniformBlocks) {
+            val block = GLES30.glGetUniformBlockIndex(program, name)
+            if (block != GLES30.GL_INVALID_INDEX) GLES30.glUniformBlockBinding(program, block, slot)
         }
-        if (block != GLES30.GL_INVALID_INDEX) GLES30.glUniformBlockBinding(program, block, 0)
-        programs[fragment] = program
+        programs[fragment.code] = program
         return program
     }
 
@@ -135,7 +132,7 @@ internal class AgentWidgetGL private constructor() {
      * One shader node's drawable. Calls come from the main thread and run on the GL thread in
      * order; [render] drops a frame while the previous one is still drawing.
      */
-    inner class Surface(private val vertex: String, private val events: SurfaceEvents) {
+    inner class Surface(private val vertex: AgentWidgetShaderCode, private val events: SurfaceEvents) {
         private var surface: EGLSurface = EGL14.EGL_NO_SURFACE
         private var texture: SurfaceTexture? = null
         private var width = 0
@@ -174,7 +171,7 @@ internal class AgentWidgetGL private constructor() {
             report { events.ready(false) }
         }
 
-        fun use(fragment: String) = handler.post {
+        fun use(fragment: AgentWidgetShaderCode) = handler.post {
             if (closed) return@post
             setUp(vertex)?.let { failure -> return@post report { events.failed(failure) } }
             program = try {
@@ -268,7 +265,6 @@ internal class AgentWidgetGL private constructor() {
     companion object {
         private const val UNIFORM_FLOATS = 24
         private const val UNIFORM_BYTES = UNIFORM_FLOATS * 4
-        private const val UNIFORM_BLOCK = "Widget_block_0Fragment"
         private const val PROGRAM_LIMIT = 16
         private const val FRAME_BUDGET_MICROS = 50_000L
 

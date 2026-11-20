@@ -2,5 +2,5 @@
 # structure fields and callbacks by name.
 -keep class com.sun.jna.** { *; }
 -keep class * implements com.sun.jna.** { *; }
--keep class ai.opencode.widget.** { *; }
+-keep class com.anomalyco.psychoscript.** { *; }
 -dontwarn java.awt.**

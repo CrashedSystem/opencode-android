@@ -108,7 +108,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             val t = (now - state.startNanos) / 1e9
             val dt = if (last == 0L) 0.0 else (now - last) / 1e9
             last = now
-            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark), node.fps > 0, palette) ?: break
+            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark), palette) ?: break
             if (step.drawn) revision++
             overruns = if (step.overBudget) overruns + 1 else 0
             first = false
@@ -117,7 +117,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 AppLog.perf.notice { "Widget canvas stopped: over budget three frames in a row" }
                 // An intro stopped early still lands on its end state.
                 if (duration != null && t < duration) {
-                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark), true, palette)
+                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark), palette)
                     if (end?.drawn == true) revision++
                 }
                 break
@@ -215,11 +215,11 @@ private class CanvasState {
     class Step(val drawn: Boolean, val overBudget: Boolean)
 
     /** One draw step decoded into [spare] on the widget's lane, then shown; null when the canvas can't draw. */
-    suspend fun step(controller: AgentWidgetController, frame: String, animating: Boolean, palette: AgentWidgetDrawList.Palette): Step? {
+    suspend fun step(controller: AgentWidgetController, frame: String, palette: AgentWidgetDrawList.Palette): Step? {
         var decoded = false
         var decodeMicros = 0L
         val micros = try {
-            controller.draw(frame, animating) { text ->
+            controller.draw(frame) { text ->
                 val started = System.nanoTime()
                 decoded = runCatching { AgentWidgetDrawList.decode(text, palette, spare) }.isSuccess
                 decodeMicros = (System.nanoTime() - started) / 1_000

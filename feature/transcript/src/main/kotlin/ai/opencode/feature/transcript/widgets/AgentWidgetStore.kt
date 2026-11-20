@@ -41,7 +41,6 @@ class AgentWidgetStore(
 
     fun close() {
         scope.cancel()
-        for (controller in controllers.values) controller.close()
         controllers.clear()
     }
 }
@@ -70,9 +69,6 @@ class AgentWidgetController internal constructor(
     private var pendingEffects: List<Effect>
     private var started = false
     private var program: AgentWidgetProgram? = null
-    private var programText: String? = null
-    /** An animating canvas's own program, so its frames never wait on other widgets' steps. */
-    private var drawProgram: AgentWidgetProgram? = null
     private val lane = AgentWidgetLane.make()
     private val queued = ArrayDeque<AgentWidgetEvent>()
 
@@ -150,29 +146,19 @@ class AgentWidgetController internal constructor(
 
     /**
      * One draw step for a canvas on this widget's lane, its output handed to [read] there too.
-     * Returns the step's time in µs, or null when there's no program or state yet. [animating]
-     * steps on the widget's own copy of the program.
+     * Returns the step's time in µs, or null when there's no program or state yet.
      */
-    suspend fun draw(frame: String, animating: Boolean, read: (String) -> Unit): Long? {
-        val shared = program ?: return null
+    suspend fun draw(frame: String, read: (String) -> Unit): Long? {
+        val program = program ?: return null
         val state = phase.state ?: return null
         val input = AgentWidgetStep.draw(data, state, frame)
         return lane.run {
-            val program = if (animating) drawProgram ?: programText?.let { text ->
-                engine.compile(text).also { drawProgram = it }
-            } ?: shared else shared
             val started = System.nanoTime()
-            val text = program.step(input)
+            val text = program.draw(input)
             val micros = (System.nanoTime() - started) / 1_000
             read(text)
             micros
         }
-    }
-
-    internal fun close() {
-        val own = drawProgram
-        drawProgram = null
-        if (own != null) lane.dispatcher.dispatch(kotlin.coroutines.EmptyCoroutineContext) { own.close() }
     }
 
     private fun feed(event: Event) {
@@ -194,7 +180,6 @@ class AgentWidgetController internal constructor(
                 Effect.Fetch -> scope.launch {
                     val event = try {
                         val compiled = programs.program(server, ref)
-                        programText = compiled.text
                         program = compiled.program
                         Event.Loaded
                     } catch (error: CancellationException) {

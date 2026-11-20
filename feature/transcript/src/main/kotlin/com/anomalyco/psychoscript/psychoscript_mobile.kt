@@ -3,7 +3,7 @@
 
 @file:Suppress("NAME_SHADOWING")
 
-package ai.opencode.widget
+package com.anomalyco.psychoscript
 
 // Common helper code.
 //
@@ -59,7 +59,7 @@ open class RustBuffer : Structure() {
     companion object {
         internal fun alloc(size: ULong = 0UL) = uniffiRustCall() { status ->
             // Note: need to convert the size to a `Long` value to make this work with JVM.
-            UniffiLib.ffi_opencode_widget_ffi_rustbuffer_alloc(size.toLong(), status)
+            UniffiLib.ffi_psychoscript_mobile_rustbuffer_alloc(size.toLong(), status)
         }.also {
             if(it.data == null) {
                throw RuntimeException("RustBuffer.alloc() returned null data pointer (size=${size})")
@@ -75,7 +75,7 @@ open class RustBuffer : Structure() {
         }
 
         internal fun free(buf: RustBuffer.ByValue) = uniffiRustCall() { status ->
-            UniffiLib.ffi_opencode_widget_ffi_rustbuffer_free(buf, status)
+            UniffiLib.ffi_psychoscript_mobile_rustbuffer_free(buf, status)
         }
     }
 
@@ -392,7 +392,7 @@ private fun findLibraryName(componentName: String): String {
     if (libOverride != null) {
         return libOverride
     }
-    return "opencode_widget_ffi"
+    return "psychoscript_mobile"
 }
 
 // Define FFI callback types
@@ -669,27 +669,19 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 // We now use JNA's "direct mapping" - unclear if same considerations apply exactly.
 internal object IntegrityCheckingUniffiLib {
     init {
-        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "opencode_widget_ffi"))
+        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "psychoscript_mobile"))
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
 
     internal fun ensureInitialized() = Unit
-    external fun uniffi_opencode_widget_ffi_checksum_func_shader_entry(
+    external fun uniffi_psychoscript_mobile_checksum_func_translate_wgsl(
     ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_func_shader_header(
+    external fun uniffi_psychoscript_mobile_checksum_method_program_run(
     ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_func_shader_source(
+    external fun uniffi_psychoscript_mobile_checksum_constructor_program_new(
     ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_func_translate_shader(
-    ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_func_vertex_shader(
-    ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_method_widgetprogram_step(
-    ): Int
-    external fun uniffi_opencode_widget_ffi_checksum_constructor_widgetprogram_new(
-    ): Int
-    external fun ffi_opencode_widget_ffi_uniffi_contract_version(
+    external fun ffi_psychoscript_mobile_uniffi_contract_version(
     ): Int
 
         
@@ -704,132 +696,124 @@ internal object UniffiLib {
     
 
     init {
-        Native.register(UniffiLib::class.java, findLibraryName(componentName = "opencode_widget_ffi"))
+        Native.register(UniffiLib::class.java, findLibraryName(componentName = "psychoscript_mobile"))
         
     }
 
     internal fun ensureInitialized() = Unit
-    external fun uniffi_opencode_widget_ffi_fn_clone_widgetprogram(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_clone_program(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_opencode_widget_ffi_fn_free_widgetprogram(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_free_program(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_opencode_widget_ffi_fn_constructor_widgetprogram_new(`program`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_constructor_program_new(`source`: RustBuffer.ByValue,`inputName`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_opencode_widget_ffi_fn_method_widgetprogram_step(`ptr`: Long,`inputJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_method_program_run(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_opencode_widget_ffi_fn_func_shader_entry(uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_func_translate_wgsl(`source`: RustBuffer.ByValue,`target`: RustBuffer.ByValue,`stage`: RustBuffer.ByValue,`entry`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_opencode_widget_ffi_fn_func_shader_header(uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_opencode_widget_ffi_fn_func_shader_source(`templateWgsl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_opencode_widget_ffi_fn_func_translate_shader(`templateWgsl`: RustBuffer.ByValue,`target`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_opencode_widget_ffi_fn_func_vertex_shader(`target`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_opencode_widget_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_opencode_widget_ffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_opencode_widget_ffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun ffi_opencode_widget_ffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_opencode_widget_ffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_u8(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_u8(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_u8(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_opencode_widget_ffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_i8(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_i8(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_i8(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
-    external fun ffi_opencode_widget_ffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_u16(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_u16(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_u16(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_opencode_widget_ffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_i16(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_i16(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_i16(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Short
-    external fun ffi_opencode_widget_ffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_u32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_u32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_u32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_opencode_widget_ffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_i32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_i32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_i32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_opencode_widget_ffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_u64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_u64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_u64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun ffi_opencode_widget_ffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_i64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_i64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_i64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun ffi_opencode_widget_ffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_f32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_f32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_f32(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Float
-    external fun ffi_opencode_widget_ffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_f64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_f64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_f64(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Double
-    external fun ffi_opencode_widget_ffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_rust_buffer(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_rust_buffer(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_opencode_widget_ffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_cancel_void(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_cancel_void(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_free_void(`handle`: Long,
+    external fun ffi_psychoscript_mobile_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_opencode_widget_ffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_psychoscript_mobile_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
 
         
@@ -839,32 +823,20 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
     // Get the bindings contract version from our ComponentInterface
     val bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    val scaffolding_contract_version = lib.ffi_opencode_widget_ffi_uniffi_contract_version()
+    val scaffolding_contract_version = lib.ffi_psychoscript_mobile_uniffi_contract_version()
     if (bindings_contract_version != scaffolding_contract_version) {
         throw RuntimeException("UniFFI contract version mismatch: try cleaning and rebuilding your project")
     }
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_entry() and 0xFFFF) != 26028) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_func_translate_wgsl() and 0xFFFF) != 52306) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_header() and 0xFFFF) != 25395) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_program_run() and 0xFFFF) != 29645) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_shader_source() and 0xFFFF) != 51927) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_translate_shader() and 0xFFFF) != 48969) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_func_vertex_shader() and 0xFFFF) != 51902) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_method_widgetprogram_step() and 0xFFFF) != 47827) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if ((lib.uniffi_opencode_widget_ffi_checksum_constructor_widgetprogram_new() and 0xFFFF) != 23250) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_constructor_program_new() and 0xFFFF) != 15552) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1027,6 +999,52 @@ private class JavaLangRefCleanable(
 /**
  * @suppress
  */
+public object FfiConverterUInt: FfiConverter<UInt, Int> {
+    override fun lift(value: Int): UInt {
+        return value.toUInt()
+    }
+
+    override fun read(buf: ByteBuffer): UInt {
+        return lift(buf.getInt())
+    }
+
+    override fun lower(value: UInt): Int {
+        return value.toInt()
+    }
+
+    override fun allocationSize(value: UInt) = 4UL
+
+    override fun write(value: UInt, buf: ByteBuffer) {
+        buf.putInt(value.toInt())
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterULong: FfiConverter<ULong, Long> {
+    override fun lift(value: Long): ULong {
+        return value.toULong()
+    }
+
+    override fun read(buf: ByteBuffer): ULong {
+        return lift(buf.getLong())
+    }
+
+    override fun lower(value: ULong): Long {
+        return value.toLong()
+    }
+
+    override fun allocationSize(value: ULong) = 8UL
+
+    override fun write(value: ULong, buf: ByteBuffer) {
+        buf.putLong(value.toLong())
+    }
+}
+
+/**
+ * @suppress
+ */
 public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
     // Note: we don't inherit from FfiConverterRustBuffer, because we use a
     // special encoding when lowering/lifting.  We can use `RustBuffer.len` to
@@ -1178,37 +1196,29 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 
 
 /**
- * A template program (the server's `prelude + "\n" + source`) compiled once, ready to step.
- *
- * Thread-safe: share one per template `name@version` across the widgets that use it. Steps on one
- * program run one at a time (a second caller waits for the first), so give a canvas that animates
- * its own program when other widgets of the same template must not wait on its frames.
+ * A program compiled once, to run as often as needed, from any thread, concurrently too: each run
+ * has its own VM. A run reads its JSON input through one sync host function, `input_name`
+ * (`__input` by default), and its result is the program's completion value: a top-level
+ * `return`'s value, or the last expression statement's.
  */
-public interface WidgetProgramInterface {
+public interface ProgramInterface {
     
     /**
-     * Runs one step of the step ABI: `input_json` is a step input (`{ phase: "init", data }`,
-     * `{ phase: "event", data, state, event }` or `{ phase: "draw", data, state, frame }`) and the
-     * result is its output as JSON: `{ state, view, submit?, dismiss?, send? }` for `init` and
-     * `event`, `{ commands }` for `draw`.
-     *
-     * Outputs are checked and normalized as the desktop reads them (`opencode-widget`'s types):
-     * an invalid view or draw command fails with `Output`, a draw over 8 ms or 2,000 commands
-     * with `Budget`; unknown node types read as `{ "type": "unknown" }`.
+     * Runs the program with `input_json` behind its input function and returns its result as
+     * JSON (`undefined` as `null`).
      */
-    fun `step`(`inputJson`: kotlin.String): kotlin.String
+    fun `run`(`inputJson`: kotlin.String, `options`: RunOptions = RunOptions()): kotlin.String
     
     companion object
 }
 
 /**
- * A template program (the server's `prelude + "\n" + source`) compiled once, ready to step.
- *
- * Thread-safe: share one per template `name@version` across the widgets that use it. Steps on one
- * program run one at a time (a second caller waits for the first), so give a canvas that animates
- * its own program when other widgets of the same template must not wait on its frames.
+ * A program compiled once, to run as often as needed, from any thread, concurrently too: each run
+ * has its own VM. A run reads its JSON input through one sync host function, `input_name`
+ * (`__input` by default), and its result is the program's completion value: a top-level
+ * `return`'s value, or the last expression statement's.
  */
-open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
+open class Program: Disposable, AutoCloseable, ProgramInterface
 {
 
     @Suppress("UNUSED_PARAMETER")
@@ -1233,15 +1243,16 @@ open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
         this.cleanable = null
     }
     /**
-     * Compiles `program`. Fails with `Compile` when it doesn't parse.
+     * Compiles `source`. Fails with `Syntax` when it doesn't parse.
      */
-    constructor(`program`: kotlin.String) :
+    constructor(`source`: kotlin.String, `inputName`: kotlin.String = "__input") :
         this(UniffiWithHandle, 
-    uniffiRustCallWithError(WidgetException) { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_constructor_widgetprogram_new(
+    uniffiRustCallWithError(PsychoScriptException) { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_constructor_program_new(
     
         
-        FfiConverterString.lower(`program`),_status)
+        FfiConverterString.lower(`source`),
+        FfiConverterString.lower(`inputName`),_status)
 }
     )
 
@@ -1304,7 +1315,7 @@ open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
                 return;
             }
             uniffiRustCall { status ->
-                UniffiLib.uniffi_opencode_widget_ffi_fn_free_widgetprogram(handle, status)
+                UniffiLib.uniffi_psychoscript_mobile_fn_free_program(handle, status)
             }
         }
     }
@@ -1317,29 +1328,24 @@ open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
             throw InternalException("uniffiCloneHandle() called on NoHandle object");
         }
         return uniffiRustCall() { status ->
-            UniffiLib.uniffi_opencode_widget_ffi_fn_clone_widgetprogram(handle, status)
+            UniffiLib.uniffi_psychoscript_mobile_fn_clone_program(handle, status)
         }
     }
 
     
     /**
-     * Runs one step of the step ABI: `input_json` is a step input (`{ phase: "init", data }`,
-     * `{ phase: "event", data, state, event }` or `{ phase: "draw", data, state, frame }`) and the
-     * result is its output as JSON: `{ state, view, submit?, dismiss?, send? }` for `init` and
-     * `event`, `{ commands }` for `draw`.
-     *
-     * Outputs are checked and normalized as the desktop reads them (`opencode-widget`'s types):
-     * an invalid view or draw command fails with `Output`, a draw over 8 ms or 2,000 commands
-     * with `Budget`; unknown node types read as `{ "type": "unknown" }`.
+     * Runs the program with `input_json` behind its input function and returns its result as
+     * JSON (`undefined` as `null`).
      */
-    @Throws(WidgetException::class)override fun `step`(`inputJson`: kotlin.String): kotlin.String {
+    @Throws(PsychoScriptException::class)override fun `run`(`inputJson`: kotlin.String, `options`: RunOptions): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
-    uniffiRustCallWithError(WidgetException) { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_method_widgetprogram_step(
+    uniffiRustCallWithError(PsychoScriptException) { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_method_program_run(
         it,
         
-        FfiConverterString.lower(`inputJson`),_status)
+        FfiConverterString.lower(`inputJson`),
+        FfiConverterTypeRunOptions.lower(`options`),_status)
 }
     }
     )
@@ -1364,22 +1370,22 @@ open class WidgetProgram: Disposable, AutoCloseable, WidgetProgramInterface
 /**
  * @suppress
  */
-public object FfiConverterTypeWidgetProgram: FfiConverter<WidgetProgram, Long> {
-    override fun lower(value: WidgetProgram): Long {
+public object FfiConverterTypeProgram: FfiConverter<Program, Long> {
+    override fun lower(value: Program): Long {
         return value.uniffiCloneHandle()
     }
 
-    override fun lift(value: Long): WidgetProgram {
-        return WidgetProgram(UniffiWithHandle, value)
+    override fun lift(value: Long): Program {
+        return Program(UniffiWithHandle, value)
     }
 
-    override fun read(buf: ByteBuffer): WidgetProgram {
+    override fun read(buf: ByteBuffer): Program {
         return lift(buf.getLong())
     }
 
-    override fun allocationSize(value: WidgetProgram) = 8UL
+    override fun allocationSize(value: Program) = 8UL
 
-    override fun write(value: WidgetProgram, buf: ByteBuffer) {
+    override fun write(value: Program, buf: ByteBuffer) {
         buf.putLong(lower(value))
     }
 }
@@ -1387,17 +1393,580 @@ public object FfiConverterTypeWidgetProgram: FfiConverter<WidgetProgram, Long> {
 
 
 /**
- * What a shader is translated for.
+ * Limits for one run. Both default to none.
+ */
+data class RunOptions (
+    /**
+     * Active time the run may take, in ms (at least 1); past it the run fails with `Timeout`.
+     */
+    var `timeoutMs`: kotlin.ULong? = null 
+    , 
+    /**
+     * Bytes of JSON the result may take; over it the run fails with `OutputTooLarge`.
+     */
+    var `maxOutputBytes`: kotlin.ULong? = null 
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRunOptions: FfiConverterRustBuffer<RunOptions> {
+    override fun read(buf: ByteBuffer): RunOptions {
+        return RunOptions(
+            FfiConverterOptionalULong.read(buf),
+            FfiConverterOptionalULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RunOptions) = (
+            FfiConverterOptionalULong.allocationSize(value.`timeoutMs`) +
+            FfiConverterOptionalULong.allocationSize(value.`maxOutputBytes`)
+    )
+
+    override fun write(value: RunOptions, buf: ByteBuffer) {
+            FfiConverterOptionalULong.write(value.`timeoutMs`, buf)
+            FfiConverterOptionalULong.write(value.`maxOutputBytes`, buf)
+    }
+}
+
+
+
+/**
+ * One entry point, translated.
+ */
+data class TranslatedShader (
+    var `code`: kotlin.String
+    , 
+    /**
+     * The entry function's name in `code`: the WGSL name in MSL (unless it's reserved there, then
+     * naga's), always `main` in GLSL.
+     */
+    var `entryName`: kotlin.String
+    , 
+    var `uniformBlocks`: List<UniformBlock>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeTranslatedShader: FfiConverterRustBuffer<TranslatedShader> {
+    override fun read(buf: ByteBuffer): TranslatedShader {
+        return TranslatedShader(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceTypeUniformBlock.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: TranslatedShader) = (
+            FfiConverterString.allocationSize(value.`code`) +
+            FfiConverterString.allocationSize(value.`entryName`) +
+            FfiConverterSequenceTypeUniformBlock.allocationSize(value.`uniformBlocks`)
+    )
+
+    override fun write(value: TranslatedShader, buf: ByteBuffer) {
+            FfiConverterString.write(value.`code`, buf)
+            FfiConverterString.write(value.`entryName`, buf)
+            FfiConverterSequenceTypeUniformBlock.write(value.`uniformBlocks`, buf)
+    }
+}
+
+
+
+/**
+ * A uniform buffer the entry point reads, by its WGSL `@group` and `@binding`.
+ */
+data class UniformBlock (
+    var `group`: kotlin.UInt
+    , 
+    var `binding`: kotlin.UInt
+    , 
+    /**
+     * GLSL: the uniform block's name, for `glGetUniformBlockIndex`. MSL: the WGSL variable's name.
+     */
+    var `name`: kotlin.String
+    , 
+    /**
+     * Where to bind it: MSL `[[buffer(slot)]]` (`setVertexBytes`/`setFragmentBytes` index); GLSL
+     * the binding point to give `glUniformBlockBinding`. Slots count from 0 in `(group, binding)`
+     * order.
+     */
+    var `slot`: kotlin.UInt
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUniformBlock: FfiConverterRustBuffer<UniformBlock> {
+    override fun read(buf: ByteBuffer): UniformBlock {
+        return UniformBlock(
+            FfiConverterUInt.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterUInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UniformBlock) = (
+            FfiConverterUInt.allocationSize(value.`group`) +
+            FfiConverterUInt.allocationSize(value.`binding`) +
+            FfiConverterString.allocationSize(value.`name`) +
+            FfiConverterUInt.allocationSize(value.`slot`)
+    )
+
+    override fun write(value: UniformBlock, buf: ByteBuffer) {
+            FfiConverterUInt.write(value.`group`, buf)
+            FfiConverterUInt.write(value.`binding`, buf)
+            FfiConverterString.write(value.`name`, buf)
+            FfiConverterUInt.write(value.`slot`, buf)
+    }
+}
+
+
+
+
+
+/**
+ * Why a program didn't compile or a run failed. `reason` is the message (Kotlin exceptions keep
+ * `message` for a summary of every field), `kind` is the language's diagnostic kind
+ * (`"ParseError"`, `"ExecutionFailure"`, ...); `line` and `column` are 1-based, in the source,
+ * when known.
+ */
+sealed class PsychoScriptException: kotlin.Exception() {
+    
+    /**
+     * The source doesn't parse, or uses syntax the language doesn't support (`ParseError`,
+     * `UnsupportedSyntax`; the latter may surface only when the run reaches it).
+     */
+    class Syntax(
+        
+        val `kind`: kotlin.String, 
+        
+        val `reason`: kotlin.String, 
+        
+        val `line`: kotlin.UInt?, 
+        
+        val `column`: kotlin.UInt?
+        ) : PsychoScriptException() {
+        override val message
+            get() = "kind=${ `kind` }, reason=${ `reason` }, line=${ `line` }, column=${ `column` }"
+    }
+    
+    /**
+     * The run threw, or returned what isn't JSON data: `ExecutionFailure` (the message starts
+     * with the thrown error's name, as `TypeError: ...`), `InvalidDataValue`, or a host kind.
+     */
+    class Runtime(
+        
+        val `kind`: kotlin.String, 
+        
+        val `reason`: kotlin.String, 
+        
+        val `line`: kotlin.UInt?, 
+        
+        val `column`: kotlin.UInt?
+        ) : PsychoScriptException() {
+        override val message
+            get() = "kind=${ `kind` }, reason=${ `reason` }, line=${ `line` }, column=${ `column` }"
+    }
+    
+    /**
+     * The run went past `timeout_ms` of active time.
+     */
+    class Timeout(
+        
+        val `reason`: kotlin.String, 
+        
+        val `timeoutMs`: kotlin.ULong
+        ) : PsychoScriptException() {
+        override val message
+            get() = "reason=${ `reason` }, timeoutMs=${ `timeoutMs` }"
+    }
+    
+    /**
+     * The result is over `max_output_bytes` of JSON.
+     */
+    class OutputTooLarge(
+        
+        val `reason`: kotlin.String, 
+        
+        val `maxOutputBytes`: kotlin.ULong
+        ) : PsychoScriptException() {
+        override val message
+            get() = "reason=${ `reason` }, maxOutputBytes=${ `maxOutputBytes` }"
+    }
+    
+    /**
+     * The input isn't JSON, or the options are invalid.
+     */
+    class InvalidInput(
+        
+        val `reason`: kotlin.String
+        ) : PsychoScriptException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+    
+
+    
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<PsychoScriptException> {
+        override fun lift(error_buf: RustBuffer.ByValue): PsychoScriptException = FfiConverterTypePsychoScriptError.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePsychoScriptError : FfiConverterRustBuffer<PsychoScriptException> {
+    override fun read(buf: ByteBuffer): PsychoScriptException {
+        
+
+        return when(buf.getInt()) {
+            1 -> PsychoScriptException.Syntax(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                )
+            2 -> PsychoScriptException.Runtime(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                )
+            3 -> PsychoScriptException.Timeout(
+                FfiConverterString.read(buf),
+                FfiConverterULong.read(buf),
+                )
+            4 -> PsychoScriptException.OutputTooLarge(
+                FfiConverterString.read(buf),
+                FfiConverterULong.read(buf),
+                )
+            5 -> PsychoScriptException.InvalidInput(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: PsychoScriptException): ULong {
+        return when(value) {
+            is PsychoScriptException.Syntax -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`kind`)
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterOptionalUInt.allocationSize(value.`line`)
+                + FfiConverterOptionalUInt.allocationSize(value.`column`)
+            )
+            is PsychoScriptException.Runtime -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`kind`)
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterOptionalUInt.allocationSize(value.`line`)
+                + FfiConverterOptionalUInt.allocationSize(value.`column`)
+            )
+            is PsychoScriptException.Timeout -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterULong.allocationSize(value.`timeoutMs`)
+            )
+            is PsychoScriptException.OutputTooLarge -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterULong.allocationSize(value.`maxOutputBytes`)
+            )
+            is PsychoScriptException.InvalidInput -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: PsychoScriptException, buf: ByteBuffer) {
+        when(value) {
+            is PsychoScriptException.Syntax -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`kind`, buf)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterOptionalUInt.write(value.`line`, buf)
+                FfiConverterOptionalUInt.write(value.`column`, buf)
+                Unit
+            }
+            is PsychoScriptException.Runtime -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`kind`, buf)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterOptionalUInt.write(value.`line`, buf)
+                FfiConverterOptionalUInt.write(value.`column`, buf)
+                Unit
+            }
+            is PsychoScriptException.Timeout -> {
+                buf.putInt(3)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterULong.write(value.`timeoutMs`, buf)
+                Unit
+            }
+            is PsychoScriptException.OutputTooLarge -> {
+                buf.putInt(4)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterULong.write(value.`maxOutputBytes`, buf)
+                Unit
+            }
+            is PsychoScriptException.InvalidInput -> {
+                buf.putInt(5)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+
+
+/**
+ * Why a shader didn't translate: `reason` is the message. `line` and `column` are 1-based (the column in bytes), in the
+ * source given, when known.
+ */
+sealed class ShaderException: kotlin.Exception() {
+    
+    /**
+     * The WGSL doesn't parse.
+     */
+    class Parse(
+        
+        val `reason`: kotlin.String, 
+        
+        val `line`: kotlin.UInt?, 
+        
+        val `column`: kotlin.UInt?
+        ) : ShaderException() {
+        override val message
+            get() = "reason=${ `reason` }, line=${ `line` }, column=${ `column` }"
+    }
+    
+    /**
+     * It parses but isn't valid (types, uses beyond baseline capabilities, ...).
+     */
+    class Validation(
+        
+        val `reason`: kotlin.String, 
+        
+        val `line`: kotlin.UInt?, 
+        
+        val `column`: kotlin.UInt?
+        ) : ShaderException() {
+        override val message
+            get() = "reason=${ `reason` }, line=${ `line` }, column=${ `column` }"
+    }
+    
+    /**
+     * No entry point of that name and stage, or it uses a resource other than uniform buffers.
+     */
+    class Unsupported(
+        
+        val `reason`: kotlin.String
+        ) : ShaderException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+    
+    /**
+     * The target language can't express it.
+     */
+    class Translation(
+        
+        val `reason`: kotlin.String
+        ) : ShaderException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+    
+
+    
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<ShaderException> {
+        override fun lift(error_buf: RustBuffer.ByValue): ShaderException = FfiConverterTypeShaderError.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeShaderError : FfiConverterRustBuffer<ShaderException> {
+    override fun read(buf: ByteBuffer): ShaderException {
+        
+
+        return when(buf.getInt()) {
+            1 -> ShaderException.Parse(
+                FfiConverterString.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                )
+            2 -> ShaderException.Validation(
+                FfiConverterString.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                FfiConverterOptionalUInt.read(buf),
+                )
+            3 -> ShaderException.Unsupported(
+                FfiConverterString.read(buf),
+                )
+            4 -> ShaderException.Translation(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: ShaderException): ULong {
+        return when(value) {
+            is ShaderException.Parse -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterOptionalUInt.allocationSize(value.`line`)
+                + FfiConverterOptionalUInt.allocationSize(value.`column`)
+            )
+            is ShaderException.Validation -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+                + FfiConverterOptionalUInt.allocationSize(value.`line`)
+                + FfiConverterOptionalUInt.allocationSize(value.`column`)
+            )
+            is ShaderException.Unsupported -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+            is ShaderException.Translation -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: ShaderException, buf: ByteBuffer) {
+        when(value) {
+            is ShaderException.Parse -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterOptionalUInt.write(value.`line`, buf)
+                FfiConverterOptionalUInt.write(value.`column`, buf)
+                Unit
+            }
+            is ShaderException.Validation -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`reason`, buf)
+                FfiConverterOptionalUInt.write(value.`line`, buf)
+                FfiConverterOptionalUInt.write(value.`column`, buf)
+                Unit
+            }
+            is ShaderException.Unsupported -> {
+                buf.putInt(3)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+            is ShaderException.Translation -> {
+                buf.putInt(4)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+/**
+ * The entry point's stage.
+ */
+
+enum class ShaderStage {
+    
+    VERTEX,
+    FRAGMENT;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeShaderStage: FfiConverterRustBuffer<ShaderStage> {
+    override fun read(buf: ByteBuffer) = try {
+        ShaderStage.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: ShaderStage) = 4UL
+
+    override fun write(value: ShaderStage, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * The language to write.
  */
 
 enum class ShaderTarget {
     
     /**
-     * Metal Shading Language 2.3, for iOS 14 and later.
+     * Metal Shading Language 2.3 (iOS 14, macOS 11 and later).
      */
     MSL,
     /**
-     * GLSL ES 3.00 (`#version 300 es`), for OpenGL ES 3.0 and later.
+     * GLSL ES 3.00 (`#version 300 es`, OpenGL ES 3.0 and later).
      */
     GLSL_ES300;
 
@@ -1430,186 +1999,107 @@ public object FfiConverterTypeShaderTarget: FfiConverterRustBuffer<ShaderTarget>
 
 
 
-
 /**
- * Why a call failed. Every variant carries a message fit to show inline in the widget (Swift:
- * `WidgetError.Script(message:)`, Kotlin: `WidgetException.Script`, both with `message`).
+ * @suppress
  */
-sealed class WidgetException(message: String): kotlin.Exception(message) {
-        
-    /**
-     * The program doesn't parse or compile.
-     */
-        class Compile(message: String) : WidgetException(message)
-        
-    /**
-     * The step threw; the message says where.
-     */
-        class Script(message: String) : WidgetException(message)
-        
-    /**
-     * The step ran past its 250 ms budget.
-     */
-        class Timeout(message: String) : WidgetException(message)
-        
-    /**
-     * A draw step ran past its 8 ms or returned over 2,000 commands: three in a row and the
-     * canvas stops animating.
-     */
-        class Budget(message: String) : WidgetException(message)
-        
-    /**
-     * The step returned something that isn't a step output: no view, an invalid view, a draw
-     * command of the wrong shape.
-     */
-        class Output(message: String) : WidgetException(message)
-        
-    /**
-     * The input isn't a step input.
-     */
-        class Input(message: String) : WidgetException(message)
-        
-    /**
-     * The shader's WGSL doesn't parse or validate, is over 16 KB, or can't be written for the
-     * target.
-     */
-        class Shader(message: String) : WidgetException(message)
-        
+public object FfiConverterOptionalUInt: FfiConverterRustBuffer<kotlin.UInt?> {
+    override fun read(buf: ByteBuffer): kotlin.UInt? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterUInt.read(buf)
+    }
 
-    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<WidgetException> {
-        override fun lift(error_buf: RustBuffer.ByValue): WidgetException = FfiConverterTypeWidgetError.lift(error_buf)
+    override fun allocationSize(value: kotlin.UInt?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterUInt.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.UInt?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterUInt.write(value, buf)
+        }
     }
 }
+
+
+
 
 /**
  * @suppress
  */
-public object FfiConverterTypeWidgetError : FfiConverterRustBuffer<WidgetException> {
-    override fun read(buf: ByteBuffer): WidgetException {
-        
-            return when(buf.getInt()) {
-            1 -> WidgetException.Compile(FfiConverterString.read(buf))
-            2 -> WidgetException.Script(FfiConverterString.read(buf))
-            3 -> WidgetException.Timeout(FfiConverterString.read(buf))
-            4 -> WidgetException.Budget(FfiConverterString.read(buf))
-            5 -> WidgetException.Output(FfiConverterString.read(buf))
-            6 -> WidgetException.Input(FfiConverterString.read(buf))
-            7 -> WidgetException.Shader(FfiConverterString.read(buf))
-            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+public object FfiConverterOptionalULong: FfiConverterRustBuffer<kotlin.ULong?> {
+    override fun read(buf: ByteBuffer): kotlin.ULong? {
+        if (buf.get().toInt() == 0) {
+            return null
         }
-        
+        return FfiConverterULong.read(buf)
     }
 
-    override fun allocationSize(value: WidgetException): ULong {
-        return 4UL
+    override fun allocationSize(value: kotlin.ULong?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterULong.allocationSize(value)
+        }
     }
 
-    override fun write(value: WidgetException, buf: ByteBuffer) {
-        when(value) {
-            is WidgetException.Compile -> {
-                buf.putInt(1)
-                Unit
-            }
-            is WidgetException.Script -> {
-                buf.putInt(2)
-                Unit
-            }
-            is WidgetException.Timeout -> {
-                buf.putInt(3)
-                Unit
-            }
-            is WidgetException.Budget -> {
-                buf.putInt(4)
-                Unit
-            }
-            is WidgetException.Output -> {
-                buf.putInt(5)
-                Unit
-            }
-            is WidgetException.Input -> {
-                buf.putInt(6)
-                Unit
-            }
-            is WidgetException.Shader -> {
-                buf.putInt(7)
-                Unit
-            }
-        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    override fun write(value: kotlin.ULong?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterULong.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeUniformBlock: FfiConverterRustBuffer<List<UniformBlock>> {
+    override fun read(buf: ByteBuffer): List<UniformBlock> {
+        val len = buf.getInt()
+        return List<UniformBlock>(len) {
+            FfiConverterTypeUniformBlock.read(buf)
+        }
     }
 
+    override fun allocationSize(value: List<UniformBlock>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeUniformBlock.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<UniformBlock>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeUniformBlock.write(it, buf)
+        }
+    }
 }
         /**
-         * The contract's fragment entry point every client puts after a template's WGSL: `widget_main`.
-         */ fun `shaderEntry`(): kotlin.String {
-            return FfiConverterString.lift(
-    uniffiRustCall() { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_func_shader_entry(
-    
-        _status)
-}
-    )
-    }
-    
-
-        /**
-         * The contract's header every client puts before a template's WGSL: the `Widget` uniforms (96
-         * bytes, the same layout in WGSL, MSL and std140) at group 0, binding 0.
-         */ fun `shaderHeader`(): kotlin.String {
-            return FfiConverterString.lift(
-    uniffiRustCall() { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_func_shader_header(
-    
-        _status)
-}
-    )
-    }
-    
-
-        /**
-         * A template's WGSL wrapped as the contract says: header, template, entry point. What a WGSL host
-         * (wgpu, WebGPU) compiles as is.
-         */ fun `shaderSource`(`templateWgsl`: kotlin.String): kotlin.String {
-            return FfiConverterString.lift(
-    uniffiRustCall() { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_func_shader_source(
-    
-        
-        FfiConverterString.lower(`templateWgsl`),_status)
-}
-    )
-    }
-    
-
-        /**
-         * A shader node's `wgsl` (which defines `fn shade(frag: vec2f) -> vec4f`) wrapped in the contract's
-         * header and entry point, validated, and written for `target`: one fragment function
-         * `widget_main` reading the uniforms from buffer 0 (MSL) or uniform block `Widget_block_0Fragment`
-         * (GLSL). Errors point at lines of the template, not of the wrapped source.
+         * Translates WGSL `source`'s entry point `entry` (of `stage`) to `target`.
          */
-    @Throws(WidgetException::class) fun `translateShader`(`templateWgsl`: kotlin.String, `target`: ShaderTarget): kotlin.String {
-            return FfiConverterString.lift(
-    uniffiRustCallWithError(WidgetException) { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_func_translate_shader(
+    @Throws(ShaderException::class) fun `translateWgsl`(`source`: kotlin.String, `target`: ShaderTarget, `stage`: ShaderStage, `entry`: kotlin.String): TranslatedShader {
+            return FfiConverterTypeTranslatedShader.lift(
+    uniffiRustCallWithError(ShaderException) { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_func_translate_wgsl(
     
         
-        FfiConverterString.lower(`templateWgsl`),
-        FfiConverterTypeShaderTarget.lower(`target`),_status)
-}
-    )
-    }
-    
-
-        /**
-         * The full-screen triangle vertex stage, `widget_vertex`, for `target`: draw three vertices with
-         * no vertex buffers. Its output is the position alone, so it pairs with any translated fragment.
-         */
-    @Throws(WidgetException::class) fun `vertexShader`(`target`: ShaderTarget): kotlin.String {
-            return FfiConverterString.lift(
-    uniffiRustCallWithError(WidgetException) { _status ->
-    UniffiLib.uniffi_opencode_widget_ffi_fn_func_vertex_shader(
-    
-        
-        FfiConverterTypeShaderTarget.lower(`target`),_status)
+        FfiConverterString.lower(`source`),
+        FfiConverterTypeShaderTarget.lower(`target`),
+        FfiConverterTypeShaderStage.lower(`stage`),
+        FfiConverterString.lower(`entry`),_status)
 }
     )
     }

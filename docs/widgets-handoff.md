@@ -12,13 +12,17 @@ note), `form` (input, slider, checkbox, select), `confirm` (live: Deploy → Sen
 Submitted, `◈ Responded to "…"`), `chart` (bar and line; animated intro, press/drag tooltip,
 tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 
-- Runner: `opencode-widget-ffi` through UniFFI/JNA (`NativeAgentWidgetEngine`). Run
-  `scripts/widget-ffi.sh <ffi-out/android>` to install the `.so` files (gitignored) and refresh
-  the generated Kotlin; without them widgets show "The widget runtime isn't available".
-- Shader: `AgentWidgetGL` (one GL thread and context, programs cached by GLSL, 96-byte UBO bound
-  to `Widget_block_0Fragment`), `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`,
-  pause off screen / list not resumed, 50 ms × 3 stop, poster/alt on failure). The FFI's GLSL
-  entry point flips `frag.y`, so no transform is needed.
+- Runner: `psychoscript-mobile` (anomalyco/psychoscript `mobile`, rev in `ffi-out/android/REVISION`)
+  through UniFFI/JNA (`NativeAgentWidgetEngine`): `Program(program + "\nreturn __widget_step(__input())")`,
+  `run` at 250 ms per step and 8 ms per draw (a draw timeout counts as an overrun), output parsed
+  and validated by the app. `scripts/psychoscript.sh <ffi-out/android>` installs the `.so` files
+  (gitignored) and refreshes the committed Kotlin bindings; without them widgets show "The widget
+  runtime isn't available".
+- Shader: the app wraps the node's WGSL in the spec's header and a GL entry point that flips
+  `frag.y`, and `translateWgsl` turns it into GLSL ES 3.00. `AgentWidgetGL` (one GL thread and
+  context, programs cached by GLSL, 96-byte UBO bound to the blocks the translator reports),
+  `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`, pause off screen / list not
+  resumed, 50 ms × 3 stop, poster/alt on failure).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
 

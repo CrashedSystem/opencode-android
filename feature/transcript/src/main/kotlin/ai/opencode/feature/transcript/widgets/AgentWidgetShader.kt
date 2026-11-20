@@ -54,8 +54,8 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     val density = LocalDensity.current.density
     val paused = LocalAgentWidgetPaused.current
     var failure by remember(node.wgsl) { mutableStateOf<String?>(null) }
-    var fragment by remember(node.wgsl) { mutableStateOf<String?>(null) }
-    var vertex by remember { mutableStateOf<String?>(null) }
+    var fragment by remember(node.wgsl) { mutableStateOf<AgentWidgetShaderCode?>(null) }
+    var vertex by remember { mutableStateOf<AgentWidgetShaderCode?>(null) }
     var ready by remember { mutableStateOf(false) }
     var stopped by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
@@ -182,13 +182,13 @@ private fun ShaderFallback(node: AgentWidgetNode.Shader, error: String, modifier
 
 /** Translated shaders by WGSL source: the same template's banner translates once per process. */
 internal object AgentWidgetShaderSources {
-    private val fragments = object : LinkedHashMap<String, Result<String>>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Result<String>>) = size > 16
+    private val fragments = object : LinkedHashMap<String, Result<AgentWidgetShaderCode>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Result<AgentWidgetShaderCode>>) = size > 16
     }
-    @Volatile private var vertex: String? = null
+    @Volatile private var vertex: AgentWidgetShaderCode? = null
 
     /** The vertex and fragment stages, or why the shader can't run. */
-    fun translate(engine: AgentWidgetEngine, wgsl: String): Result<Pair<String, String>> = runCatching {
+    fun translate(engine: AgentWidgetEngine, wgsl: String): Result<Pair<AgentWidgetShaderCode, AgentWidgetShaderCode>> = runCatching {
         val v = vertex ?: engine.vertexShader().also { vertex = it }
         val f = synchronized(fragments) { fragments[wgsl] } ?: runCatching { engine.translateShader(wgsl) }.also { result ->
             synchronized(fragments) { fragments[wgsl] = result }

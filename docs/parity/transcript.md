@@ -166,7 +166,7 @@ iOS files are on opencode-ios's `agent/agent-widgets` branch (`OpenCode/AgentWid
 
 | iOS file | Kotlin file(s) | Status | Notes |
 | --- | --- | --- | --- |
-| `OpenCode/AgentWidgets/AgentWidgetEngine.swift` | widgets/AgentWidgetEngine.kt, widgets/NativeAgentWidgetEngine.kt, `ai/opencode/widget/opencode_widget_ffi.kt` (generated) | done | UniFFI over JNA; native library installed by `scripts/widget-ffi.sh` (not committed); without it the `Unavailable` stub shows the error card |
+| `OpenCode/AgentWidgets/AgentWidgetEngine.swift` | widgets/AgentWidgetEngine.kt, widgets/NativeAgentWidgetEngine.kt, `com/anomalyco/psychoscript/psychoscript_mobile.kt` (generated) | done | `psychoscript-mobile` over JNA: the app appends the step entry, runs steps at 250 ms and draws at 8 ms (a draw timeout is an overrun), and wraps shaders in the spec's header and GL entry; library installed by `scripts/psychoscript.sh` (not committed); without it the `Unavailable` stub shows the error card |
 | `OpenCode/AgentWidgets/AgentWidgetRuntime.swift` | widgets/AgentWidgetPrograms.kt, widgets/AgentWidgetStore.kt | done | Compile once per name@version (LRU 12), steps on a per-widget single-thread lane; an animating canvas steps on its own program copy |
 | `OpenCode/AgentWidgets/AgentWidgetMachine.swift` | widgets/AgentWidgetMachine.kt | done | Pure port of rune `machine.rs`; Loading → Starting → Ready ⇄ Stepping → Responding → Closed, Failed + Retry, 409 → already answered, `send` stays Ready |
 | `OpenCode/AgentWidgets/AgentWidgetModel.swift, AgentWidgetNode.swift` | widgets/AgentWidgetNode.kt, widgets/AgentWidgetStep.kt | done | Unknown node types dropped, bad required props fail the view |
