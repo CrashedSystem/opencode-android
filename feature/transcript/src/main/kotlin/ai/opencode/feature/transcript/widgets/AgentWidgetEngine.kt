@@ -34,8 +34,12 @@ interface AgentWidgetEngine {
     }
 }
 
-fun interface AgentWidgetProgram {
+fun interface AgentWidgetProgram : AutoCloseable {
     fun step(input: String): String
+
+    /** Frees the interpreter now rather than when the collector gets to it. */
+    override fun close() = Unit
 }
 
-class AgentWidgetEngineException(message: String, val isTimeout: Boolean = false) : Exception(message)
+/** [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three. */
+class AgentWidgetEngineException(message: String, val isTimeout: Boolean = false, val isBudget: Boolean = false) : Exception(message)

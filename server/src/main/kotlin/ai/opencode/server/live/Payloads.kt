@@ -339,7 +339,7 @@ internal data class MessagePayload(
                 )
                 "widget" -> base.copy(widget = widgetMessage(id, c))
                 // Model-facing `text` is never shown; skip decoding it.
-                "synthetic" -> base.copy(description = c.opt("description") { it.str() }, metadata = metadata(c))
+                "synthetic", "system" -> base.copy(description = c.opt("description") { it.str() }, metadata = metadata(c))
                 "idle" -> {
                     val outcome = c.opt("outcome") { it.str() }
                     base.copy(

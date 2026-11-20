@@ -314,6 +314,11 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
 
     "widget" -> listOfNotNull(message.widget?.let { OpenCodeTranscriptItem.Widget(message.id, it) })
 
+    // Only a widget's answer shows; other system updates are model-facing.
+    "system" -> listOfNotNull(
+        syntheticNotice(message.id, message.description, message.metadata)?.takeIf { it is OpenCodeTranscriptItem.WidgetResponse },
+    )
+
     // The run's end. A failed one repeats its last step's error, which that step already shows;
     // only a run that failed before any step is new here.
     "idle" -> {

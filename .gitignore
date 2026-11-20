@@ -23,3 +23,5 @@ secrets.properties
 .externalNativeBuild/
 .cxx/
 __pycache__/
+# The widget runner's native libraries (scripts/widget-ffi.sh)
+feature/transcript/src/main/jniLibs/
