@@ -11,6 +11,7 @@ import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.OpenCodeWidgetMessage
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.server.model.OpenCodeWidgetState
@@ -178,7 +179,7 @@ object AgentWidgetAdapter {
 
 /** Fetches template programs and answers widgets; throws [AgentWidgetTransportException]. */
 class AgentWidgetTransport(
-    val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> String,
+    val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> OpenCodeWidgetProgram,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, response: OpenCodeWidgetResponse) -> Unit,
     /** A message from a widget that stays open (`send`). */
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, message: OpenCodeWidgetMessageValue) -> Unit,

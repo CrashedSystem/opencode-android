@@ -10,6 +10,7 @@ import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.server.internal.WireJson
 import ai.opencode.server.model.OpenCodeWidgetMessage
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.retry.RequestIdempotency
 import kotlinx.serialization.json.JsonArray
@@ -22,14 +23,20 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /** One immutable template version's runnable program (`prelude + "\n" + source`). */
-internal suspend fun requestWidgetProgram(server: OpenCodeServer, ref: OpenCodeWidgetRef): String {
+internal suspend fun requestWidgetProgram(server: OpenCodeServer, ref: OpenCodeWidgetRef): OpenCodeWidgetProgram {
     val path = if (ref.isPinned) "${ref.name}/${ref.version}" else ref.name
     val data = perform("/api/experimental/widget/template/$path", server = server)
-    return decodeWidgetProgram(data.data)
+    return decoded(data.data, "widget template") { decodeWidgetProgram(it.obj()["data"]) }
 }
 
-internal fun decodeWidgetProgram(data: ByteArray): String =
-    decoded(data, "widget template") { it.obj().req("data") { d -> d.obj().req("program") { p -> p.str() } } }
+/** A `Program` (`Summary` + `program`): its program text, mode and https hosts. */
+internal fun decodeWidgetProgram(element: JsonElement?): OpenCodeWidgetProgram {
+    val o = element as? JsonObject ?: throw OpenCodeClientError("The widget template has no program.")
+    val program = (o["program"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: throw OpenCodeClientError("The widget template has no program.")
+    val mode = (o["mode"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    val hosts = ((o["capabilities"] as? JsonObject)?.get("https") as? JsonObject)?.get("hosts") as? JsonArray
+    return OpenCodeWidgetProgram(program, mode == "live", hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content })
+}
 
 /** Answers an open widget once; a second answer, from here or another client, is a 409. */
 internal suspend fun requestRespondToWidget(server: OpenCodeServer, sessionID: String, messageID: String, response: OpenCodeWidgetResponse) {
@@ -76,14 +83,12 @@ internal suspend fun requestWidgetRPC(
 }
 
 /** A template version's program (the latest without a version) from the widget plugin. */
-internal suspend fun requestWidgetProgramRPC(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): String {
+internal suspend fun requestWidgetProgramRPC(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): OpenCodeWidgetProgram {
     val input = buildJsonObject {
         put("name", ref.name)
         if (ref.isPinned) put("version", ref.version)
     }
-    val output = requestWidgetRPC(server, "program", directory, input, RequestIdempotency.Idempotent)
-    return (output as? JsonObject)?.get("program")?.let { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
-        ?: throw OpenCodeClientError("The widget template ${ref.key} has no program.")
+    return decodeWidgetProgram(requestWidgetRPC(server, "program", directory, input, RequestIdempotency.Idempotent))
 }
 
 /** The session's widget states, oldest first; a record this client can't read is skipped. */

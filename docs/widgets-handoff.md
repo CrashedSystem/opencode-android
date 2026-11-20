@@ -88,15 +88,32 @@ widgets show "The widget runtime isn't available".
   `oc-server.log`. Session lab: `python3 -B …/opencode-ios/scripts/session-lab.py --port 4112
   serve --checkpoint widgets`, connect to `http://10.0.2.2:4112`.
 
-## Next: live widgets
+## Live widgets (`specs/v2/widgets-live.md`)
 
-`specs/v2/widgets-live.md`: `mode: "live"` templates run one long program per open widget
-(`return await __widget_live(__input())`) on psychoscript-mobile's coming LiveRun API with `__host`
-post/receive/sleep/now/fetch; pause off screen, 50 ms without awaiting stops it, the same 2,000-command
-draws. Planned as a second engine path behind `AgentWidgetEngine` and a live controller beside the
-step machine, reusing the node and canvas renderers.
+- A template's `mode` comes with its program (`OpenCodeWidgetProgram.isLive`, cached with it on disk);
+  `AgentWidgetPrograms` compiles it with `\nreturn await __widget_live(__input())` (`compileLive`).
+- `AgentWidgetLiveDriver` owns one run per open widget (`Program.startLive`, input `{ data }`): started when
+  the widget first shows, `pause()` while it's off screen, the list isn't resumed (background) and it isn't
+  full screen, `resume()` (the program gets `{ type: "resumed", pausedMs }`), and after 30 s paused
+  `snapshot()` (a failed snapshot, e.g. a fetch in flight, stops the run and it restarts from `main` when shown).
+- Posts are read on the run thread and applied on the main thread: `render` replaces the view (and its root
+  `fullscreen`), `draw` replaces a canvas's commands (decoded off the main thread, 2,000-command cap),
+  `frame` asks for one frame (delivered at the next vsync while shown, with the first live canvas's size and
+  pointer, `dark` and `fullscreen`), `submit`/`dismiss` stop the run and answer through RPC `respond`,
+  `send` goes through RPC `send`. Events (taps, changes, canvas pointers, fullscreen) go in as
+  `{ type: "event", event }`. A failed run shows its error with Restart.
+- Fetch: `AgentWidgetFetchTransport` (OkHttp, no redirects/cookies/cache, DNS filtered with
+  `isPublicAddress`); the runner enforces the rules. `AgentWidgetCapabilities.grantedHosts` is the one grant
+  decision (everything declared is granted for now); granted hosts show as "Network: …" under the widget.
+  Hosts come from the widget state's `capabilities`, else the program's.
+- Live widgets offer full screen unless their root says `fullscreen: false`.
 
 ## Open
+
+- psychoscript-mobile `3d0dc94`: a live run waiting on `widget.next({ timeout })` (a `Promise.race` of
+  `receive` and `sleep`) and then on `widget.sleep` is stopped with SliceBudget ("computed for more than 50 ms
+  without waiting") right after the timeout fires; `minigame` hits it after a pause/resume. Repro: the
+  `wait-probe` live template (render, `await widget.next({ timeout: 10000 })`, `await widget.sleep(3000)`).
 
 - Translations: the 10 `transcript_widget_*` strings have English only. `scripts/translate.py`'s
   default model (`opencode/gpt-6.1-sol`) was unavailable; rerun it (or with `--model`).

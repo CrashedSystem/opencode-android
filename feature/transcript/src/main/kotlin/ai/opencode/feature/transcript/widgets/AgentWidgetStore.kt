@@ -10,8 +10,12 @@ import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.RespondFailure
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Status
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.model.OpenCodeWidgetMessageValue
+import ai.opencode.server.model.OpenCodeWidgetResponse
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -46,19 +50,25 @@ class AgentWidgetStore(
     /** Shows [controller]'s widget full screen (closing another one first) and tells its program. */
     fun enterFullscreen(controller: AgentWidgetController, title: String) {
         if (fullscreen?.controller === controller) return
-        fullscreen?.controller?.fullscreenChanged(false)
+        fullscreen?.controller?.let {
+            it.shownChanged(fullscreen = false)
+            it.fullscreenChanged(false)
+        }
         fullscreen = AgentWidgetFullscreen(controller, title)
+        controller.shownChanged(fullscreen = true)
         controller.fullscreenChanged(true)
     }
 
     fun exitFullscreen() {
         val current = fullscreen ?: return
         fullscreen = null
+        current.controller.shownChanged(fullscreen = false)
         current.controller.fullscreenChanged(false)
     }
 
     fun close() {
         fullscreen = null
+        for (controller in controllers.values) controller.stopLive()
         scope.cancel()
         controllers.clear()
     }
@@ -111,7 +121,7 @@ class AgentWidgetController internal constructor(
         get() {
             val phase = phase
             if (phase !is Phase.Ready && phase !is Phase.Stepping) return false
-            return rootFullscreen ?: phase.view?.let(AgentWidgetNode::drawsPixels) ?: false
+            return rootFullscreen ?: (isLiveMode || phase.view?.let(AgentWidgetNode::drawsPixels) == true)
         }
 
     /** The inline frame's last height in px, kept by its placeholder while the widget is full screen. */
@@ -149,6 +159,10 @@ class AgentWidgetController internal constructor(
     fun update(widget: AgentWidgetState) {
         this.widget = widget
         val status = status(widget)
+        if (isLiveMode) {
+            if (status is Status.Answered) closeLive(status.how)
+            return
+        }
         if (status != Status.Open) feed(Event.StatusChanged(status))
     }
 
@@ -178,6 +192,10 @@ class AgentWidgetController internal constructor(
 
     /** An event while the previous one still steps waits for it. */
     private fun dispatch(event: AgentWidgetEvent) {
+        if (isLiveMode) {
+            if (isLive) live?.deliver("{\"type\":\"event\",\"event\":${event.json}}")
+            return
+        }
         when (phase) {
             is Phase.Ready -> feed(Event.Input(event))
             is Phase.Stepping -> {
@@ -192,9 +210,162 @@ class AgentWidgetController internal constructor(
         }
     }
 
-    fun retry() = feed(Event.Retry)
+    fun retry() {
+        val live = live
+        if (isLiveMode && live != null) {
+            phase = Phase.Starting(Status.Open)
+            live.restart()
+        } else {
+            feed(Event.Retry)
+        }
+    }
 
-    val isLive: Boolean get() = phase is Phase.Ready || phase is Phase.Stepping
+    /** It takes input now: a step widget that's ready or stepping, a live one whose program runs. */
+    val isLive: Boolean
+        get() = if (isLiveMode) phase is Phase.Ready && live?.isRunning == true else phase is Phase.Ready || phase is Phase.Stepping
+
+    // Live mode (specs/v2/widgets-live.md).
+
+    /** A live template: its program runs on its own and posts views, draws and answers. */
+    var isLiveMode: Boolean by mutableStateOf(false)
+        private set
+
+    /** The hosts this live widget may fetch from, granted when it started (shown on the widget). */
+    var httpsHosts: List<String>? by mutableStateOf(null)
+        private set
+
+    /** Each canvas's last posted commands (JSON array text), by canvas id. */
+    internal val liveDraws = mutableStateMapOf<String, String>()
+
+    /** The program asked for one display frame. */
+    var liveWantsFrame: Boolean = false
+        private set
+
+    /** Counts frame requests (and returns to view while one waits), so a request right after a delivery is never merged away. */
+    var liveFrameRequests: Int by mutableIntStateOf(0)
+        private set
+
+    /** Live canvases by id: their size and pointer go into the frames the program asks for. */
+    internal val liveCanvases = HashMap<String, AgentWidgetLiveCanvas>()
+
+    /** The widget's own size (logical px), for frames when the view has no canvas. */
+    internal var liveViewWidth = 0f
+    internal var liveViewHeight = 0f
+
+    private var live: AgentWidgetLiveDriver? = null
+    private var liveStartNanos = 0L
+    private var lastFrameNanos = 0L
+    private var shownInline = false
+    private var shownFullscreen = false
+    private var listPaused = false
+
+    private fun startLiveMode(program: AgentWidgetLiveProgram, declaredHosts: List<String>?) {
+        isLiveMode = true
+        val status = status(widget)
+        if (status is Status.Answered) {
+            phase = Phase.Closed(null, status.how)
+            return
+        }
+        val hosts = AgentWidgetCapabilities.grantedHosts(widget.httpsHosts ?: declaredHosts)
+        httpsHosts = hosts
+        phase = Phase.Starting(Status.Open)
+        live = AgentWidgetLiveDriver(program, data, hosts, scope, liveEvents).also { it.setVisible(isShown) }
+    }
+
+    private val liveEvents = object : AgentWidgetLiveDriver.Events {
+        override fun rendered(view: AgentWidgetNode, fullscreen: Boolean?) {
+            rootFullscreen = fullscreen
+            when (val current = phase) {
+                is Phase.Starting, is Phase.Ready -> phase = Phase.Ready("null", view, (current as? Phase.Ready)?.error)
+                else -> Unit
+            }
+        }
+
+        override fun drew(id: String, commandsJson: String) {
+            liveDraws[id] = commandsJson
+        }
+
+        override fun wantsFrame() {
+            liveWantsFrame = true
+            liveFrameRequests++
+        }
+
+        override fun answered(response: OpenCodeWidgetResponse) {
+            val view = phase.view ?: return closeLive(AgentWidgetMachine.Closed.of(response))
+            live?.stop()
+            val attempt = ++liveAttempts
+            phase = Phase.Responding("null", view, response, attempt)
+            scope.launch {
+                try {
+                    transport.respond(server, directory, sessionID, widget, response)
+                    closeLive(AgentWidgetMachine.Closed.of(response))
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: AgentWidgetTransportException) {
+                    phase = if (error.isClosed) {
+                        Phase.Ready("null", view, localized(R.string.transcript_widget_already_answered))
+                    } else {
+                        Phase.Ready("null", view, error.message ?: localized(R.string.transcript_widget_step_failed))
+                    }
+                }
+            }
+        }
+
+        override fun sent(message: OpenCodeWidgetMessageValue) {
+            run(listOf(Effect.Send(message)))
+        }
+
+        override fun failed(message: String) {
+            phase = Phase.Failed(message, Status.Open)
+        }
+
+        override fun ended() = Unit
+    }
+
+    private var liveAttempts = 0
+
+    private fun closeLive(how: AgentWidgetMachine.Closed) {
+        live?.stop()
+        liveWantsFrame = false
+        phase = Phase.Closed(phase.view, how, phase.state)
+    }
+
+    internal fun stopLive() {
+        live?.stop()
+    }
+
+    private val isShown: Boolean get() = (shownInline && !listPaused) || shownFullscreen
+
+    /** Where the widget shows: its inline row on screen, the list resumed, or full screen. A live program runs only while shown. */
+    fun shownChanged(inline: Boolean = shownInline, paused: Boolean = listPaused, fullscreen: Boolean = shownFullscreen) {
+        shownInline = inline
+        listPaused = paused
+        shownFullscreen = fullscreen
+        live?.setVisible(isShown)
+        if (isShown && liveWantsFrame) liveFrameRequests++
+    }
+
+    /** Hands the program the frame it asked for: the first live canvas's size (else the widget's) and pointer. */
+    fun deliverLiveFrame(nanos: Long, scale: Float, dark: Boolean, fullscreen: Boolean) {
+        if (!liveWantsFrame || !isShown) return
+        liveWantsFrame = false
+        if (liveStartNanos == 0L) liveStartNanos = nanos
+        val canvas = liveCanvases.values.firstOrNull { it.width > 0f }
+        val width = canvas?.width ?: liveViewWidth
+        val height = canvas?.height ?: liveViewHeight
+        val p = canvas?.pointer
+        val t = (nanos - liveStartNanos) / 1e9
+        val dt = if (lastFrameNanos == 0L) 0.0 else (nanos - lastFrameNanos) / 1e9
+        lastFrameNanos = nanos
+        val frame = buildString(180) {
+            append("{\"type\":\"frame\",\"frame\":{\"t\":").append(t).append(",\"dt\":").append(dt)
+            append(",\"width\":").append(width).append(",\"height\":").append(height).append(",\"scale\":").append(scale)
+            append(",\"pointer\":")
+            if (p == null) append("null") else append("{\"x\":").append(p[0]).append(",\"y\":").append(p[1]).append(",\"down\":true}")
+            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen).append("}}")
+        }
+        live?.deliver(frame)
+    }
 
     /**
      * One draw step for a canvas on this widget's lane, its output handed to [read] there too.
@@ -232,7 +403,12 @@ class AgentWidgetController internal constructor(
                 Effect.Fetch -> scope.launch {
                     val event = try {
                         val compiled = programs.program(server, directory, ref)
-                        program = compiled.program
+                        val live = compiled.live
+                        if (live != null) {
+                            startLiveMode(live, compiled.info.httpsHosts)
+                            return@launch
+                        }
+                        program = compiled.step
                         Event.Loaded
                     } catch (error: CancellationException) {
                         throw error

@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -25,8 +26,8 @@ class AgentWidgetPrograms(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val entries = LinkedHashMap<String, Deferred<Compiled>>(16, 0.75f, true)
 
-    /** A template version's program text and its shared compiled program. */
-    class Compiled(val text: String, val program: AgentWidgetProgram)
+    /** A template version's compiled program, shared by every widget using it: [step] or [live] by its mode. */
+    class Compiled(val info: OpenCodeWidgetProgram, val step: AgentWidgetProgram?, val live: AgentWidgetLiveProgram?)
 
     /** Throws the fetch's or the compile's error; a failed version is fetched again next time. */
     suspend fun program(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): Compiled {
@@ -35,11 +36,17 @@ class AgentWidgetPrograms(
         val deferred = synchronized(entries) {
             entries.getOrPut(ref.key) {
                 scope.async {
-                    val text = transport.program(server, directory, ref)
+                    val info = transport.program(server, directory, ref)
                     val started = System.nanoTime()
-                    val compiled = engine.compile(text)
-                    AppLog.perf.info { "Widget ${ref.key} compiled in ${(System.nanoTime() - started) / 1_000} µs (${text.length} chars)" }
-                    Compiled(text, compiled)
+                    val compiled = if (info.isLive) {
+                        Compiled(info, null, engine.compileLive(info.program))
+                    } else {
+                        Compiled(info, engine.compile(info.program), null)
+                    }
+                    AppLog.perf.info {
+                        "Widget ${ref.key} compiled${if (info.isLive) " (live)" else ""} in ${(System.nanoTime() - started) / 1_000} µs (${info.program.length} chars)"
+                    }
+                    compiled
                 }
             }.also {
                 // An evicted program a widget still holds keeps stepping; the collector frees it.

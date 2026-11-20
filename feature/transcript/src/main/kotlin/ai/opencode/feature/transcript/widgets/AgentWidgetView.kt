@@ -34,7 +34,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onVisibilityChanged
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,6 +82,9 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
     val controller = remember(store, server, sessionID, widget.key) { store.controller(widget, server, sessionID, context.directory) }
     LaunchedEffect(controller) { controller.start() }
     LaunchedEffect(controller, widget) { controller.update(widget) }
+    val listPaused = LocalAgentWidgetPaused.current
+    LaunchedEffect(controller, listPaused) { controller.shownChanged(paused = listPaused) }
+    DisposableEffect(controller) { onDispose { controller.shownChanged(inline = false) } }
     if (store.fullscreen?.controller === controller) {
         AgentWidgetFullscreenPlaceholder(controller, modifier)
         return
@@ -85,7 +94,9 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
         controller.phase,
         title,
         controller = controller,
-        modifier = modifier.onSizeChanged { controller.inlineHeight = it.height },
+        modifier = modifier
+            .onSizeChanged { controller.inlineHeight = it.height }
+            .onVisibilityChanged { controller.shownChanged(inline = it) },
         onExpand = if (controller.offersFullscreen) ({ store.enterFullscreen(controller, title) }) else null,
     )
 }
@@ -129,7 +140,10 @@ fun AgentWidgetFrame(
                         Text(phase.message, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.secondaryText)
                     }
                     if (controller != null) {
-                        Row { OpenCodeSecondaryButton(stringResource(CoreR.string.common_try_again), onClick = controller::retry) }
+                        Row {
+                            val label = if (controller.isLiveMode) R.string.transcript_widget_restart else CoreR.string.common_try_again
+                            OpenCodeSecondaryButton(stringResource(label), onClick = controller::retry)
+                        }
                     }
                 }
                 is Phase.Ready, is Phase.Stepping, is Phase.Responding -> {
@@ -141,7 +155,27 @@ fun AgentWidgetFrame(
                         AgentWidgetNode.fills(view) -> Modifier.weight(1f)
                         else -> Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
                     }
-                    AgentWidgetNodeView(view, AgentWidgetScope(controller, live, title), body)
+                    val density = LocalDensity.current.density
+                AgentWidgetNodeView(
+                    view,
+                    AgentWidgetScope(controller, live, title),
+                    if (controller?.isLiveMode == true) {
+                        body.onSizeChanged {
+                            controller.liveViewWidth = it.width / density
+                            controller.liveViewHeight = it.height / density
+                        }
+                    } else body,
+                )
+                if (controller != null && controller.isLiveMode) LiveFrames(controller, density, fullscreen)
+                controller?.httpsHosts?.let { hosts ->
+                    Text(
+                        stringResource(R.string.transcript_widget_network, hosts.joinToString(", ")),
+                        style = OpenCodeTextStyles.caption1,
+                        color = colors.tertiaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                     val error = (phase as? Phase.Ready)?.error
                     if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true)
                     if (phase is Phase.Responding) {
@@ -174,6 +208,19 @@ fun AgentWidgetFrame(
                 size = 32.dp,
                 iconSize = 16.dp,
             )
+        }
+    }
+}
+
+/** Hands a live program each display frame it asks for, at the next vsync while the widget is shown. */
+@Composable
+private fun LiveFrames(controller: AgentWidgetController, density: Float, fullscreen: Boolean) {
+    val dark = OpenCodeTheme.colors.canvas.luminance() < 0.5f
+    LaunchedEffect(controller, fullscreen, dark) {
+        snapshotFlow { controller.liveFrameRequests }.collect {
+            if (!controller.liveWantsFrame) return@collect
+            val nanos = withFrameNanos { it }
+            controller.deliverLiveFrame(nanos, density, dark, fullscreen)
         }
     }
 }

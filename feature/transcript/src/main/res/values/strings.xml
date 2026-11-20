@@ -184,4 +184,6 @@
     <string name="transcript_widget_shader_failed">Couldn’t run this shader</string>
     <string name="transcript_widget_fullscreen">Full Screen</string>
     <string name="transcript_widget_fullscreen_placeholder">Open in full screen</string>
+    <string name="transcript_widget_network">Network: %1$s</string>
+    <string name="transcript_widget_restart">Restart</string>
 </resources>

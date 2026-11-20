@@ -12,6 +12,9 @@ interface AgentWidgetEngine {
 
     fun compile(program: String): AgentWidgetProgram
 
+    /** A live template's program, run with `return await __widget_live(__input())` (specs/v2/widgets-live.md). */
+    fun compileLive(program: String): AgentWidgetLiveProgram
+
     /** A `shader` node's `wgsl` (its `shade` function) in the spec's header and entry point, as GLSL ES 3.00, with the vertex stage. */
     fun translateShader(wgsl: String): AgentWidgetShaderStages
 
@@ -24,6 +27,7 @@ interface AgentWidgetEngine {
     object Unavailable : AgentWidgetEngine {
         override val isAvailable: Boolean = false
         override fun compile(program: String): AgentWidgetProgram = throw AgentWidgetEngineException(UNAVAILABLE)
+        override fun compileLive(program: String): AgentWidgetLiveProgram = throw AgentWidgetEngineException(UNAVAILABLE)
         override fun translateShader(wgsl: String): AgentWidgetShaderStages = throw AgentWidgetEngineException(UNAVAILABLE)
         private const val UNAVAILABLE = "The widget runtime isn't available in this build."
     }
@@ -48,3 +52,30 @@ class AgentWidgetShaderCode(val code: String, val uniformBlocks: List<Pair<Strin
 
 /** A shader node's two GPU stages: the full-screen triangle and its fragment shader. */
 class AgentWidgetShaderStages(val vertex: AgentWidgetShaderCode, val fragment: AgentWidgetShaderCode)
+
+/** A live program, compiled once: each open widget starts its own run of it. */
+interface AgentWidgetLiveProgram : AutoCloseable {
+    /** Starts `main(data)` on a thread of its own; [httpsHosts] are the hosts granted for `fetch`. */
+    fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun
+
+    override fun close() = Unit
+}
+
+/** One running live program. Calls never block; a call on a run that ended does nothing. */
+interface AgentWidgetLiveRun {
+    fun deliver(messageJson: String)
+    fun pause()
+    /** The program's next message is `{ type: "resumed", pausedMs }`. */
+    fun resume()
+    /** Frees a paused run's VM (its state kept for [resume]); false when it can't (a fetch in flight). */
+    fun snapshot(): Boolean
+    fun stop()
+}
+
+/** What a live run tells its widget, on the run's own thread: hand it to the main thread and return. */
+interface AgentWidgetLiveListener {
+    fun posted(messageJson: String)
+    fun warned(message: String)
+    /** It ended: [failure] null when `main` returned or the run was stopped. */
+    fun exited(failure: String?)
+}

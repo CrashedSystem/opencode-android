@@ -4,6 +4,8 @@ import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
 import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.server.internal.WireJson
+import ai.opencode.server.live.decodeWidgetProgram
 import ai.opencode.server.live.isWidgetRPCUnavailable
 import ai.opencode.server.live.requestRespondToWidget
 import ai.opencode.server.live.requestRespondToWidgetRPC
@@ -13,11 +15,16 @@ import ai.opencode.server.live.requestWidgetProgramRPC
 import ai.opencode.server.live.requestWidgetSendRPC
 import ai.opencode.server.live.requestWidgetStates
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetState
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.io.File
 
 /**
@@ -28,7 +35,7 @@ import java.io.File
  * for the widgets those servers describe as `widget` messages.
  */
 class AgentWidgetClient(
-    val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> String,
+    val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> OpenCodeWidgetProgram,
     val states: suspend (server: OpenCodeServer, directory: String?, sessionID: String) -> List<OpenCodeWidgetState>,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, response: OpenCodeWidgetResponse) -> Unit,
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, message: OpenCodeWidgetMessageValue) -> Unit,
@@ -76,27 +83,42 @@ class AgentWidgetClient(
     }
 }
 
-/** One file per template version, written once through a temporary file so a torn write never reads back. */
+/**
+ * One file per template version (`<name>@<version>.json`: program, mode, hosts), written once through
+ * a temporary file so a torn write never reads back. Older `.js` files hold a step program alone.
+ */
 class AgentWidgetProgramCache(private val directory: File) {
-    suspend fun read(ref: OpenCodeWidgetRef): String? {
+    suspend fun read(ref: OpenCodeWidgetRef): OpenCodeWidgetProgram? {
         if (!ref.isValid || !ref.isPinned) return null
         return withContext(Dispatchers.IO) {
-            val file = file(ref)
-            if (file.isFile) runCatching { file.readText() }.getOrNull() else null
+            runCatching {
+                val json = File(directory, "${ref.key}.json")
+                val legacy = File(directory, "${ref.key}.js")
+                when {
+                    json.isFile -> decodeWidgetProgram(WireJson.parseToJsonElement(json.readText()))
+                    legacy.isFile -> OpenCodeWidgetProgram(legacy.readText())
+                    else -> null
+                }
+            }.getOrNull()
         }
     }
 
-    suspend fun write(ref: OpenCodeWidgetRef, program: String) {
+    suspend fun write(ref: OpenCodeWidgetRef, program: OpenCodeWidgetProgram) {
         if (!ref.isValid || !ref.isPinned) return
         withContext(Dispatchers.IO) {
             runCatching {
                 directory.mkdirs()
+                val text = buildJsonObject {
+                    put("program", program.program)
+                    put("mode", if (program.isLive) "live" else "step")
+                    program.httpsHosts?.let { hosts ->
+                        put("capabilities", buildJsonObject { put("https", buildJsonObject { put("hosts", JsonArray(hosts.map(::JsonPrimitive))) }) })
+                    }
+                }.toString()
                 val temporary = File(directory, "${ref.key}.tmp")
-                temporary.writeText(program)
-                if (!temporary.renameTo(file(ref))) temporary.delete()
+                temporary.writeText(text)
+                if (!temporary.renameTo(File(directory, "${ref.key}.json"))) temporary.delete()
             }.onFailure { AppLog.app.notice { "Widget template cache write failed: ${it.javaClass.simpleName}" } }
         }
     }
-
-    private fun file(ref: OpenCodeWidgetRef) = File(directory, "${ref.key}.js")
 }

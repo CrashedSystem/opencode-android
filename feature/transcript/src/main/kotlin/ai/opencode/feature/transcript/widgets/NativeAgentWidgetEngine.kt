@@ -1,6 +1,10 @@
 package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.log.AppLog
+import com.anomalyco.psychoscript.LiveExit
+import com.anomalyco.psychoscript.LiveHandler
+import com.anomalyco.psychoscript.LiveOptions
+import com.anomalyco.psychoscript.LiveRun
 import com.anomalyco.psychoscript.Program
 import com.anomalyco.psychoscript.PsychoScriptException
 import com.anomalyco.psychoscript.RunOptions
@@ -38,6 +42,46 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         }
     }
 
+    override fun compileLive(program: String): AgentWidgetLiveProgram {
+        val compiled = run { Program(program + LIVE_ENTRY) }
+        return object : AgentWidgetLiveProgram {
+            override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
+                val handler = object : LiveHandler {
+                    override fun onPost(messageJson: String) = listener.posted(messageJson)
+                    override fun onWarning(message: String) = listener.warned(message)
+                    override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let(::reason))
+                }
+                val options = LiveOptions(sliceBudgetMs = 50uL, maxPostsPerSecond = 240u, httpsHosts = httpsHosts)
+                val live = run { compiled.startLive(inputJson, handler, options, if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport.shared) }
+                return NativeLiveRun(live)
+            }
+
+            override fun close() = compiled.close()
+        }
+    }
+
+    private class NativeLiveRun(private val live: LiveRun) : AgentWidgetLiveRun {
+        override fun deliver(messageJson: String) = quietly { live.deliver(messageJson) }
+        override fun pause() = quietly { live.pause() }
+        override fun resume() = quietly { live.resume() }
+        override fun snapshot(): Boolean = try {
+            live.snapshot()
+            true
+        } catch (error: PsychoScriptException) {
+            AppLog.app.notice { "Live widget snapshot failed: ${reason(error).take(120)}" }
+            false
+        }
+        override fun stop() = live.stop()
+
+        private inline fun quietly(block: () -> Unit) {
+            try {
+                block()
+            } catch (error: PsychoScriptException) {
+                AppLog.app.notice { "Live widget call failed: ${error.javaClass.simpleName}" }
+            }
+        }
+    }
+
     override fun translateShader(wgsl: String): AgentWidgetShaderStages = try {
         val fragment = translateWgsl(HEADER + wgsl + ENTRY_GL, ShaderTarget.GLSL_ES300, ShaderStage.FRAGMENT, "widget_main")
         val vertex = translateWgsl(VERTEX, ShaderTarget.GLSL_ES300, ShaderStage.VERTEX, "widget_vertex")
@@ -64,18 +108,23 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     private inline fun <T> run(draw: Boolean = false, block: () -> T): T = try {
         block()
     } catch (error: PsychoScriptException) {
-        val reason = when (error) {
-            is PsychoScriptException.Syntax -> error.reason
-            is PsychoScriptException.Runtime -> error.reason
-            is PsychoScriptException.Timeout -> error.reason
-            is PsychoScriptException.OutputTooLarge -> error.reason
-            is PsychoScriptException.InvalidInput -> error.reason
-        }
         val timeout = error is PsychoScriptException.Timeout
-        throw AgentWidgetEngineException(reason, isTimeout = timeout && !draw, isBudget = timeout && draw)
+        throw AgentWidgetEngineException(reason(error), isTimeout = timeout && !draw, isBudget = timeout && draw)
+    }
+
+    private fun reason(error: PsychoScriptException): String = when (error) {
+        is PsychoScriptException.Syntax -> error.reason
+        is PsychoScriptException.Runtime -> error.reason
+        is PsychoScriptException.Timeout -> error.reason
+        is PsychoScriptException.OutputTooLarge -> error.reason
+        is PsychoScriptException.InvalidInput -> error.reason
+        is PsychoScriptException.SliceBudget -> error.reason
+        is PsychoScriptException.Snapshot -> error.reason
+        is PsychoScriptException.InvalidState -> error.reason
     }
 
     private const val ENTRY = "\nreturn __widget_step(__input())"
+    private const val LIVE_ENTRY = "\nreturn await __widget_live(__input())"
     private val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL)
     private val DRAW = RunOptions(timeoutMs = 8uL, maxOutputBytes = 1024uL * 1024uL)
 

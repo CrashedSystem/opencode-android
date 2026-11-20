@@ -100,3 +100,6 @@ data class OpenCodeWidgetState(
         fun key(messageID: String, callID: String): String = "$messageID/$callID"
     }
 }
+
+/** A template version's runnable program and how it runs: `step` (the default) or `live`, with the hosts a live one may fetch from. */
+data class OpenCodeWidgetProgram(val program: String, val isLive: Boolean = false, val httpsHosts: List<String>? = null)

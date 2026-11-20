@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -96,8 +97,34 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     var visible by remember { mutableStateOf(false) }
 
     val fullscreen = LocalAgentWidgetFullscreen.current
-    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible, fullscreen) {
+    // Live mode: the program posts this canvas's commands; it draws the latest and reports its size and pointer.
+    val liveMode = controller?.isLiveMode == true
+    val liveKey = node.id ?: ""
+    val liveCanvas = remember(controller, liveKey) { AgentWidgetLiveCanvas() }
+    if (liveMode && controller != null) {
+        DisposableEffect(controller, liveKey) {
+            controller.liveCanvases[liveKey] = liveCanvas
+            onDispose { if (controller.liveCanvases[liveKey] === liveCanvas) controller.liveCanvases.remove(liveKey) }
+        }
+        val commands = controller.liveDraws[liveKey]
+        LaunchedEffect(commands, palette) {
+            commands ?: return@LaunchedEffect
+            val started = System.nanoTime()
+            val decoded = withContext(Dispatchers.Default) {
+                runCatching { AgentWidgetDrawList.decode("{\"commands\":$commands}", palette, state.spare) }.isSuccess
+            }
+            if (decoded) {
+                state.swap()
+                revision++
+            }
+            state.noteFrame(0, (System.nanoTime() - started) / 1_000)
+        }
+    }
+    state.pointerSink = if (liveMode) liveCanvas else null
+
+    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible, fullscreen, liveMode) {
         controller ?: return@LaunchedEffect
+        if (liveMode) return@LaunchedEffect
         // Off screen it keeps its last frame; the first one waits until it's seen.
         if (state.size == IntSize.Zero || !visible) return@LaunchedEffect
         var last = 0L
@@ -137,7 +164,11 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             .then(if (width != null) Modifier.width(width.dp) else Modifier.fillMaxWidth())
             .then(if (fullscreen && node.fill) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
             .clip(OpenCodeShape.control)
-            .onSizeChanged { state.size = it }
+            .onSizeChanged {
+                state.size = it
+                liveCanvas.width = it.width / density
+                liveCanvas.height = it.height / density
+            }
             .onVisibilityChanged { visible = it }
             .excludedFromDrawerPan(node.id != null && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
@@ -203,7 +234,13 @@ private class CanvasState {
     val renderer = CanvasRenderer()
     var size by mutableStateOf(IntSize.Zero)
     var startNanos = 0L
+    /** A live canvas's frames carry the pointer too. */
+    var pointerSink: AgentWidgetLiveCanvas? = null
     @Volatile var pointer: FloatArray? = null
+        set(value) {
+            field = value
+            pointerSink?.pointer = value
+        }
     private var frames = 0
     private var stepTotal = 0L
     private var decodeTotal = 0L

@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 /** `{ id, type, value? }`; [value] is JSON text. */
 data class AgentWidgetEvent(val id: String, val type: Type, val value: String? = null) {
@@ -92,7 +93,7 @@ object AgentWidgetStep {
         val value = responseJSON?.let { runCatching { json.parseToJsonElement(it) }.getOrNull() } ?: return ""
         fun one(v: JsonElement): String = when (v) {
             is JsonNull -> "—"
-            is JsonPrimitive -> v.content
+            is JsonPrimitive -> if (v.isString) v.content else v.doubleOrNull?.let { AgentWidgetEvent.number(it) } ?: v.content
             is kotlinx.serialization.json.JsonArray -> v.joinToString(", ", transform = ::one)
             is JsonObject -> v.toString()
         }
