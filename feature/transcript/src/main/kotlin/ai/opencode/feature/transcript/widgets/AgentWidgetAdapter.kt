@@ -51,21 +51,28 @@ object AgentWidgetAdapter {
         call.input.obj?.get("title")?.string?.trim()?.ifEmpty { null } ?: call.input.obj?.get("template")?.string
 
     /**
-     * The session's widgets by tool call ID, from its loaded transcript: a `widget` tool call's
-     * `metadata.widget` (`{ template, status, response? }`, answered by its call ID), else the
-     * `widget` message that names the call.
+     * The session's widgets by tool call ID, from its loaded transcript. A `widget` tool call is
+     * one (answered by its call ID): its input names the template and data, its `metadata.widget`
+     * pins the version and says how it ended. A call without that metadata runs the template's
+     * latest version, open, unless a `widget` message naming the call says more.
      */
     fun states(items: List<OpenCodeTranscriptItem>): Map<String, AgentWidgetState> {
         var states: HashMap<String, AgentWidgetState>? = null
+        var pinned: HashSet<String>? = null
         fun put(state: AgentWidgetState) {
             (states ?: HashMap<String, AgentWidgetState>().also { states = it })[state.callID] = state
         }
         for (item in items) {
             when (item) {
+                is OpenCodeTranscriptItem.Tool -> {
+                    val state = widget(item.call) ?: continue
+                    put(state)
+                    if (item.call.metadata["widget"] != null) (pinned ?: HashSet<String>().also { pinned = it }) += state.callID
+                }
                 is OpenCodeTranscriptItem.Widget -> {
                     val message = item.widget
                     val callID = message.callID ?: continue
-                    if (states?.containsKey(callID) == true) continue
+                    if (pinned?.contains(callID) == true) continue
                     put(
                         AgentWidgetState(
                             callID = callID,
@@ -82,33 +89,33 @@ object AgentWidgetAdapter {
                         ),
                     )
                 }
-                is OpenCodeTranscriptItem.Tool -> fromToolCall(item.call)?.let(::put)
                 else -> Unit
             }
         }
         return states ?: emptyMap()
     }
 
-    private fun fromToolCall(call: OpenCodeToolCall): AgentWidgetState? {
-        if (!isWidget(call)) return null
-        val meta = call.metadata["widget"]?.obj ?: return null
-        val template = meta["template"]?.obj ?: return null
-        val ref = OpenCodeWidgetRef(template["name"]?.string ?: return null, template["version"]?.string ?: return null)
+    /** The widget a tool call shows, or null when it isn't one (another tool, input still streaming, a failed call, a bad name). */
+    internal fun widget(call: OpenCodeToolCall): AgentWidgetState? {
+        if (!isWidget(call) || call.status == OpenCodeToolCall.Status.Streaming || call.status == OpenCodeToolCall.Status.Error) return null
+        val input = call.input.obj ?: return null
+        val meta = call.metadata["widget"]?.obj
+        val template = meta?.get("template")?.obj
+        val name = input["template"]?.string ?: template?.get("name")?.string ?: return null
+        val ref = OpenCodeWidgetRef(name, template?.get("version")?.string ?: "")
         if (!ref.isValid) return null
-        val status = when (meta["status"]?.string) {
-            "open" -> AgentWidgetState.Status.Open
+        val status = when (meta?.get("status")?.string) {
             "submitted" -> AgentWidgetState.Status.Submitted
             "dismissed" -> AgentWidgetState.Status.Dismissed
-            else -> return null
+            else -> AgentWidgetState.Status.Open
         }
-        val input = call.input.obj
         return AgentWidgetState(
             callID = call.callID,
-            title = input?.get("title")?.string,
+            title = input["title"]?.string,
             template = ref,
-            data = input?.get("data")?.let { OpenCodeJSONValue.toElement(it).toString() } ?: "null",
+            data = input["data"]?.let { OpenCodeJSONValue.toElement(it).toString() } ?: "null",
             status = status,
-            response = if (status == AgentWidgetState.Status.Submitted) meta["response"]?.let { OpenCodeJSONValue.toElement(it).toString() } ?: "null" else null,
+            response = if (status == AgentWidgetState.Status.Submitted) meta?.get("response")?.let { OpenCodeJSONValue.toElement(it).toString() } ?: "null" else null,
             handle = call.callID,
         )
     }

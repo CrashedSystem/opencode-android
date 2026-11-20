@@ -49,7 +49,7 @@ class AgentWidgetClient(
 /** One file per template version, written once through a temporary file so a torn write never reads back. */
 class AgentWidgetProgramCache(private val directory: File) {
     suspend fun read(ref: OpenCodeWidgetRef): String? {
-        if (!ref.isValid) return null
+        if (!ref.isValid || !ref.isPinned) return null
         return withContext(Dispatchers.IO) {
             val file = file(ref)
             if (file.isFile) runCatching { file.readText() }.getOrNull() else null
@@ -57,7 +57,7 @@ class AgentWidgetProgramCache(private val directory: File) {
     }
 
     suspend fun write(ref: OpenCodeWidgetRef, program: String) {
-        if (!ref.isValid) return
+        if (!ref.isValid || !ref.isPinned) return
         withContext(Dispatchers.IO) {
             runCatching {
                 directory.mkdirs()

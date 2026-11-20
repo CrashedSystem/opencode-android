@@ -12,7 +12,8 @@ import ai.opencode.server.retry.RequestIdempotency
 
 /** One immutable template version's runnable program (`prelude + "\n" + source`). */
 internal suspend fun requestWidgetProgram(server: OpenCodeServer, ref: OpenCodeWidgetRef): String {
-    val data = perform("/api/experimental/widget/template/${ref.name}/${ref.version}", server = server)
+    val path = if (ref.isPinned) "${ref.name}/${ref.version}" else ref.name
+    val data = perform("/api/experimental/widget/template/$path", server = server)
     return decodeWidgetProgram(data.data)
 }
 

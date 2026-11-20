@@ -5,12 +5,15 @@ import kotlinx.serialization.Serializable
 
 /** A widget template version (`name@version`): immutable, so its program is cached forever. */
 @Serializable
-data class OpenCodeWidgetRef(val name: String, val version: String) {
-    val key: String get() = "$name@$version"
+data class OpenCodeWidgetRef(val name: String, val version: String = "") {
+    val key: String get() = "$name@${version.ifEmpty { "latest" }}"
+
+    /** A version is named; without one the program is the template's latest, never cached on disk. */
+    val isPinned: Boolean get() = version.isNotEmpty()
 
     /** Names and versions the server accepts, so a ref is safe as a path segment and a file name. */
     val isValid: Boolean
-        get() = NAME.matches(name) && VERSION.matches(version)
+        get() = NAME.matches(name) && (version.isEmpty() || VERSION.matches(version))
 
     private companion object {
         val NAME = Regex("^[a-z][a-z0-9-]{0,47}$")

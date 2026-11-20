@@ -135,7 +135,21 @@ sealed interface AgentWidgetNode {
             val raw = this["children"] ?: return emptyList()
             if (raw is JsonNull) return emptyList()
             val list = raw as? JsonArray ?: throw InvalidView("invalid view: children must be an array")
-            return list.mapNotNull(::node)
+            val out = ArrayList<AgentWidgetNode>(list.size)
+            flatten(list, out)
+            return out
+        }
+
+        /** Nested arrays flatten; `null` and `false` (a `cond && node` that didn't hold) drop out. */
+        private fun flatten(list: JsonArray, out: MutableList<AgentWidgetNode>) {
+            for (element in list) {
+                when {
+                    element is JsonArray -> flatten(element, out)
+                    element is JsonNull -> Unit
+                    element is JsonPrimitive && !element.isString && element.booleanOrNull == false -> Unit
+                    else -> node(element)?.let(out::add)
+                }
+            }
         }
 
         private fun JsonObject.gap(): Int? = number("gap")?.toInt()?.coerceIn(0, 3)
