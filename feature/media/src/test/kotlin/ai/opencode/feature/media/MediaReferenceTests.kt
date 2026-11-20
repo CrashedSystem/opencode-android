@@ -172,16 +172,23 @@ class MediaReferenceTests {
 
             for (hash in hashes.take(3)) loader.load(server, hash)
             assertTrue("at the budget, nothing goes", hashes.take(3).all(::onDisk))
+            val now = System.currentTimeMillis()
+            for ((index, hash) in hashes.take(3).withIndex()) {
+                File(tempDir, "$hash.blob").setLastModified(now - 60_000 + index * 10_000)
+            }
+            val inFlight = File(tempDir, "${"a1".repeat(32)}.123.partial")
+            inFlight.writeBytes(ByteArray(1024))
+            inFlight.setLastModified(now - 120_000)
             // The oldest is read again from disk, which makes it the newest.
             loader.purgeMemory()
-            Thread.sleep(20)
             loader.load(server, hashes[0])
             assertEquals(3, fetches)
 
             loader.load(server, hashes[3])
             assertTrue(onDisk(hashes[0]) && onDisk(hashes[3]))
             assertTrue(!onDisk(hashes[1]) && !onDisk(hashes[2]))
-            assertTrue(MediaReferenceLoader.trim(tempDir, Long.MAX_VALUE, keeping = "") <= 3 * 1024 / 4 * 3)
+            assertTrue("another write in flight stays", inFlight.isFile)
+            assertEquals(2L * 1024, MediaReferenceLoader.trim(tempDir, Long.MAX_VALUE, 0, keeping = ""))
         } finally {
             tempDir.deleteRecursively()
         }

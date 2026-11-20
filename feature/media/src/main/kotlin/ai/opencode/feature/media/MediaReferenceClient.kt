@@ -220,11 +220,6 @@ class MediaReferenceLoader(
             }
             else -> Unit
         }
-        readDisk(hash)?.let { data ->
-            storeMemory(hash, data)
-            AppLog.network.info { "Media ref $prefix: cache hit (disk, ${data.size} bytes, status 200)" }
-            return MediaReferenceLoadResult.Loaded(data)
-        }
         return coalesce("${server.persistenceID}|$hash") { resolve(server, hash) }
     }
 
@@ -294,7 +289,7 @@ class MediaReferenceLoader(
         if (!file.isFile || file.length() > MAX_BLOB_BYTES) return null
         val data = runCatching { file.readBytes() }.getOrNull()?.takeIf { it.size <= MAX_BLOB_BYTES } ?: return null
         // A read is a use: the trim goes by modification date.
-        file.setLastModified(System.currentTimeMillis())
+        runCatching { file.setLastModified(System.currentTimeMillis()) }
         return data
     }
 
@@ -306,17 +301,22 @@ class MediaReferenceLoader(
             val partial = File.createTempFile("$hash.", ".partial", directory)
             try {
                 partial.writeBytes(data)
-                if (!partial.renameTo(File(directory, "$hash.blob"))) throw java.io.IOException("rename failed")
+                synchronized(diskLock) {
+                    val blob = File(directory, "$hash.blob")
+                    val replaced = blob.length()
+                    if (!partial.renameTo(blob)) throw java.io.IOException("rename failed")
+                    val counted = diskBytes?.let { it - replaced + data.size }
+                    diskBytes = if (counted != null && counted <= maxDiskBytes) {
+                        counted
+                    } else {
+                        trim(directory, maxDiskBytes, maxDiskBytes / 4 * 3, keeping = hash)
+                    }
+                }
             } finally {
                 partial.delete()
             }
         } catch (error: Exception) {
             AppLog.network.error { "Media ref ${shortHash(hash)}: couldn’t write disk cache (${error::class.java.simpleName})" }
-            return
-        }
-        synchronized(diskLock) {
-            val total = diskBytes?.let { it + data.size } ?: trim(directory, Long.MAX_VALUE, keeping = hash)
-            diskBytes = if (total > maxDiskBytes) trim(directory, maxDiskBytes / 4 * 3, keeping = hash) else total
         }
     }
 
@@ -336,20 +336,28 @@ class MediaReferenceLoader(
 
         fun shortHash(hash: String): String = MediaReferenceFetch.shortHash(hash)
 
+        private class DiskBlob(val file: File, val bytes: Long, val used: Long)
+
         /**
-         * Deletes the least recently used blobs, reading only file metadata, until at most [limit] bytes
-         * remain (never [keeping], just written). Returns the bytes left.
+         * Counts the blobs from file metadata and, when they hold more than [budget] bytes, deletes the
+         * least recently used ones until at most [limit] remain (never [keeping], just written).
+         * Returns the bytes left.
          */
-        internal fun trim(directory: File, limit: Long, keeping: String): Long {
-            val files = directory.listFiles() ?: return 0
+        internal fun trim(directory: File, budget: Long, limit: Long, keeping: String): Long {
+            val blobs = ArrayList<DiskBlob>()
             var total = 0L
-            for (file in files) total += file.length()
-            if (total <= limit) return total
-            for (file in files.sortedBy { it.lastModified() }) {
+            for (file in directory.listFiles() ?: return 0) {
+                if (!file.name.endsWith(".blob")) continue
+                val blob = DiskBlob(file, file.length(), file.lastModified())
+                blobs.add(blob)
+                total += blob.bytes
+            }
+            if (total <= budget) return total
+            blobs.sortBy { it.used }
+            for (blob in blobs) {
                 if (total <= limit) break
-                if (file.name == "$keeping.blob") continue
-                val bytes = file.length()
-                if (file.delete()) total -= bytes else AppLog.network.error { "Media refs: couldn’t trim a blob" }
+                if (blob.file.name == "$keeping.blob") continue
+                if (blob.file.delete()) total -= blob.bytes else AppLog.network.error { "Media refs: couldn’t trim a blob" }
             }
             AppLog.network.info { "Media refs: trimmed disk cache to $total bytes" }
             return total
