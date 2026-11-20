@@ -157,6 +157,7 @@ and `ellipsis` (every overflow menu) is the vertical `more_vert`, as on other An
 | `arrow.down.circle` | `arrow_circle_down` | `ms_arrow_circle_down` | `SFSymbol.ArrowDownCircle` | AgentImageGallery |
 | `arrow.down.circle.fill` | `arrow_circle_down` (fill) | `ms_arrow_circle_down_fill` | `SFSymbol.ArrowDownCircleFill` | VoiceProviderViews, VoiceProviderPage |
 | `arrow.down.right.and.arrow.up.left` | `close_fullscreen` | `ms_close_fullscreen` | `SFSymbol.ArrowDownRightAndArrowUpLeft` | TuningPanelView |
+| `arrow.up.left.and.arrow.down.right` | `open_in_full` | `ms_open_in_full` | `SFSymbol.ArrowUpLeftAndArrowDownRight` | Agent widget full screen (Android) |
 | `arrow.left.and.right` | `arrow_range` | `ms_arrow_range` | `SFSymbol.ArrowLeftAndRight` | WhatsNewList (Wider Composer While Typing) |
 | `arrow.left.and.right.text.vertical` | `arrow_range` | `ms_arrow_range` | `SFSymbol.ArrowLeftAndRightTextVertical` | AgentFileViewer, PastedTextViews |
 | `arrow.left.arrow.right` | `swap_horiz` | `ms_swap_horiz` | `SFSymbol.ArrowLeftArrowRight` | ConnectionCard |

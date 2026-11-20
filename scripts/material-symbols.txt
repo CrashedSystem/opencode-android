@@ -164,6 +164,7 @@ notifications_off                   # bell.slash
 notifications_off fill              # bell.slash.fill
 notifications_unread                # bell.badge
 notifications_unread fill           # bell.badge.fill
+open_in_full                        # arrow.up.left.and.arrow.down.right
 open_in_new mirror                  # arrow.up.forward.app, arrow.up.right.square
 palette                             # paintpalette
 palette fill                        # paintpalette.fill

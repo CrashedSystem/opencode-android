@@ -50,6 +50,21 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   the old REST routes (`Route.Message`), and `program`/`states` fall back on `rpc.unavailable`.
   Delete this path (and `OpenCodeWidgetMessage` decoding) once no such server is in use.
 
+## Full screen (`specs/v2/widgets-fullscreen.md`)
+
+- Offered (expand button, top right, always shown) while the widget is open and its root's
+  `fullscreen` is true, or absent and the view has a `canvas`/`shader` (`AgentWidgetController.offersFullscreen`).
+- `AgentWidgetStore.fullscreen` holds the one widget open full screen; `AgentWidgetFullscreenHost`
+  (mounted in `TranscriptList`, outside the lazy list) shows it in a `Dialog`: status bar hidden,
+  `SCREEN_ORIENTATION_FULL_USER` while open, a title bar with Close, swipe down (nested-scroll overscroll
+  or a drag where nothing scrolls) and system back exit; it closes itself when the widget closes. The inline
+  row shows a placeholder at its last height. Same controller: state carries on, canvas/shader clocks
+  live in the controller (`startNanos`).
+- Entering/leaving sends `{ id: "", type: "fullscreen", value }`; draw frames carry `fullscreen`;
+  `LocalAgentWidgetFullscreen` makes `fill` canvases/shaders take the height left (their `height` is the
+  minimum), else the view scrolls.
+- Live mode will send the same event through `widget.event()` and `Frame.fullscreen` once it exists.
+
 ## The runner build
 
 `scripts/psychoscript.sh` pins psychoscript's rev (`REV=`), fetches it into `.psychoscript/` and builds it

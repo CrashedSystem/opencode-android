@@ -39,13 +39,39 @@ class AgentWidgetStore(
         return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, directory, scope, programs, transport, engine) }
     }
 
+    /** The one widget shown full screen, if any; its inline row shows a placeholder meanwhile. */
+    var fullscreen: AgentWidgetFullscreen? by mutableStateOf(null)
+        private set
+
+    /** Shows [controller]'s widget full screen (closing another one first) and tells its program. */
+    fun enterFullscreen(controller: AgentWidgetController, title: String) {
+        if (fullscreen?.controller === controller) return
+        fullscreen?.controller?.fullscreenChanged(false)
+        fullscreen = AgentWidgetFullscreen(controller, title)
+        controller.fullscreenChanged(true)
+    }
+
+    fun exitFullscreen() {
+        val current = fullscreen ?: return
+        fullscreen = null
+        current.controller.fullscreenChanged(false)
+    }
+
     fun close() {
+        fullscreen = null
         scope.cancel()
         controllers.clear()
     }
 }
 
 val LocalAgentWidgetStore = staticCompositionLocalOf<AgentWidgetStore?> { null }
+
+/** A widget open full screen: its controller and the title its cover is named by. */
+@Stable
+class AgentWidgetFullscreen(val controller: AgentWidgetController, val title: String)
+
+/** True inside a full-screen widget: `fill` canvases grow, frames say `fullscreen: true`. */
+val LocalAgentWidgetFullscreen = staticCompositionLocalOf { false }
 
 /** True while the list isn't on screen (its lifecycle is below resumed): shaders stop rendering. */
 val LocalAgentWidgetPaused = androidx.compose.runtime.compositionLocalOf { false }
@@ -75,6 +101,31 @@ class AgentWidgetController internal constructor(
 
     var phase: Phase by mutableStateOf(Phase.Loading(status(widget)))
         private set
+
+    /** The current view's root `fullscreen`: true offers full screen, false never, null decides by content. */
+    var rootFullscreen: Boolean? by mutableStateOf(null)
+        private set
+
+    /** Whether the widget offers full screen now: it's open and its view asks for it or draws pixels. */
+    val offersFullscreen: Boolean
+        get() {
+            val phase = phase
+            if (phase !is Phase.Ready && phase !is Phase.Stepping) return false
+            return rootFullscreen ?: phase.view?.let(AgentWidgetNode::drawsPixels) ?: false
+        }
+
+    /** The inline frame's last height in px, kept by its placeholder while the widget is full screen. */
+    var inlineHeight: Int = 0
+
+    /** When each canvas or shader first drew (frame nanos), so moving to and from full screen restarts no clock. */
+    private val starts = HashMap<String, Long>()
+
+    fun startNanos(key: String, now: Long): Long = starts.getOrPut(key) { now }
+
+    /** Tells the program it entered or left full screen, when it's taking input. */
+    internal fun fullscreenChanged(on: Boolean) {
+        if (isLive) send(AgentWidgetEvent.fullscreen(on))
+    }
 
     /** The last event or init step's time on the lane, for the perf log. */
     @Volatile var lastStepMicros: Long = 0
@@ -210,6 +261,7 @@ class AgentWidgetController internal constructor(
                             }
                         }
                     }
+                    result.getOrNull()?.let { rootFullscreen = it.fullscreen }
                     feed(Event.Ran(result))
                 }
                 is Effect.Send -> scope.launch {

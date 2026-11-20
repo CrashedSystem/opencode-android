@@ -182,4 +182,6 @@
     <string name="transcript_widget_step_failed">The widget couldn’t respond.</string>
     <string name="transcript_widget_page">Page %1$d of %2$d</string>
     <string name="transcript_widget_shader_failed">Couldn’t run this shader</string>
+    <string name="transcript_widget_fullscreen">Full Screen</string>
+    <string name="transcript_widget_fullscreen_placeholder">Open in full screen</string>
 </resources>

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -125,8 +126,12 @@ private fun ColumnNode(node: AgentWidgetNode.Column, scope: AgentWidgetScope, mo
         else -> Alignment.Start
     }
     val child = if (node.align == Align.Stretch) Modifier.fillMaxWidth() else Modifier
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(gap(node.gap)), horizontalAlignment = alignment) {
-        node.children.forEachIndexed { index, it -> AgentWidgetNodeView(it, scope, child, "$path.$index") }
+    // Full screen, the branch holding a `fill` canvas or shader takes the height left.
+    val fills = LocalAgentWidgetFullscreen.current && AgentWidgetNode.fills(node)
+    Column(if (fills) modifier.fillMaxHeight() else modifier, verticalArrangement = Arrangement.spacedBy(gap(node.gap)), horizontalAlignment = alignment) {
+        node.children.forEachIndexed { index, it ->
+            AgentWidgetNodeView(it, scope, if (fills && AgentWidgetNode.fills(it)) child.weight(1f) else child, "$path.$index")
+        }
     }
 }
 

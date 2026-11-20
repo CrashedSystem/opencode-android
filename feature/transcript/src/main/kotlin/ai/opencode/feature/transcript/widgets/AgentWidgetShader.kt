@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -72,9 +74,10 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     }
 
     val width = node.width
+    val fullscreen = LocalAgentWidgetFullscreen.current
     val size = modifier
         .then(if (width != null) Modifier.width(width.dp) else Modifier.fillMaxWidth())
-        .height(node.height.dp)
+        .then(if (fullscreen && node.fill) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
         .clip(OpenCodeShape.control)
     val error = failure
     if (error != null) {
@@ -108,7 +111,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
         var last = 0L
         while (true) {
             val now = withFrameNanos { it }
-            if (start[0] == 0L) start[0] = now
+            if (start[0] == 0L) start[0] = scope.controller?.startNanos("shader:${node.id}", now) ?: now
             if (last != 0L && now - last < interval - 2_000_000L) continue
             val t = (now - start[0]) / 1e9f
             if (surface.render(t, density, pointer[0], pointer[1], pointer[2] > 0f, values)) last = now

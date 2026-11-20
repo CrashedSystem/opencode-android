@@ -22,7 +22,9 @@ import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,7 +95,8 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     val currentScope by rememberUpdatedState(scope)
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible) {
+    val fullscreen = LocalAgentWidgetFullscreen.current
+    LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible, fullscreen) {
         controller ?: return@LaunchedEffect
         // Off screen it keeps its last frame; the first one waits until it's seen.
         if (state.size == IntSize.Zero || !visible) return@LaunchedEffect
@@ -103,12 +106,12 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
         var first = true
         while (true) {
             val now = withFrameNanos { it }
-            if (state.startNanos == 0L) state.startNanos = now
+            if (state.startNanos == 0L) state.startNanos = controller.startNanos("canvas:${node.id}", now)
             if (!first && now - last < interval - 2_000_000L) continue
             val t = (now - state.startNanos) / 1e9
             val dt = if (last == 0L) 0.0 else (now - last) / 1e9
             last = now
-            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark), palette) ?: break
+            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark, fullscreen), palette) ?: break
             if (step.drawn) revision++
             overruns = if (step.overBudget) overruns + 1 else 0
             first = false
@@ -117,7 +120,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 AppLog.perf.notice { "Widget canvas stopped: over budget three frames in a row" }
                 // An intro stopped early still lands on its end state.
                 if (duration != null && t < duration) {
-                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark), palette)
+                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark, fullscreen), palette)
                     if (end?.drawn == true) revision++
                 }
                 break
@@ -132,7 +135,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     Canvas(
         modifier
             .then(if (width != null) Modifier.width(width.dp) else Modifier.fillMaxWidth())
-            .height(node.height.dp)
+            .then(if (fullscreen && node.fill) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
             .clip(OpenCodeShape.control)
             .onSizeChanged { state.size = it }
             .onVisibilityChanged { visible = it }
@@ -241,7 +244,7 @@ private class CanvasState {
         return Step(drawn = decoded, overBudget = micros > DRAW_BUDGET_MICROS || (decoded && shown.truncated))
     }
 
-    fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean): String {
+    fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean, fullscreen: Boolean): String {
         val p = pointer
         val w = size.width / scale
         val h = size.height / scale
@@ -252,7 +255,7 @@ private class CanvasState {
             append(",\"width\":").append(w).append(",\"height\":").append(h).append(",\"scale\":").append(scale)
             append(",\"pointer\":")
             if (p == null) append("null") else append("{\"x\":").append(p[0]).append(",\"y\":").append(p[1]).append(",\"down\":true}")
-            append(",\"dark\":").append(dark).append('}')
+            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen).append('}')
         }
     }
 

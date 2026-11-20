@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 /** `{ id, type, value? }`; [value] is JSON text. */
 data class AgentWidgetEvent(val id: String, val type: Type, val value: String? = null) {
-    enum class Type(val wire: String) { Press("press"), Change("change"), Pointer("pointer") }
+    enum class Type(val wire: String) { Press("press"), Change("change"), Pointer("pointer"), Fullscreen("fullscreen") }
 
     val json: String
         get() = buildString {
@@ -21,6 +21,8 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
 
     companion object {
         fun press(id: String) = AgentWidgetEvent(id, Type.Press)
+        /** Entering ([on]) or leaving full screen: `{ id: "", type: "fullscreen", value }`. */
+        fun fullscreen(on: Boolean) = AgentWidgetEvent("", Type.Fullscreen, on.toString())
         fun change(id: String, value: Boolean) = AgentWidgetEvent(id, Type.Change, value.toString())
         fun change(id: String, value: Number) = AgentWidgetEvent(id, Type.Change, number(value.toDouble()))
         fun change(id: String, value: String) = AgentWidgetEvent(id, Type.Change, JsonPrimitive(value).toString())
@@ -49,6 +51,8 @@ data class AgentWidgetOutput(
     val view: AgentWidgetNode,
     val response: OpenCodeWidgetResponse?,
     val message: OpenCodeWidgetMessageValue? = null,
+    /** The root node's `fullscreen`: true offers full screen, false never, null decides by content. */
+    val fullscreen: Boolean? = null,
 )
 
 /** The step ABI's inputs, built as JSON text around the message's data and state (which stay text). */
@@ -79,7 +83,8 @@ object AgentWidgetStep {
         val message = (o["send"] as? JsonObject)?.let { send ->
             OpenCodeWidgetMessageValue((send["value"] ?: JsonNull).toString(), (send["wake"] as? JsonPrimitive)?.content != "false")
         }
-        return AgentWidgetOutput(state, view, response, if (response == null) message else null)
+        val fullscreen = ((o["view"] as? JsonObject)?.get("fullscreen") as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toBooleanStrictOrNull()
+        return AgentWidgetOutput(state, view, response, if (response == null) message else null, fullscreen)
     }
 
     /** A submitted value in one line: an object's fields as `key: value`, lists joined, at most 160 characters. */

@@ -263,4 +263,18 @@ class AgentWidgetTests {
         assertEquals("", unpinned.template.version)
         assertEquals(AgentWidgetState.Status.Open, unpinned.status)
     }
+
+    /** Android: specs/v2/widgets-fullscreen.md: the root's `fullscreen`, `fill` canvases, and the event a template hears. */
+    @Test
+    fun readsFullScreenOffersFillAndTheEvent() {
+        val asked = AgentWidgetStep.output("""{"state":{},"view":{"type":"column","fullscreen":true,"children":[{"type":"canvas","height":120,"fill":true}]}}""")
+        assertEquals(true, asked.fullscreen)
+        assertTrue(AgentWidgetNode.fills(asked.view))
+        assertTrue(AgentWidgetNode.drawsPixels(asked.view))
+        val plain = AgentWidgetStep.output("""{"state":{},"view":{"type":"column","children":[{"type":"text","text":"Hi"}]}}""")
+        assertNull(plain.fullscreen)
+        assertTrue(!AgentWidgetNode.drawsPixels(plain.view))
+        assertEquals(false, AgentWidgetStep.output("""{"state":{},"view":{"type":"divider","fullscreen":false}}""").fullscreen)
+        assertEquals("""{"id":"","type":"fullscreen","value":true}""", AgentWidgetEvent.fullscreen(true).json)
+    }
 }

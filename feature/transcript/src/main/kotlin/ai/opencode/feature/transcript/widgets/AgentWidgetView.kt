@@ -2,6 +2,12 @@ package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.ui.OpenCodeIcon
+import ai.opencode.core.ui.OpenCodeIconButton
+import ai.opencode.core.ui.OpenCodeIconButtonStyle
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.onSizeChanged
 import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeSecondaryButton
 import ai.opencode.core.ui.OpenCodeShape
@@ -16,6 +22,7 @@ import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,7 +76,18 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
     val controller = remember(store, server, sessionID, widget.key) { store.controller(widget, server, sessionID, context.directory) }
     LaunchedEffect(controller) { controller.start() }
     LaunchedEffect(controller, widget) { controller.update(widget) }
-    AgentWidgetFrame(controller.phase, widget.label, controller = controller, modifier = modifier)
+    if (store.fullscreen?.controller === controller) {
+        AgentWidgetFullscreenPlaceholder(controller, modifier)
+        return
+    }
+    val title = widget.label
+    AgentWidgetFrame(
+        controller.phase,
+        title,
+        controller = controller,
+        modifier = modifier.onSizeChanged { controller.inlineHeight = it.height },
+        onExpand = if (controller.offersFullscreen) ({ store.enterFullscreen(controller, title) }) else null,
+    )
 }
 
 /**
@@ -83,56 +101,79 @@ fun AgentWidgetFrame(
     title: String,
     modifier: Modifier = Modifier,
     controller: AgentWidgetController? = null,
+    onExpand: (() -> Unit)? = null,
 ) {
     val colors = OpenCodeTheme.colors
-    Column(
-        modifier
-            .fillMaxWidth()
-            .openCodeHairline(OpenCodeShape.panel)
-            .padding(16.dp)
-            .semantics { paneTitle = title },
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    val fullscreen = LocalAgentWidgetFullscreen.current
+    Box(
+        if (fullscreen) modifier.fillMaxSize() else modifier.fillMaxWidth().openCodeHairline(OpenCodeShape.panel),
     ) {
-        when (phase) {
-            is Phase.Loading, is Phase.Starting -> {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
-                    Text(stringResource(R.string.transcript_widget_loading), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
-                }
-                Box(Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card))
-            }
-            is Phase.Failed -> {
-                StatusLine(SFSymbol.XmarkCircleFill, colors.danger, stringResource(R.string.transcript_widget_failed))
-                SelectionContainer {
-                    Text(phase.message, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.secondaryText)
-                }
-                if (controller != null) {
-                    Row { OpenCodeSecondaryButton(stringResource(CoreR.string.common_try_again), onClick = controller::retry) }
-                }
-            }
-            is Phase.Ready, is Phase.Stepping, is Phase.Responding -> {
-                val live = controller != null && (phase is Phase.Ready || phase is Phase.Stepping)
-                AgentWidgetNodeView(phase.view!!, AgentWidgetScope(controller, live, title))
-                val error = (phase as? Phase.Ready)?.error
-                if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true)
-                if (phase is Phase.Responding) {
+        Column(
+            Modifier
+                .then(if (fullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth())
+                .padding(if (fullscreen) PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp) else PaddingValues(16.dp))
+                .semantics { paneTitle = title },
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            when (phase) {
+                is Phase.Loading, is Phase.Starting -> {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
-                        Text(stringResource(R.string.transcript_widget_sending), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
+                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
+                        Text(stringResource(R.string.transcript_widget_loading), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
+                    }
+                    Box(Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card))
+                }
+                is Phase.Failed -> {
+                    StatusLine(SFSymbol.XmarkCircleFill, colors.danger, stringResource(R.string.transcript_widget_failed))
+                    SelectionContainer {
+                        Text(phase.message, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.secondaryText)
+                    }
+                    if (controller != null) {
+                        Row { OpenCodeSecondaryButton(stringResource(CoreR.string.common_try_again), onClick = controller::retry) }
+                    }
+                }
+                is Phase.Ready, is Phase.Stepping, is Phase.Responding -> {
+                    val live = controller != null && (phase is Phase.Ready || phase is Phase.Stepping)
+                    val view = phase.view!!
+                    // Full screen the view takes the height: a `fill` canvas grows into it, anything else scrolls.
+                    val body = when {
+                        !fullscreen -> Modifier
+                        AgentWidgetNode.fills(view) -> Modifier.weight(1f)
+                        else -> Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                    }
+                    AgentWidgetNodeView(view, AgentWidgetScope(controller, live, title), body)
+                    val error = (phase as? Phase.Ready)?.error
+                    if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true)
+                    if (phase is Phase.Responding) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
+                            Text(stringResource(R.string.transcript_widget_sending), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
+                        }
+                    }
+                }
+                is Phase.Closed -> {
+                    phase.view?.let { AgentWidgetNodeView(it, AgentWidgetScope(controller, live = false, title)) }
+                    when (val how = phase.how) {
+                        is AgentWidgetMachine.Closed.Submitted -> {
+                            val summary = remember(how.json) { AgentWidgetStep.summary(how.json) }
+                            StatusLine(SFSymbol.Checkmark, colors.diffAddedText, stringResource(R.string.transcript_widget_submitted), summary.ifEmpty { null })
+                        }
+                        AgentWidgetMachine.Closed.Dismissed ->
+                            StatusLine(SFSymbol.Xmark, colors.tertiaryText, stringResource(R.string.transcript_widget_dismissed))
                     }
                 }
             }
-            is Phase.Closed -> {
-                phase.view?.let { AgentWidgetNodeView(it, AgentWidgetScope(controller, live = false, title)) }
-                when (val how = phase.how) {
-                    is AgentWidgetMachine.Closed.Submitted -> {
-                        val summary = remember(how.json) { AgentWidgetStep.summary(how.json) }
-                        StatusLine(SFSymbol.Checkmark, colors.diffAddedText, stringResource(R.string.transcript_widget_submitted), summary.ifEmpty { null })
-                    }
-                    AgentWidgetMachine.Closed.Dismissed ->
-                        StatusLine(SFSymbol.Xmark, colors.tertiaryText, stringResource(R.string.transcript_widget_dismissed))
-                }
-            }
+        }
+        if (onExpand != null) {
+            OpenCodeIconButton(
+                SFSymbol.ArrowUpLeftAndArrowDownRight,
+                stringResource(R.string.transcript_widget_fullscreen),
+                onExpand,
+                Modifier.align(Alignment.TopEnd).padding(4.dp),
+                style = OpenCodeIconButtonStyle.Circle,
+                size = 32.dp,
+                iconSize = 16.dp,
+            )
         }
     }
 }

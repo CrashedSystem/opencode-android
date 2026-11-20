@@ -37,7 +37,7 @@ sealed interface AgentWidgetNode {
     }
     data class Input(val id: String, val label: String?, val value: String, val placeholder: String?, val multiline: Boolean) : AgentWidgetNode
     data object Divider : AgentWidgetNode
-    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?) : AgentWidgetNode
+    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?, val fill: Boolean = false) : AgentWidgetNode
     data class Shader(
         val id: String?,
         val height: Float,
@@ -47,10 +47,11 @@ sealed interface AgentWidgetNode {
         val fps: Int,
         val alt: String?,
         val poster: String?,
+        val fill: Boolean = false,
     ) : AgentWidgetNode {
         override fun equals(other: Any?): Boolean = other is Shader && id == other.id && height == other.height &&
             width == other.width && wgsl == other.wgsl && values.contentEquals(other.values) && fps == other.fps &&
-            alt == other.alt && poster == other.poster
+            alt == other.alt && poster == other.poster && fill == other.fill
 
         override fun hashCode(): Int = (wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()
     }
@@ -64,6 +65,14 @@ sealed interface AgentWidgetNode {
         /** Reads a view, or throws [InvalidView] saying why it isn't one. */
         fun parse(element: JsonElement): AgentWidgetNode =
             node(element) ?: throw InvalidView("invalid view: unknown root node type")
+
+        /** Whether [node] or one under it is a `canvas` or `shader`: such a view offers full screen unless it says not to. */
+        fun drawsPixels(node: AgentWidgetNode): Boolean =
+            node is Canvas || node is Shader || node.children.any(::drawsPixels)
+
+        /** Whether [node] or one under it is a `canvas`/`shader` that grows to fill the height in full screen. */
+        fun fills(node: AgentWidgetNode): Boolean =
+            (node is Canvas && node.fill) || (node is Shader && node.fill) || node.children.any(::fills)
 
         /** Visits [node] and every node under it, depth first. */
         fun walk(node: AgentWidgetNode, visit: (AgentWidgetNode) -> Unit) {
@@ -110,6 +119,7 @@ sealed interface AgentWidgetNode {
                     (o.number("fps")?.toInt() ?: 0).coerceIn(0, MAX_FPS),
                     o.number("duration")?.toFloat()?.takeIf { it >= 0f },
                     o.string("alt"),
+                    o.bool("fill"),
                 )
                 "shader" -> {
                     val values = FloatArray(16)
@@ -125,6 +135,7 @@ sealed interface AgentWidgetNode {
                         (o.number("fps")?.toInt() ?: MAX_FPS).coerceIn(0, MAX_FPS),
                         o.string("alt"),
                         o.string("poster"),
+                        o.bool("fill"),
                     )
                 }
                 else -> null

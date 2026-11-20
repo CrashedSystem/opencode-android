@@ -15,6 +15,7 @@ import ai.opencode.feature.media.LocalAgentImageRow
 import ai.opencode.feature.media.LocalAgentImageViewport
 import ai.opencode.feature.media.LocalLinkPreviewRevision
 import ai.opencode.feature.media.LocalLinkPreviewStore
+import ai.opencode.feature.transcript.widgets.AgentWidgetFullscreenHost
 import ai.opencode.feature.transcript.widgets.AgentWidgetStore
 import ai.opencode.feature.transcript.widgets.LocalAgentWidgetPaused
 import ai.opencode.feature.transcript.widgets.LocalAgentWidgetStates
@@ -623,6 +624,7 @@ private fun TranscriptListContent(
             drawn = true,
         ),
     ) {
+        AgentWidgetFullscreenHost(widgets)
         val showsMagnifier by remember(replySelection) { derivedStateOf { replySelection.magnifierCenter.isSpecified } }
         val scrollToTopLabel = stringResource(R.string.transcript_scroll_to_top)
         Box(
