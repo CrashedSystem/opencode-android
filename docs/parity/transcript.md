@@ -159,3 +159,18 @@ Total (`./gradlew :feature:transcript:testDebugUnitTest`): 230 tests, 1 skipped 
 Bugs the ported tests found, fixed: inline code drawn at body size instead of `.subheadline`
 (`inlineCodeInHeadingsUses…`); bare URLs not linked like Foundation's Markdown (InlineLinkIcons);
 German stamps writing “08:24” for iOS's “8:24” (`followsTheLocale`).
+
+## Agent widgets
+
+iOS files are on opencode-ios's `agent/agent-widgets` branch (`OpenCode/AgentWidgets/`); not on main yet. Kotlin files under `feature/transcript/.../widgets/`.
+
+| iOS file | Kotlin file(s) | Status | Notes |
+| --- | --- | --- | --- |
+| `OpenCode/AgentWidgets/AgentWidgetEngine.swift` | widgets/AgentWidgetEngine.kt, widgets/NativeAgentWidgetEngine.kt, `ai/opencode/widget/opencode_widget_ffi.kt` (generated) | done | UniFFI over JNA; native library installed by `scripts/widget-ffi.sh` (not committed); without it the `Unavailable` stub shows the error card |
+| `OpenCode/AgentWidgets/AgentWidgetRuntime.swift` | widgets/AgentWidgetPrograms.kt, widgets/AgentWidgetStore.kt | done | Compile once per name@version (LRU 12), steps on a per-widget single-thread lane; an animating canvas steps on its own program copy |
+| `OpenCode/AgentWidgets/AgentWidgetMachine.swift` | widgets/AgentWidgetMachine.kt | done | Pure port of rune `machine.rs`; Loading → Starting → Ready ⇄ Stepping → Responding → Closed, Failed + Retry, 409 → already answered, `send` stays Ready |
+| `OpenCode/AgentWidgets/AgentWidgetModel.swift, AgentWidgetNode.swift` | widgets/AgentWidgetNode.kt, widgets/AgentWidgetStep.kt | done | Unknown node types dropped, bad required props fail the view |
+| `OpenCode/AgentWidgets/AgentWidgetView.swift, AgentWidgetControls.swift` | widgets/AgentWidgetView.kt, widgets/AgentWidgetNodes.kt, widgets/AgentWidgetImage.kt | done | Android: sliders/canvases are excluded from the drawer pan, carousels and card rows register as horizontal scrollers |
+| `OpenCode/AgentWidgets/AgentWidgetCanvas.swift, AgentWidgetDraw.swift, AgentWidgetPointer.swift` | widgets/AgentWidgetCanvas.kt, widgets/AgentWidgetDrawList.kt | partial: `image` draw command parsed but not drawn | Compose Canvas + `withFrameNanos`, frames only while visible (`onVisibilityChanged`), step + decode on the lane |
+| `OpenCode/AgentWidgets/AgentWidgetShader.swift` | widgets/AgentWidgetShader.kt, widgets/AgentWidgetGL.kt | done | Metal → GLES 3: one GL thread/context, programs cached by GLSL, a `TextureView` per node; runs only while visible and resumed |
+| `OpenCode/AgentWidgets/AgentWidgetTransport.swift` | `:server` `AgentWidgetClient.kt`, `live/LiveWidgets.kt` | done | See server.md |

@@ -140,3 +140,9 @@ queries encoded `/` as `%2F`; transport failures recorded no failure phase
 (`DiagnosticsNetworkPhases`, found by the core `DiagnosticsRecorderTests`).
 
 Total: 321 `:server` tests (`./gradlew :server:testDebugUnitTest`; 2 skipped: opt-in live checks), all passing.
+
+## Agent widgets
+
+| iOS file | Kotlin file(s) | Status | Notes |
+| --- | --- | --- | --- |
+| `OpenCode/Server/OpenCodeWidget.swift` (iOS `agent/agent-widgets` branch) | `model/Widgets.kt`, `AgentWidgetClient.kt`, `live/LiveWidgets.kt`, `live/Payloads.kt` (`widget`, `system`), `live/LiveTranscript.kt`, `live/LiveEvents.kt` | done | Widget message decoded leniently; `session.widget.*` events invalidate (REST authoritative); template disk cache forever; respond 409 → already answered; `send` endpoint; `system`/`synthetic` with `metadata.widget` → `WidgetResponse` |
