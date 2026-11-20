@@ -312,6 +312,8 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
 
     "synthetic" -> listOfNotNull(syntheticNotice(message.id, message.description, message.metadata))
 
+    "widget" -> listOfNotNull(message.widget?.let { OpenCodeTranscriptItem.Widget(message.id, it) })
+
     // The run's end. A failed one repeats its last step's error, which that step already shows;
     // only a run that failed before any step is new here.
     "idle" -> {
@@ -561,6 +563,9 @@ private fun compaction(message: MessagePayload): OpenCodeCompaction {
  */
 internal fun syntheticNotice(id: String, description: String?, metadata: Map<String, OpenCodeJSONValue>?): OpenCodeTranscriptItem? {
     val text = description?.trimmedWhitespace()?.nonEmpty ?: return null
+    metadata?.get("widget")?.obj?.get("messageID")?.string?.let { widgetID ->
+        return OpenCodeTranscriptItem.WidgetResponse(id, widgetID, text)
+    }
     val source = metadata?.get("source")?.string
     val state = metadata?.get("state")?.string
     // Like desktop, a shell that completed but exited non-zero or timed out failed.

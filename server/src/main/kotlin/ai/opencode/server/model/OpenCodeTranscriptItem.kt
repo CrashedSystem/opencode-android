@@ -221,6 +221,14 @@ sealed interface OpenCodeTranscriptItem {
     /** Where a staged undo hid the last [messages] prompts, offering Redo. Only the screen makes it. */
     @Serializable @SerialName("undone")
     data class Undone(override val id: String, val messages: Int) : OpenCodeTranscriptItem
+
+    /** An interactive widget an agent posted; its ID is the message's. */
+    @Serializable @SerialName("widget")
+    data class Widget(override val id: String, val widget: OpenCodeWidgetMessage) : OpenCodeTranscriptItem
+
+    /** The prompt a widget's response sent the agent: one quiet line, [text] the server's `Responded to "…"`. */
+    @Serializable @SerialName("widgetResponse")
+    data class WidgetResponse(override val id: String, val widgetMessageID: String, val text: String) : OpenCodeTranscriptItem
 }
 
 /** A durable context compaction boundary, mirroring the TUI's states. */

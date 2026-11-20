@@ -451,6 +451,7 @@ private val HANDLED_TYPES = setOf(
     "session.agent.selected", "session.model.selected", "session.moved", "session.permissions",
     "session.retry.scheduled", "session.compaction.started",
     "session.compaction.ended", "session.compaction.failed", "session.shell.started", "session.shell.ended",
+    "session.widget.posted", "session.widget.responded",
     "permission.asked", "form.created", "permission.replied", "form.replied", "form.cancelled",
     "shell.created", "shell.exited", "shell.deleted",
     "project.updated",
@@ -603,6 +604,7 @@ private fun serverEvent(type: String, data: EventPayload?): OpenCodeServerEvent?
         "session.agent.selected", "session.model.selected", "session.permissions",
         "session.retry.scheduled", "session.compaction.started",
         "session.compaction.ended", "session.compaction.failed", "session.shell.started", "session.shell.ended",
+        "session.widget.posted", "session.widget.responded",
         -> data?.sessionID?.let(OpenCodeServerEvent::MessageInvalidated)
         "permission.asked", "form.created" -> {
             val id = data?.sessionID ?: data?.form?.sessionID ?: return null
