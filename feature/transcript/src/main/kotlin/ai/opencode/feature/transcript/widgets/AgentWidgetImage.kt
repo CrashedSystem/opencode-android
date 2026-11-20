@@ -87,7 +87,7 @@ fun AgentWidgetImage(src: String, alt: String?, aspect: Float?, modifier: Modifi
         var failed by remember(key) { mutableStateOf(false) }
         LaunchedEffect(key) {
             if (image != null) return@LaunchedEffect
-            val bitmap = withContext(Dispatchers.IO) { runCatching { load(context, client, server, directory, src, widthPx) }.getOrNull() }
+            val bitmap = withContext(Dispatchers.IO) { runCatching { loadWidgetImage(context, client, server, directory, src, widthPx) }.getOrNull() }
             if (bitmap == null) {
                 failed = true
             } else {
@@ -107,7 +107,8 @@ fun AgentWidgetImage(src: String, alt: String?, aspect: Float?, modifier: Modifi
     }
 }
 
-private suspend fun load(context: Context, client: OpenCodeClient, server: OpenCodeServer?, directory: String?, src: String, widthPx: Int): Bitmap? {
+/** [src] decoded no wider than [widthPx]: web images through Coil, the rest through the server's file endpoint. */
+internal suspend fun loadWidgetImage(context: Context, client: OpenCodeClient, server: OpenCodeServer?, directory: String?, src: String, widthPx: Int): Bitmap? {
     if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) {
         val result = SingletonImageLoader.get(context).execute(ImageRequest.Builder(context).data(src).size(Size(widthPx, widthPx)).build())
         return (result as? SuccessResult)?.image?.toBitmap()

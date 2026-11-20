@@ -1,6 +1,16 @@
 package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.log.AppLog
+import ai.opencode.core.dependencies.dependency
+import ai.opencode.feature.transcript.LocalTranscriptRowContext
+import ai.opencode.server.OpenCodeClient
+import android.graphics.Bitmap
+import android.graphics.RectF
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.excludedFromDrawerPan
@@ -63,6 +73,22 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     val dark = colors.canvas.luminance() < 0.5f
     val state = remember { CanvasState() }
     var revision by remember { mutableIntStateOf(0) }
+    val row = LocalTranscriptRowContext.current
+    val context = LocalContext.current
+    val loads = rememberCoroutineScope()
+    val images = remember(row.server, row.directory) {
+        CanvasImages { src, widthPx ->
+            loads.launch {
+                val client = dependency(OpenCodeClient)
+                val bitmap = withContext(Dispatchers.IO) {
+                    runCatching { loadWidgetImage(context, client, row.server, row.directory, src, widthPx) }.getOrNull()
+                }
+                state.images.arrived(src, bitmap)
+                revision++
+            }
+        }
+    }
+    state.images = images
     val drawState = controller?.phase?.state
     val currentScope by rememberUpdatedState(scope)
     var visible by remember { mutableStateOf(false) }
@@ -160,7 +186,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             ),
     ) {
         @Suppress("UNUSED_EXPRESSION") revision
-        replay(state.shown, state.renderer, density)
+        state.renderer.replay(this, state.shown, density, state.images)
     }
 }
 
@@ -169,6 +195,7 @@ private const val DRAW_BUDGET_MICROS = 8_000L
 /** One canvas's frames: the list on screen and the one being decoded, the pointer, timing. */
 private class CanvasState {
     var shown = AgentWidgetDrawList()
+    var images = CanvasImages { _, _ -> }
     var spare = AgentWidgetDrawList()
     val renderer = CanvasRenderer()
     var size by mutableStateOf(IntSize.Zero)
@@ -256,6 +283,8 @@ private class CanvasRenderer {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
+    private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val bounds = RectF()
     private val alphas = FloatArray(64)
     private val typefaces = HashMap<Int, Typeface>()
     var replayMicros = 0L
@@ -265,7 +294,7 @@ private class CanvasRenderer {
         Typeface.create(if (mono) Typeface.MONOSPACE else Typeface.SANS_SERIF, weight.coerceIn(100, 900), false)
     }
 
-    fun replay(scope: DrawScope, list: AgentWidgetDrawList, density: Float) {
+    fun replay(scope: DrawScope, list: AgentWidgetDrawList, density: Float, images: CanvasImages) {
         val started = System.nanoTime()
         scope.drawIntoCanvas { composeCanvas ->
             val canvas = composeCanvas.nativeCanvas
@@ -363,8 +392,15 @@ private class CanvasRenderer {
                         canvas.drawText(string, x, y, text)
                     }
                     AgentWidgetDrawList.IMAGE -> {
-                        sp++
+                        val src = list.strings[sp++]
+                        val x = floats[fp]; val y = floats[fp + 1]; val w = floats[fp + 2]; val h = floats[fp + 3]
                         fp += 4
+                        val bitmap = images.bitmap(src, (w * density).toInt())
+                        if (bitmap != null && w > 0f && h > 0f) {
+                            bitmapPaint.alpha = (alpha * 255).toInt().coerceIn(0, 255)
+                            bounds.set(x, y, x + w, y + h)
+                            canvas.drawBitmap(bitmap, null, bounds, bitmapPaint)
+                        }
                     }
                 }
             }
@@ -420,4 +456,26 @@ private class CanvasRenderer {
     }
 }
 
-private fun DrawScope.replay(list: AgentWidgetDrawList, renderer: CanvasRenderer, density: Float) = renderer.replay(this, list, density)
+/**
+ * A canvas's `image` commands' pictures by src: each is asked for once, at the width it's first
+ * drawn, and drawn once it arrives (a failed one stays blank).
+ */
+private class CanvasImages(private val request: (src: String, widthPx: Int) -> Unit) {
+    private val bitmaps = HashMap<String, Bitmap?>()
+
+    fun bitmap(src: String, widthPx: Int): Bitmap? {
+        if (src in bitmaps) return bitmaps[src]
+        if (bitmaps.size >= LIMIT) return null
+        bitmaps[src] = null
+        request(src, widthPx.coerceIn(32, 1440))
+        return null
+    }
+
+    fun arrived(src: String, bitmap: Bitmap?) {
+        bitmaps[src] = bitmap
+    }
+
+    private companion object {
+        const val LIMIT = 16
+    }
+}
