@@ -5,6 +5,7 @@ import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.internal.obj
 import ai.opencode.server.internal.req
 import ai.opencode.server.internal.str
+import ai.opencode.server.model.OpenCodeWidgetError
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
@@ -28,7 +29,9 @@ internal fun decodeWidgetProgram(element: JsonElement?): OpenCodeWidgetProgram {
     val program = (o["program"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: throw OpenCodeClientError("The widget template has no program.")
     val mode = (o["mode"] as? JsonPrimitive)?.takeIf { it.isString }?.content
     val hosts = ((o["capabilities"] as? JsonObject)?.get("https") as? JsonObject)?.get("hosts") as? JsonArray
-    return OpenCodeWidgetProgram(program, mode == "live", hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content })
+    val source = (o["source"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    val offset = if (source != null && program.endsWith(source)) program.substring(0, program.length - source.length).count { it == '\n' } else 0
+    return OpenCodeWidgetProgram(program, mode == "live", hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }, offset)
 }
 
 /** `POST /api/rpc/opencode.widget/<method>` in [directory]'s location: `{ input }` in, `output` back. */
@@ -101,6 +104,30 @@ internal suspend fun requestWidgetSendRPC(
         put("wake", message.wake)
     }
     requestWidgetRPC(server, "send", directory, input)
+}
+
+/** Tells the widget plugin (and so the agent) that a widget failed on this device. */
+internal suspend fun requestWidgetReportRPC(
+    server: OpenCodeServer,
+    directory: String?,
+    sessionID: String,
+    messageID: String,
+    callID: String,
+    error: OpenCodeWidgetError,
+) {
+    val input = buildJsonObject {
+        put("sessionID", sessionID)
+        put("messageID", messageID)
+        put("callID", callID)
+        put("error", buildJsonObject {
+            put("phase", error.phase)
+            put("message", error.message.take(2_000))
+            error.line?.let { put("line", it) }
+            error.column?.let { put("column", it) }
+        })
+        put("client", "android")
+    }
+    requestWidgetRPC(server, "report", directory, input)
 }
 
 /** A plugin `State`, or null when it isn't one this client reads. */

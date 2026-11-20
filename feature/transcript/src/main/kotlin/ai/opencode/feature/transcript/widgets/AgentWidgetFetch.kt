@@ -30,23 +30,12 @@ object AgentWidgetCapabilities {
 }
 
 /**
- * A live widget's `fetch` transfer through OkHttp. The runner checks the URL, hosts, methods,
- * headers, sizes, rates and redirects; this carries one exchange: no redirects, no cookies, and
- * only public addresses from DNS, so a name can't rebind to the phone's network.
+ * A live widget's `fetch` transfer through OkHttp, one per run. The runner checks the URL, hosts,
+ * methods, headers, sizes, rates and redirects; this carries one exchange: no redirects, no
+ * cookies, and only public addresses from DNS, so a name can't rebind to the phone's network.
+ * [failed] hears of each transfer that failed (for the widget's error report).
  */
-internal class AgentWidgetFetchTransport private constructor() : FetchTransport {
-    private val client = OkHttpClient.Builder()
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .cookieJar(CookieJar.NO_COOKIES)
-        .cache(null)
-        .dns { host ->
-            Dns.SYSTEM.lookup(host).filter { isPublicAddress(it.hostAddress ?: "") }
-                .ifEmpty { throw UnknownHostException("$host has no public address") }
-        }
-        .build()
-    private val calls = ConcurrentHashMap<ULong, Call>()
-
+internal class AgentWidgetFetchTransport(private val failed: (String) -> Unit) : FetchTransport {
     override fun start(request: FetchRequest, completion: FetchCompletion) {
         val call = try {
             val type = request.headers.firstOrNull { it.name.equals("content-type", ignoreCase = true) }?.value?.toMediaTypeOrNull()
@@ -63,7 +52,9 @@ internal class AgentWidgetFetchTransport private constructor() : FetchTransport 
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 calls.remove(request.id)
-                completion.fail(e.message ?: "network error")
+                val message = e.message ?: "network error"
+                if (!call.isCanceled()) failed("${request.method} ${request.url.substringBefore('?')}: $message")
+                completion.fail(message)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -87,7 +78,19 @@ internal class AgentWidgetFetchTransport private constructor() : FetchTransport 
         calls.remove(id)?.cancel()
     }
 
-    companion object {
-        val shared: AgentWidgetFetchTransport by lazy { AgentWidgetFetchTransport() }
+    private companion object {
+        val client: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .cookieJar(CookieJar.NO_COOKIES)
+                .cache(null)
+                .dns { host ->
+                    Dns.SYSTEM.lookup(host).filter { isPublicAddress(it.hostAddress ?: "") }
+                        .ifEmpty { throw UnknownHostException("$host has no public address") }
+                }
+                .build()
+        }
+        val calls = ConcurrentHashMap<ULong, Call>()
     }
 }

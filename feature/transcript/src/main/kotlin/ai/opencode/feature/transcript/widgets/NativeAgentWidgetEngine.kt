@@ -49,10 +49,11 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
                 val handler = object : LiveHandler {
                     override fun onPost(messageJson: String) = listener.posted(messageJson)
                     override fun onWarning(message: String) = listener.warned(message)
-                    override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let(::reason))
+                    override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let { mapped(it, draw = false) })
                 }
                 val options = LiveOptions(sliceBudgetMs = 50uL, maxPostsPerSecond = 240u, httpsHosts = httpsHosts)
-                val live = run { compiled.startLive(inputJson, handler, options, if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport.shared) }
+                val transport = if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport(listener::fetchFailed)
+                val live = run { compiled.startLive(inputJson, handler, options, transport) }
                 return NativeLiveRun(live)
             }
 
@@ -90,7 +91,13 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             fragment = AgentWidgetShaderCode(fragment.code, fragment.uniformBlocks.map { it.name to it.slot.toInt() }),
         )
     } catch (error: ShaderException) {
-        throw AgentWidgetEngineException(shaderMessage(error, wgsl.lines().size))
+        val (line, column) = when (error) {
+            is ShaderException.Parse -> error.line to error.column
+            is ShaderException.Validation -> error.line to error.column
+            else -> null to null
+        }
+        val at = line?.toInt()?.minus(HEADER_LINES)?.takeIf { it in 1..wgsl.lines().size }
+        throw AgentWidgetEngineException(shaderMessage(error, wgsl.lines().size), line = at, column = if (at != null) column?.toInt() else null)
     }
 
     /** The reason, with where it happened as a line of the template when it happened there. */
@@ -108,8 +115,17 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     private inline fun <T> run(draw: Boolean = false, block: () -> T): T = try {
         block()
     } catch (error: PsychoScriptException) {
+        throw mapped(error, draw)
+    }
+
+    private fun mapped(error: PsychoScriptException, draw: Boolean): AgentWidgetEngineException {
         val timeout = error is PsychoScriptException.Timeout
-        throw AgentWidgetEngineException(reason(error), isTimeout = timeout && !draw, isBudget = timeout && draw)
+        val (line, column) = when (error) {
+            is PsychoScriptException.Syntax -> error.line to error.column
+            is PsychoScriptException.Runtime -> error.line to error.column
+            else -> null to null
+        }
+        return AgentWidgetEngineException(reason(error), isTimeout = timeout && !draw, isBudget = timeout && draw, line = line?.toInt(), column = column?.toInt())
     }
 
     private fun reason(error: PsychoScriptException): String = when (error) {

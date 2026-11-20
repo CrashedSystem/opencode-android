@@ -70,6 +70,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
             throw error
         } catch (error: Exception) {
             failure = error.message ?: error.javaClass.simpleName
+            scope.controller?.reportError("shader", error)
         }
     }
 
@@ -93,7 +94,10 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
             vertexSource,
             object : AgentWidgetGL.SurfaceEvents {
                 override fun ready(value: Boolean) { ready = value }
-                override fun failed(message: String) { failure = message }
+                override fun failed(message: String) {
+                    failure = message
+                    scope.controller?.reportError("shader", message)
+                }
                 override fun stopped() { stopped = true }
             },
         )

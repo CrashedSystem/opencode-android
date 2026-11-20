@@ -32,7 +32,7 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found by `(messageID, callID)`.
 `:server` talks to the plugin over `POST /api/rpc/opencode.widget/<method>?location[directory]=…`
 (`live/LiveWidgets.kt`, `AgentWidgetClient`): `program` (pinned versions cached on disk forever),
-`states`, `respond`, `send`; RPC errors keep their `type` (`OpenCodeClientError.rpcErrorType`: `closed`,
+`states`, `respond`, `send`, `report`; RPC errors keep their `type` (`OpenCodeClientError.rpcErrorType`: `closed`,
 `rate_limited`, `not_found`, `rpc.unavailable`). `rpc.opencode.widget.changed` becomes
 `OpenCodeServerEvent.WidgetChanged`, which Home forwards to the session screen.
 
@@ -45,8 +45,16 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   renderer see only `AgentWidgetState` and `AgentWidgetTransport`.
 - `send` over 10 a second fails `rate_limited` and is dropped; `closed` shows "This widget isn't open
   any more." / "already answered".
-- Synthetic answer and send messages carry `metadata.widget { messageID, callID, kind }` and show as
-  the quiet `◈` line.
+- Synthetic answer, send and error messages carry `metadata.widget { messageID, callID, kind }` and show
+  as the quiet `◈` line.
+- The server never runs widget code, so failures come from the client: `AgentWidgetController.reportError`
+  sends `report { error: { phase, message, line?, column? }, client: "android" }` once per distinct
+  phase and message, at most 8 per widget, never once answered. Phases: `init`/`update` (step throws),
+  `view` (invalid view, step or live post), `draw` (canvas draw throws; budget overruns don't count),
+  `main` (live exit), `shader` (WGSL translation or GL compile), `fetch` (transfer failures, not
+  cancels). Program lines subtract the prelude before the template source (`sourceLineOffset`, from
+  `program`'s `source`, kept in the disk cache); shader lines are already the template WGSL's. The agent
+  gets a synthetic `kind: "error"` message and can fix and re-post.
 - `rpc.unavailable` means the plugin isn't loaded yet (a cold server never waits for plugins; ~0.5 s),
   never "no widgets": `program`, `respond` and `send` try again a few times (0.75 s, 1.5 s, …); a failed
   `states` read marks the session (`widgetStatesUnread`) and is read again on the location's

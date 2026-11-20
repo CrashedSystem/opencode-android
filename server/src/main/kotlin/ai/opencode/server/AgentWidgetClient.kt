@@ -9,8 +9,10 @@ import ai.opencode.server.live.decodeWidgetProgram
 import ai.opencode.server.live.isWidgetRPCUnavailable
 import ai.opencode.server.live.requestRespondToWidgetRPC
 import ai.opencode.server.live.requestWidgetProgramRPC
+import ai.opencode.server.live.requestWidgetReportRPC
 import ai.opencode.server.live.requestWidgetSendRPC
 import ai.opencode.server.live.requestWidgetStates
+import ai.opencode.server.model.OpenCodeWidgetError
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
@@ -36,6 +38,8 @@ class AgentWidgetClient(
     val states: suspend (server: OpenCodeServer, directory: String?, sessionID: String) -> List<OpenCodeWidgetState>,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, response: OpenCodeWidgetResponse) -> Unit,
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, message: OpenCodeWidgetMessageValue) -> Unit,
+    /** A widget failed on this device (`report`): the agent hears of it and can fix and re-post. */
+    val report: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, error: OpenCodeWidgetError) -> Unit,
 ) {
     companion object Key : DependencyKey<AgentWidgetClient> {
         override val liveValue: AgentWidgetClient by lazy {
@@ -51,6 +55,9 @@ class AgentWidgetClient(
                 send = { server, directory, sessionID, messageID, callID, message ->
                     whileUnavailable { requestWidgetSendRPC(server, directory, sessionID, messageID, callID, message) }
                 },
+                report = { server, directory, sessionID, messageID, callID, error ->
+                    whileUnavailable { requestWidgetReportRPC(server, directory, sessionID, messageID, callID, error) }
+                },
             )
         }
 
@@ -60,6 +67,7 @@ class AgentWidgetClient(
                 states = { _, _, _ -> emptyList() },
                 respond = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.respond") },
                 send = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.send") },
+                report = { _, _, _, _, _, _ -> },
             )
 
         /**
@@ -95,7 +103,10 @@ class AgentWidgetProgramCache(private val directory: File) {
                 val json = File(directory, "${ref.key}.json")
                 val legacy = File(directory, "${ref.key}.js")
                 when {
-                    json.isFile -> decodeWidgetProgram(WireJson.parseToJsonElement(json.readText()))
+                    json.isFile -> WireJson.parseToJsonElement(json.readText()).let { element ->
+                        val offset = (element as? kotlinx.serialization.json.JsonObject)?.get("sourceLineOffset")?.let { (it as? JsonPrimitive)?.content?.toIntOrNull() } ?: 0
+                        decodeWidgetProgram(element).copy(sourceLineOffset = offset)
+                    }
                     legacy.isFile -> OpenCodeWidgetProgram(legacy.readText())
                     else -> null
                 }
@@ -111,6 +122,7 @@ class AgentWidgetProgramCache(private val directory: File) {
                 val text = buildJsonObject {
                     put("program", program.program)
                     put("mode", if (program.isLive) "live" else "step")
+                    put("sourceLineOffset", program.sourceLineOffset)
                     program.httpsHosts?.let { hosts ->
                         put("capabilities", buildJsonObject { put("https", buildJsonObject { put("hosts", JsonArray(hosts.map(::JsonPrimitive))) }) })
                     }

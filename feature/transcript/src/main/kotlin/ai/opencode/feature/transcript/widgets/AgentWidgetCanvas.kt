@@ -267,6 +267,7 @@ private class CanvasState {
         } catch (error: AgentWidgetEngineException) {
             if (!error.isBudget) {
                 AppLog.app.notice { "Widget canvas draw failed: ${error.message?.take(120)}" }
+                controller.reportError("draw", error)
                 return null
             }
             return Step(drawn = false, overBudget = true)

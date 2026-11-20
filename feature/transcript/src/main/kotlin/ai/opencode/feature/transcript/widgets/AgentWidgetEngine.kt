@@ -45,7 +45,14 @@ fun interface AgentWidgetProgram : AutoCloseable {
 }
 
 /** [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three. */
-class AgentWidgetEngineException(message: String, val isTimeout: Boolean = false, val isBudget: Boolean = false) : Exception(message)
+class AgentWidgetEngineException(
+    message: String,
+    val isTimeout: Boolean = false,
+    val isBudget: Boolean = false,
+    /** Where in the compiled program (or a shader's template WGSL) it failed, 1-based, when known. */
+    val line: Int? = null,
+    val column: Int? = null,
+) : Exception(message)
 
 /** Translated GLSL ES 3.00 and its uniform blocks, each with the binding point to give it. */
 class AgentWidgetShaderCode(val code: String, val uniformBlocks: List<Pair<String, Int>> = emptyList())
@@ -77,5 +84,8 @@ interface AgentWidgetLiveListener {
     fun posted(messageJson: String)
     fun warned(message: String)
     /** It ended: [failure] null when `main` returned or the run was stopped. */
-    fun exited(failure: String?)
+    fun exited(failure: AgentWidgetEngineException?)
+
+    /** A `fetch` transfer failed (the program gets the rejection). */
+    fun fetchFailed(message: String)
 }

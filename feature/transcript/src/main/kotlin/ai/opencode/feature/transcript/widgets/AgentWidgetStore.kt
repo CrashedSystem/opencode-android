@@ -10,6 +10,7 @@ import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.RespondFailure
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Status
 import ai.opencode.server.OpenCodeServer
+import ai.opencode.server.model.OpenCodeWidgetError
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import androidx.compose.runtime.Stable
@@ -315,8 +316,13 @@ class AgentWidgetController internal constructor(
             run(listOf(Effect.Send(message)))
         }
 
-        override fun failed(message: String) {
-            phase = Phase.Failed(message, Status.Open)
+        override fun failed(error: AgentWidgetEngineException) {
+            phase = Phase.Failed(error.message ?: localized(R.string.transcript_widget_step_failed), Status.Open)
+            reportError("main", error)
+        }
+
+        override fun reported(phase: String, message: String) {
+            reportError(phase, message)
         }
 
         override fun ended() = Unit
@@ -328,6 +334,33 @@ class AgentWidgetController internal constructor(
         live?.stop()
         liveWantsFrame = false
         phase = Phase.Closed(phase.view, how, phase.state)
+    }
+
+    /** Lines of prelude before the template's source in its program. */
+    private var sourceLineOffset = 0
+    private val reported = HashSet<String>()
+
+    /** Reports a failure in [phase] to the widget plugin (and so the agent), once per distinct error. */
+    fun reportError(phase: String, error: Throwable) {
+        val engine = error as? AgentWidgetEngineException
+        // Shader lines are already the template's; program lines count the prelude.
+        val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l > 0 } }
+        reportError(phase, error.message ?: error.javaClass.simpleName, line, if (line != null) engine?.column else null)
+    }
+
+    fun reportError(phase: String, message: String, line: Int? = null, column: Int? = null) {
+        // An answered widget's program is done; each error goes once, and a widget sends at most a few.
+        if (status(widget) is Status.Answered || reported.size >= MAX_REPORTS || !reported.add("$phase\u0000$message")) return
+        val error = OpenCodeWidgetError(phase, message, line, column)
+        scope.launch {
+            try {
+                transport.report(server, directory, sessionID, widget, error)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLog.app.notice { "Widget ${ref.name} report ($phase) didn't go: ${error.message?.take(80)}" }
+            }
+        }
     }
 
     internal fun stopLive() {
@@ -403,6 +436,7 @@ class AgentWidgetController internal constructor(
                 Effect.Fetch -> scope.launch {
                     val event = try {
                         val compiled = programs.program(server, directory, ref)
+                        sourceLineOffset = compiled.info.sourceLineOffset
                         val live = compiled.live
                         if (live != null) {
                             startLiveMode(live, compiled.info.httpsHosts)
@@ -438,6 +472,14 @@ class AgentWidgetController internal constructor(
                         }
                     }
                     result.getOrNull()?.let { rootFullscreen = it.fullscreen }
+                    result.exceptionOrNull()?.let { error ->
+                        val phase = when {
+                            error is AgentWidgetNode.InvalidView -> "view"
+                            effect.input.startsWith("{\"phase\":\"init\"") -> "init"
+                            else -> "update"
+                        }
+                        reportError(phase, error)
+                    }
                     feed(Event.Ran(result))
                 }
                 is Effect.Send -> scope.launch {
@@ -470,6 +512,8 @@ class AgentWidgetController internal constructor(
     }
 
     private companion object {
+        const val MAX_REPORTS = 8
+
         fun status(widget: AgentWidgetState): Status = when (widget.status) {
             AgentWidgetState.Status.Open -> Status.Open
             AgentWidgetState.Status.Submitted -> Status.Answered(AgentWidgetMachine.Closed.Submitted(widget.response ?: "null"))

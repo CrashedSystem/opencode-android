@@ -31,7 +31,9 @@ internal class AgentWidgetLiveDriver(
         fun wantsFrame()
         fun answered(response: OpenCodeWidgetResponse)
         fun sent(message: OpenCodeWidgetMessageValue)
-        fun failed(message: String)
+        fun failed(error: AgentWidgetEngineException)
+        /** A post that couldn't be used (an invalid view), or a fetch that failed: reported, the run goes on. */
+        fun reported(phase: String, message: String)
         /** `main` returned without an answer: the last view stays. */
         fun ended()
     }
@@ -119,13 +121,17 @@ internal class AgentWidgetLiveDriver(
                 AppLog.app.notice { "Live widget: ${message.take(160)}" }
             }
 
-            override fun exited(failure: String?) {
+            override fun fetchFailed(message: String) {
+                scope.launch { if (current == generation) events.reported("fetch", message) }
+            }
+
+            override fun exited(failure: AgentWidgetEngineException?) {
                 scope.launch {
                     if (current != generation) return@launch
                     run = null
                     if (finished) return@launch
                     finished = true
-                    AppLog.perf.info { "Live widget exited: ${failure ?: "finished"}" }
+                    AppLog.perf.info { "Live widget exited: ${failure?.message ?: "finished"}" }
                     if (failure != null) events.failed(failure) else events.ended()
                 }
             }
@@ -134,7 +140,7 @@ internal class AgentWidgetLiveDriver(
             program.start("{\"data\":$data}", listener, httpsHosts)
         } catch (error: AgentWidgetEngineException) {
             finished = true
-            events.failed(error.message ?: "The widget couldn't start.")
+            events.failed(error)
             null
         }
     }
@@ -158,7 +164,8 @@ internal class AgentWidgetLiveDriver(
                     AgentWidgetNode.parse(node)
                 } catch (error: AgentWidgetNode.InvalidView) {
                     AppLog.app.notice { "Live widget render dropped: ${error.message}" }
-                    return null
+                    val message = error.message ?: "invalid view"
+                    return { events.reported("view", message) }
                 }
                 val fullscreen = ((node as? JsonObject)?.get("fullscreen") as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toBooleanStrictOrNull()
                 ({ events.rendered(view, fullscreen) })

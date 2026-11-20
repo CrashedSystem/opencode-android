@@ -75,4 +75,13 @@ data class OpenCodeWidgetState(
 }
 
 /** A template version's runnable program and how it runs: `step` (the default) or `live`, with the hosts a live one may fetch from. */
-data class OpenCodeWidgetProgram(val program: String, val isLive: Boolean = false, val httpsHosts: List<String>? = null)
+data class OpenCodeWidgetProgram(
+    val program: String,
+    val isLive: Boolean = false,
+    val httpsHosts: List<String>? = null,
+    /** Lines of prelude before the template's source in [program], to report errors at template lines. */
+    val sourceLineOffset: Int = 0,
+)
+
+/** A widget failure on this device, for the widget plugin's `report` (the agent hears of it). */
+data class OpenCodeWidgetError(val phase: String, val message: String, val line: Int? = null, val column: Int? = null)
