@@ -23,5 +23,6 @@ secrets.properties
 .externalNativeBuild/
 .cxx/
 __pycache__/
-# The widget runner's native libraries (scripts/psychoscript.sh)
-feature/transcript/src/main/jniLibs/
+# The widget runner: psychoscript's checkout and its build (scripts/psychoscript.sh)
+/.psychoscript/
+/vendor/psychoscript/

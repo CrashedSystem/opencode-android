@@ -12,13 +12,11 @@ note), `form` (input, slider, checkbox, select), `confirm` (live: Deploy → Sen
 Submitted, `◈ Responded to "…"`), `chart` (bar and line; animated intro, press/drag tooltip,
 tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 
-- Runner: `psychoscript-mobile` (anomalyco/psychoscript `mobile`, rev in `ffi-out/android/REVISION`), the
-  language only: `NativeAgentWidgetEngine` compiles `program + "\nreturn __widget_step(__input())"` once and
-  `run`s steps at 250 ms and draws at 8 ms (a draw timeout counts as an overrun). Everything else widget-shaped
-  is the app's: step inputs, output parsing and validation, the 2,000-command cap, rendering.
-  `scripts/psychoscript.sh <dir>` installs the `.so` files (gitignored) and refreshes the committed Kotlin
-  bindings; without them widgets show "The widget runtime isn't available". When the generic API's names
-  land, only `NativeAgentWidgetEngine` changes (steps and shader translation).
+- Runner: `psychoscript-mobile`, the PsychoScript language alone (anomalyco/psychoscript, branch `mobile`,
+  crate `rust/crates/psychoscript-mobile`, package `com.anomalyco.psychoscript`). `NativeAgentWidgetEngine`
+  compiles `program + "\nreturn __widget_step(__input())"` once and `run`s steps at 250 ms and draws at 8 ms
+  (a draw timeout counts as an overrun). Everything else widget-shaped is the app's: step inputs, output
+  parsing and validation, the 2,000-command cap, rendering.
 - Shader: `AgentWidgetEngine.translateShader(wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
   names. `NativeAgentWidgetEngine` wraps the node's WGSL in the spec's header and a GL entry that flips
   `frag.y`, then calls the runner's `translateWgsl` (feature `shader`). `AgentWidgetShaderStore` caches the
@@ -46,6 +44,21 @@ For the swap: replace `states(items)` with the plugin's per-session states (refr
 `changed`) and the transport's calls (program, respond, send) with the RPC methods; drop `OpenCodeWidgetMessage`
 decoding in `:server`.
 
+## The runner build
+
+`scripts/psychoscript.sh` pins psychoscript's rev (`REV=`), fetches it into `.psychoscript/` and builds it
+into `vendor/psychoscript/` (both gitignored); `:feature:transcript` adds `vendor/psychoscript/jniLibs` to
+every variant's jniLibs (`androidComponents`), so no `.so` is committed. The generated Kotlin bindings are
+committed (`feature/transcript/src/main/kotlin/com/anomalyco/psychoscript/`) so builds without Rust (CI)
+compile; the script refreshes them and says so when they change. A build without the libraries runs, and
+widgets show "The widget runtime isn't available".
+
+- Needs: NDK r28+ (`ANDROID_NDK_HOME`, else the newest under the SDK's `ndk/`), `cargo install cargo-ndk`,
+  `rustup target add --toolchain 1.100.0 aarch64-linux-android x86_64-linux-android`. About 2 minutes cold.
+- `scripts/psychoscript.sh --prebuilt <dir>` takes a build of the same rev made elsewhere (checked against
+  its `REVISION`).
+- To move the pin: change `REV`, run the script, commit the script and any binding changes together.
+
 ## Workflow (Mac)
 
 - JDK: Android Studio's JBR (`/Applications/Android Studio.app/Contents/jbr/Contents/Home`);
@@ -53,6 +66,14 @@ decoding in `:server`.
 - Dev server: Enter a Server Manually → `http://10.0.2.2:4097`, user `opencode`, password from
   `oc-server.log`. Session lab: `python3 -B …/opencode-ios/scripts/session-lab.py --port 4112
   serve --checkpoint widgets`, connect to `http://10.0.2.2:4112`.
+
+## Next: live widgets
+
+`specs/v2/widgets-live.md`: `mode: "live"` templates run one long program per open widget
+(`return await __widget_live(__input())`) on psychoscript-mobile's coming LiveRun API with `__host`
+post/receive/sleep/now/fetch; pause off screen, 50 ms without awaiting stops it, the same 2,000-command
+draws. Planned as a second engine path behind `AgentWidgetEngine` and a live controller beside the
+step machine, reusing the node and canvas renderers.
 
 ## Open
 

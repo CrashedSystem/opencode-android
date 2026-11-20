@@ -9,6 +9,13 @@ android {
     }
 }
 
+// The widget runner's libraries, built by scripts/psychoscript.sh (gitignored).
+androidComponents {
+    onVariants { variant ->
+        variant.sources.jniLibs?.addStaticSourceDirectory(rootProject.file("vendor/psychoscript/jniLibs").path)
+    }
+}
+
 // The graph is acyclic: media, voice, system < transcript, composer, settings < session < drawer <
 // app.
 dependencies {
