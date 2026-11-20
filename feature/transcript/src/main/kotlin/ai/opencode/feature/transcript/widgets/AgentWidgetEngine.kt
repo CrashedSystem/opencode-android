@@ -12,12 +12,6 @@ interface AgentWidgetEngine {
 
     fun compile(program: String): AgentWidgetProgram
 
-    /** A `shader` node's `wgsl` (its `shade` function) wrapped in the contract's header and entry point, as GLSL ES 3.00. */
-    fun translateShader(wgsl: String): AgentWidgetShaderCode
-
-    /** The full-screen triangle vertex stage paired with every translated shader, as GLSL ES 3.00. */
-    fun vertexShader(): AgentWidgetShaderCode
-
     companion object Key : DependencyKey<AgentWidgetEngine> {
         override val liveValue: AgentWidgetEngine by lazy { NativeAgentWidgetEngine.load() ?: Unavailable }
         override val testValue: AgentWidgetEngine get() = Unavailable
@@ -27,8 +21,6 @@ interface AgentWidgetEngine {
     object Unavailable : AgentWidgetEngine {
         override val isAvailable: Boolean = false
         override fun compile(program: String): AgentWidgetProgram = throw AgentWidgetEngineException(UNAVAILABLE)
-        override fun translateShader(wgsl: String): AgentWidgetShaderCode = throw AgentWidgetEngineException(UNAVAILABLE)
-        override fun vertexShader(): AgentWidgetShaderCode = throw AgentWidgetEngineException(UNAVAILABLE)
         private const val UNAVAILABLE = "The widget runtime isn't available in this build."
     }
 }
@@ -46,6 +38,3 @@ fun interface AgentWidgetProgram : AutoCloseable {
 
 /** [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three. */
 class AgentWidgetEngineException(message: String, val isTimeout: Boolean = false, val isBudget: Boolean = false) : Exception(message)
-
-/** Translated GLSL and its uniform blocks, each with the binding point to give it. */
-class AgentWidgetShaderCode(val code: String, val uniformBlocks: List<Pair<String, Int>> = emptyList())

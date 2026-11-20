@@ -12,17 +12,20 @@ note), `form` (input, slider, checkbox, select), `confirm` (live: Deploy → Sen
 Submitted, `◈ Responded to "…"`), `chart` (bar and line; animated intro, press/drag tooltip,
 tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 
-- Runner: `psychoscript-mobile` (anomalyco/psychoscript `mobile`, rev in `ffi-out/android/REVISION`)
-  through UniFFI/JNA (`NativeAgentWidgetEngine`): `Program(program + "\nreturn __widget_step(__input())")`,
-  `run` at 250 ms per step and 8 ms per draw (a draw timeout counts as an overrun), output parsed
-  and validated by the app. `scripts/psychoscript.sh <ffi-out/android>` installs the `.so` files
-  (gitignored) and refreshes the committed Kotlin bindings; without them widgets show "The widget
-  runtime isn't available".
-- Shader: the app wraps the node's WGSL in the spec's header and a GL entry point that flips
-  `frag.y`, and `translateWgsl` turns it into GLSL ES 3.00. `AgentWidgetGL` (one GL thread and
-  context, programs cached by GLSL, 96-byte UBO bound to the blocks the translator reports),
-  `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`, pause off screen / list not
-  resumed, 50 ms × 3 stop, poster/alt on failure).
+- Runner: `psychoscript-mobile` (anomalyco/psychoscript `mobile`, rev in `ffi-out/android/REVISION`), the
+  language only: `NativeAgentWidgetEngine` compiles `program + "\nreturn __widget_step(__input())"` once and
+  `run`s steps at 250 ms and draws at 8 ms (a draw timeout counts as an overrun). Everything else widget-shaped
+  is the app's: step inputs, output parsing and validation, the 2,000-command cap, rendering.
+  `scripts/psychoscript.sh <dir>` installs the `.so` files (gitignored) and refreshes the committed Kotlin
+  bindings; without them widgets show "The widget runtime isn't available". When the generic API's names
+  land, only `NativeAgentWidgetEngine` changes.
+- Shader: `AgentWidgetTransport.shader(server, wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
+  names; `AgentWidgetShaderStore` caches it by sha256(target + wgsl) in memory and under
+  `files/support/widget-shaders/`. Until the server's `opencode.widget` translation RPC exists, the transport
+  translates on device (`LocalAgentWidgetShaderTranslator`, the spec's header and a GL entry that flips
+  `frag.y`); the swap is that one lambda. `AgentWidgetGL` (one GL thread and context, programs cached by GLSL,
+  96-byte UBO bound to the reported blocks), `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`,
+  pause off screen / list not resumed, 50 ms × 3 stop, poster/alt on failure).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
 
@@ -35,12 +38,12 @@ event. Everything server-facing lives in `widgets/AgentWidgetAdapter.kt`:
 - `AgentWidgetState` (keyed by tool call ID, `handle` = what the server answers it by) is all
   the runtime and renderer see. The session passes `TranscriptConfiguration.widgets`
   (`AgentWidgetAdapter.states(items)`); `LocalAgentWidgetStates` reaches the rows.
-- `AgentWidgetTransport` (program, respond, send) wraps the REST `AgentWidgetClient` today.
+- `AgentWidgetTransport` (program, shader, respond, send) wraps the REST `AgentWidgetClient` today.
 - A `widget` tool call is its own transcript row (`ToolView` → `AgentWidgetToolRow`); a failed
   call stays in its tool group; the `widget` message adds no row.
 
 For the swap: replace `states(items)` with the plugin's per-session states (refreshed on
-`changed`) and the transport's three calls with the RPC methods; drop `OpenCodeWidgetMessage`
+`changed`) and the transport's calls (program, shader, respond, send) with the RPC methods; drop `OpenCodeWidgetMessage`
 decoding in `:server`.
 
 ## Workflow (Mac)

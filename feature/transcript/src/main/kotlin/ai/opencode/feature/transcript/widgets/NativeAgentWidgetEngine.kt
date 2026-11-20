@@ -4,17 +4,11 @@ import ai.opencode.core.log.AppLog
 import com.anomalyco.psychoscript.Program
 import com.anomalyco.psychoscript.PsychoScriptException
 import com.anomalyco.psychoscript.RunOptions
-import com.anomalyco.psychoscript.ShaderException
-import com.anomalyco.psychoscript.ShaderStage
-import com.anomalyco.psychoscript.ShaderTarget
-import com.anomalyco.psychoscript.TranslatedShader
-import com.anomalyco.psychoscript.translateWgsl
 
 /**
- * The step ABI and the shader wrapping on the Rust PsychoScript (`psychoscript-mobile`), when this
- * build bundles it: a template's program compiles once with the step entry appended, steps run
- * under the contract's 250 ms (draws 8 ms, a timeout there is an overrun), and a shader's WGSL is
- * wrapped in the contract's header and the GL entry point, which flips `frag.y` to a top-left origin.
+ * The step ABI on the Rust PsychoScript (`psychoscript-mobile`), when this build bundles it: a
+ * template's program compiles once with the step entry appended, and steps run under the
+ * contract's 250 ms (draws 8 ms; a timeout there is an overrun).
  */
 internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     override val isAvailable: Boolean = true
@@ -39,35 +33,6 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         }
     }
 
-    override fun translateShader(wgsl: String): AgentWidgetShaderCode {
-        val bytes = wgsl.toByteArray().size
-        if (bytes > AgentWidgetNode.MAX_SHADER_BYTES) throw AgentWidgetEngineException("The shader is $bytes bytes, over the 16 KB cap.")
-        return shader(HEADER + wgsl + ENTRY_GL, ShaderStage.FRAGMENT, "widget_main", templateLines = wgsl.lines().size)
-    }
-
-    override fun vertexShader(): AgentWidgetShaderCode = shader(VERTEX, ShaderStage.VERTEX, "widget_vertex", templateLines = 0)
-
-    private fun shader(source: String, stage: ShaderStage, entry: String, templateLines: Int): AgentWidgetShaderCode {
-        val translated: TranslatedShader = try {
-            translateWgsl(source, ShaderTarget.GLSL_ES300, stage, entry)
-        } catch (error: ShaderException) {
-            throw AgentWidgetEngineException(shaderMessage(error, templateLines))
-        }
-        return AgentWidgetShaderCode(translated.code, translated.uniformBlocks.map { it.name to it.slot.toInt() })
-    }
-
-    /** The reason, with where it happened as a line of the template when it happened there. */
-    private fun shaderMessage(error: ShaderException, templateLines: Int): String {
-        val (reason, line, column) = when (error) {
-            is ShaderException.Parse -> Triple(error.reason, error.line, error.column)
-            is ShaderException.Validation -> Triple(error.reason, error.line, error.column)
-            is ShaderException.Unsupported -> Triple(error.reason, null, null)
-            is ShaderException.Translation -> Triple(error.reason, null, null)
-        }
-        val at = line?.toInt()?.minus(HEADER_LINES)
-        return if (at != null && at in 1..templateLines) "$reason (line $at, column ${column ?: 0u})" else reason
-    }
-
     private inline fun <T> run(draw: Boolean = false, block: () -> T): T = try {
         block()
     } catch (error: PsychoScriptException) {
@@ -85,14 +50,4 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     private const val ENTRY = "\nreturn __widget_step(__input())"
     private val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL)
     private val DRAW = RunOptions(timeoutMs = 8uL, maxOutputBytes = 1024uL * 1024uL)
-
-    private const val HEADER = "struct Widget { resolution: vec2f, time: f32, scale: f32, pointer: vec4f, values: array<vec4f, 4> }\n" +
-        "@group(0) @binding(0) var<uniform> widget: Widget;\n"
-    private const val HEADER_LINES = 2
-    private const val ENTRY_GL = "\n@fragment fn widget_main(@builtin(position) p: vec4f) -> @location(0) vec4f " +
-        "{ return shade(vec2f(p.x, widget.resolution.y - p.y)); }\n"
-    private const val VERTEX = "@vertex fn widget_vertex(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {\n" +
-        "  let uv = vec2f(f32((i << 1u) & 2u), f32(i & 2u));\n" +
-        "  return vec4f(uv * 2.0 - 1.0, 0.0, 1.0);\n" +
-        "}\n"
 }

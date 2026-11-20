@@ -4,6 +4,7 @@ import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.R
 import android.graphics.SurfaceTexture
 import android.view.TextureView
@@ -39,18 +40,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 /**
- * A `shader` node: its WGSL translated to GLSL ES once per source (cached process-wide), drawn
+ * A `shader` node: its WGSL translated to GLSL ES once per source ([AgentWidgetShaderStore]), drawn
  * on the shared GL thread into a `TextureView` every frame at `fps` while composed and the list
  * is on screen, or once (and on `values` changes) with `fps: 0`. A shader that fails shows its
  * `poster` or `alt` with the error; one that runs over budget keeps its last frame.
  */
 @Composable
 fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, modifier: Modifier = Modifier) {
-    val engine = scope.controller?.engine ?: remember { dependency(AgentWidgetEngine) }
+    val shaders = remember { dependency(AgentWidgetShaderStore) }
+    val server = LocalTranscriptRowContext.current.server
     val density = LocalDensity.current.density
     val paused = LocalAgentWidgetPaused.current
     var failure by remember(node.wgsl) { mutableStateOf<String?>(null) }
@@ -60,15 +61,17 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     var stopped by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(engine, node.wgsl) {
-        val translated = withContext(Dispatchers.Default) { AgentWidgetShaderSources.translate(engine, node.wgsl) }
-        translated.fold(
-            onSuccess = { (v, f) ->
-                vertex = v
-                fragment = f
-            },
-            onFailure = { failure = it.message ?: it.javaClass.simpleName },
-        )
+    LaunchedEffect(server, node.wgsl) {
+        server ?: return@LaunchedEffect
+        try {
+            val stages = shaders.stages(server, node.wgsl)
+            vertex = stages.vertex
+            fragment = stages.fragment
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            failure = error.message ?: error.javaClass.simpleName
+        }
     }
 
     val width = node.width
@@ -177,22 +180,5 @@ private fun ShaderFallback(node: AgentWidgetNode.Shader, error: String, modifier
     ) {
         Text(node.alt ?: stringResource(R.string.transcript_widget_shader_failed), style = OpenCodeTextStyles.footnote, color = colors.secondaryText, textAlign = TextAlign.Center)
         Text(error, style = OpenCodeTextStyles.caption1, color = colors.tertiaryText, textAlign = TextAlign.Center, maxLines = 4)
-    }
-}
-
-/** Translated shaders by WGSL source: the same template's banner translates once per process. */
-internal object AgentWidgetShaderSources {
-    private val fragments = object : LinkedHashMap<String, Result<AgentWidgetShaderCode>>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Result<AgentWidgetShaderCode>>) = size > 16
-    }
-    @Volatile private var vertex: AgentWidgetShaderCode? = null
-
-    /** The vertex and fragment stages, or why the shader can't run. */
-    fun translate(engine: AgentWidgetEngine, wgsl: String): Result<Pair<AgentWidgetShaderCode, AgentWidgetShaderCode>> = runCatching {
-        val v = vertex ?: engine.vertexShader().also { vertex = it }
-        val f = synchronized(fragments) { fragments[wgsl] } ?: runCatching { engine.translateShader(wgsl) }.also { result ->
-            synchronized(fragments) { fragments[wgsl] = result }
-        }
-        v to f.getOrThrow()
     }
 }

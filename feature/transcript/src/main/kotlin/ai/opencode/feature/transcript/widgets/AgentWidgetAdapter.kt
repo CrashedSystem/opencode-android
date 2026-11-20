@@ -121,9 +121,17 @@ object AgentWidgetAdapter {
     }
 }
 
-/** Fetches template programs and answers widgets; throws [AgentWidgetTransportException]. */
+/** Translated GLSL ES 3.00 and its uniform blocks, each with the binding point to give it. */
+class AgentWidgetShaderCode(val code: String, val uniformBlocks: List<Pair<String, Int>> = emptyList())
+
+/** A shader node's two GPU stages: the full-screen triangle and its fragment shader. */
+class AgentWidgetShaderStages(val vertex: AgentWidgetShaderCode, val fragment: AgentWidgetShaderCode)
+
+/** Fetches template programs, translates shaders and answers widgets; throws [AgentWidgetTransportException]. */
 class AgentWidgetTransport(
     val program: suspend (server: OpenCodeServer, ref: OpenCodeWidgetRef) -> String,
+    /** A shader node's `wgsl` (its `shade` function) as GLSL ES 3.00, wrapped in the spec's header and entry point. */
+    val shader: suspend (server: OpenCodeServer, wgsl: String) -> AgentWidgetShaderStages,
     val respond: suspend (server: OpenCodeServer, sessionID: String, widget: AgentWidgetState, response: OpenCodeWidgetResponse) -> Unit,
     /** A message from a widget that stays open (`send`). */
     val send: suspend (server: OpenCodeServer, sessionID: String, widget: AgentWidgetState, message: OpenCodeWidgetMessageValue) -> Unit,
@@ -133,6 +141,8 @@ class AgentWidgetTransport(
             val client = dependency(AgentWidgetClient)
             AgentWidgetTransport(
                 program = { server, ref -> mapped { client.program(server, ref) } },
+                // Until the server translates shaders (opencode.widget), the bundled runner does.
+                shader = { _, wgsl -> LocalAgentWidgetShaderTranslator.stages(wgsl) },
                 respond = { server, sessionID, widget, response -> mapped { client.respond(server, sessionID, widget.handle, response) } },
                 send = { server, sessionID, widget, message -> mapped { client.message(server, sessionID, widget.handle, message) } },
             )
@@ -141,6 +151,7 @@ class AgentWidgetTransport(
         override val testValue: AgentWidgetTransport
             get() = AgentWidgetTransport(
                 program = { _, ref -> throw AgentWidgetTransportException("No widget template ${ref.key} under tests") },
+                shader = { _, _ -> throw AgentWidgetTransportException("No shader translation under tests") },
                 respond = { _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetTransport.respond") },
                 send = { _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetTransport.send") },
             )
