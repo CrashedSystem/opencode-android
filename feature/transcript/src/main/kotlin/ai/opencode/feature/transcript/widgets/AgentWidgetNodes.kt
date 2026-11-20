@@ -9,6 +9,8 @@ import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.openCodeHairline
 import ai.opencode.core.ui.OpenCodeMinTapTarget
+import ai.opencode.core.ui.drawerPanHorizontalScroller
+import ai.opencode.core.ui.excludedFromDrawerPan
 import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.markdown.rememberMarkdownBlocks
 import ai.opencode.feature.transcript.markdown.ui.MarkdownBlocksView
@@ -141,8 +143,9 @@ private fun RowNode(node: AgentWidgetNode.Row, scope: AgentWidgetScope, modifier
     if (node.children.any { it is AgentWidgetNode.Card }) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
             val width = minOf(260.dp, maxWidth * 0.8f)
+            val scroll = rememberScrollState()
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().drawerPanHorizontalScroller(scroll).horizontalScroll(scroll),
                 horizontalArrangement = Arrangement.spacedBy(spacing),
                 verticalAlignment = vertical,
             ) {
@@ -222,7 +225,11 @@ private fun CarouselNode(node: AgentWidgetNode.Carousel, scope: AgentWidgetScope
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         HorizontalPager(
             pager,
-            Modifier.fillMaxWidth().clip(OpenCodeShape.card).semantics { stateDescription = pageLabel },
+            Modifier
+                .fillMaxWidth()
+                .drawerPanHorizontalScroller({ pager.canScrollBackward }, { pager.canScrollForward })
+                .clip(OpenCodeShape.card)
+                .semantics { stateDescription = pageLabel },
             pageSpacing = 8.dp,
             beyondViewportPageCount = 0,
         ) { page -> AgentWidgetNodeView(node.children[page], scope, Modifier.fillMaxWidth(), "$path.$page") }
@@ -320,7 +327,7 @@ private fun SliderNode(node: AgentWidgetNode.Slider, scope: AgentWidgetScope, mo
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent,
             ),
-            modifier = Modifier.semantics { contentDescription = node.label ?: "" },
+            modifier = Modifier.excludedFromDrawerPan(scope.live).semantics { contentDescription = node.label ?: "" },
         )
     }
 }

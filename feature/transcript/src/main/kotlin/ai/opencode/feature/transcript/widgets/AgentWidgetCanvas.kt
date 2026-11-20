@@ -3,6 +3,7 @@ package ai.opencode.feature.transcript.widgets
 import ai.opencode.core.log.AppLog
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTheme
+import ai.opencode.core.ui.excludedFromDrawerPan
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
@@ -109,6 +110,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             .clip(OpenCodeShape.control)
             .onSizeChanged { state.size = it }
             .onVisibilityChanged { visible = it }
+            .excludedFromDrawerPan(node.id != null && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
             .then(
                 if (node.id != null) {
