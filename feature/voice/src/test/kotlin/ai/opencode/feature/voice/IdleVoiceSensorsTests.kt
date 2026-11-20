@@ -106,6 +106,24 @@ class IdleVoiceSensorsTests {
         detector.stop()
     }
 
+    @Test fun aFirstSampleLyingFlatAfterTheEarlyCheckIsNoRaise() = runBlocking {
+        val probe = Probe()
+        val clock = TestClock()
+        var gravity: RaiseToEarDetector.Gravity? = null
+        val detector = RaiseToEarDetector(clock = clock, gravitySource = { gravity }, onMotion = { probe.motion += it }, onNote = {})
+        detector.start(onRaise = { probe.raises += 1; true }, onNear = {})
+        // The sensor's cold: no sample at the early check, then flat, then upright before the dwell ends.
+        detector.proximityChanged(true)
+        clock.advance(RaiseToEarDetector.motionPoll)
+        gravity = RaiseToEarDetector.Gravity(0.0, 0.0, -1.0)
+        detector.motionSampled()
+        gravity = RaiseToEarDetector.Gravity(0.0, -1.0, 0.0)
+        clock.advance(RaiseToEarDetector.dwell)
+        assertEquals("Covered flat is no raise", 0, probe.raises)
+        assertEquals(listOf(true, false), probe.motion)
+        detector.stop()
+    }
+
     @Test fun aWarmWindowWarmsSixTimesAndThenNothing() = runTest {
         var warms = 0
         val window = launch { LiveSocketWarmer.warmWindow { warms += 1 } }

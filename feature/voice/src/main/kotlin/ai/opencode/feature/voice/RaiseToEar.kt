@@ -27,6 +27,7 @@ class RaiseToEarDetector(
     private val manager = context?.getSystemService(SensorManager::class.java)
     private val motionSensor = manager?.let { it.getDefaultSensor(Sensor.TYPE_GRAVITY) ?: it.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
     private var isMotionOn = false
+    private var awaitsFirstSample = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var pending: Job? = null
     private var onRaise: (() -> Boolean)? = null
@@ -81,17 +82,19 @@ class RaiseToEarDetector(
             // CoreMotion gravity points down; Android's gravity sensor reports the
             // acceleration opposing gravity. Negate and normalize to units of g.
             gravity = Gravity(-filtered[0] / SensorManager.GRAVITY_EARTH, -filtered[1] / SensorManager.GRAVITY_EARTH, -filtered[2] / SensorManager.GRAVITY_EARTH)
+            motionSampled()
         }
     }
     fun proximityChanged(near: Boolean) {
         if (near == isNear) return
-        isNear = near; val hadPending = pending != null; pending?.cancel(); pending = null
+        isNear = near; val hadPending = pending != null; pending?.cancel(); pending = null; awaitsFirstSample = false
         if (near && isAtEar) {
             if (hadPending) onNote("Cancelled lower (proximity re-covered at ear)")
         } else if (near) {
             // Motion starts with the cover, so the posture as it's covered comes from its first samples.
             pending = scope.launch {
                 clock.sleep(motionPoll)
+                awaitsFirstSample = heldUp == null && currentGravity() == null
                 if (!isHeldUpForRaise()) { pending = null; updateMotion(); return@launch }
                 clock.sleep(dwell - motionPoll)
                 completeRaise()
@@ -110,6 +113,13 @@ class RaiseToEarDetector(
             }
         }
         updateMotion()
+    }
+    /** A cover with no sample yet at [motionPoll] takes its posture from the first one. */
+    internal fun motionSampled() {
+        if (!awaitsFirstSample) return
+        awaitsFirstSample = false
+        if (isAtEar || pending == null || isHeldUpForRaise()) return
+        pending?.cancel(); pending = null; updateMotion()
     }
     private fun completeRaise() {
         pending = null
