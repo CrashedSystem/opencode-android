@@ -267,4 +267,31 @@ class AgentWidgetTests {
         assertEquals(false, AgentWidgetStep.output("""{"state":{},"view":{"type":"divider","fullscreen":false}}""").fullscreen)
         assertEquals("""{"id":"","type":"fullscreen","value":true}""", AgentWidgetEvent.fullscreen(true).json)
     }
+
+    @Test
+    fun keyboardEventsAndQueuedReplacement() {
+        // widgets-input.md: keys and focus belong to no node.
+        assertEquals("""{"id":"","type":"focus","value":false}""", AgentWidgetEvent.focus(false).json)
+        assertEquals(
+            """{"id":"","type":"key","value":{"kind":"down","key":"a","code":"KeyA","repeat":false,"shift":false,"alt":false,"ctrl":false,"meta":false}}""",
+            AgentWidgetEvent.key("down", "a", "KeyA", repeat = false, shift = false, alt = false, ctrl = false, meta = false).json,
+        )
+        assertEquals("KeyA", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_A))
+        assertEquals("Digit7", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_7))
+        assertEquals("ArrowLeft", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_DPAD_LEFT))
+        assertEquals("Space", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_SPACE))
+        assertEquals("ShiftLeft", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_SHIFT_LEFT))
+        assertNull(AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_VOLUME_UP))
+
+        // A queued event is replaced only by a newer value of the same control or a newer move of the same press.
+        val down = AgentWidgetEvent.pointer("0/:board", "down", 1f, 2f, 10f, 10f)
+        val move = AgentWidgetEvent.pointer("0/:board", "move", 3f, 4f, 10f, 10f)
+        assertTrue(!down.replaceable(move))
+        assertTrue(move.replaceable(AgentWidgetEvent.pointer("0/:board", "move", 5f, 6f, 10f, 10f)))
+        assertTrue(!move.replaceable(AgentWidgetEvent.pointer("0/:board", "up", 5f, 6f, 10f, 10f)))
+        assertTrue(AgentWidgetEvent.change("0/1", "a").replaceable(AgentWidgetEvent.change("0/1", "ab")))
+        val keyDown = AgentWidgetEvent.key("down", "a", "KeyA", repeat = false, shift = false, alt = false, ctrl = false, meta = false)
+        assertTrue(!keyDown.replaceable(AgentWidgetEvent.key("up", "a", "KeyA", repeat = false, shift = false, alt = false, ctrl = false, meta = false)))
+        assertTrue(!AgentWidgetEvent.press("0/2").replaceable(AgentWidgetEvent.press("0/2")))
+    }
 }

@@ -1,6 +1,7 @@
 package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.dependencies.dependency
+import ai.opencode.core.ui.excludedFromDrawerPan
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
@@ -123,9 +124,12 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
         }
     }
 
+    val currentScope by rememberUpdatedState(scope)
     Box(
         size
             .onVisibilityChanged { visible = it }
+            .excludedFromDrawerPan(node.id != null && scope.live)
+            .agentWidgetPointer(node.id, density, { currentScope.send(it) })
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)
             .pointerInput(Unit) {
                 awaitPointerEventScope {

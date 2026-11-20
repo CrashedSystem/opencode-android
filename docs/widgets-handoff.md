@@ -49,7 +49,7 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   as the quiet `◈` line.
 - The server never runs widget code, so failures come from the client: `AgentWidgetController.reportError`
   sends `report { error: { phase, message, line?, column? }, client: "android" }` once per distinct
-  phase and message, at most 8 per widget, never once answered. Phases: `init`/`update` (step throws),
+  phase and message, at most 8 per widget, never once answered. Phases: `init`/`event` (step throws),
   `view` (invalid view, step or live post), `draw` (canvas draw throws; budget overruns don't count),
   `main` (live exit), `shader` (WGSL translation or GL compile), `fetch` (transfer failures, not
   cancels), plus a program that doesn't compile (`init` for step, `main` for live, as the TUI does). Program
@@ -99,6 +99,17 @@ widgets show "The widget runtime isn't available".
 - Dev server: Enter a Server Manually → `http://10.0.2.2:4097`, user `opencode`, password from
   `oc-server.log`. Session lab: `python3 -B …/opencode-ios/scripts/session-lab.py --port 4112
   serve --checkpoint widgets`, connect to `http://10.0.2.2:4112`.
+
+## Handlers, hooks and input (server `a405b4f066`/`deb8e2315a` on)
+
+- Templates attach handlers to nodes (`onPress`, `onChange`, `onPointer`) and the prelude assigns node ids from
+  paths (`0/:board`); the client sends `{ id, type, value }` for those ids and never interprets them. Live
+  `widget.event()`/`next()` are gone. Nothing changed in the node reader; the app's coalescing of queued step events
+  now only replaces `change` values and pointer moves (a `down`/`up` pair or keys never collapse).
+- Events that belong to no node use `id: ""`: `fullscreen` (now for step templates too, their `onFullscreen` hook),
+  `focus` and `key` (`AgentWidgetKeys.kt`, hardware keyboard only), `capture` (never sent: no pointer lock on a phone).
+- Shaders with an id send `pointer` like canvases (`agentWidgetPointer`).
+- Report phases: `init`, `event` (a handler or hook, was `update`), `view`, `draw`, `main`, `shader`, `fetch`.
 
 ## Live widgets (`specs/v2/widgets-live.md`)
 

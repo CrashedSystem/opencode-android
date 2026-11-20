@@ -186,4 +186,6 @@
     <string name="transcript_widget_fullscreen_placeholder">Open in full screen</string>
     <string name="transcript_widget_network">Network: %1$s</string>
     <string name="transcript_widget_restart">Restart</string>
+    <string name="transcript_widget_keyboard_hint">Esc</string>
+    <string name="transcript_widget_keyboard_description">Keys go to this widget. Press Esc to give them back.</string>
 </resources>

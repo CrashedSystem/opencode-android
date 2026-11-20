@@ -172,55 +172,61 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             .onVisibilityChanged { visible = it }
             .excludedFromDrawerPan(node.id != null && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
-            .then(
-                if (node.id != null) {
-                    Modifier.pointerInput(node.id) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val down = awaitPointerEvent()
-                                val first = down.changes.firstOrNull { it.pressed && !it.previousPressed } ?: continue
-                                val id = node.id
-                                val w = size.width / density
-                                val h = size.height / density
-                                state.pointer = floatArrayOf(first.position.x / density, first.position.y / density)
-                                currentScope.send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h))
-                                var horizontal: Boolean? = null
-                                var lastMove = 0L
-                                val origin = first.position
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull { it.id == first.id } ?: break
-                                    val x = change.position.x / density
-                                    val y = change.position.y / density
-                                    if (!change.pressed) {
-                                        state.pointer = null
-                                        currentScope.send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
-                                        break
-                                    }
-                                    val dx = abs(change.position.x - origin.x)
-                                    val dy = abs(change.position.y - origin.y)
-                                    if (horizontal == null && (dx > viewConfiguration.touchSlop || dy > viewConfiguration.touchSlop)) horizontal = dx >= dy
-                                    if (horizontal == false) {
-                                        // The list scrolls instead: the press ends here.
-                                        state.pointer = null
-                                        currentScope.send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
-                                        break
-                                    }
-                                    if (horizontal == true) change.consume()
-                                    state.pointer = floatArrayOf(x, y)
-                                    if (change.uptimeMillis - lastMove >= 16) {
-                                        lastMove = change.uptimeMillis
-                                        currentScope.send(AgentWidgetEvent.pointer(id, "move", x, y, w, h))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else Modifier,
-            ),
+            .agentWidgetPointer(node.id, density, { currentScope.send(it) }) { state.pointer = it },
     ) {
         @Suppress("UNUSED_EXPRESSION") revision
         state.renderer.replay(this, state.shown, density, state.images)
+    }
+}
+
+/**
+ * A canvas's or shader's `pointer` events, when it has an [id]: `down`, `move` while down (at most every 16 ms) and
+ * `up`, in logical px with its size. A vertical drag ends the press and scrolls the list. [track] gets the pointer
+ * while down (null after).
+ */
+internal fun Modifier.agentWidgetPointer(
+    id: String?,
+    density: Float,
+    send: (AgentWidgetEvent) -> Unit,
+    track: (FloatArray?) -> Unit = {},
+): Modifier = if (id == null) this else pointerInput(id) {
+    awaitPointerEventScope {
+        while (true) {
+            val down = awaitPointerEvent()
+            val first = down.changes.firstOrNull { it.pressed && !it.previousPressed } ?: continue
+            val w = size.width / density
+            val h = size.height / density
+            track(floatArrayOf(first.position.x / density, first.position.y / density))
+            send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h))
+            var horizontal: Boolean? = null
+            var lastMove = 0L
+            val origin = first.position
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == first.id } ?: break
+                val x = change.position.x / density
+                val y = change.position.y / density
+                if (!change.pressed) {
+                    track(null)
+                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
+                    break
+                }
+                val dx = abs(change.position.x - origin.x)
+                val dy = abs(change.position.y - origin.y)
+                if (horizontal == null && (dx > viewConfiguration.touchSlop || dy > viewConfiguration.touchSlop)) horizontal = dx >= dy
+                if (horizontal == false) {
+                    track(null)
+                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
+                    break
+                }
+                if (horizontal == true) change.consume()
+                track(floatArrayOf(x, y))
+                if (change.uptimeMillis - lastMove >= 16) {
+                    lastMove = change.uptimeMillis
+                    send(AgentWidgetEvent.pointer(id, "move", x, y, w, h))
+                }
+            }
+        }
     }
 }
 

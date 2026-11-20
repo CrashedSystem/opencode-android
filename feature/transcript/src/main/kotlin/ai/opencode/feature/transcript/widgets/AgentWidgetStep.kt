@@ -11,7 +11,9 @@ import kotlinx.serialization.json.doubleOrNull
 
 /** `{ id, type, value? }`; [value] is JSON text. */
 data class AgentWidgetEvent(val id: String, val type: Type, val value: String? = null) {
-    enum class Type(val wire: String) { Press("press"), Change("change"), Pointer("pointer"), Fullscreen("fullscreen") }
+    enum class Type(val wire: String) {
+        Press("press"), Change("change"), Pointer("pointer"), Fullscreen("fullscreen"), Key("key"), Focus("focus"),
+    }
 
     val json: String
         get() = buildString {
@@ -20,10 +22,29 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
             append('}')
         }
 
+    /** A queued event [next] can stand in for: a newer value of the same control, or a newer move of the same press. */
+    fun replaceable(next: AgentWidgetEvent): Boolean = id == next.id && type == next.type && when (type) {
+        Type.Change -> true
+        Type.Pointer -> value.isMove() && next.value.isMove()
+        else -> false
+    }
+
+    private fun String?.isMove() = this?.startsWith("{\"kind\":\"move\"") == true
+
     companion object {
         fun press(id: String) = AgentWidgetEvent(id, Type.Press)
         /** Entering ([on]) or leaving full screen: `{ id: "", type: "fullscreen", value }`. */
         fun fullscreen(on: Boolean) = AgentWidgetEvent("", Type.Fullscreen, on.toString())
+        /** Keyboard focus gained or lost: `{ id: "", type: "focus", value }`. */
+        fun focus(on: Boolean) = AgentWidgetEvent("", Type.Focus, on.toString())
+        /** A key while the widget has keyboard focus; [key] and [code] as in DOM `KeyboardEvent`. */
+        fun key(kind: String, key: String, code: String, repeat: Boolean, shift: Boolean, alt: Boolean, ctrl: Boolean, meta: Boolean) =
+            AgentWidgetEvent(
+                "",
+                Type.Key,
+                "{\"kind\":\"$kind\",\"key\":${JsonPrimitive(key)},\"code\":${JsonPrimitive(code)},\"repeat\":$repeat," +
+                    "\"shift\":$shift,\"alt\":$alt,\"ctrl\":$ctrl,\"meta\":$meta}",
+            )
         fun change(id: String, value: Boolean) = AgentWidgetEvent(id, Type.Change, value.toString())
         fun change(id: String, value: Number) = AgentWidgetEvent(id, Type.Change, number(value.toDouble()))
         fun change(id: String, value: String) = AgentWidgetEvent(id, Type.Change, JsonPrimitive(value).toString())

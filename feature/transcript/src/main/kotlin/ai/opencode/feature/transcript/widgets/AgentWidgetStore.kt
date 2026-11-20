@@ -134,9 +134,9 @@ class AgentWidgetController internal constructor(
 
     fun startNanos(key: String, now: Long): Long = starts.getOrPut(key) { now }
 
-    /** Tells the program it entered or left full screen, when it's taking input. */
+    /** Tells the program it entered or left full screen (its `onFullscreen` hook), when it's taking input. */
     internal fun fullscreenChanged(on: Boolean) {
-        if (isLive) send(AgentWidgetEvent.fullscreen(on))
+        if (isLiveMode || status(widget) is Status.Open) send(AgentWidgetEvent.fullscreen(on))
     }
 
     /** The last event or init step's time on the lane, for the perf log. */
@@ -202,7 +202,7 @@ class AgentWidgetController internal constructor(
             is Phase.Ready -> feed(Event.Input(event))
             is Phase.Stepping -> {
                 val last = queued.lastOrNull()
-                if (last != null && last.id == event.id && last.type == event.type && event.type != AgentWidgetEvent.Type.Press) {
+                if (last != null && last.replaceable(event)) {
                     queued[queued.lastIndex] = event
                 } else {
                     queued.addLast(event)
@@ -487,7 +487,7 @@ class AgentWidgetController internal constructor(
                         val phase = when {
                             error is AgentWidgetNode.InvalidView -> "view"
                             effect.input.startsWith("{\"phase\":\"init\"") -> "init"
-                            else -> "update"
+                            else -> "event"
                         }
                         reportError(phase, error)
                     }

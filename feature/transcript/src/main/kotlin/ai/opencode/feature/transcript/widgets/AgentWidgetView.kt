@@ -20,6 +20,7 @@ import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -116,8 +118,11 @@ fun AgentWidgetFrame(
 ) {
     val colors = OpenCodeTheme.colors
     val fullscreen = LocalAgentWidgetFullscreen.current
+    val keyboard = rememberAgentWidgetKeyboard(controller, enabled = phase is Phase.Ready || phase is Phase.Stepping)
     Box(
-        if (fullscreen) modifier.fillMaxSize() else modifier.fillMaxWidth().openCodeHairline(OpenCodeShape.panel),
+        (if (fullscreen) modifier.fillMaxSize() else modifier.fillMaxWidth().openCodeHairline(OpenCodeShape.panel))
+            .then(if (keyboard.focused) Modifier.border(1.dp, colors.focusRing, OpenCodeShape.panel) else Modifier)
+            .then(keyboard.modifier),
     ) {
         Column(
             Modifier
@@ -198,6 +203,7 @@ fun AgentWidgetFrame(
                 }
             }
         }
+        if (keyboard.focused) KeyboardHint(Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (onExpand != null) {
             OpenCodeIconButton(
                 SFSymbol.ArrowUpLeftAndArrowDownRight,
@@ -209,6 +215,21 @@ fun AgentWidgetFrame(
                 iconSize = 16.dp,
             )
         }
+    }
+}
+
+/** The widget has the keyboard: a keyboard and "Esc", which gives it back. */
+@Composable
+private fun KeyboardHint(modifier: Modifier) {
+    val colors = OpenCodeTheme.colors
+    val description = stringResource(R.string.transcript_widget_keyboard_description)
+    Row(
+        modifier.semantics(mergeDescendants = true) { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        OpenCodeIcon(SFSymbol.Keyboard, null, size = 12.dp, tint = colors.tertiaryText)
+        Text(stringResource(R.string.transcript_widget_keyboard_hint), style = OpenCodeTextStyles.caption2, color = colors.tertiaryText)
     }
 }
 
