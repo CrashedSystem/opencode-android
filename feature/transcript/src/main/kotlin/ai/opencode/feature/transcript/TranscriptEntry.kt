@@ -279,6 +279,16 @@ sealed interface TranscriptEntry {
                         flush()
                         entries += Single(item.copy(name = models.model(item.model)?.name))
                     }
+                    is OpenCodeTranscriptItem.Widget -> {
+                        flush()
+                        entries += Single(item)
+                    }
+                    is OpenCodeTranscriptItem.WidgetResponse -> {
+                        endReply()
+                        turnHasRunError = false
+                        flush()
+                        entries += Single(item)
+                    }
                     is OpenCodeTranscriptItem.SendFailure, is OpenCodeTranscriptItem.RunRetry -> continue
                 }
             }

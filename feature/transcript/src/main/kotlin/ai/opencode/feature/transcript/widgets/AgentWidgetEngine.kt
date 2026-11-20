@@ -13,8 +13,11 @@ interface AgentWidgetEngine {
 
     fun compile(program: String): AgentWidgetProgram
 
-    /** A `shader` node's full WGSL module (header, template code, entry point) as GLSL ES 3.00. */
+    /** A `shader` node's `wgsl` (its `shade` function) wrapped in the contract's header and entry point, as GLSL ES 3.00. */
     fun translateShader(wgsl: String): String
+
+    /** The full-screen triangle vertex stage paired with every translated shader, as GLSL ES 3.00. */
+    fun vertexShader(): String
 
     companion object Key : DependencyKey<AgentWidgetEngine> {
         override val liveValue: AgentWidgetEngine by lazy { NativeAgentWidgetEngine.load() ?: Unavailable }
@@ -26,6 +29,7 @@ interface AgentWidgetEngine {
         override val isAvailable: Boolean = false
         override fun compile(program: String): AgentWidgetProgram = throw AgentWidgetEngineException(UNAVAILABLE)
         override fun translateShader(wgsl: String): String = throw AgentWidgetEngineException(UNAVAILABLE)
+        override fun vertexShader(): String = throw AgentWidgetEngineException(UNAVAILABLE)
         private const val UNAVAILABLE = "The widget runtime isn't available in this build."
     }
 }

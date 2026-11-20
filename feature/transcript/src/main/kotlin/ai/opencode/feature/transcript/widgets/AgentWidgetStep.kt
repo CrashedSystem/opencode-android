@@ -26,8 +26,12 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
         fun change(id: String, value: String) = AgentWidgetEvent(id, Type.Change, JsonPrimitive(value).toString())
         fun change(id: String, values: List<String>) =
             AgentWidgetEvent(id, Type.Change, values.joinToString(",", "[", "]") { JsonPrimitive(it).toString() })
-        fun pointer(id: String, kind: String, x: Float, y: Float) =
-            AgentWidgetEvent(id, Type.Pointer, "{\"kind\":\"$kind\",\"x\":${number(x.toDouble())},\"y\":${number(y.toDouble())}}")
+        fun pointer(id: String, kind: String, x: Float, y: Float, width: Float, height: Float) = AgentWidgetEvent(
+            id,
+            Type.Pointer,
+            "{\"kind\":\"$kind\",\"x\":${number(x.toDouble())},\"y\":${number(y.toDouble())}," +
+                "\"width\":${number(width.toDouble())},\"height\":${number(height.toDouble())}}",
+        )
 
         /** Whole numbers without a fraction, as JavaScript prints them. */
         fun number(value: Double): String =

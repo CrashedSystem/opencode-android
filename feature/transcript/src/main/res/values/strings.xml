@@ -172,4 +172,14 @@
         <item quantity="one">%1$s comment</item>
         <item quantity="other">%1$s comments</item>
     </plurals>
+    <string name="transcript_widget_loading">Loading widget…</string>
+    <string name="transcript_widget_failed">Couldn’t show this widget</string>
+    <string name="transcript_widget_sending">Sending…</string>
+    <string name="transcript_widget_submitted">Submitted</string>
+    <string name="transcript_widget_dismissed">Dismissed</string>
+    <string name="transcript_widget_already_answered">This widget was already answered.</string>
+    <string name="transcript_widget_not_open">This widget isn’t open any more.</string>
+    <string name="transcript_widget_step_failed">The widget couldn’t respond.</string>
+    <string name="transcript_widget_page">Page %1$d of %2$d</string>
+    <string name="transcript_widget_shader_failed">Couldn’t run this shader</string>
 </resources>

@@ -729,6 +729,7 @@ internal class MessageRows(val messageID: String) {
         is OpenCodeTranscriptItem.UserText -> item.id == messageID
         is OpenCodeTranscriptItem.Compaction -> item.id == messageID
         is OpenCodeTranscriptItem.ModelSwitch -> item.id == messageID
+        is OpenCodeTranscriptItem.Widget, is OpenCodeTranscriptItem.WidgetResponse -> item.id == messageID
         is OpenCodeTranscriptItem.UserImages -> item.id == images
         is OpenCodeTranscriptItem.UserFiles -> item.id == files
         is OpenCodeTranscriptItem.Tool -> item.call.messageID == messageID || item.id == messageID || item.id.startsWith(prefix)

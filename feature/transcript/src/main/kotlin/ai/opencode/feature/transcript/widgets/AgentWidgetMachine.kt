@@ -48,31 +48,17 @@ object AgentWidgetMachine {
     sealed interface Phase {
         data class Loading(val status: Status) : Phase
         data class Starting(val status: Status) : Phase
-        data class Ready(val state: String, val view: AgentWidgetNode, val error: String? = null) : Phase
-        data class Stepping(val state: String, val view: AgentWidgetNode) : Phase
-        data class Responding(val state: String, val view: AgentWidgetNode, val response: OpenCodeWidgetResponse, val attempt: Int) : Phase
-        data class Closed(val view: AgentWidgetNode?, val how: AgentWidgetMachine.Closed, val state: String? = null) : Phase
+        data class Ready(override val state: String, override val view: AgentWidgetNode, val error: String? = null) : Phase
+        data class Stepping(override val state: String, override val view: AgentWidgetNode) : Phase
+        data class Responding(override val state: String, override val view: AgentWidgetNode, val response: OpenCodeWidgetResponse, val attempt: Int) : Phase
+        data class Closed(override val view: AgentWidgetNode?, val how: AgentWidgetMachine.Closed, override val state: String? = null) : Phase
         data class Failed(val message: String, val status: Status) : Phase
 
         /** The view drawn now, live or final. */
-        val view: AgentWidgetNode?
-            get() = when (this) {
-                is Ready -> view
-                is Stepping -> view
-                is Responding -> view
-                is Closed -> view
-                else -> null
-            }
+        val view: AgentWidgetNode? get() = null
 
         /** The state the view was drawn from, when this client ran it. */
-        val state: String?
-            get() = when (this) {
-                is Ready -> state
-                is Stepping -> state
-                is Responding -> state
-                is Closed -> state
-                else -> null
-            }
+        val state: String? get() = null
     }
 
     sealed interface RespondFailure {

@@ -15,6 +15,9 @@ import ai.opencode.feature.media.LocalAgentImageRow
 import ai.opencode.feature.media.LocalAgentImageViewport
 import ai.opencode.feature.media.LocalLinkPreviewRevision
 import ai.opencode.feature.media.LocalLinkPreviewStore
+import ai.opencode.feature.transcript.widgets.AgentWidgetStore
+import ai.opencode.feature.transcript.widgets.LocalAgentWidgetPaused
+import ai.opencode.feature.transcript.widgets.LocalAgentWidgetStore
 import ai.opencode.feature.media.TranscriptMetrics
 import ai.opencode.feature.transcript.LocalTranscriptLayoutTuning
 import ai.opencode.feature.transcript.LocalTranscriptRowContext
@@ -573,6 +576,8 @@ private fun TranscriptListContent(
     if (!configuration.isRunning) textReveal.settleAll()
     val linkPreviews = retain { LinkPreviewStore() }
     RetainedEffect(linkPreviews) { onRetire { linkPreviews.close() } }
+    val widgets = retain { AgentWidgetStore() }
+    RetainedEffect(widgets) { onRetire { widgets.close() } }
     val linkRevisions = remember { mutableStateMapOf<String, Int>() }
     DisposableEffect(linkPreviews) {
         linkPreviews.onArrival = { rows -> for (row in rows) linkRevisions[row] = linkPreviews.revision(row) }
@@ -604,6 +609,8 @@ private fun TranscriptListContent(
         LocalTranscriptLayoutTuning provides layoutTuning,
         LocalTranscriptTextReveal provides textReveal,
         LocalLinkPreviewStore provides linkPreviews,
+        LocalAgentWidgetStore provides widgets,
+        LocalAgentWidgetPaused provides !resumed,
         LocalTranscriptReplySelection provides replySelection,
         // A covering screen isn't composed and a stopped activity's frame clock pauses, so
         // only the lifecycle below RESUMED is left to gate (iOS `emptyPulsePaused`).

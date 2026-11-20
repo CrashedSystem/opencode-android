@@ -22,13 +22,13 @@ sealed interface AgentWidgetNode {
     enum class Align { Start, Center, End, Stretch }
     enum class Variant { Primary, Secondary, Danger }
 
-    data class Column(val children: List<AgentWidgetNode>, val gap: Int?, val align: Align) : AgentWidgetNode
-    data class Row(val children: List<AgentWidgetNode>, val gap: Int?, val align: Align, val wrap: Boolean) : AgentWidgetNode
+    data class Column(override val children: List<AgentWidgetNode>, val gap: Int?, val align: Align) : AgentWidgetNode
+    data class Row(override val children: List<AgentWidgetNode>, val gap: Int?, val align: Align, val wrap: Boolean) : AgentWidgetNode
     data class Text(val text: String, val style: TextStyle, val tone: Tone) : AgentWidgetNode
     data class Markdown(val text: String) : AgentWidgetNode
     data class Image(val src: String, val alt: String?, val aspect: Float?) : AgentWidgetNode
-    data class Carousel(val id: String?, val index: Int?, val children: List<AgentWidgetNode>) : AgentWidgetNode
-    data class Card(val id: String?, val selected: Boolean, val children: List<AgentWidgetNode>) : AgentWidgetNode
+    data class Carousel(val id: String?, val index: Int?, override val children: List<AgentWidgetNode>) : AgentWidgetNode
+    data class Card(val id: String?, val selected: Boolean, override val children: List<AgentWidgetNode>) : AgentWidgetNode
     data class Button(val id: String, val label: String, val variant: Variant, val disabled: Boolean) : AgentWidgetNode
     data class Checkbox(val id: String, val label: String, val checked: Boolean, val disabled: Boolean) : AgentWidgetNode
     data class Slider(val id: String, val label: String?, val value: Float, val min: Float, val max: Float, val step: Float?) : AgentWidgetNode
@@ -37,7 +37,7 @@ sealed interface AgentWidgetNode {
     }
     data class Input(val id: String, val label: String?, val value: String, val placeholder: String?, val multiline: Boolean) : AgentWidgetNode
     data object Divider : AgentWidgetNode
-    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val alt: String?) : AgentWidgetNode
+    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?) : AgentWidgetNode
     data class Shader(
         val id: String?,
         val height: Float,
@@ -55,14 +55,7 @@ sealed interface AgentWidgetNode {
         override fun hashCode(): Int = (wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()
     }
 
-    val children: List<AgentWidgetNode>
-        get() = when (this) {
-            is Column -> children
-            is Row -> children
-            is Carousel -> children
-            is Card -> children
-            else -> emptyList()
-        }
+    val children: List<AgentWidgetNode> get() = emptyList()
 
     companion object {
         const val MAX_FPS = 60
@@ -115,6 +108,7 @@ sealed interface AgentWidgetNode {
                     o.requiredNumber(type, "height").toFloat().coerceIn(1f, 2000f),
                     o.number("width")?.toFloat()?.takeIf { it > 0f },
                     (o.number("fps")?.toInt() ?: 0).coerceIn(0, MAX_FPS),
+                    o.number("duration")?.toFloat()?.takeIf { it >= 0f },
                     o.string("alt"),
                 )
                 "shader" -> {

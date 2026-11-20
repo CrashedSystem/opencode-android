@@ -51,6 +51,9 @@ class AgentWidgetStore(
 
 val LocalAgentWidgetStore = staticCompositionLocalOf<AgentWidgetStore?> { null }
 
+/** True while the list isn't on screen (its lifecycle is below resumed): shaders stop rendering. */
+val LocalAgentWidgetPaused = androidx.compose.runtime.compositionLocalOf { false }
+
 /** Runs one widget's machine: fetches and compiles its template, steps it off the main thread, and answers it once. */
 @Stable
 class AgentWidgetController internal constructor(
