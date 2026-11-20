@@ -178,4 +178,19 @@
         <item quantity="many">%1$s comentaris</item>
         <item quantity="other">%1$s comentaris</item>
     </plurals>
+    <string name="transcript_widget_loading">Carregant el giny…</string>
+    <string name="transcript_widget_failed">No s\'ha pogut mostrar aquest giny</string>
+    <string name="transcript_widget_sending">S\'està enviant…</string>
+    <string name="transcript_widget_submitted">Enviat</string>
+    <string name="transcript_widget_dismissed">Desestimada</string>
+    <string name="transcript_widget_already_answered">Aquest giny ja s\'ha respost.</string>
+    <string name="transcript_widget_not_open">Aquest giny ja no està obert.</string>
+    <string name="transcript_widget_step_failed">El giny no ha pogut respondre.</string>
+    <string name="transcript_widget_page">Pàgina %1$d de %2$d</string>
+    <string name="transcript_widget_shader_failed">No s\'ha pogut executar aquest shader</string>
+    <string name="transcript_widget_fullscreen">Pantalla completa</string>
+    <string name="transcript_widget_fullscreen_placeholder">Obre a pantalla completa</string>
+    <string name="transcript_widget_network">Xarxa: %1$s</string>
+    <string name="transcript_widget_restart">Reinicia</string>
+    <string name="transcript_widget_keyboard_description">Les tecles van a aquest giny. Prem Esc per tornar-les.</string>
 </resources>

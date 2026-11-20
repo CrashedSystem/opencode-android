@@ -172,4 +172,19 @@
         <item quantity="one">%1$s टिप्पणी</item>
         <item quantity="other">%1$s टिप्पणीहरू</item>
     </plurals>
+    <string name="transcript_widget_loading">विजेट लोड गर्दै…</string>
+    <string name="transcript_widget_failed">यो विजेट देखाउन सकिएन</string>
+    <string name="transcript_widget_sending">पठाउँदै…</string>
+    <string name="transcript_widget_submitted">पेस गरियो</string>
+    <string name="transcript_widget_dismissed">खारेज गरियो</string>
+    <string name="transcript_widget_already_answered">यो विजेटमा उत्तर दिइसकियो।</string>
+    <string name="transcript_widget_not_open">यो विजेट अब खुला छैन।</string>
+    <string name="transcript_widget_step_failed">विजेटले जवाफ दिन सकेन।</string>
+    <string name="transcript_widget_page">%2$d मध्ये पृष्ठ %1$d</string>
+    <string name="transcript_widget_shader_failed">यो शेडर चलाउन सकिएन</string>
+    <string name="transcript_widget_fullscreen">पूर्ण स्क्रिन</string>
+    <string name="transcript_widget_fullscreen_placeholder">पूर्ण स्क्रिनमा खोल्नुहोस्</string>
+    <string name="transcript_widget_network">नेटवर्क: %1$s</string>
+    <string name="transcript_widget_restart">पुनः सुरु</string>
+    <string name="transcript_widget_keyboard_description">कुञ्जीहरू यो विजेटमा जान्छन्। तिनलाई फिर्ता दिन Esc थिच्नुहोस्।</string>
 </resources>

@@ -172,4 +172,19 @@
         <item quantity="one">%1$s ta izoh</item>
         <item quantity="other">%1$s ta izoh</item>
     </plurals>
+    <string name="transcript_widget_loading">Vidjet yuklanmoqda…</string>
+    <string name="transcript_widget_failed">Bu vidjetni ko‘rsatib bo‘lmadi</string>
+    <string name="transcript_widget_sending">Yuborilmoqda…</string>
+    <string name="transcript_widget_submitted">Yuborildi</string>
+    <string name="transcript_widget_dismissed">Bekor qilindi</string>
+    <string name="transcript_widget_already_answered">Bu vidjetga allaqachon javob berilgan.</string>
+    <string name="transcript_widget_not_open">Bu vidjet endi ochiq emas.</string>
+    <string name="transcript_widget_step_failed">Vidjet javob bera olmadi.</string>
+    <string name="transcript_widget_page">%2$d sahifadan %1$d-sahifa</string>
+    <string name="transcript_widget_shader_failed">Bu shaderni ishga tushirib bo‘lmadi</string>
+    <string name="transcript_widget_fullscreen">To‘liq ekran</string>
+    <string name="transcript_widget_fullscreen_placeholder">To‘liq ekranda ochish</string>
+    <string name="transcript_widget_network">Tarmoq: %1$s</string>
+    <string name="transcript_widget_restart">Qayta ishga tushirish</string>
+    <string name="transcript_widget_keyboard_description">Tugmalar ushbu vidjetga yo‘naltiriladi. Ularni qaytarish uchun Esc tugmasini bosing.</string>
 </resources>

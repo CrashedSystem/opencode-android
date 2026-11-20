@@ -178,4 +178,19 @@
         <item quantity="few">%1$s comentarii</item>
         <item quantity="other">%1$s de comentarii</item>
     </plurals>
+    <string name="transcript_widget_loading">Se încarcă widgetul…</string>
+    <string name="transcript_widget_failed">Widgetul nu a putut fi afișat</string>
+    <string name="transcript_widget_sending">Se trimite…</string>
+    <string name="transcript_widget_submitted">Trimis</string>
+    <string name="transcript_widget_dismissed">Respins</string>
+    <string name="transcript_widget_already_answered">Widgetul a primit deja răspuns.</string>
+    <string name="transcript_widget_not_open">Widgetul nu mai este deschis.</string>
+    <string name="transcript_widget_step_failed">Widgetul nu a putut răspunde.</string>
+    <string name="transcript_widget_page">Pagina %1$d din %2$d</string>
+    <string name="transcript_widget_shader_failed">Shaderul nu a putut fi rulat</string>
+    <string name="transcript_widget_fullscreen">Ecran întreg</string>
+    <string name="transcript_widget_fullscreen_placeholder">Deschide pe ecran întreg</string>
+    <string name="transcript_widget_network">Rețea: %1$s</string>
+    <string name="transcript_widget_restart">Repornește</string>
+    <string name="transcript_widget_keyboard_description">Tastele ajung la acest widget. Apasă Esc pentru a le readuce.</string>
 </resources>

@@ -178,4 +178,19 @@
         <item quantity="few">%1$s коментара</item>
         <item quantity="other">%1$s коментара</item>
     </plurals>
+    <string name="transcript_widget_loading">Учитавање виџета…</string>
+    <string name="transcript_widget_failed">Није могуће приказати овај виџет</string>
+    <string name="transcript_widget_sending">Слање…</string>
+    <string name="transcript_widget_submitted">Послато</string>
+    <string name="transcript_widget_dismissed">Одбачено</string>
+    <string name="transcript_widget_already_answered">Овај виџет је већ одговорен.</string>
+    <string name="transcript_widget_not_open">Овај виџет више није отворен.</string>
+    <string name="transcript_widget_step_failed">Виџет није могао да одговори.</string>
+    <string name="transcript_widget_page">Страница %1$d од %2$d</string>
+    <string name="transcript_widget_shader_failed">Није могуће покренути овај шејдер</string>
+    <string name="transcript_widget_fullscreen">Цео екран</string>
+    <string name="transcript_widget_fullscreen_placeholder">Отвори преко целог екрана</string>
+    <string name="transcript_widget_network">Мрежа: %1$s</string>
+    <string name="transcript_widget_restart">Поново покрени</string>
+    <string name="transcript_widget_keyboard_description">Притисци на тастере се шаљу овом виџету. Притисните Esc да их вратите.</string>
 </resources>

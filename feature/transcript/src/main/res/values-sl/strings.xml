@@ -184,4 +184,19 @@
         <item quantity="few">%1$s komentarji</item>
         <item quantity="other">%1$s komentarjev</item>
     </plurals>
+    <string name="transcript_widget_loading">Nalaganje gradnika …</string>
+    <string name="transcript_widget_failed">Tega gradnika ni bilo mogoče prikazati</string>
+    <string name="transcript_widget_sending">Pošiljanje …</string>
+    <string name="transcript_widget_submitted">Oddano</string>
+    <string name="transcript_widget_dismissed">Zavrnjeno</string>
+    <string name="transcript_widget_already_answered">Ta gradnik je že odgovorjen.</string>
+    <string name="transcript_widget_not_open">Ta gradnik ni več odprt.</string>
+    <string name="transcript_widget_step_failed">Gradnik ni mogel odgovoriti.</string>
+    <string name="transcript_widget_page">Stran %1$d od %2$d</string>
+    <string name="transcript_widget_shader_failed">Tega senčilnika ni bilo mogoče zagnati</string>
+    <string name="transcript_widget_fullscreen">Cel zaslon</string>
+    <string name="transcript_widget_fullscreen_placeholder">Odpri čez cel zaslon</string>
+    <string name="transcript_widget_network">Omrežje: %1$s</string>
+    <string name="transcript_widget_restart">Znova zaženite</string>
+    <string name="transcript_widget_keyboard_description">Pritiski tipk se pošiljajo v ta gradnik. Pritisnite Esc, da jih dobite nazaj.</string>
 </resources>

@@ -172,4 +172,19 @@
         <item quantity="one">%1$s टिप्पणी</item>
         <item quantity="other">%1$s टिप्पणियाँ</item>
     </plurals>
+    <string name="transcript_widget_loading">विजेट लोड हो रहा है…</string>
+    <string name="transcript_widget_failed">यह विजेट नहीं दिखाया जा सका</string>
+    <string name="transcript_widget_sending">भेजा जा रहा है…</string>
+    <string name="transcript_widget_submitted">सबमिट किया गया</string>
+    <string name="transcript_widget_dismissed">ख़ारिज किया गया</string>
+    <string name="transcript_widget_already_answered">इस विजेट का उत्तर पहले ही दिया जा चुका है।</string>
+    <string name="transcript_widget_not_open">यह विजेट अब खुला नहीं है।</string>
+    <string name="transcript_widget_step_failed">विजेट जवाब नहीं दे सका।</string>
+    <string name="transcript_widget_page">%2$d में से पृष्ठ %1$d</string>
+    <string name="transcript_widget_shader_failed">यह शेडर नहीं चला सके।</string>
+    <string name="transcript_widget_fullscreen">फ़ुल स्क्रीन</string>
+    <string name="transcript_widget_fullscreen_placeholder">फ़ुल स्क्रीन में खोलें</string>
+    <string name="transcript_widget_network">नेटवर्क: %1$s</string>
+    <string name="transcript_widget_restart">पुनः आरंभ करें</string>
+    <string name="transcript_widget_keyboard_description">कुंजियाँ इस विजेट में जाती हैं। इन्हें वापस पाने के लिए Esc दबाएँ।</string>
 </resources>

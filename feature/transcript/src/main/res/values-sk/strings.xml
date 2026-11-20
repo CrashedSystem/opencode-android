@@ -184,4 +184,19 @@
         <item quantity="many">%1$s komentára</item>
         <item quantity="other">%1$s komentárov</item>
     </plurals>
+    <string name="transcript_widget_loading">Načítava sa widget…</string>
+    <string name="transcript_widget_failed">Tento widget sa nepodarilo zobraziť</string>
+    <string name="transcript_widget_sending">Odosiela sa…</string>
+    <string name="transcript_widget_submitted">Odoslané</string>
+    <string name="transcript_widget_dismissed">Zamietnuté</string>
+    <string name="transcript_widget_already_answered">Tento widget už bol zodpovedaný.</string>
+    <string name="transcript_widget_not_open">Tento widget už nie je otvorený.</string>
+    <string name="transcript_widget_step_failed">Widget nedokázal odpovedať.</string>
+    <string name="transcript_widget_page">Strana %1$d z %2$d</string>
+    <string name="transcript_widget_shader_failed">Tento shader sa nepodarilo spustiť</string>
+    <string name="transcript_widget_fullscreen">Celá obrazovka</string>
+    <string name="transcript_widget_fullscreen_placeholder">Otvoriť na celej obrazovke</string>
+    <string name="transcript_widget_network">Sieť: %1$s</string>
+    <string name="transcript_widget_restart">Reštartovať</string>
+    <string name="transcript_widget_keyboard_description">Klávesy smerujú do tohto widgetu. Stlačením Esc ich vrátite späť.</string>
 </resources>

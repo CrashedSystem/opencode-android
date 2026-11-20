@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">មតិយោបល់ %1$s</item>
     </plurals>
+    <string name="transcript_widget_loading">កំពុងផ្ទុកវីជេត…</string>
+    <string name="transcript_widget_failed">មិនអាចបង្ហាញវីជេតនេះបានទេ</string>
+    <string name="transcript_widget_sending">កំពុងផ្ញើ…</string>
+    <string name="transcript_widget_submitted">បានដាក់ស្នើ</string>
+    <string name="transcript_widget_dismissed">បានច្រានចោល</string>
+    <string name="transcript_widget_already_answered">វីជេតនេះត្រូវបានឆ្លើយរួចហើយ</string>
+    <string name="transcript_widget_not_open">វីជេតនេះលែងបើកទៀតហើយ</string>
+    <string name="transcript_widget_step_failed">វីជេតមិនអាចឆ្លើយតបបានទេ</string>
+    <string name="transcript_widget_page">ទំព័រ %1$d ក្នុងចំណោម %2$d</string>
+    <string name="transcript_widget_shader_failed">មិនអាចដំណើរការ shader នេះបានទេ</string>
+    <string name="transcript_widget_fullscreen">ពេញអេក្រង់</string>
+    <string name="transcript_widget_fullscreen_placeholder">បើកពេញអេក្រង់</string>
+    <string name="transcript_widget_network">បណ្តាញ៖ %1$s</string>
+    <string name="transcript_widget_restart">ចាប់ផ្ដើមឡើងវិញ</string>
+    <string name="transcript_widget_keyboard_description">គ្រាប់ចុចទៅកាន់វីជេតនេះ។ ចុច Esc ដើម្បីប្រគល់វាមកវិញ។</string>
 </resources>

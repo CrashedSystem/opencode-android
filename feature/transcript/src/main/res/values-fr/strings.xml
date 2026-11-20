@@ -178,4 +178,19 @@
         <item quantity="many">%1$s commentaires</item>
         <item quantity="other">%1$s commentaires</item>
     </plurals>
+    <string name="transcript_widget_loading">Chargement du widget…</string>
+    <string name="transcript_widget_failed">Impossible d’afficher ce widget</string>
+    <string name="transcript_widget_sending">Envoi en cours…</string>
+    <string name="transcript_widget_submitted">Soumis</string>
+    <string name="transcript_widget_dismissed">Ignorée</string>
+    <string name="transcript_widget_already_answered">Ce widget a déjà reçu une réponse.</string>
+    <string name="transcript_widget_not_open">Ce widget n’est plus ouvert.</string>
+    <string name="transcript_widget_step_failed">Le widget n’a pas pu répondre.</string>
+    <string name="transcript_widget_page">Page %1$d sur %2$d</string>
+    <string name="transcript_widget_shader_failed">Impossible d’exécuter ce shader</string>
+    <string name="transcript_widget_fullscreen">Plein écran</string>
+    <string name="transcript_widget_fullscreen_placeholder">Ouvrir en plein écran</string>
+    <string name="transcript_widget_network">Réseau : %1$s</string>
+    <string name="transcript_widget_restart">Redémarrer</string>
+    <string name="transcript_widget_keyboard_description">Les touches sont envoyées à ce widget. Appuyez sur Esc pour les récupérer.</string>
 </resources>

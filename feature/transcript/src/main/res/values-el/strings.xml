@@ -172,4 +172,19 @@
         <item quantity="one">%1$s σχόλιο</item>
         <item quantity="other">%1$s σχόλια</item>
     </plurals>
+    <string name="transcript_widget_loading">Φόρτωση widget…</string>
+    <string name="transcript_widget_failed">Αδυναμία εμφάνισης αυτού του widget</string>
+    <string name="transcript_widget_sending">Αποστολή…</string>
+    <string name="transcript_widget_submitted">Υποβλήθηκε</string>
+    <string name="transcript_widget_dismissed">Απορρίφθηκε</string>
+    <string name="transcript_widget_already_answered">Αυτό το widget έχει ήδη απαντηθεί.</string>
+    <string name="transcript_widget_not_open">Αυτό το widget δεν είναι πλέον ανοιχτό.</string>
+    <string name="transcript_widget_step_failed">Το widget δεν μπόρεσε να απαντήσει.</string>
+    <string name="transcript_widget_page">Σελίδα %1$d από %2$d</string>
+    <string name="transcript_widget_shader_failed">Αδυναμία εκτέλεσης αυτού του shader</string>
+    <string name="transcript_widget_fullscreen">Πλήρης οθόνη</string>
+    <string name="transcript_widget_fullscreen_placeholder">Άνοιγμα σε πλήρη οθόνη</string>
+    <string name="transcript_widget_network">Δίκτυο: %1$s</string>
+    <string name="transcript_widget_restart">Επανεκκίνηση</string>
+    <string name="transcript_widget_keyboard_description">Τα πλήκτρα πηγαίνουν σε αυτό το widget. Πατήστε Esc για να τα επιστρέψετε.</string>
 </resources>

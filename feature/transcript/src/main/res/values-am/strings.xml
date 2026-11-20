@@ -172,4 +172,19 @@
         <item quantity="one">%1$s አስተያየት</item>
         <item quantity="other">%1$s አስተያየቶች</item>
     </plurals>
+    <string name="transcript_widget_loading">ዊጀቱን በመጫን ላይ…</string>
+    <string name="transcript_widget_failed">ይህን ዊጀት ማሳየት አልተቻለም</string>
+    <string name="transcript_widget_sending">በመላክ ላይ…</string>
+    <string name="transcript_widget_submitted">ተልኳል</string>
+    <string name="transcript_widget_dismissed">ውድቅ ተደርጓል</string>
+    <string name="transcript_widget_already_answered">ይህ ዊጀት አስቀድሞ ተመልሷል።</string>
+    <string name="transcript_widget_not_open">ይህ ዊጀት ከእንግዲህ ክፍት አይደለም።</string>
+    <string name="transcript_widget_step_failed">ዊጀቱ ምላሽ መስጠት አልቻለም።</string>
+    <string name="transcript_widget_page">ገጽ %1$d ከ%2$d</string>
+    <string name="transcript_widget_shader_failed">ይህን ሼደር ማስኬድ አልተቻለም</string>
+    <string name="transcript_widget_fullscreen">ሙሉ ማያ</string>
+    <string name="transcript_widget_fullscreen_placeholder">በሙሉ ማያ ክፈት</string>
+    <string name="transcript_widget_network">አውታረ መረብ: %1$s</string>
+    <string name="transcript_widget_restart">ዳግም አስጀምር</string>
+    <string name="transcript_widget_keyboard_description">ቁልፎች ወደዚህ ዊጀት ይሄዳሉ። መልሰው ለማግኘት Esc ይጫኑ።</string>
 </resources>

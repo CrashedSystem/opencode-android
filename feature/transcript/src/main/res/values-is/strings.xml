@@ -172,4 +172,19 @@
         <item quantity="one">%1$s athugasemd</item>
         <item quantity="other">%1$s athugasemdir</item>
     </plurals>
+    <string name="transcript_widget_loading">Hleður græju…</string>
+    <string name="transcript_widget_failed">Ekki tókst að sýna þessa græju</string>
+    <string name="transcript_widget_sending">Sendir…</string>
+    <string name="transcript_widget_submitted">Sent inn</string>
+    <string name="transcript_widget_dismissed">Vísað frá</string>
+    <string name="transcript_widget_already_answered">Þessari græju var þegar svarað.</string>
+    <string name="transcript_widget_not_open">Þessi græja er ekki lengur opin.</string>
+    <string name="transcript_widget_step_failed">Græjan gat ekki svarað.</string>
+    <string name="transcript_widget_page">Síða %1$d af %2$d</string>
+    <string name="transcript_widget_shader_failed">Ekki tókst að keyra þennan skyggjara</string>
+    <string name="transcript_widget_fullscreen">Fullur skjár</string>
+    <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skjá</string>
+    <string name="transcript_widget_network">Net: %1$s</string>
+    <string name="transcript_widget_restart">Endurræstu</string>
+    <string name="transcript_widget_keyboard_description">Takkar fara í græjuna. Ýttu á Esc til að fá þá til baka.</string>
 </resources>

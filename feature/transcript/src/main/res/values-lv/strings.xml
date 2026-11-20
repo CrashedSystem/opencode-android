@@ -178,4 +178,19 @@
         <item quantity="one">%1$s komentārs</item>
         <item quantity="other">%1$s komentāri</item>
     </plurals>
+    <string name="transcript_widget_loading">Ielādējas logrīks…</string>
+    <string name="transcript_widget_failed">Neizdevās parādīt šo logrīku</string>
+    <string name="transcript_widget_sending">Notiek sūtīšana…</string>
+    <string name="transcript_widget_submitted">Iesniegts</string>
+    <string name="transcript_widget_dismissed">Noraidīts</string>
+    <string name="transcript_widget_already_answered">Uz šo logrīku jau ir atbildēts.</string>
+    <string name="transcript_widget_not_open">Šis logrīks vairs nav atvērts.</string>
+    <string name="transcript_widget_step_failed">Logrīks nevarēja atbildēt.</string>
+    <string name="transcript_widget_page">Lapa %1$d no %2$d</string>
+    <string name="transcript_widget_shader_failed">Neizdevās palaist šo šeideri</string>
+    <string name="transcript_widget_fullscreen">Pilnekrāns</string>
+    <string name="transcript_widget_fullscreen_placeholder">Atvērt pilnekrānā</string>
+    <string name="transcript_widget_network">Tīkls: %1$s</string>
+    <string name="transcript_widget_restart">Restartēt</string>
+    <string name="transcript_widget_keyboard_description">Taustiņi nonāk šajā logrīkā. Nospiediet Esc, lai tos atgūtu.</string>
 </resources>

@@ -172,4 +172,19 @@
         <item quantity="one">%1$s opmerking</item>
         <item quantity="other">%1$s opmerkingen</item>
     </plurals>
+    <string name="transcript_widget_loading">Widget laden…</string>
+    <string name="transcript_widget_failed">Kan deze widget niet tonen</string>
+    <string name="transcript_widget_sending">Verzenden…</string>
+    <string name="transcript_widget_submitted">Verzonden</string>
+    <string name="transcript_widget_dismissed">Genegeerd</string>
+    <string name="transcript_widget_already_answered">Deze widget is al beantwoord.</string>
+    <string name="transcript_widget_not_open">Deze widget is niet meer open.</string>
+    <string name="transcript_widget_step_failed">De widget kon niet reageren.</string>
+    <string name="transcript_widget_page">Pagina %1$d van %2$d</string>
+    <string name="transcript_widget_shader_failed">Kan deze shader niet uitvoeren</string>
+    <string name="transcript_widget_fullscreen">Volledig scherm</string>
+    <string name="transcript_widget_fullscreen_placeholder">Openen in volledig scherm</string>
+    <string name="transcript_widget_network">Netwerk: %1$s</string>
+    <string name="transcript_widget_restart">Opnieuw opstarten</string>
+    <string name="transcript_widget_keyboard_description">Toetsen gaan naar deze widget. Druk op Esc om ze terug te geven.</string>
 </resources>

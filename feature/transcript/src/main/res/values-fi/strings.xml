@@ -172,4 +172,19 @@
         <item quantity="one">%1$s kommentti</item>
         <item quantity="other">%1$s kommenttia</item>
     </plurals>
+    <string name="transcript_widget_loading">Ladataan widgettiä…</string>
+    <string name="transcript_widget_failed">Widgetin näyttäminen epäonnistui</string>
+    <string name="transcript_widget_sending">Lähetetään…</string>
+    <string name="transcript_widget_submitted">Lähetetty</string>
+    <string name="transcript_widget_dismissed">Hylätty</string>
+    <string name="transcript_widget_already_answered">Tähän widgettiin on jo vastattu.</string>
+    <string name="transcript_widget_not_open">Tämä widgetti ei ole enää auki.</string>
+    <string name="transcript_widget_step_failed">Widgetti ei voinut vastata.</string>
+    <string name="transcript_widget_page">Sivu %1$d / %2$d</string>
+    <string name="transcript_widget_shader_failed">Tätä shaderia ei voitu suorittaa</string>
+    <string name="transcript_widget_fullscreen">Koko näyttö</string>
+    <string name="transcript_widget_fullscreen_placeholder">Avaa koko näytössä</string>
+    <string name="transcript_widget_network">Verkko: %1$s</string>
+    <string name="transcript_widget_restart">Käynnistä uudelleen</string>
+    <string name="transcript_widget_keyboard_description">Näppäimet menevät tähän widgettiin. Paina Esc palauttaaksesi ne.</string>
 </resources>

@@ -184,4 +184,19 @@
         <item quantity="many">%1$s комментариев</item>
         <item quantity="other">%1$s комментария</item>
     </plurals>
+    <string name="transcript_widget_loading">Загрузка виджета…</string>
+    <string name="transcript_widget_failed">Не удалось показать этот виджет</string>
+    <string name="transcript_widget_sending">Отправка…</string>
+    <string name="transcript_widget_submitted">Отправлено</string>
+    <string name="transcript_widget_dismissed">Отклонён</string>
+    <string name="transcript_widget_already_answered">На этот виджет уже ответили.</string>
+    <string name="transcript_widget_not_open">Этот виджет больше не открыт.</string>
+    <string name="transcript_widget_step_failed">Виджет не смог ответить.</string>
+    <string name="transcript_widget_page">Страница %1$d из %2$d</string>
+    <string name="transcript_widget_shader_failed">Не удалось запустить этот шейдер</string>
+    <string name="transcript_widget_fullscreen">На весь экран</string>
+    <string name="transcript_widget_fullscreen_placeholder">Открыть на весь экран</string>
+    <string name="transcript_widget_network">Сеть: %1$s</string>
+    <string name="transcript_widget_restart">Перезапустить</string>
+    <string name="transcript_widget_keyboard_description">Нажатия клавиш передаются в этот виджет. Нажмите Esc, чтобы вернуть их.</string>
 </resources>

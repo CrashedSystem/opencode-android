@@ -172,4 +172,19 @@
         <item quantity="one">අදහස් %1$sක්</item>
         <item quantity="other">අදහස් %1$sක්</item>
     </plurals>
+    <string name="transcript_widget_loading">විජට් එක පූරණය කරමින්…</string>
+    <string name="transcript_widget_failed">මෙම විජට් එක පෙන්විය නොහැකි විය</string>
+    <string name="transcript_widget_sending">යවමින්…</string>
+    <string name="transcript_widget_submitted">ඉදිරිපත් කරන ලදී</string>
+    <string name="transcript_widget_dismissed">ඉවත දමන ලදී</string>
+    <string name="transcript_widget_already_answered">මෙම විජට් එකට දැනටමත් පිළිතුරු දී ඇත.</string>
+    <string name="transcript_widget_not_open">මෙම විජට් එක තවදුරටත් විවෘතව නැත.</string>
+    <string name="transcript_widget_step_failed">විජට් එකට ප්‍රතිචාර දැක්වීමට නොහැකි විය.</string>
+    <string name="transcript_widget_page">පිටු %2$dන් %1$d</string>
+    <string name="transcript_widget_shader_failed">මෙම ෂේඩරය ධාවනය කිරීමට නොහැකි විය</string>
+    <string name="transcript_widget_fullscreen">පූර්ණ තිරය</string>
+    <string name="transcript_widget_fullscreen_placeholder">පූර්ණ තිරයේ විවෘත කරන්න</string>
+    <string name="transcript_widget_network">ජාලය: %1$s</string>
+    <string name="transcript_widget_restart">යළි අරඹන්න</string>
+    <string name="transcript_widget_keyboard_description">යතුරු මෙම විජට් එකට යයි. ඒවා ආපසු ලබා ගැනීමට Esc ඔබන්න.</string>
 </resources>

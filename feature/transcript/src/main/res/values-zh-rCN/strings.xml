@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">%1$s 条评论</item>
     </plurals>
+    <string name="transcript_widget_loading">正在加载小部件…</string>
+    <string name="transcript_widget_failed">无法显示此小部件</string>
+    <string name="transcript_widget_sending">正在发送…</string>
+    <string name="transcript_widget_submitted">已提交</string>
+    <string name="transcript_widget_dismissed">已忽略</string>
+    <string name="transcript_widget_already_answered">此小部件已回答。</string>
+    <string name="transcript_widget_not_open">此小部件已关闭。</string>
+    <string name="transcript_widget_step_failed">小部件无法响应。</string>
+    <string name="transcript_widget_page">第 %1$d 页，共 %2$d 页</string>
+    <string name="transcript_widget_shader_failed">无法运行此着色器</string>
+    <string name="transcript_widget_fullscreen">全屏</string>
+    <string name="transcript_widget_fullscreen_placeholder">全屏打开</string>
+    <string name="transcript_widget_network">网络：%1$s</string>
+    <string name="transcript_widget_restart">重启</string>
+    <string name="transcript_widget_keyboard_description">按键将发送到此小部件。按 Esc 键可退出。</string>
 </resources>

@@ -172,4 +172,19 @@
         <item quantity="one">%1$s шарҳ</item>
         <item quantity="other">%1$s шарҳ</item>
     </plurals>
+    <string name="transcript_widget_loading">Виджет бор карда мешавад…</string>
+    <string name="transcript_widget_failed">Ин виджет нишон дода нашуд</string>
+    <string name="transcript_widget_sending">Фиристода мешавад…</string>
+    <string name="transcript_widget_submitted">Фиристода шуд</string>
+    <string name="transcript_widget_dismissed">Рад шуд</string>
+    <string name="transcript_widget_already_answered">Ин виджет аллакай ҷавоб дода шудааст.</string>
+    <string name="transcript_widget_not_open">Ин виджет дигар кушода нест.</string>
+    <string name="transcript_widget_step_failed">Виджет ҷавоб дода натавонист.</string>
+    <string name="transcript_widget_page">Саҳифаи %1$d аз %2$d</string>
+    <string name="transcript_widget_shader_failed">Ин шейдер иҷро нашуд</string>
+    <string name="transcript_widget_fullscreen">Экрани пурра</string>
+    <string name="transcript_widget_fullscreen_placeholder">Дар экрани пурра кушоед</string>
+    <string name="transcript_widget_network">Шабака: %1$s</string>
+    <string name="transcript_widget_restart">Оғози дубора</string>
+    <string name="transcript_widget_keyboard_description">Тугмаҳо ба ин виджет мераванд. Барои баргардонидан Esc-ро пахш кунед.</string>
 </resources>

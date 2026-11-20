@@ -172,4 +172,19 @@
         <item quantity="one">%1$s kommentaar</item>
         <item quantity="other">%1$s kommentaari</item>
     </plurals>
+    <string name="transcript_widget_loading">Vidina laadimine…</string>
+    <string name="transcript_widget_failed">Seda vidinat ei õnnestunud kuvada</string>
+    <string name="transcript_widget_sending">Saatmine…</string>
+    <string name="transcript_widget_submitted">Esitatud</string>
+    <string name="transcript_widget_dismissed">Tagasi lükatud</string>
+    <string name="transcript_widget_already_answered">Sellele vidinale on juba vastatud.</string>
+    <string name="transcript_widget_not_open">See vidin pole enam avatud.</string>
+    <string name="transcript_widget_step_failed">Vidin ei suutnud vastata.</string>
+    <string name="transcript_widget_page">Lehekülg %1$d / %2$d</string>
+    <string name="transcript_widget_shader_failed">Varjuti käivitamine ebaõnnestus</string>
+    <string name="transcript_widget_fullscreen">Täisekraan</string>
+    <string name="transcript_widget_fullscreen_placeholder">Ava täisekraanil</string>
+    <string name="transcript_widget_network">Võrk: %1$s</string>
+    <string name="transcript_widget_restart">Taaskäivita</string>
+    <string name="transcript_widget_keyboard_description">Klahvivajutused lähevad sellele vidinale. Nende tagasi saamiseks vajuta Esc.</string>
 </resources>

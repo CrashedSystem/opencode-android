@@ -172,4 +172,19 @@
         <item quantity="one">%1$s megjegyzés</item>
         <item quantity="other">%1$s megjegyzés</item>
     </plurals>
+    <string name="transcript_widget_loading">Widget betöltése…</string>
+    <string name="transcript_widget_failed">Nem sikerült megjeleníteni ezt a widgetet</string>
+    <string name="transcript_widget_sending">Küldés…</string>
+    <string name="transcript_widget_submitted">Elküldve</string>
+    <string name="transcript_widget_dismissed">Elutasítva</string>
+    <string name="transcript_widget_already_answered">Ez a widget már meg lett válaszolva.</string>
+    <string name="transcript_widget_not_open">Ez a widget már nincs nyitva.</string>
+    <string name="transcript_widget_step_failed">A widget nem tudott válaszolni.</string>
+    <string name="transcript_widget_page">%1$d. oldal (összesen %2$d)</string>
+    <string name="transcript_widget_shader_failed">Nem sikerült futtatni ezt a shadert.</string>
+    <string name="transcript_widget_fullscreen">Teljes képernyő</string>
+    <string name="transcript_widget_fullscreen_placeholder">Megnyitás teljes képernyőn</string>
+    <string name="transcript_widget_network">Hálózat: %1$s</string>
+    <string name="transcript_widget_restart">Újraindítás</string>
+    <string name="transcript_widget_keyboard_description">A billentyűleütések ehhez a widgethez kerülnek. Nyomja meg az Esc-et a visszaadásukhoz.</string>
 </resources>

@@ -172,4 +172,19 @@
         <item quantity="one">%1$s şərh</item>
         <item quantity="other">%1$s şərh</item>
     </plurals>
+    <string name="transcript_widget_loading">Vidcet yüklənir…</string>
+    <string name="transcript_widget_failed">Bu vidceti göstərmək mümkün olmadı</string>
+    <string name="transcript_widget_sending">Göndərilir…</string>
+    <string name="transcript_widget_submitted">Göndərildi</string>
+    <string name="transcript_widget_dismissed">Rədd edildi</string>
+    <string name="transcript_widget_already_answered">Bu vidcet artıq cavablandırılıb.</string>
+    <string name="transcript_widget_not_open">Bu vidcet artıq açıq deyil.</string>
+    <string name="transcript_widget_step_failed">Vidcet cavab verə bilmədi.</string>
+    <string name="transcript_widget_page">Səhifə %1$d / %2$d</string>
+    <string name="transcript_widget_shader_failed">Bu shader-i işə salmaq mümkün olmadı</string>
+    <string name="transcript_widget_fullscreen">Tam ekran</string>
+    <string name="transcript_widget_fullscreen_placeholder">Tam ekranda aç</string>
+    <string name="transcript_widget_network">Şəbəkə: %1$s</string>
+    <string name="transcript_widget_restart">Yenidən başlat</string>
+    <string name="transcript_widget_keyboard_description">Düymələr bu vidcetə gedir. Onları geri qaytarmaq üçün Esc düyməsinə basın.</string>
 </resources>

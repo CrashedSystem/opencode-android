@@ -184,4 +184,19 @@
         <item quantity="many">%1$s коментарів</item>
         <item quantity="other">%1$s коментаря</item>
     </plurals>
+    <string name="transcript_widget_loading">Завантаження віджета…</string>
+    <string name="transcript_widget_failed">Не вдалося показати цей віджет</string>
+    <string name="transcript_widget_sending">Надсилання…</string>
+    <string name="transcript_widget_submitted">Надіслано</string>
+    <string name="transcript_widget_dismissed">Відхилено</string>
+    <string name="transcript_widget_already_answered">На цей віджет уже відповіли.</string>
+    <string name="transcript_widget_not_open">Цей віджет більше не відкритий.</string>
+    <string name="transcript_widget_step_failed">Віджет не зміг відповісти.</string>
+    <string name="transcript_widget_page">Сторінка %1$d з %2$d</string>
+    <string name="transcript_widget_shader_failed">Не вдалося запустити цей шейдер</string>
+    <string name="transcript_widget_fullscreen">На весь екран</string>
+    <string name="transcript_widget_fullscreen_placeholder">Відкрити на весь екран</string>
+    <string name="transcript_widget_network">Мережа: %1$s</string>
+    <string name="transcript_widget_restart">Перезапустити</string>
+    <string name="transcript_widget_keyboard_description">Клавіші надсилаються цьому віджету. Натисніть Esc, щоб повернути їх.</string>
 </resources>

@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">မှတ်ချက် %1$s ခု</item>
     </plurals>
+    <string name="transcript_widget_loading">ဝစ်ဂျက် တင်နေသည်…</string>
+    <string name="transcript_widget_failed">ဤဝစ်ဂျက်ကို မပြနိုင်ပါ</string>
+    <string name="transcript_widget_sending">ပို့နေသည်…</string>
+    <string name="transcript_widget_submitted">တင်သွင်းပြီး</string>
+    <string name="transcript_widget_dismissed">ပယ်ထားသည်</string>
+    <string name="transcript_widget_already_answered">ဤဝစ်ဂျက်ကို ဖြေပြီးပါပြီ။</string>
+    <string name="transcript_widget_not_open">ဤဝစ်ဂျက်ကို ဖွင့်မထားတော့ပါ။</string>
+    <string name="transcript_widget_step_failed">ဝစ်ဂျက်က ပြန်မဖြေနိုင်ပါ။</string>
+    <string name="transcript_widget_page">စာမျက်နှာ %2$d မျက်နှာအနက် %1$d</string>
+    <string name="transcript_widget_shader_failed">ဤ shader ကို မလုပ်ဆောင်နိုင်ပါ</string>
+    <string name="transcript_widget_fullscreen">မျက်နှာပြင်အပြည့်</string>
+    <string name="transcript_widget_fullscreen_placeholder">မျက်နှာပြင်အပြည့် ဖွင့်ပါ</string>
+    <string name="transcript_widget_network">ကွန်ရက်: %1$s</string>
+    <string name="transcript_widget_restart">ပြန်လည်စတင်ပါ</string>
+    <string name="transcript_widget_keyboard_description">ခလုတ်များကို ဤဝစ်ဂျက်သို့ ပို့ပေးသည်။ ပြန်ရယူရန် Esc နှိပ်ပါ။</string>
 </resources>

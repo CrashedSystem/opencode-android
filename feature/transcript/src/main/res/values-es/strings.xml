@@ -178,4 +178,19 @@
         <item quantity="many">%1$s comentarios</item>
         <item quantity="other">%1$s comentarios</item>
     </plurals>
+    <string name="transcript_widget_loading">Cargando widget…</string>
+    <string name="transcript_widget_failed">No se pudo mostrar este widget</string>
+    <string name="transcript_widget_sending">Enviando…</string>
+    <string name="transcript_widget_submitted">Enviado</string>
+    <string name="transcript_widget_dismissed">Descartado</string>
+    <string name="transcript_widget_already_answered">Este widget ya fue respondido.</string>
+    <string name="transcript_widget_not_open">Este widget ya no está abierto.</string>
+    <string name="transcript_widget_step_failed">El widget no pudo responder.</string>
+    <string name="transcript_widget_page">Página %1$d de %2$d</string>
+    <string name="transcript_widget_shader_failed">No se pudo ejecutar este shader</string>
+    <string name="transcript_widget_fullscreen">Pantalla completa</string>
+    <string name="transcript_widget_fullscreen_placeholder">Abrir en pantalla completa</string>
+    <string name="transcript_widget_network">Red: %1$s</string>
+    <string name="transcript_widget_restart">Reiniciar</string>
+    <string name="transcript_widget_keyboard_description">Las teclas van a este widget. Presiona Esc para devolverlas.</string>
 </resources>

@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">བསམ་འཆར་ %1$s</item>
     </plurals>
+    <string name="transcript_widget_loading">ཝི་ཇེཊི་མངོན་གསལ་འབད་དོ།…</string>
+    <string name="transcript_widget_failed">ཝི་ཇེཊི་འདི་སྟོན་མ་ཚུགས།</string>
+    <string name="transcript_widget_sending">གཏང་དོ།…</string>
+    <string name="transcript_widget_submitted">ཕུལ་ཡོདཔ།</string>
+    <string name="transcript_widget_dismissed">ཕྱིར་འབུད་འབད་ཡོདཔ།</string>
+    <string name="transcript_widget_already_answered">ཝི་ཇེཊི་འདི་ལུ་ཧེ་མ་ལས་ལན་བཏབ་ནུག།</string>
+    <string name="transcript_widget_not_open">ཝི་ཇེཊི་འདི་ད་ལྟོ་ཁ་མ་ཕྱེ་བས།</string>
+    <string name="transcript_widget_step_failed">ཝི་ཇེཊི་གིས་ལན་བཏབ་མ་ཚུགས།</string>
+    <string name="transcript_widget_page">ཤོག་ངོས་ %2$d ལས་ %1$d</string>
+    <string name="transcript_widget_shader_failed">ཤེ་ཌར་འདི་གཡོག་བཀོལ་མ་ཚུགས།</string>
+    <string name="transcript_widget_fullscreen">གསལ་གཞི་ཆ་ཚང་།</string>
+    <string name="transcript_widget_fullscreen_placeholder">གསལ་གཞི་ཆ་ཚང་ནང་ཁ་ཕྱེ།</string>
+    <string name="transcript_widget_network">ཡོངས་འབྲེལ།: %1$s</string>
+    <string name="transcript_widget_restart">ལོག་འགོ་བཙུགས།</string>
+    <string name="transcript_widget_keyboard_description">ལྡེ་མིག་ཚུ་ཝི་ཇེཊི་འདི་ལུ་འགྱོ་དོ། ཕྱིར་སྤྲོད་ནི་ལུ ESC ཨེབ་གནང་།</string>
 </resources>

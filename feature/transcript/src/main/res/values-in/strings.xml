@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">%1$s komentar</item>
     </plurals>
+    <string name="transcript_widget_loading">Memuat widget…</string>
+    <string name="transcript_widget_failed">Tidak dapat menampilkan widget ini</string>
+    <string name="transcript_widget_sending">Mengirim…</string>
+    <string name="transcript_widget_submitted">Terkirim</string>
+    <string name="transcript_widget_dismissed">Ditutup</string>
+    <string name="transcript_widget_already_answered">Widget ini sudah dijawab.</string>
+    <string name="transcript_widget_not_open">Widget ini sudah tidak terbuka.</string>
+    <string name="transcript_widget_step_failed">Widget tidak dapat merespons.</string>
+    <string name="transcript_widget_page">Halaman %1$d dari %2$d</string>
+    <string name="transcript_widget_shader_failed">Tidak dapat menjalankan shader ini</string>
+    <string name="transcript_widget_fullscreen">Layar penuh</string>
+    <string name="transcript_widget_fullscreen_placeholder">Buka dalam layar penuh</string>
+    <string name="transcript_widget_network">Jaringan: %1$s</string>
+    <string name="transcript_widget_restart">Mulai ulang</string>
+    <string name="transcript_widget_keyboard_description">Tombol dikirim ke widget ini. Tekan Esc untuk mengembalikannya.</string>
 </resources>

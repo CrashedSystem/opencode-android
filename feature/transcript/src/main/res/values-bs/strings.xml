@@ -178,4 +178,19 @@
         <item quantity="few">%1$s komentara</item>
         <item quantity="other">%1$s komentara</item>
     </plurals>
+    <string name="transcript_widget_loading">Učitavanje widgeta…</string>
+    <string name="transcript_widget_failed">Nije moguće prikazati ovaj widget</string>
+    <string name="transcript_widget_sending">Slanje…</string>
+    <string name="transcript_widget_submitted">Poslano</string>
+    <string name="transcript_widget_dismissed">Odbačeno</string>
+    <string name="transcript_widget_already_answered">Na ovaj widget je već odgovoreno.</string>
+    <string name="transcript_widget_not_open">Ovaj widget više nije otvoren.</string>
+    <string name="transcript_widget_step_failed">Widget nije mogao odgovoriti.</string>
+    <string name="transcript_widget_page">Stranica %1$d od %2$d</string>
+    <string name="transcript_widget_shader_failed">Nije moguće pokrenuti ovaj shader</string>
+    <string name="transcript_widget_fullscreen">Cijeli ekran</string>
+    <string name="transcript_widget_fullscreen_placeholder">Otvori na cijelom ekranu</string>
+    <string name="transcript_widget_network">Mreža: %1$s</string>
+    <string name="transcript_widget_restart">Ponovo pokreni</string>
+    <string name="transcript_widget_keyboard_description">Unos tipki ide ovom widgetu. Pritisnite Esc da ih vratite.</string>
 </resources>

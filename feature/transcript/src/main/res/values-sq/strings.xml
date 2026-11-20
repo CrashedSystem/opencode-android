@@ -172,4 +172,19 @@
         <item quantity="one">%1$s koment</item>
         <item quantity="other">%1$s komente</item>
     </plurals>
+    <string name="transcript_widget_loading">Po ngarkohet widget-i…</string>
+    <string name="transcript_widget_failed">Nuk u shfaq dot ky widget</string>
+    <string name="transcript_widget_sending">Po dërgohet…</string>
+    <string name="transcript_widget_submitted">U dërgua</string>
+    <string name="transcript_widget_dismissed">U hodh poshtë</string>
+    <string name="transcript_widget_already_answered">Ky widget ka marrë përgjigje tashmë.</string>
+    <string name="transcript_widget_not_open">Ky widget nuk është më i hapur.</string>
+    <string name="transcript_widget_step_failed">Widget-i nuk u përgjigj dot.</string>
+    <string name="transcript_widget_page">Faqja %1$d nga %2$d</string>
+    <string name="transcript_widget_shader_failed">Nuk u ekzekutua dot ky shader</string>
+    <string name="transcript_widget_fullscreen">Ekran i plotë</string>
+    <string name="transcript_widget_fullscreen_placeholder">Hap në ekran të plotë</string>
+    <string name="transcript_widget_network">Rrjeti: %1$s</string>
+    <string name="transcript_widget_restart">Rinis</string>
+    <string name="transcript_widget_keyboard_description">Tastet shkojnë te ky widget. Shtyp Esc për t\'i kthyer.</string>
 </resources>

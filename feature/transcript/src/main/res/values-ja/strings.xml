@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">%1$s件のコメント</item>
     </plurals>
+    <string name="transcript_widget_loading">ウィジェットを読み込み中…</string>
+    <string name="transcript_widget_failed">このウィジェットを表示できませんでした</string>
+    <string name="transcript_widget_sending">送信中…</string>
+    <string name="transcript_widget_submitted">送信済み</string>
+    <string name="transcript_widget_dismissed">スキップ済み</string>
+    <string name="transcript_widget_already_answered">このウィジェットには回答済みです。</string>
+    <string name="transcript_widget_not_open">このウィジェットはもう開いていません。</string>
+    <string name="transcript_widget_step_failed">ウィジェットが応答できませんでした。</string>
+    <string name="transcript_widget_page">%2$dページ中%1$dページ目</string>
+    <string name="transcript_widget_shader_failed">このシェーダーを実行できませんでした</string>
+    <string name="transcript_widget_fullscreen">全画面</string>
+    <string name="transcript_widget_fullscreen_placeholder">全画面で開く</string>
+    <string name="transcript_widget_network">ネットワーク: %1$s</string>
+    <string name="transcript_widget_restart">再起動</string>
+    <string name="transcript_widget_keyboard_description">キー操作はこのウィジェットに送られます。Escを押すと元に戻ります。</string>
 </resources>

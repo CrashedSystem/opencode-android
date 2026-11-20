@@ -172,4 +172,19 @@
         <item quantity="one">%1$s коментар</item>
         <item quantity="other">%1$s коментара</item>
     </plurals>
+    <string name="transcript_widget_loading">Зареждане на уиджета…</string>
+    <string name="transcript_widget_failed">Неуспешно показване на този уиджет</string>
+    <string name="transcript_widget_sending">Изпращане…</string>
+    <string name="transcript_widget_submitted">Изпратено</string>
+    <string name="transcript_widget_dismissed">Отхвърлен</string>
+    <string name="transcript_widget_already_answered">На този уиджет вече е отговорено.</string>
+    <string name="transcript_widget_not_open">Този уиджет вече не е отворен.</string>
+    <string name="transcript_widget_step_failed">Уиджетът не можа да отговори.</string>
+    <string name="transcript_widget_page">Страница %1$d от %2$d</string>
+    <string name="transcript_widget_shader_failed">Неуспешно изпълнение на този шейдър</string>
+    <string name="transcript_widget_fullscreen">Цял екран</string>
+    <string name="transcript_widget_fullscreen_placeholder">Отворете на цял екран</string>
+    <string name="transcript_widget_network">Мрежа: %1$s</string>
+    <string name="transcript_widget_restart">Рестартирайте</string>
+    <string name="transcript_widget_keyboard_description">Клавишите се изпращат към този уиджет. Натиснете Esc, за да ги върнете.</string>
 </resources>

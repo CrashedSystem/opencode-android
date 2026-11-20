@@ -172,4 +172,19 @@
         <item quantity="one">%1$s մեկնաբանություն</item>
         <item quantity="other">%1$s մեկնաբանություն</item>
     </plurals>
+    <string name="transcript_widget_loading">Վիջեթը բեռնվում է…</string>
+    <string name="transcript_widget_failed">Չհաջողվեց ցուցադրել այս վիջեթը</string>
+    <string name="transcript_widget_sending">Ուղարկվում է…</string>
+    <string name="transcript_widget_submitted">Ուղարկված է</string>
+    <string name="transcript_widget_dismissed">Մերժված է</string>
+    <string name="transcript_widget_already_answered">Այս վիջեթն արդեն պատասխանվել է։</string>
+    <string name="transcript_widget_not_open">Այս վիջեթն այլևս բաց չէ։</string>
+    <string name="transcript_widget_step_failed">Վիջեթը չկարողացավ պատասխանել։</string>
+    <string name="transcript_widget_page">Էջ %1$d՝ %2$d-ից</string>
+    <string name="transcript_widget_shader_failed">Չհաջողվեց գործարկել այս շեյդերը</string>
+    <string name="transcript_widget_fullscreen">Ամբողջ էկրանով</string>
+    <string name="transcript_widget_fullscreen_placeholder">Բացել ամբողջ էկրանով</string>
+    <string name="transcript_widget_network">Ցանց՝ %1$s</string>
+    <string name="transcript_widget_restart">Վերագործարկեք</string>
+    <string name="transcript_widget_keyboard_description">Ստեղների մուտքերն ուղարկվում են այս վիջեթին։ Սեղմեք Esc՝ դրանք հետ վերադարձնելու համար։</string>
 </resources>

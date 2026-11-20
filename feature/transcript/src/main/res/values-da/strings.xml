@@ -172,4 +172,19 @@
         <item quantity="one">%1$s kommentar</item>
         <item quantity="other">%1$s kommentarer</item>
     </plurals>
+    <string name="transcript_widget_loading">Indlæser widget…</string>
+    <string name="transcript_widget_failed">Kunne ikke vise denne widget</string>
+    <string name="transcript_widget_sending">Sender…</string>
+    <string name="transcript_widget_submitted">Sendt</string>
+    <string name="transcript_widget_dismissed">Afvist</string>
+    <string name="transcript_widget_already_answered">Denne widget er allerede besvaret.</string>
+    <string name="transcript_widget_not_open">Denne widget er ikke længere åben.</string>
+    <string name="transcript_widget_step_failed">Widgeten kunne ikke svare.</string>
+    <string name="transcript_widget_page">Side %1$d af %2$d</string>
+    <string name="transcript_widget_shader_failed">Kunne ikke køre denne shader</string>
+    <string name="transcript_widget_fullscreen">Fuld skærm</string>
+    <string name="transcript_widget_fullscreen_placeholder">Åbn i fuld skærm</string>
+    <string name="transcript_widget_network">Netværk: %1$s</string>
+    <string name="transcript_widget_restart">Genstart</string>
+    <string name="transcript_widget_keyboard_description">Taster sendes til denne widget. Tryk på Esc for at få dem tilbage.</string>
 </resources>

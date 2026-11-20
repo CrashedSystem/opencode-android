@@ -172,4 +172,19 @@
         <item quantity="one">%1$s viðmerking</item>
         <item quantity="other">%1$s viðmerkingar</item>
     </plurals>
+    <string name="transcript_widget_loading">Heintar widget…</string>
+    <string name="transcript_widget_failed">Kundi ikki vísa henda widget</string>
+    <string name="transcript_widget_sending">Sendir…</string>
+    <string name="transcript_widget_submitted">Sent inn</string>
+    <string name="transcript_widget_dismissed">Vístur burtur</string>
+    <string name="transcript_widget_already_answered">Hesin widget er longu svaraður.</string>
+    <string name="transcript_widget_not_open">Hesin widget er ikki opin longur.</string>
+    <string name="transcript_widget_step_failed">Widgeturin kundi ikki svara.</string>
+    <string name="transcript_widget_page">Síða %1$d av %2$d</string>
+    <string name="transcript_widget_shader_failed">Kundi ikki koyra hendan shader</string>
+    <string name="transcript_widget_fullscreen">Fullur skíggji</string>
+    <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skíggja</string>
+    <string name="transcript_widget_network">Net: %1$s</string>
+    <string name="transcript_widget_restart">Endurbyrja</string>
+    <string name="transcript_widget_keyboard_description">Knøttir fara til henda widget. Trýst á Esc fyri at geva teir aftur.</string>
 </resources>

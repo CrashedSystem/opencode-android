@@ -172,4 +172,19 @@
         <item quantity="one">%1$sটি মন্তব্য</item>
         <item quantity="other">%1$sটি মন্তব্য</item>
     </plurals>
+    <string name="transcript_widget_loading">উইজেট লোড হচ্ছে…</string>
+    <string name="transcript_widget_failed">এই উইজেট দেখানো যায়নি</string>
+    <string name="transcript_widget_sending">পাঠানো হচ্ছে…</string>
+    <string name="transcript_widget_submitted">জমা দেওয়া হয়েছে</string>
+    <string name="transcript_widget_dismissed">খারিজ করা হয়েছে</string>
+    <string name="transcript_widget_already_answered">এই উইজেটের উত্তর ইতিমধ্যে দেওয়া হয়েছে।</string>
+    <string name="transcript_widget_not_open">এই উইজেটটি আর খোলা নেই।</string>
+    <string name="transcript_widget_step_failed">উইজেটটি সাড়া দিতে পারেনি।</string>
+    <string name="transcript_widget_page">%2$d পাতার মধ্যে %1$d</string>
+    <string name="transcript_widget_shader_failed">এই শেডার চালানো যায়নি</string>
+    <string name="transcript_widget_fullscreen">পূর্ণ স্ক্রিন</string>
+    <string name="transcript_widget_fullscreen_placeholder">পূর্ণ স্ক্রিনে খুলুন</string>
+    <string name="transcript_widget_network">নেটওয়ার্ক: %1$s</string>
+    <string name="transcript_widget_restart">রিস্টার্ট করুন</string>
+    <string name="transcript_widget_keyboard_description">কীগুলো এই উইজেটে যায়। সেগুলো ফিরিয়ে দিতে Esc চাপুন।</string>
 </resources>

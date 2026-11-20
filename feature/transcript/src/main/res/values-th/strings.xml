@@ -166,4 +166,19 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">%1$s ความคิดเห็น</item>
     </plurals>
+    <string name="transcript_widget_loading">กำลังโหลดวิดเจ็ต…</string>
+    <string name="transcript_widget_failed">แสดงวิดเจ็ตนี้ไม่ได้</string>
+    <string name="transcript_widget_sending">กำลังส่ง…</string>
+    <string name="transcript_widget_submitted">ส่งแล้ว</string>
+    <string name="transcript_widget_dismissed">ละทิ้งแล้ว</string>
+    <string name="transcript_widget_already_answered">วิดเจ็ตนี้ตอบแล้ว</string>
+    <string name="transcript_widget_not_open">วิดเจ็ตนี้ปิดไปแล้ว</string>
+    <string name="transcript_widget_step_failed">วิดเจ็ตตอบกลับไม่ได้</string>
+    <string name="transcript_widget_page">หน้า %1$d จาก %2$d</string>
+    <string name="transcript_widget_shader_failed">เรียกใช้เชดเดอร์นี้ไม่ได้</string>
+    <string name="transcript_widget_fullscreen">เต็มจอ</string>
+    <string name="transcript_widget_fullscreen_placeholder">เปิดแบบเต็มจอ</string>
+    <string name="transcript_widget_network">เครือข่าย: %1$s</string>
+    <string name="transcript_widget_restart">รีสตาร์ท</string>
+    <string name="transcript_widget_keyboard_description">ปุ่มกดจะส่งไปที่วิดเจ็ตนี้ กด Esc เพื่อคืน</string>
 </resources>
