@@ -5,6 +5,8 @@ import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -15,8 +17,8 @@ import kotlinx.serialization.json.JsonPrimitive
 /**
  * One open live widget's program (specs/v2/widgets-live.md): started when the widget first shows,
  * paused while it's out of view or the app is in the background (a paused run costs no CPU), and
- * after 30 s paused snapshotted to free its VM. What the program posts is read on its thread and
- * handed to [events] on the main thread through [scope].
+ * after 30 s paused snapshotted to free its VM. What the program posts is only queued on its thread,
+ * read on a background thread and handed to [events] on the main thread through [scope].
  */
 internal class AgentWidgetLiveDriver(
     private val program: AgentWidgetLiveProgram,
@@ -112,9 +114,8 @@ internal class AgentWidgetLiveDriver(
         val current = ++generation
         paused = false
         val listener = object : AgentWidgetLiveListener {
-            override fun posted(messageJson: String) {
-                val post = read(messageJson) ?: return
-                scope.launch { if (current == generation) post() }
+            override fun posted(messagesJson: List<String>) {
+                inbox.trySend(Batch(current, messagesJson))
             }
 
             override fun warned(message: String) {
@@ -154,9 +155,47 @@ internal class AgentWidgetLiveDriver(
         paused = false
     }
 
-    /** One post, read on the run's thread: what to do with it on the main thread, or null to drop it. */
-    private fun read(messageJson: String): (() -> Unit)? {
-        val o = runCatching { json.parseToJsonElement(messageJson) as? JsonObject }.getOrNull() ?: return null
+    private class Batch(val generation: Int, val messages: List<String>)
+
+    /** The run's posts: its thread only enqueues them (its callback time counts against its slice budget). */
+    private val inbox = Channel<Batch>(Channel.UNLIMITED)
+
+    init {
+        scope.launch(Dispatchers.Default) {
+            val waiting = ArrayList<Batch>()
+            for (first in inbox) {
+                waiting += first
+                while (true) waiting += inbox.tryReceive().getOrNull() ?: break
+                for ((generation, posts) in waiting.groupBy { it.generation }) {
+                    val actions = read(posts.flatMap { it.messages })
+                    if (actions.isNotEmpty()) scope.launch { if (generation == this@AgentWidgetLiveDriver.generation) actions.forEach { it() } }
+                }
+                waiting.clear()
+            }
+        }
+    }
+
+    /**
+     * Posts in order: what to do with each on the main thread. When posts piled up, only the last `render` and each
+     * canvas's last `draw` are read; the rest keep their order.
+     */
+    private fun read(messages: List<String>): List<() -> Unit> {
+        val posts = messages.mapNotNull { runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+        fun type(o: JsonObject) = (o["type"] as? JsonPrimitive)?.content
+        val lastRender = posts.indexOfLast { type(it) == "render" }
+        val lastDraw = HashMap<String, Int>()
+        posts.forEachIndexed { index, o -> if (type(o) == "draw") (o["id"] as? JsonPrimitive)?.content?.let { lastDraw[it] = index } }
+        return posts.mapIndexedNotNull { index, o ->
+            when (type(o)) {
+                "render" -> if (index != lastRender) return@mapIndexedNotNull null
+                "draw" -> if (lastDraw[(o["id"] as? JsonPrimitive)?.content] != index) return@mapIndexedNotNull null
+            }
+            read(o)
+        }
+    }
+
+    /** One post: what to do with it on the main thread, or null to drop it. */
+    private fun read(o: JsonObject): (() -> Unit)? {
         return when ((o["type"] as? JsonPrimitive)?.content) {
             "render" -> {
                 val node = o["node"] ?: return null

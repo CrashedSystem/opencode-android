@@ -81,7 +81,8 @@ interface AgentWidgetLiveRun {
 
 /** What a live run tells its widget, on the run's own thread: hand it to the main thread and return. */
 interface AgentWidgetLiveListener {
-    fun posted(messageJson: String)
+    /** A wake-up's posts, in order. Called on the run's thread: hand them off and return at once. */
+    fun posted(messagesJson: List<String>)
     fun warned(message: String)
     /** It ended: [failure] null when `main` returned or the run was stopped. */
     fun exited(failure: AgentWidgetEngineException?)

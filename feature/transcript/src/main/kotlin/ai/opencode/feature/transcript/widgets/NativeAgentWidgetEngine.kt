@@ -47,7 +47,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         return object : AgentWidgetLiveProgram {
             override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
                 val handler = object : LiveHandler {
-                    override fun onPosts(messagesJson: List<String>) = messagesJson.forEach(listener::posted)
+                    override fun onPosts(messagesJson: List<String>) = listener.posted(messagesJson)
                     override fun onWarning(message: String) = listener.warned(message)
                     override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let { mapped(it, draw = false) })
                 }
