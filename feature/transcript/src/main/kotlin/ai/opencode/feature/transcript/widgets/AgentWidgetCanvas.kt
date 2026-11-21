@@ -10,6 +10,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import ai.opencode.core.ui.OpenCodeShape
 import ai.opencode.core.ui.OpenCodeTheme
@@ -110,13 +112,12 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
         LaunchedEffect(commands, palette) {
             commands ?: return@LaunchedEffect
             val started = System.nanoTime()
-            val decoded = withContext(Dispatchers.Default) {
-                runCatching { AgentWidgetDrawList.decode("{\"commands\":$commands}", palette, state.spare) }.isSuccess
-            }
-            if (decoded) {
-                state.swap()
-                revision++
-            }
+            val decoded = state.buffers.update({ list ->
+                withContext(Dispatchers.Default) {
+                    runCatching { AgentWidgetDrawList.decode("{\"commands\":$commands}", palette, list) }.isSuccess
+                }
+            }) { it }
+            if (decoded) revision++
             state.noteFrame(0, (System.nanoTime() - started) / 1_000)
         }
     }
@@ -175,7 +176,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             .agentWidgetPointer(node.id, density, { currentScope.send(it) }) { state.pointer = it },
     ) {
         @Suppress("UNUSED_EXPRESSION") revision
-        state.renderer.replay(this, state.shown, density, state.images)
+        state.renderer.replay(this, state.buffers.shown, density, state.images)
     }
 }
 
@@ -232,11 +233,33 @@ internal fun Modifier.agentWidgetPointer(
 
 private const val DRAW_BUDGET_MICROS = 8_000L
 
-/** One canvas's frames: the list on screen and the one being decoded, the pointer, timing. */
-private class CanvasState {
+/**
+ * A canvas's two draw lists: the one on screen and the one the next draw decodes into. One update at a time: a
+ * restarted draw effect leaves a cancelled decode still writing its list, which must finish before the next decode
+ * starts, or both write the list that gets shown.
+ */
+internal class CanvasDrawBuffers {
     var shown = AgentWidgetDrawList()
+        private set
+    private var spare = AgentWidgetDrawList()
+    private val lock = Mutex()
+
+    /** Runs [fill] on the spare list and shows it when [show] says the result is a complete draw. */
+    suspend fun <T> update(fill: suspend (AgentWidgetDrawList) -> T, show: (T) -> Boolean): T = lock.withLock {
+        val result = fill(spare)
+        if (show(result)) {
+            val previous = shown
+            shown = spare
+            spare = previous
+        }
+        result
+    }
+}
+
+/** One canvas's frames: its draw lists, the pointer, timing. */
+private class CanvasState {
+    val buffers = CanvasDrawBuffers()
     var images = CanvasImages { _, _ -> }
-    var spare = AgentWidgetDrawList()
     val renderer = CanvasRenderer()
     var size by mutableStateOf(IntSize.Zero)
     var startNanos = 0L
@@ -252,24 +275,20 @@ private class CanvasState {
     private var decodeTotal = 0L
     private var stepMax = 0L
 
-    fun swap() {
-        val previous = shown
-        shown = spare
-        spare = previous
-    }
-
     class Step(val drawn: Boolean, val overBudget: Boolean)
 
-    /** One draw step decoded into [spare] on the widget's lane, then shown; null when the canvas can't draw. */
+    /** One draw step decoded on the widget's lane, then shown; null when the canvas can't draw. */
     suspend fun step(controller: AgentWidgetController, frame: String, palette: AgentWidgetDrawList.Palette): Step? {
         var decoded = false
         var decodeMicros = 0L
         val micros = try {
-            controller.draw(frame) { text ->
-                val started = System.nanoTime()
-                decoded = runCatching { AgentWidgetDrawList.decode(text, palette, spare) }.isSuccess
-                decodeMicros = (System.nanoTime() - started) / 1_000
-            } ?: return null
+            buffers.update({ list ->
+                controller.draw(frame) { text ->
+                    val started = System.nanoTime()
+                    decoded = runCatching { AgentWidgetDrawList.decode(text, palette, list) }.isSuccess
+                    decodeMicros = (System.nanoTime() - started) / 1_000
+                }
+            }) { it != null && decoded } ?: return null
         } catch (error: AgentWidgetEngineException) {
             if (!error.isBudget) {
                 AppLog.app.notice { "Widget canvas draw failed: ${error.message?.take(120)}" }
@@ -283,9 +302,8 @@ private class CanvasState {
             AppLog.app.notice { "Widget canvas draw failed: ${error.javaClass.simpleName}" }
             return null
         }
-        if (decoded) swap()
         noteFrame(micros, decodeMicros)
-        return Step(drawn = decoded, overBudget = micros > DRAW_BUDGET_MICROS || (decoded && shown.truncated))
+        return Step(drawn = decoded, overBudget = micros > DRAW_BUDGET_MICROS || (decoded && buffers.shown.truncated))
     }
 
     fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean, fullscreen: Boolean): String {
@@ -315,7 +333,7 @@ private class CanvasState {
     fun report() {
         if (frames == 0) return
         AppLog.perf.info {
-            "Widget canvas: $frames frames, draw step avg ${stepTotal / frames} µs (max $stepMax), decode avg ${decodeTotal / frames} µs, ${shown.commandCount} commands"
+            "Widget canvas: $frames frames, draw step avg ${stepTotal / frames} µs (max $stepMax), decode avg ${decodeTotal / frames} µs, ${buffers.shown.commandCount} commands"
         }
         frames = 0
         stepTotal = 0

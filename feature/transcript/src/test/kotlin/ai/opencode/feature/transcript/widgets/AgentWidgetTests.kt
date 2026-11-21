@@ -20,10 +20,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -160,6 +163,44 @@ class AgentWidgetTests {
         assertTrue(!withContext(main) { driver.isRunning })
         scope.cancel()
         main.close()
+    }
+
+    /** A restarted draw effect leaves its cancelled decode running; the next one must not share its list. */
+    @Test
+    fun canvasDecodeCancelledMidWayNeverWritesTheShownList() = runBlocking {
+        val buffers = CanvasDrawBuffers()
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val slow = launch(Dispatchers.Default) {
+            buffers.update<Boolean>({ list ->
+                withContext(Dispatchers.IO) {
+                    list.clear()
+                    list.int(1)
+                    started.countDown()
+                    release.await()
+                    list.int(2)
+                    list.int(3)
+                    true
+                }
+            }) { it }
+        }
+        withContext(Dispatchers.IO) { started.await() }
+        slow.cancel()
+        val fast = launch(Dispatchers.Default) {
+            buffers.update<Boolean>({ list ->
+                withContext(Dispatchers.IO) {
+                    list.clear()
+                    list.int(9)
+                    true
+                }
+            }) { it }
+        }
+        delay(150)
+        release.countDown()
+        slow.join()
+        fast.join()
+        assertEquals(1, buffers.shown.intCount)
+        assertEquals(9, buffers.shown.ints[0])
     }
 
     @Test
