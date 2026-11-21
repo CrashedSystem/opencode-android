@@ -192,5 +192,16 @@
     <string name="transcript_widget_fullscreen_placeholder">Otvori na cijelom ekranu</string>
     <string name="transcript_widget_network">Mreža: %1$s</string>
     <string name="transcript_widget_restart">Ponovo pokreni</string>
+    <string name="transcript_widget_superseded">Ažurirano ispod</string>
+    <string name="transcript_widget_template_saved_revision">Sačuvan šablon %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Sačuvan šablon %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Uređen šablon %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Uređen šablon %1$s</string>
+    <string name="transcript_widget_template_read">Pročitan šablon %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Naveden %d šablon widgeta</item>
+        <item quantity="few">Navedena %d šablona widgeta</item>
+        <item quantity="other">Navedeno %d šablona widgeta</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Unos tipki ide ovom widgetu. Pritisnite Esc da ih vratite.</string>
 </resources>

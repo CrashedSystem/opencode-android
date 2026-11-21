@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Άνοιγμα σε πλήρη οθόνη</string>
     <string name="transcript_widget_network">Δίκτυο: %1$s</string>
     <string name="transcript_widget_restart">Επανεκκίνηση</string>
+    <string name="transcript_widget_superseded">Ενημερώθηκε παρακάτω</string>
+    <string name="transcript_widget_template_saved_revision">Αποθηκεύτηκε το πρότυπο %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Αποθηκεύτηκε το πρότυπο %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Επεξεργάστηκε το πρότυπο %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Επεξεργάστηκε το πρότυπο %1$s</string>
+    <string name="transcript_widget_template_read">Διαβάστηκε το πρότυπο %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Καταχωρήθηκε %d πρότυπο widget</item>
+        <item quantity="other">Καταχωρήθηκαν %d πρότυπα widget</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Τα πλήκτρα πηγαίνουν σε αυτό το widget. Πατήστε Esc για να τα επιστρέψετε.</string>
 </resources>

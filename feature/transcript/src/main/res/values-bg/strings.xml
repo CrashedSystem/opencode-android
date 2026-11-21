@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Отворете на цял екран</string>
     <string name="transcript_widget_network">Мрежа: %1$s</string>
     <string name="transcript_widget_restart">Рестартирайте</string>
+    <string name="transcript_widget_superseded">Обновено по-долу</string>
+    <string name="transcript_widget_template_saved_revision">Запазен шаблон %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Запазен шаблон %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Редактиран шаблон %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Редактиран шаблон %1$s</string>
+    <string name="transcript_widget_template_read">Прочетен шаблон %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Показан %d шаблон за уиджет</item>
+        <item quantity="other">Показани %d шаблона за уиджет</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Клавишите се изпращат към този уиджет. Натиснете Esc, за да ги върнете.</string>
 </resources>

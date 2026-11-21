@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">གསལ་གཞི་ཆ་ཚང་ནང་ཁ་ཕྱེ།</string>
     <string name="transcript_widget_network">ཡོངས་འབྲེལ།: %1$s</string>
     <string name="transcript_widget_restart">ལོག་འགོ་བཙུགས།</string>
+    <string name="transcript_widget_superseded">འོག་ལུ་དུས་མཐུན་བཟོ་ཡོདཔ།</string>
+    <string name="transcript_widget_template_saved_revision">དཔེ་གཞི %1$s v%2$d བསྲུངས་ཡོདཔ།</string>
+    <string name="transcript_widget_template_saved">དཔེ་གཞི %1$s བསྲུངས་ཡོདཔ།</string>
+    <string name="transcript_widget_template_edited_revision">དཔེ་གཞི %1$s v%2$d ཞུན་དག་འབད་ཡོདཔ།</string>
+    <string name="transcript_widget_template_edited">དཔེ་གཞི %1$s ཞུན་དག་འབད་ཡོདཔ།</string>
+    <string name="transcript_widget_template_read">དཔེ་གཞི %1$s ལྸག་ནི</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">ཝི་ཇེཊི་དཔེ་གཞི %d ཐོ་བཀོད་འབད་ཡོདཔ།</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">ལྡེ་མིག་ཚུ་ཝི་ཇེཊི་འདི་ལུ་འགྱོ་དོ། ཕྱིར་སྤྲོད་ནི་ལུ ESC ཨེབ་གནང་།</string>
 </resources>

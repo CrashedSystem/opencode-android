@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">전체 화면으로 열기</string>
     <string name="transcript_widget_network">네트워크: %1$s</string>
     <string name="transcript_widget_restart">다시 시작</string>
+    <string name="transcript_widget_superseded">아래에 업데이트됨</string>
+    <string name="transcript_widget_template_saved_revision">템플릿 %1$s v%2$d 저장됨</string>
+    <string name="transcript_widget_template_saved">템플릿 %1$s 저장됨</string>
+    <string name="transcript_widget_template_edited_revision">템플릿 %1$s v%2$d 편집함</string>
+    <string name="transcript_widget_template_edited">템플릿 %1$s 편집함</string>
+    <string name="transcript_widget_template_read">템플릿 %1$s 읽기</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">위젯 템플릿 %d개 나열함</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">키 입력이 이 위젯으로 전달됩니다. Esc를 누르면 다시 돌아옵니다.</string>
 </resources>

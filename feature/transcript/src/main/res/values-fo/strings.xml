@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skíggja</string>
     <string name="transcript_widget_network">Net: %1$s</string>
     <string name="transcript_widget_restart">Endurbyrja</string>
+    <string name="transcript_widget_superseded">Dagført niðanfyri</string>
+    <string name="transcript_widget_template_saved_revision">Goymdi fyrimynd %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Goymdi fyrimynd %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Rættaði fyrimynd %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Rættaði fyrimynd %1$s</string>
+    <string name="transcript_widget_template_read">Las fyrimynd %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Listaði %d widget fyrimynd</item>
+        <item quantity="other">Listaði %d widget fyrimyndir</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Knøttir fara til henda widget. Trýst á Esc fyri at geva teir aftur.</string>
 </resources>

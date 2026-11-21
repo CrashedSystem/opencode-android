@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Отвори на цел екран</string>
     <string name="transcript_widget_network">Мрежа: %1$s</string>
     <string name="transcript_widget_restart">Рестартирај</string>
+    <string name="transcript_widget_superseded">Ажурирано подолу</string>
+    <string name="transcript_widget_template_saved_revision">Зачуван шаблон %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Зачуван шаблон %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Уреден шаблон %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Уреден шаблон %1$s</string>
+    <string name="transcript_widget_template_read">Прочитан шаблон %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Наведен %d шаблон за виџет</item>
+        <item quantity="other">Наведени %d шаблони за виџет</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Притиснатите копчиња одат во виџетов. Притисни Esc за да ги вратиш.</string>
 </resources>

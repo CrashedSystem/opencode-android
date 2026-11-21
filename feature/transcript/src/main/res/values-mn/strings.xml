@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Бүтэн дэлгэцээр нээх</string>
     <string name="transcript_widget_network">Сүлжээ: %1$s</string>
     <string name="transcript_widget_restart">Дахин эхлүүлэх</string>
+    <string name="transcript_widget_superseded">Доор шинэчлэгдсэн</string>
+    <string name="transcript_widget_template_saved_revision">Хадгалсан загвар %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Хадгалсан загвар %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Зассан загвар %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Зассан загвар %1$s</string>
+    <string name="transcript_widget_template_read">Уншсан загвар %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d виджетийн загвар жагсаагдсан</item>
+        <item quantity="other">%d виджетийн загвар жагсаагдсан</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Товчнууд энэ виджетэд очно. Буцааж авахын тулд Esc дарна уу.</string>
 </resources>

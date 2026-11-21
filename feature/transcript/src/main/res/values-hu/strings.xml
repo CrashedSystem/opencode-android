@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Megnyitás teljes képernyőn</string>
     <string name="transcript_widget_network">Hálózat: %1$s</string>
     <string name="transcript_widget_restart">Újraindítás</string>
+    <string name="transcript_widget_superseded">Frissítve alább</string>
+    <string name="transcript_widget_template_saved_revision">Sablon mentve: %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Sablon mentve: %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Sablon szerkesztve: %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Sablon szerkesztve: %1$s</string>
+    <string name="transcript_widget_template_read">Sablon olvasva: %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d widgetsablon listázva</item>
+        <item quantity="other">%d widgetsablon listázva</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">A billentyűleütések ehhez a widgethez kerülnek. Nyomja meg az Esc-et a visszaadásukhoz.</string>
 </resources>

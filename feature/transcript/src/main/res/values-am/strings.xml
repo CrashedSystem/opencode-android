@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">በሙሉ ማያ ክፈት</string>
     <string name="transcript_widget_network">አውታረ መረብ: %1$s</string>
     <string name="transcript_widget_restart">ዳግም አስጀምር</string>
+    <string name="transcript_widget_superseded">ከታች ተዘምኗል</string>
+    <string name="transcript_widget_template_saved_revision">አብነት %1$s v%2$d ተቀምጧል</string>
+    <string name="transcript_widget_template_saved">አብነት %1$s ተቀምጧል</string>
+    <string name="transcript_widget_template_edited_revision">አብነት %1$s v%2$d ተስተካክሏል</string>
+    <string name="transcript_widget_template_edited">አብነት %1$s ተስተካክሏል</string>
+    <string name="transcript_widget_template_read">አብነት %1$s ተነቧል</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d የዊጀት አብነት ተዘርዝሯል</item>
+        <item quantity="other">%d የዊጀት አብነቶች ተዘርዝረዋል</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">ቁልፎች ወደዚህ ዊጀት ይሄዳሉ። መልሰው ለማግኘት Esc ይጫኑ።</string>
 </resources>

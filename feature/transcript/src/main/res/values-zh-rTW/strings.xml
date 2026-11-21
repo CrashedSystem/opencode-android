@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">在全螢幕開啟</string>
     <string name="transcript_widget_network">網路：%1$s</string>
     <string name="transcript_widget_restart">重新啟動</string>
+    <string name="transcript_widget_superseded">下方已更新</string>
+    <string name="transcript_widget_template_saved_revision">已儲存範本 %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">已儲存範本 %1$s</string>
+    <string name="transcript_widget_template_edited_revision">已編輯範本 %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">已編輯範本 %1$s</string>
+    <string name="transcript_widget_template_read">讀取範本 %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">已列出 %d 個小工具範本</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">按鍵會傳送到此小工具。按 Esc 即可取回。</string>
 </resources>

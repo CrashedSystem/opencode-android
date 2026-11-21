@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">სრულ ეკრანზე გახსნა</string>
     <string name="transcript_widget_network">ქსელი: %1$s</string>
     <string name="transcript_widget_restart">გადატვირთვა</string>
+    <string name="transcript_widget_superseded">ქვემოთ განახლდა</string>
+    <string name="transcript_widget_template_saved_revision">შაბლონი %1$s v%2$d შენახულია</string>
+    <string name="transcript_widget_template_saved">შაბლონი %1$s შენახულია</string>
+    <string name="transcript_widget_template_edited_revision">შაბლონი %1$s v%2$d რედაქტირებულია</string>
+    <string name="transcript_widget_template_edited">შაბლონი %1$s რედაქტირებულია</string>
+    <string name="transcript_widget_template_read">შაბლონი %1$s წაკითხულია</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">ნაჩვენებია %d ვიჯეტის შაბლონი</item>
+        <item quantity="other">ნაჩვენებია %d ვიჯეტის შაბლონი</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">კლავიშები ვიჯეტს გადაეცემა. Esc-ით დააბრუნებთ.</string>
 </resources>

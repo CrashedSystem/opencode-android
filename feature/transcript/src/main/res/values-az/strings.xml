@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Tam ekranda aç</string>
     <string name="transcript_widget_network">Şəbəkə: %1$s</string>
     <string name="transcript_widget_restart">Yenidən başlat</string>
+    <string name="transcript_widget_superseded">Aşağıda yeniləndi</string>
+    <string name="transcript_widget_template_saved_revision">Şablon %1$s v%2$d saxlanılıb</string>
+    <string name="transcript_widget_template_saved">Şablon %1$s saxlanılıb</string>
+    <string name="transcript_widget_template_edited_revision">Şablon %1$s v%2$d redaktə edildi</string>
+    <string name="transcript_widget_template_edited">Şablon %1$s redaktə edildi</string>
+    <string name="transcript_widget_template_read">Şablon %1$s oxundu</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d vidcet şablonu sıralandı</item>
+        <item quantity="other">%d vidcet şablonu sıralandı</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Düymələr bu vidcetə gedir. Onları geri qaytarmaq üçün Esc düyməsinə basın.</string>
 </resources>

@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Avaa koko näytössä</string>
     <string name="transcript_widget_network">Verkko: %1$s</string>
     <string name="transcript_widget_restart">Käynnistä uudelleen</string>
+    <string name="transcript_widget_superseded">Päivitetty alla</string>
+    <string name="transcript_widget_template_saved_revision">Tallennettu pohja %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Tallennettu pohja %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Muokattu pohja %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Muokattu pohja %1$s</string>
+    <string name="transcript_widget_template_read">Luettu pohja %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Listattu %d widgettipohja</item>
+        <item quantity="other">Listattu %d widgettipohjaa</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Näppäimet menevät tähän widgettiin. Paina Esc palauttaaksesi ne.</string>
 </resources>

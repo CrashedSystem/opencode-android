@@ -192,5 +192,16 @@
     <string name="transcript_widget_fullscreen_placeholder">Abrir em tela cheia</string>
     <string name="transcript_widget_network">Rede: %1$s</string>
     <string name="transcript_widget_restart">Reiniciar</string>
+    <string name="transcript_widget_superseded">Atualizado abaixo</string>
+    <string name="transcript_widget_template_saved_revision">Modelo %1$s v%2$d salvo</string>
+    <string name="transcript_widget_template_saved">Modelo %1$s salvo</string>
+    <string name="transcript_widget_template_edited_revision">Modelo %1$s v%2$d editado</string>
+    <string name="transcript_widget_template_edited">Modelo %1$s editado</string>
+    <string name="transcript_widget_template_read">Modelo %1$s lido</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Listado %d modelo de widget</item>
+        <item quantity="many">Listados %d modelos de widget</item>
+        <item quantity="other">Listados %d modelos de widget</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">As teclas vão para este widget. Pressione Esc para devolvê-las.</string>
 </resources>

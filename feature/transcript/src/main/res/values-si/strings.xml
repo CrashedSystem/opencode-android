@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">පූර්ණ තිරයේ විවෘත කරන්න</string>
     <string name="transcript_widget_network">ජාලය: %1$s</string>
     <string name="transcript_widget_restart">යළි අරඹන්න</string>
+    <string name="transcript_widget_superseded">පහත යාවත්කාලීනයි</string>
+    <string name="transcript_widget_template_saved_revision">සැකිල්ල %1$s v%2$d සුරැකුවා</string>
+    <string name="transcript_widget_template_saved">සැකිල්ල %1$s සුරැකුවා</string>
+    <string name="transcript_widget_template_edited_revision">සැකිල්ල %1$s v%2$d සංස්කරණය කළා</string>
+    <string name="transcript_widget_template_edited">සැකිල්ල %1$s සංස්කරණය කළා</string>
+    <string name="transcript_widget_template_read">සැකිල්ල %1$s කියෙව්වා</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">විජට් සැකිල්ල %dක් ලැයිස්තුගත කළා</item>
+        <item quantity="other">විජට් සැකිලි %dක් ලැයිස්තුගත කළා</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">යතුරු මෙම විජට් එකට යයි. ඒවා ආපසු ලබා ගැනීමට Esc ඔබන්න.</string>
 </resources>

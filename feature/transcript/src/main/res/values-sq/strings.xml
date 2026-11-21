@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Hap në ekran të plotë</string>
     <string name="transcript_widget_network">Rrjeti: %1$s</string>
     <string name="transcript_widget_restart">Rinis</string>
+    <string name="transcript_widget_superseded">Përditësuar më poshtë</string>
+    <string name="transcript_widget_template_saved_revision">U ruajt shablloni %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">U ruajt shablloni %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redaktoi shabllonin %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redaktoi shabllonin %1$s</string>
+    <string name="transcript_widget_template_read">Lexoi shabllonin %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Listuar %d shabllon widget-i</item>
+        <item quantity="other">Listuar %d shabllone widget-i</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tastet shkojnë te ky widget. Shtyp Esc për t\'i kthyer.</string>
 </resources>

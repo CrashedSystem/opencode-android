@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">បើកពេញអេក្រង់</string>
     <string name="transcript_widget_network">បណ្តាញ៖ %1$s</string>
     <string name="transcript_widget_restart">ចាប់ផ្ដើមឡើងវិញ</string>
+    <string name="transcript_widget_superseded">បានធ្វើបច្ចុប្បន្នភាពនៅខាងក្រោម</string>
+    <string name="transcript_widget_template_saved_revision">បានរក្សាទុកគំរូ %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">បានរក្សាទុកគំរូ %1$s</string>
+    <string name="transcript_widget_template_edited_revision">បានកែសម្រួលគំរូ %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">បានកែសម្រួលគំរូ %1$s</string>
+    <string name="transcript_widget_template_read">បានអានគំរូ %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">បានរាយបញ្ជីគំរូវីជេត %d</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">គ្រាប់ចុចទៅកាន់វីជេតនេះ។ ចុច Esc ដើម្បីប្រគល់វាមកវិញ។</string>
 </resources>

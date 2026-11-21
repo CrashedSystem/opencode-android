@@ -192,5 +192,16 @@
     <string name="transcript_widget_fullscreen_placeholder">Atvērt pilnekrānā</string>
     <string name="transcript_widget_network">Tīkls: %1$s</string>
     <string name="transcript_widget_restart">Restartēt</string>
+    <string name="transcript_widget_superseded">Atjaunināts zemāk</string>
+    <string name="transcript_widget_template_saved_revision">Saglabāta veidne %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Saglabāta veidne %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Rediģēta veidne %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Rediģēta veidne %1$s</string>
+    <string name="transcript_widget_template_read">Lasīta veidne %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="zero">Uzskaitītas %d logrīka veidnes</item>
+        <item quantity="one">Uzskaitīta %d logrīka veidne</item>
+        <item quantity="other">Uzskaitītas %d logrīka veidnes</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Taustiņi nonāk šajā logrīkā. Nospiediet Esc, lai tos atgūtu.</string>
 </resources>

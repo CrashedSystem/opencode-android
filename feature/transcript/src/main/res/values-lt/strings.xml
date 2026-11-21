@@ -198,5 +198,17 @@
     <string name="transcript_widget_fullscreen_placeholder">Atidaryti visame ekrane</string>
     <string name="transcript_widget_network">Tinklas: %1$s</string>
     <string name="transcript_widget_restart">Paleisti iš naujo</string>
+    <string name="transcript_widget_superseded">Atnaujinta žemiau</string>
+    <string name="transcript_widget_template_saved_revision">Išsaugotas šablonas %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Išsaugotas šablonas %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redaguotas šablonas %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redaguotas šablonas %1$s</string>
+    <string name="transcript_widget_template_read">Skaitytas šablonas %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Išvardytas %d valdiklio šablonas</item>
+        <item quantity="few">Išvardyti %d valdiklio šablonai</item>
+        <item quantity="many">Išvardyta %d valdiklio šablonų</item>
+        <item quantity="other">Išvardyta %d valdiklio šablonų</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Klavišai perduodami šiam valdikliui. Paspauskite Esc, kad juos grąžintumėte.</string>
 </resources>

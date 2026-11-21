@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">Buka dalam layar penuh</string>
     <string name="transcript_widget_network">Jaringan: %1$s</string>
     <string name="transcript_widget_restart">Mulai ulang</string>
+    <string name="transcript_widget_superseded">Diperbarui di bawah</string>
+    <string name="transcript_widget_template_saved_revision">Template %1$s v%2$d tersimpan</string>
+    <string name="transcript_widget_template_saved">Template %1$s tersimpan</string>
+    <string name="transcript_widget_template_edited_revision">Template %1$s v%2$d disunting</string>
+    <string name="transcript_widget_template_edited">Template %1$s disunting</string>
+    <string name="transcript_widget_template_read">Template %1$s dibaca</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">Tercantum %d template widget</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tombol dikirim ke widget ini. Tekan Esc untuk mengembalikannya.</string>
 </resources>

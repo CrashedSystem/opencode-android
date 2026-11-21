@@ -198,5 +198,17 @@
     <string name="transcript_widget_fullscreen_placeholder">Otevřít na celou obrazovku</string>
     <string name="transcript_widget_network">Síť: %1$s</string>
     <string name="transcript_widget_restart">Restartovat</string>
+    <string name="transcript_widget_superseded">Aktualizováno níže</string>
+    <string name="transcript_widget_template_saved_revision">Uložena šablona %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Uložena šablona %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Upravena šablona %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Upravena šablona %1$s</string>
+    <string name="transcript_widget_template_read">Přečtena šablona %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Vypsána %d šablona widgetu</item>
+        <item quantity="few">Vypsány %d šablony widgetu</item>
+        <item quantity="many">Vypsáno %d šablon widgetu</item>
+        <item quantity="other">Vypsáno %d šablon widgetu</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Klávesy směřují do tohoto widgetu. Stisknutím Esc je vrátíte zpět.</string>
 </resources>

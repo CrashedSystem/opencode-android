@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">ເປີດແບບເຕັມຈໍ</string>
     <string name="transcript_widget_network">ເຄືອຂ່າຍ: %1$s</string>
     <string name="transcript_widget_restart">ຣີສະຕາດ</string>
+    <string name="transcript_widget_superseded">ອັບເດດຢູ່ລຸ່ມ</string>
+    <string name="transcript_widget_template_saved_revision">ບັນທຶກແມ່ແບບ %1$s v%2$d ແລ້ວ</string>
+    <string name="transcript_widget_template_saved">ບັນທຶກແມ່ແບບ %1$s ແລ້ວ</string>
+    <string name="transcript_widget_template_edited_revision">ແກ້ໄຂແມ່ແບບ %1$s v%2$d ແລ້ວ</string>
+    <string name="transcript_widget_template_edited">ແກ້ໄຂແມ່ແບບ %1$s ແລ້ວ</string>
+    <string name="transcript_widget_template_read">ອ່ານແມ່ແບບ %1$s ແລ້ວ</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">ລາຍການແມ່ແບບ widget %d ອັນ</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">ປຸ່ມກົດຈະໄປທີ່ widget ນີ້. ກົດ Esc ເພື່ອສົ່ງກັບຄືນ.</string>
 </resources>

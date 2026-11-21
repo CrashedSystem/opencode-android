@@ -192,5 +192,16 @@
     <string name="transcript_widget_fullscreen_placeholder">Deschide pe ecran întreg</string>
     <string name="transcript_widget_network">Rețea: %1$s</string>
     <string name="transcript_widget_restart">Repornește</string>
+    <string name="transcript_widget_superseded">Actualizat mai jos</string>
+    <string name="transcript_widget_template_saved_revision">Șablon salvat %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Șablon salvat %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Șablon editat %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Șablon editat %1$s</string>
+    <string name="transcript_widget_template_read">Șablon citit %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d șablon de widget listat</item>
+        <item quantity="few">%d șabloane de widget listate</item>
+        <item quantity="other">%d de șabloane de widget listate</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tastele ajung la acest widget. Apasă Esc pentru a le readuce.</string>
 </resources>

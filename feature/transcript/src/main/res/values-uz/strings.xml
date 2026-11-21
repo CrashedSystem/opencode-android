@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">To‘liq ekranda ochish</string>
     <string name="transcript_widget_network">Tarmoq: %1$s</string>
     <string name="transcript_widget_restart">Qayta ishga tushirish</string>
+    <string name="transcript_widget_superseded">Quyida yangilandi</string>
+    <string name="transcript_widget_template_saved_revision">Shablon %1$s v%2$d saqlandi</string>
+    <string name="transcript_widget_template_saved">Shablon %1$s saqlandi</string>
+    <string name="transcript_widget_template_edited_revision">Shablon %1$s v%2$d tahrirlandi</string>
+    <string name="transcript_widget_template_edited">Shablon %1$s tahrirlandi</string>
+    <string name="transcript_widget_template_read">Shablon %1$s o\'qildi</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d ta vidjet shabloni ro\'yxatga olindi</item>
+        <item quantity="other">%d ta vidjet shabloni ro\'yxatga olindi</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tugmalar ushbu vidjetga yo‘naltiriladi. Ularni qaytarish uchun Esc tugmasini bosing.</string>
 </resources>

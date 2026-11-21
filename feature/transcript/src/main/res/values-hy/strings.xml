@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Բացել ամբողջ էկրանով</string>
     <string name="transcript_widget_network">Ցանց՝ %1$s</string>
     <string name="transcript_widget_restart">Վերագործարկեք</string>
+    <string name="transcript_widget_superseded">Թարմացվել է ներքևում</string>
+    <string name="transcript_widget_template_saved_revision">Պահված կաղապար՝ %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Պահված կաղապար՝ %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Խմբագրված կաղապար՝ %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Խմբագրված կաղապար՝ %1$s</string>
+    <string name="transcript_widget_template_read">Կարդացված կաղապար՝ %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Թվարկված է %d վիջեթի կաղապար</item>
+        <item quantity="other">Թվարկված է %d վիջեթի կաղապար</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Ստեղների մուտքերն ուղարկվում են այս վիջեթին։ Սեղմեք Esc՝ դրանք հետ վերադարձնելու համար։</string>
 </resources>

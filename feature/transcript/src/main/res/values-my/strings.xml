@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">မျက်နှာပြင်အပြည့် ဖွင့်ပါ</string>
     <string name="transcript_widget_network">ကွန်ရက်: %1$s</string>
     <string name="transcript_widget_restart">ပြန်လည်စတင်ပါ</string>
+    <string name="transcript_widget_superseded">အောက်တွင် အပ်ဒိတ်လုပ်ထားသည်</string>
+    <string name="transcript_widget_template_saved_revision">တမ်းပလိတ် %1$s v%2$d သိမ်းပြီး</string>
+    <string name="transcript_widget_template_saved">တမ်းပလိတ် %1$s သိမ်းပြီး</string>
+    <string name="transcript_widget_template_edited_revision">တမ်းပလိတ် %1$s v%2$d ပြင်ပြီး</string>
+    <string name="transcript_widget_template_edited">တမ်းပလိတ် %1$s ပြင်ပြီး</string>
+    <string name="transcript_widget_template_read">တမ်းပလိတ် %1$s ဖတ်ပြီး</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">ဝစ်ဂျက် တမ်းပလိတ် %d ခု စာရင်းပြုထားသည်</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">ခလုတ်များကို ဤဝစ်ဂျက်သို့ ပို့ပေးသည်။ ပြန်ရယူရန် Esc နှိပ်ပါ။</string>
 </resources>

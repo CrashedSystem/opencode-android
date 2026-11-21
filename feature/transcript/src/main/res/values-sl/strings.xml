@@ -198,5 +198,17 @@
     <string name="transcript_widget_fullscreen_placeholder">Odpri čez cel zaslon</string>
     <string name="transcript_widget_network">Omrežje: %1$s</string>
     <string name="transcript_widget_restart">Znova zaženite</string>
+    <string name="transcript_widget_superseded">Posodobljeno spodaj</string>
+    <string name="transcript_widget_template_saved_revision">Shranjena predloga %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Shranjena predloga %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Urejena predloga %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Urejena predloga %1$s</string>
+    <string name="transcript_widget_template_read">Prebrana predloga %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Navedena %d predloga gradnika</item>
+        <item quantity="two">Navedeni %d predlogi gradnika</item>
+        <item quantity="few">Navedene %d predloge gradnika</item>
+        <item quantity="other">Navedenih %d predlog gradnika</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Pritiski tipk se pošiljajo v ta gradnik. Pritisnite Esc, da jih dobite nazaj.</string>
 </resources>

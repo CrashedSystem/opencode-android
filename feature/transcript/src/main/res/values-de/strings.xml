@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Im Vollbild öffnen</string>
     <string name="transcript_widget_network">Netzwerk: %1$s</string>
     <string name="transcript_widget_restart">Neustart</string>
+    <string name="transcript_widget_superseded">Unten aktualisiert</string>
+    <string name="transcript_widget_template_saved_revision">Vorlage %1$s v%2$d gespeichert</string>
+    <string name="transcript_widget_template_saved">Vorlage %1$s gespeichert</string>
+    <string name="transcript_widget_template_edited_revision">Vorlage %1$s v%2$d bearbeitet</string>
+    <string name="transcript_widget_template_edited">Vorlage %1$s bearbeitet</string>
+    <string name="transcript_widget_template_read">Vorlage %1$s gelesen</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d Widget-Vorlage aufgelistet</item>
+        <item quantity="other">%d Widget-Vorlagen aufgelistet</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tasten gehen an dieses Widget. Drücke Esc, um sie wieder freizugeben.</string>
 </resources>

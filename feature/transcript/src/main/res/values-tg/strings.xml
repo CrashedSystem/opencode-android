@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Дар экрани пурра кушоед</string>
     <string name="transcript_widget_network">Шабака: %1$s</string>
     <string name="transcript_widget_restart">Оғози дубора</string>
+    <string name="transcript_widget_superseded">Дар поён навсозӣ шуд</string>
+    <string name="transcript_widget_template_saved_revision">Қолаби %1$s v%2$d захира шуд</string>
+    <string name="transcript_widget_template_saved">Қолаби %1$s захира шуд</string>
+    <string name="transcript_widget_template_edited_revision">Қолаби %1$s v%2$d таҳрир шуд</string>
+    <string name="transcript_widget_template_edited">Қолаби %1$s таҳрир шуд</string>
+    <string name="transcript_widget_template_read">Қолаби %1$s хонда шуд</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d қолаби виджет рӯйхат шуд</item>
+        <item quantity="other">%d қолаби виджет рӯйхат шуд</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Тугмаҳо ба ин виджет мераванд. Барои баргардонидан Esc-ро пахш кунед.</string>
 </resources>

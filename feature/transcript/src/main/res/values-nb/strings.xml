@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Åpne i fullskjerm</string>
     <string name="transcript_widget_network">Nettverk: %1$s</string>
     <string name="transcript_widget_restart">Start på nytt</string>
+    <string name="transcript_widget_superseded">Oppdatert nedenfor</string>
+    <string name="transcript_widget_template_saved_revision">Lagret mal %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Lagret mal %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redigert mal %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redigert mal %1$s</string>
+    <string name="transcript_widget_template_read">Lest mal %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Listet %d widget-mal</item>
+        <item quantity="other">Listet %d widget-maler</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tastene går til denne widgeten. Trykk Esc for å gi dem tilbake.</string>
 </resources>

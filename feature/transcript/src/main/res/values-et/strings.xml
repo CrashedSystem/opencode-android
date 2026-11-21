@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Ava täisekraanil</string>
     <string name="transcript_widget_network">Võrk: %1$s</string>
     <string name="transcript_widget_restart">Taaskäivita</string>
+    <string name="transcript_widget_superseded">Uuendatud allpool</string>
+    <string name="transcript_widget_template_saved_revision">Salvestatud mall %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Salvestatud mall %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Muudetud mall %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Muudetud mall %1$s</string>
+    <string name="transcript_widget_template_read">Loetud mall %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Loetletud %d vidina mall</item>
+        <item quantity="other">Loetletud %d vidina malli</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Klahvivajutused lähevad sellele vidinale. Nende tagasi saamiseks vajuta Esc.</string>
 </resources>

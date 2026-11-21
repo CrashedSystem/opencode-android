@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skjá</string>
     <string name="transcript_widget_network">Net: %1$s</string>
     <string name="transcript_widget_restart">Endurræstu</string>
+    <string name="transcript_widget_superseded">Uppfært fyrir neðan</string>
+    <string name="transcript_widget_template_saved_revision">Vistað sniðmát %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Vistað sniðmát %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Breytt sniðmát %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Breytt sniðmát %1$s</string>
+    <string name="transcript_widget_template_read">Lesið sniðmát %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">Skráð %d græjusniðmát</item>
+        <item quantity="other">Skráð %d græjusniðmát</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Takkar fara í græjuna. Ýttu á Esc til að fá þá til baka.</string>
 </resources>

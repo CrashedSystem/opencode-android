@@ -180,5 +180,14 @@
     <string name="transcript_widget_fullscreen_placeholder">Mở toàn màn hình</string>
     <string name="transcript_widget_network">Mạng: %1$s</string>
     <string name="transcript_widget_restart">Khởi động lại</string>
+    <string name="transcript_widget_superseded">Đã cập nhật bên dưới</string>
+    <string name="transcript_widget_template_saved_revision">Đã lưu mẫu %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Đã lưu mẫu %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Đã chỉnh sửa mẫu %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Đã chỉnh sửa mẫu %1$s</string>
+    <string name="transcript_widget_template_read">Đọc mẫu %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="other">Đã liệt kê %d mẫu widget</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Phím được gửi đến widget này. Nhấn Esc để trả lại.</string>
 </resources>

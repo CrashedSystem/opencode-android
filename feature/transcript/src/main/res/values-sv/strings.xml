@@ -186,5 +186,15 @@
     <string name="transcript_widget_fullscreen_placeholder">Öppna i helskärm</string>
     <string name="transcript_widget_network">Nätverk: %1$s</string>
     <string name="transcript_widget_restart">Starta om</string>
+    <string name="transcript_widget_superseded">Uppdaterad nedan</string>
+    <string name="transcript_widget_template_saved_revision">Sparad mall %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Sparad mall %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redigerad mall %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redigerad mall %1$s</string>
+    <string name="transcript_widget_template_read">Läst mall %1$s</string>
+    <plurals name="transcript_widget_template_listed">
+        <item quantity="one">%d listad widget-mall</item>
+        <item quantity="other">%d listade widget-mallar</item>
+    </plurals>
     <string name="transcript_widget_keyboard_description">Tangenttryckningar går till denna widget. Tryck på Esc för att ge tillbaka dem.</string>
 </resources>
