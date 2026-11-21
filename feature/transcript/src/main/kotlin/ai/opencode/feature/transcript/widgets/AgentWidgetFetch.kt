@@ -29,8 +29,11 @@ import java.util.concurrent.TimeUnit
 object AgentWidgetCapabilities {
     fun grantedHosts(declared: List<String>?): List<String>? = declared?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
 
-    /** Dev mode (a debug build or Developer Mode): `fetch` may also reach declared local hosts, `http:` included. */
-    val allowsLocalNetwork: Boolean get() = InternalBuild.isDebug || DeveloperMode.isEnabled
+    /** Dev mode: a debug build or Developer Mode. */
+    val isDevMode: Boolean get() = InternalBuild.isDebug || DeveloperMode.isEnabled
+
+    /** In dev mode `fetch` may also reach declared local hosts, `http:` included. */
+    val allowsLocalNetwork: Boolean get() = isDevMode
 }
 
 /**

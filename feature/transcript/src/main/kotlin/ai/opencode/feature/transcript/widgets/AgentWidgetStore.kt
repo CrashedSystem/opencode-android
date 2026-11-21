@@ -325,7 +325,8 @@ class AgentWidgetController internal constructor(
         }
 
         override fun reported(phase: String, message: String) {
-            reportError(phase, message)
+            // A failed fetch is the program's to handle (it gets the rejection): never the template's error here.
+            if (phase == "fetch") clientError(phase, message) else reportError(phase, message)
             // A run whose views are all invalid would otherwise stay on Loading.
             if (phase == "view" && this@AgentWidgetController.phase is Phase.Starting) {
                 this@AgentWidgetController.phase = Phase.Failed(message, Status.Open)
@@ -353,14 +354,24 @@ class AgentWidgetController internal constructor(
     }
     private val reported = HashSet<String>()
 
-    /** Reports a failure in [phase] to the widget plugin (and so the agent), once per distinct error. */
+    /**
+     * Reports a program error in [phase] to the widget plugin, once per distinct error; a client error (the runtime's
+     * own failure, anything not the template's) only goes to the dev-mode log.
+     */
     fun reportError(phase: String, error: Throwable) {
-        val engine = error as? AgentWidgetEngineException
+        if (!error.isProgramError()) return clientError(phase, error.message ?: error.javaClass.simpleName)
+        val engine = (error as? AgentWidgetPrograms.CompileFailed)?.cause ?: error as? AgentWidgetEngineException
         // Shader lines are already the template's; program lines count the prelude.
         val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l in 1..sourceLineCount } }
         reportError(phase, error.message ?: error.javaClass.simpleName, line, if (line != null) engine?.column else null)
     }
 
+    /** A client error: a bug to fix in the app, not the template's; logged in dev mode only. */
+    fun clientError(phase: String, message: String) {
+        if (AgentWidgetCapabilities.isDevMode) AppLog.app.notice { "Widget ${ref.name} client error ($phase): ${message.take(160)}" }
+    }
+
+    /** A program error found by the app (an invalid view): [reportError] for errors the runtime threw. */
     fun reportError(phase: String, message: String, line: Int? = null, column: Int? = null) {
         // An answered widget's program is done; each error goes once, and a widget sends at most a few.
         if (status(widget) is Status.Answered || reported.size >= MAX_REPORTS || !reported.add("$phase\u0000$message")) return

@@ -97,7 +97,8 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
                 override fun ready(value: Boolean) { ready = value }
                 override fun failed(message: String) {
                     failure = message
-                    scope.controller?.reportError("shader", message)
+                    // GL setup, compile or link failing on WGSL that translated: the client's error.
+                    scope.controller?.clientError("shader", message)
                 }
                 override fun stopped() { stopped = true }
             },

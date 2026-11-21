@@ -111,7 +111,9 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             else -> null to null
         }
         val at = line?.toInt()?.minus(HEADER_LINES)?.takeIf { it in 1..wgsl.lines().size }
-        throw AgentWidgetEngineException(shaderMessage(error, wgsl.lines().size), line = at, column = if (at != null) column?.toInt() else null)
+        // Parse and validation reject the WGSL as written; Unsupported and Translation fail on valid WGSL.
+        val invalid = error is ShaderException.Parse || error is ShaderException.Validation
+        throw AgentWidgetEngineException(shaderMessage(error, wgsl.lines().size), line = at, column = if (at != null) column?.toInt() else null, isProgramError = invalid)
     }
 
     /** The reason, with where it happened as a line of the template when it happened there. */
@@ -139,7 +141,15 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             is PsychoScriptException.Runtime -> error.line to error.column
             else -> null to null
         }
-        return AgentWidgetEngineException(reason(error), isTimeout = timeout && !draw, isBudget = timeout && draw, line = line?.toInt(), column = column?.toInt())
+        val client = error is PsychoScriptException.Snapshot || error is PsychoScriptException.InvalidState || error is PsychoScriptException.InvalidInput
+        return AgentWidgetEngineException(
+            reason(error),
+            isTimeout = timeout && !draw,
+            isBudget = timeout && draw,
+            line = line?.toInt(),
+            column = column?.toInt(),
+            isProgramError = !client,
+        )
     }
 
     private fun reason(error: PsychoScriptException): String = when (error) {

@@ -12,6 +12,7 @@ import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
+import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.core.testing.eventually
@@ -31,6 +32,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -201,6 +203,21 @@ class AgentWidgetTests {
         fast.join()
         assertEquals(1, buffers.shown.intCount)
         assertEquals(9, buffers.shown.ints[0])
+    }
+
+    /** specs/v2/widgets.md, Failures: only the template's own errors are reported; the client's are logged. */
+    @Test
+    fun onlyProgramErrorsAreReported() {
+        assertTrue(AgentWidgetEngineException("x is not defined", line = 3, column = 7).isProgramError())
+        assertTrue(AgentWidgetEngineException("ran over 50 ms without waiting").isProgramError())
+        assertTrue(AgentWidgetNode.InvalidView("a step must return a view").isProgramError())
+        val info = OpenCodeWidgetProgram("main()")
+        assertTrue(AgentWidgetPrograms.CompileFailed(AgentWidgetEngineException("Unexpected token"), info).isProgramError())
+        val unavailable = runCatching { AgentWidgetEngine.Unavailable.compile("main()") }.exceptionOrNull()!!
+        assertFalse(unavailable.isProgramError())
+        assertFalse(AgentWidgetPrograms.CompileFailed(unavailable as AgentWidgetEngineException, info).isProgramError())
+        assertFalse(AgentWidgetEngineException("snapshot failed", isProgramError = false).isProgramError())
+        assertFalse(IllegalStateException("The widget's program isn't loaded.").isProgramError())
     }
 
     @Test

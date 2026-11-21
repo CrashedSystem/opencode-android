@@ -26,9 +26,9 @@ interface AgentWidgetEngine {
     /** Without the native runtime every widget shows its error card. */
     object Unavailable : AgentWidgetEngine {
         override val isAvailable: Boolean = false
-        override fun compile(program: String): AgentWidgetProgram = throw AgentWidgetEngineException(UNAVAILABLE)
-        override fun compileLive(program: String): AgentWidgetLiveProgram = throw AgentWidgetEngineException(UNAVAILABLE)
-        override fun translateShader(wgsl: String): AgentWidgetShaderStages = throw AgentWidgetEngineException(UNAVAILABLE)
+        override fun compile(program: String): AgentWidgetProgram = throw AgentWidgetEngineException(UNAVAILABLE, isProgramError = false)
+        override fun compileLive(program: String): AgentWidgetLiveProgram = throw AgentWidgetEngineException(UNAVAILABLE, isProgramError = false)
+        override fun translateShader(wgsl: String): AgentWidgetShaderStages = throw AgentWidgetEngineException(UNAVAILABLE, isProgramError = false)
         private const val UNAVAILABLE = "The widget runtime isn't available in this build."
     }
 }
@@ -61,7 +61,11 @@ fun interface AgentWidgetProgram : AutoCloseable {
     }
 }
 
-/** [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three. */
+/**
+ * [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three.
+ * [isProgramError]: the template's code failed or broke a limit (specs/v2/widgets.md, Failures); false for the
+ * runtime's own failures, which are client errors.
+ */
 class AgentWidgetEngineException(
     message: String,
     val isTimeout: Boolean = false,
@@ -69,7 +73,16 @@ class AgentWidgetEngineException(
     /** Where in the compiled program (or a shader's template WGSL) it failed, 1-based, when known. */
     val line: Int? = null,
     val column: Int? = null,
+    val isProgramError: Boolean = true,
 ) : Exception(message)
+
+/** A program error goes to the server with `report`; anything else is a client error, logged in dev mode only. */
+internal fun Throwable.isProgramError(): Boolean = when (this) {
+    is AgentWidgetEngineException -> isProgramError
+    is AgentWidgetNode.InvalidView -> true
+    is AgentWidgetPrograms.CompileFailed -> cause.isProgramError
+    else -> false
+}
 
 /** Translated GLSL ES 3.00 and its uniform blocks, each with the binding point to give it. */
 class AgentWidgetShaderCode(val code: String, val uniformBlocks: List<Pair<String, Int>> = emptyList())
