@@ -528,7 +528,7 @@ class AgentWidgetController internal constructor(
         fun status(widget: AgentWidgetState): Status = when (widget.status) {
             AgentWidgetState.Status.Open -> Status.Open
             AgentWidgetState.Status.Submitted -> Status.Answered(AgentWidgetMachine.Closed.Submitted(widget.response ?: "null"))
-            AgentWidgetState.Status.Dismissed -> Status.Answered(AgentWidgetMachine.Closed.Dismissed)
+            AgentWidgetState.Status.Dismissed, AgentWidgetState.Status.Superseded -> Status.Answered(AgentWidgetMachine.Closed.Dismissed)
         }
     }
 }

@@ -21,11 +21,12 @@ data class OpenCodeWidgetRef(val name: String, val version: String = "") {
     }
 }
 
-/** Where a widget stands: open until its one answer, then submitted or dismissed. */
+/** Where a widget stands: open until its one answer (submitted or dismissed) or a newer widget replacing it. */
 enum class OpenCodeWidgetStatus(val wireName: String) {
     Open("open"),
     Submitted("submitted"),
-    Dismissed("dismissed");
+    Dismissed("dismissed"),
+    Superseded("superseded");
 
     companion object {
         fun of(raw: String?): OpenCodeWidgetStatus? = entries.firstOrNull { it.wireName == raw }

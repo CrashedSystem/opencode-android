@@ -110,7 +110,32 @@ data class InlineToolRow(
                     if (lookup.contains(" ")) localized(R.string.transcript_tool_search_quoted, lookup) else localized(R.string.transcript_tool_search, lookup)
                 }
                 "skill" -> string("id") ?: string("name") ?: call.metadata["name"]?.string?.nonEmpty
+                "widget_template" -> widgetTemplate(call) ?: call.subtitle
                 else -> call.subtitle
+            }
+        }
+
+        /** A `widget_template` call as one quiet line from its result metadata, never its source. */
+        private fun widgetTemplate(call: OpenCodeToolCall): String? {
+            val input = call.input.obj
+            val meta = call.metadata
+            val action = meta["action"]?.string ?: input?.get("action")?.string ?: return null
+            val name = meta["name"]?.string ?: input?.get("name")?.string
+            val revision = (meta["revision"] as? OpenCodeJSONValue.Number)?.value?.toInt()
+            return when (action) {
+                "list" -> (meta["count"] as? OpenCodeJSONValue.Number)?.value?.toInt()?.let {
+                    localizedPlural(R.plurals.transcript_widget_template_listed, it, it)
+                }
+                "get" -> name?.let { localized(R.string.transcript_widget_template_read, it) }
+                "save" -> name?.let {
+                    if (revision != null) localized(R.string.transcript_widget_template_saved_revision, it, revision)
+                    else localized(R.string.transcript_widget_template_saved, it)
+                }
+                "edit" -> name?.let {
+                    if (revision != null) localized(R.string.transcript_widget_template_edited_revision, it, revision)
+                    else localized(R.string.transcript_widget_template_edited, it)
+                }
+                else -> null
             }
         }
 

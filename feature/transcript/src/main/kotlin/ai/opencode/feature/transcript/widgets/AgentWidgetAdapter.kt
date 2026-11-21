@@ -36,7 +36,8 @@ data class AgentWidgetState(
     /** Hosts a live template may fetch from; shown on the widget. */
     val httpsHosts: List<String>? = null,
 ) {
-    enum class Status { Open, Submitted, Dismissed }
+    /** [Superseded]: a newer widget replaced it; it shows as one quiet line. */
+    enum class Status { Open, Submitted, Dismissed, Superseded }
 
 
     /** One widget in a session: a call ID is unique only within its message. */
@@ -119,6 +120,7 @@ object AgentWidgetAdapter {
         OpenCodeWidgetStatus.Open -> AgentWidgetState.Status.Open
         OpenCodeWidgetStatus.Submitted -> AgentWidgetState.Status.Submitted
         OpenCodeWidgetStatus.Dismissed -> AgentWidgetState.Status.Dismissed
+        OpenCodeWidgetStatus.Superseded -> AgentWidgetState.Status.Superseded
     }
 
     /**
@@ -137,6 +139,7 @@ object AgentWidgetAdapter {
         val status = when (legacy?.get("status")?.string) {
             "submitted" -> AgentWidgetState.Status.Submitted
             "dismissed" -> AgentWidgetState.Status.Dismissed
+            "superseded" -> AgentWidgetState.Status.Superseded
             else -> AgentWidgetState.Status.Open
         }
         return AgentWidgetState(

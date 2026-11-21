@@ -37,7 +37,7 @@ sealed interface AgentWidgetNode {
     }
     data class Input(val id: String, val label: String?, val value: String, val placeholder: String?, val multiline: Boolean) : AgentWidgetNode
     data object Divider : AgentWidgetNode
-    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?, val fill: Boolean = false) : AgentWidgetNode
+    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?, val fill: Boolean = true) : AgentWidgetNode
     data class Shader(
         val id: String?,
         val height: Float,
@@ -47,7 +47,7 @@ sealed interface AgentWidgetNode {
         val fps: Int,
         val alt: String?,
         val poster: String?,
-        val fill: Boolean = false,
+        val fill: Boolean = true,
     ) : AgentWidgetNode {
         override fun equals(other: Any?): Boolean = other is Shader && id == other.id && height == other.height &&
             width == other.width && wgsl == other.wgsl && values.contentEquals(other.values) && fps == other.fps &&
@@ -70,7 +70,7 @@ sealed interface AgentWidgetNode {
         fun drawsPixels(node: AgentWidgetNode): Boolean =
             node is Canvas || node is Shader || node.children.any(::drawsPixels)
 
-        /** Whether [node] or one under it is a `canvas`/`shader` that grows to fill the height in full screen. */
+        /** Whether [node] or one under it is a `canvas`/`shader` that grows to fill the height in full screen (unless `fill: false`). */
         fun fills(node: AgentWidgetNode): Boolean =
             (node is Canvas && node.fill) || (node is Shader && node.fill) || node.children.any(::fills)
 
@@ -119,7 +119,7 @@ sealed interface AgentWidgetNode {
                     (o.number("fps")?.toInt() ?: 0).coerceIn(0, MAX_FPS),
                     o.number("duration")?.toFloat()?.takeIf { it >= 0f },
                     o.string("alt"),
-                    o.bool("fill"),
+                    o.bool("fill", default = true),
                 )
                 "shader" -> {
                     val values = FloatArray(16)
@@ -135,7 +135,7 @@ sealed interface AgentWidgetNode {
                         (o.number("fps")?.toInt() ?: MAX_FPS).coerceIn(0, MAX_FPS),
                         o.string("alt"),
                         o.string("poster"),
-                        o.bool("fill"),
+                        o.bool("fill", default = true),
                     )
                 }
                 else -> null
@@ -170,7 +170,7 @@ sealed interface AgentWidgetNode {
         private fun JsonObject.number(key: String): Double? =
             (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull?.takeIf { it.isFinite() }
 
-        private fun JsonObject.bool(key: String): Boolean = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: false
+        private fun JsonObject.bool(key: String, default: Boolean = false): Boolean = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: default
 
         private fun JsonObject.required(type: String, key: String): String =
             string(key) ?: throw InvalidView("invalid view: $type needs a string $key")

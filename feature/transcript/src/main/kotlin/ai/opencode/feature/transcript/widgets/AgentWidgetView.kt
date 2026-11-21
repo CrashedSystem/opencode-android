@@ -73,6 +73,10 @@ fun AgentWidgetToolRow(item: OpenCodeTranscriptItem.Tool, modifier: Modifier = M
 /** A widget's frame, driven by its controller. */
 @Composable
 fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
+    if (widget.status == AgentWidgetState.Status.Superseded) {
+        SupersededLine(modifier)
+        return
+    }
     val context = LocalTranscriptRowContext.current
     val store = LocalAgentWidgetStore.current
     val server = context.server
@@ -127,7 +131,7 @@ fun AgentWidgetFrame(
         Column(
             Modifier
                 .then(if (fullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth())
-                .padding(if (fullscreen) PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp) else PaddingValues(16.dp))
+                .padding(if (fullscreen) PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp) else PaddingValues(16.dp))
                 .semantics { paneTitle = title },
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -137,7 +141,15 @@ fun AgentWidgetFrame(
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
                         Text(stringResource(R.string.transcript_widget_loading), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
                     }
-                    Box(Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card))
+                    val starting = phase is Phase.Starting && controller != null && controller.isLiveMode
+                    val density = LocalDensity.current.density
+                    Box(
+                        Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
+                            if (starting) Modifier.onSizeChanged { controller!!.liveViewWidth = it.width / density } else Modifier,
+                        ),
+                    )
+                    // A live program may wait for a frame before it renders anything.
+                    if (starting) LiveFrames(controller!!, density, fullscreen)
                 }
                 is Phase.Failed -> {
                     StatusLine(SFSymbol.XmarkCircleFill, colors.danger, stringResource(R.string.transcript_widget_failed))
@@ -215,6 +227,16 @@ fun AgentWidgetFrame(
                 iconSize = 16.dp,
             )
         }
+    }
+}
+
+/** A widget a newer one replaced (it follows in the timeline). */
+@Composable
+private fun SupersededLine(modifier: Modifier) {
+    val colors = OpenCodeTheme.colors
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        OpenCodeIcon(SFSymbol.ArrowDown, contentDescription = null, size = 14.dp, tint = colors.tertiaryText)
+        Text(stringResource(R.string.transcript_widget_superseded), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
     }
 }
 

@@ -69,7 +69,8 @@ import kotlin.math.roundToInt
 /**
  * The widget the list's [AgentWidgetStore] shows full screen, as a cover above the session:
  * the same controller (state, program and canvas clocks carry on), status bar hidden, rotation
- * allowed while it's open. Close, swipe down or system back exits; so does the widget closing.
+ * allowed while it's open, no title bar (the widget supplies its own), one floating close button.
+ * Close, swipe down or system back exits; so does the widget closing.
  */
 @Composable
 fun AgentWidgetFullscreenHost(store: AgentWidgetStore) {
@@ -130,26 +131,16 @@ fun AgentWidgetFullscreenHost(store: AgentWidgetStore) {
                     )
                     .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            open.title,
-                            Modifier.weight(1f),
-                            style = OpenCodeTextStyles.headline,
-                            color = OpenCodeTheme.colors.strongText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        OpenCodeIconButton(
-                            SFSymbol.Xmark,
-                            stringResource(CoreR.string.common_close),
-                            store::exitFullscreen,
-                            style = OpenCodeIconButtonStyle.Standard,
-                            tint = OpenCodeTheme.colors.secondaryText,
-                        )
-                    }
-                    AgentWidgetFrame(controller.phase, open.title, Modifier.weight(1f), controller = controller)
-                }
+                AgentWidgetFrame(controller.phase, open.title, Modifier.fillMaxSize(), controller = controller)
+                OpenCodeIconButton(
+                    SFSymbol.Xmark,
+                    stringResource(CoreR.string.common_close),
+                    store::exitFullscreen,
+                    Modifier.align(Alignment.TopEnd).padding(4.dp),
+                    style = OpenCodeIconButtonStyle.Circle,
+                    size = 40.dp,
+                    iconSize = 18.dp,
+                )
             }
         }
     }
