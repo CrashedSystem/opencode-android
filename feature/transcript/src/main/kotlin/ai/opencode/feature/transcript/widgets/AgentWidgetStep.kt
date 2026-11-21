@@ -9,8 +9,16 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 
-/** `{ id, type, value? }`; [value] is JSON text. */
-data class AgentWidgetEvent(val id: String, val type: Type, val value: String? = null) {
+/** A rectangle in a node's logical pixels (widgets-fullscreen.md `Rect`). */
+data class AgentWidgetRect(val x: Float, val y: Float, val width: Float, val height: Float) {
+    val json: String
+        get() = "{\"x\":${n(x)},\"y\":${n(y)},\"width\":${n(width)},\"height\":${n(height)}}"
+
+    private fun n(value: Float) = AgentWidgetEvent.number(Math.round(value * 100.0) / 100.0)
+}
+
+/** `{ id, type, value? }`; [value] is JSON text, [extra] more top-level fields (`"name":json`). */
+data class AgentWidgetEvent(val id: String, val type: Type, val value: String? = null, val extra: String? = null) {
     enum class Type(val wire: String) {
         Press("press"), Change("change"), Pointer("pointer"), Fullscreen("fullscreen"), Key("key"), Focus("focus"),
     }
@@ -19,6 +27,7 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
         get() = buildString {
             append("{\"id\":").append(JsonPrimitive(id).toString()).append(",\"type\":\"").append(type.wire).append('"')
             if (value != null) append(",\"value\":").append(value)
+            if (extra != null) append(',').append(extra)
             append('}')
         }
 
@@ -33,8 +42,9 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
 
     companion object {
         fun press(id: String) = AgentWidgetEvent(id, Type.Press)
-        /** Entering ([on]) or leaving full screen: `{ id: "", type: "fullscreen", value }`. */
-        fun fullscreen(on: Boolean) = AgentWidgetEvent("", Type.Fullscreen, on.toString())
+        /** Entering ([on]) or leaving full screen: `{ id: "", type: "fullscreen", value, close }`, [close] in root coordinates. */
+        fun fullscreen(on: Boolean, close: AgentWidgetRect?) =
+            AgentWidgetEvent("", Type.Fullscreen, on.toString(), "\"close\":" + (close?.json ?: "null"))
         /** Keyboard focus gained or lost: `{ id: "", type: "focus", value }`. */
         fun focus(on: Boolean) = AgentWidgetEvent("", Type.Focus, on.toString())
         /** A key while the widget has keyboard focus; [key] and [code] as in DOM `KeyboardEvent`. */
@@ -50,11 +60,13 @@ data class AgentWidgetEvent(val id: String, val type: Type, val value: String? =
         fun change(id: String, value: String) = AgentWidgetEvent(id, Type.Change, JsonPrimitive(value).toString())
         fun change(id: String, values: List<String>) =
             AgentWidgetEvent(id, Type.Change, values.joinToString(",", "[", "]") { JsonPrimitive(it).toString() })
-        fun pointer(id: String, kind: String, x: Float, y: Float, width: Float, height: Float) = AgentWidgetEvent(
+        /** An absolute pointer value; [close] (in the node's coordinates, full screen only) goes with it when set. */
+        fun pointer(id: String, kind: String, x: Float, y: Float, width: Float, height: Float, close: AgentWidgetRect? = null) = AgentWidgetEvent(
             id,
             Type.Pointer,
             "{\"kind\":\"$kind\",\"x\":${number(x.toDouble())},\"y\":${number(y.toDouble())}," +
-                "\"width\":${number(width.toDouble())},\"height\":${number(height.toDouble())}}",
+                "\"width\":${number(width.toDouble())},\"height\":${number(height.toDouble())}" +
+                (if (close != null) ",\"close\":${close.json}}" else "}"),
         )
 
         /** Whole numbers without a fraction, as JavaScript prints them. */

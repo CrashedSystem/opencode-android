@@ -7,6 +7,9 @@ import ai.opencode.server.OpenCodeClient
 import android.graphics.Bitmap
 import android.graphics.RectF
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -139,7 +142,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             val t = (now - state.startNanos) / 1e9
             val dt = if (last == 0L) 0.0 else (now - last) / 1e9
             last = now
-            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark, fullscreen), palette) ?: break
+            val step = state.step(controller, state.frameJSON(node.id, t, dt, density, dark, fullscreen, controller.closeOver(state.bounds)), palette) ?: break
             if (step.drawn) revision++
             overruns = if (step.overBudget) overruns + 1 else 0
             first = false
@@ -148,7 +151,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 AppLog.perf.notice { "Widget canvas stopped: over budget three frames in a row" }
                 // An intro stopped early still lands on its end state.
                 if (duration != null && t < duration) {
-                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark, fullscreen), palette)
+                    val end = state.step(controller, state.frameJSON(node.id, duration.toDouble(), 0.0, density, dark, fullscreen, controller.closeOver(state.bounds)), palette)
                     if (end?.drawn == true) revision++
                 }
                 break
@@ -170,10 +173,15 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 liveCanvas.width = it.width / density
                 liveCanvas.height = it.height / density
             }
+            .onGloballyPositioned {
+                val bounds = it.boundsInWindow()
+                state.bounds = bounds
+                liveCanvas.bounds = bounds
+            }
             .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
             .excludedFromDrawerPan(node.id != null && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
-            .agentWidgetPointer(node.id, density, { currentScope.send(it) }) { state.pointer = it },
+            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { controller?.closeOver(state.bounds) }) { state.pointer = it },
     ) {
         @Suppress("UNUSED_EXPRESSION") revision
         state.renderer.replay(this, state.buffers.shown, density, state.images)
@@ -189,6 +197,7 @@ internal fun Modifier.agentWidgetPointer(
     id: String?,
     density: Float,
     send: (AgentWidgetEvent) -> Unit,
+    close: () -> AgentWidgetRect? = { null },
     track: (FloatArray?) -> Unit = {},
 ): Modifier = if (id == null) this else pointerInput(id) {
     awaitPointerEventScope {
@@ -198,7 +207,7 @@ internal fun Modifier.agentWidgetPointer(
             val w = size.width / density
             val h = size.height / density
             track(floatArrayOf(first.position.x / density, first.position.y / density))
-            send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h))
+            send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h, close()))
             var horizontal: Boolean? = null
             var lastMove = 0L
             val origin = first.position
@@ -209,7 +218,7 @@ internal fun Modifier.agentWidgetPointer(
                 val y = change.position.y / density
                 if (!change.pressed) {
                     track(null)
-                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
+                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
                     break
                 }
                 val dx = abs(change.position.x - origin.x)
@@ -217,14 +226,14 @@ internal fun Modifier.agentWidgetPointer(
                 if (horizontal == null && (dx > viewConfiguration.touchSlop || dy > viewConfiguration.touchSlop)) horizontal = dx >= dy
                 if (horizontal == false) {
                     track(null)
-                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h))
+                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
                     break
                 }
                 if (horizontal == true) change.consume()
                 track(floatArrayOf(x, y))
                 if (change.uptimeMillis - lastMove >= 16) {
                     lastMove = change.uptimeMillis
-                    send(AgentWidgetEvent.pointer(id, "move", x, y, w, h))
+                    send(AgentWidgetEvent.pointer(id, "move", x, y, w, h, close()))
                 }
             }
         }
@@ -262,6 +271,8 @@ private class CanvasState {
     var images = CanvasImages { _, _ -> }
     val renderer = CanvasRenderer()
     var size by mutableStateOf(IntSize.Zero)
+    /** Where it is in its window (px), for the full-screen close area over it. */
+    var bounds: Rect? = null
     var startNanos = 0L
     /** A live canvas's frames carry the pointer too. */
     var pointerSink: AgentWidgetLiveCanvas? = null
@@ -306,7 +317,7 @@ private class CanvasState {
         return Step(drawn = decoded, overBudget = micros > DRAW_BUDGET_MICROS || (decoded && buffers.shown.truncated))
     }
 
-    fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean, fullscreen: Boolean): String {
+    fun frameJSON(id: String?, t: Double, dt: Double, scale: Float, dark: Boolean, fullscreen: Boolean, close: AgentWidgetRect?): String {
         val p = pointer
         val w = size.width / scale
         val h = size.height / scale
@@ -317,7 +328,8 @@ private class CanvasState {
             append(",\"width\":").append(w).append(",\"height\":").append(h).append(",\"scale\":").append(scale)
             append(",\"pointer\":")
             if (p == null) append("null") else append("{\"x\":").append(p[0]).append(",\"y\":").append(p[1]).append(",\"down\":true}")
-            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen).append('}')
+            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen)
+            append(",\"close\":").append(close?.json ?: "null").append('}')
         }
     }
 

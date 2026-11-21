@@ -32,8 +32,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -126,11 +129,13 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     }
 
     val currentScope by rememberUpdatedState(scope)
+    val bounds = remember { arrayOfNulls<Rect>(1) }
     Box(
         size
             .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
+            .onGloballyPositioned { bounds[0] = it.boundsInWindow() }
             .excludedFromDrawerPan(node.id != null && scope.live)
-            .agentWidgetPointer(node.id, density, { currentScope.send(it) })
+            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { scope.controller?.closeOver(bounds[0]) })
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)
             .pointerInput(Unit) {
                 awaitPointerEventScope {

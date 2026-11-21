@@ -3,6 +3,7 @@ package ai.opencode.feature.transcript.widgets
 import ai.opencode.core.log.AppLog
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetResponse
+import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -262,5 +263,7 @@ internal class AgentWidgetLiveDriver(
 internal class AgentWidgetLiveCanvas {
     @Volatile var width = 0f
     @Volatile var height = 0f
+    /** Where it is in its window (px), for the full-screen close area over it. */
+    var bounds: Rect? = null
     @Volatile var pointer: FloatArray? = null
 }

@@ -7,6 +7,8 @@ import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import ai.opencode.core.ui.OpenCodeRadius
 import ai.opencode.core.ui.OpenCodeSecondaryButton
@@ -174,7 +176,9 @@ fun AgentWidgetFrame(
                         !fullscreen -> Modifier
                         AgentWidgetNode.fills(view) -> Modifier.weight(1f)
                         else -> Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
-                    }
+                    }.then(
+                        if (fullscreen && controller != null) Modifier.onGloballyPositioned { controller.fullscreenRoot(it.boundsInWindow()) } else Modifier,
+                    )
                     val density = LocalDensity.current.density
                 AgentWidgetNodeView(
                     view,

@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +44,7 @@ class AgentWidgetStore(
 
     fun controller(widget: AgentWidgetState, server: OpenCodeServer, sessionID: String, directory: String?): AgentWidgetController {
         val key = "${server.persistenceID}/$sessionID/${widget.key}"
-        return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, directory, scope, programs, transport, engine) }
+        return controllers.getOrPut(key) { AgentWidgetController(widget, server, sessionID, directory, scope, programs, transport, engine).also { it.store = this } }
     }
 
     /** The one widget shown full screen, if any; its inline row shows a placeholder meanwhile. */
@@ -59,7 +60,6 @@ class AgentWidgetStore(
         }
         fullscreen = AgentWidgetFullscreen(controller, title)
         controller.shownChanged(fullscreen = true)
-        controller.fullscreenChanged(true)
     }
 
     fun exitFullscreen() {
@@ -135,10 +135,63 @@ class AgentWidgetController internal constructor(
 
     fun startNanos(key: String, now: Long): Long = starts.getOrPut(key) { now }
 
-    /** Tells the program it entered or left full screen (its `onFullscreen` hook), when it's taking input. */
-    internal fun fullscreenChanged(on: Boolean) {
-        if (isLiveMode || status(widget) is Status.Open) send(AgentWidgetEvent.fullscreen(on))
+    // Full screen (widgets-fullscreen.md, Telling the program): the close button's hit area and the root's bounds, in
+    // the full-screen window's px, and what the program was last told.
+    private var closeInWindow: Rect? = null
+    private var rootInWindow: Rect? = null
+    private var layoutDensity = 1f
+    private var toldClose: AgentWidgetRect? = null
+
+    /** The full-screen close button's hit area moved (null: it's gone). */
+    internal fun fullscreenCloseArea(area: Rect?, density: Float) {
+        closeInWindow = area
+        layoutDensity = density
+        tellFullscreen()
     }
+
+    /** The full-screen root node's bounds. */
+    internal fun fullscreenRoot(bounds: Rect) {
+        rootInWindow = bounds
+        tellFullscreen()
+    }
+
+    /** The close button's area in a node's coordinates when it overlaps [bounds] (full screen only), else null. */
+    internal fun closeOver(bounds: Rect?): AgentWidgetRect? {
+        val close = closeInWindow ?: return null
+        if (bounds == null || !close.overlaps(bounds)) return null
+        return relative(close, bounds)
+    }
+
+    private fun relative(area: Rect, to: Rect) = AgentWidgetRect(
+        (area.left - to.left) / layoutDensity,
+        (area.top - to.top) / layoutDensity,
+        area.width / layoutDensity,
+        area.height / layoutDensity,
+    )
+
+    /** Enter (once laid out) and every root size change: `fullscreen: true` with the close area in root coordinates. */
+    private fun tellFullscreen() {
+        if (store?.fullscreen?.controller !== this) return
+        val close = closeInWindow ?: return
+        val root = rootInWindow ?: return
+        val area = relative(close, root)
+        if (area == toldClose) return
+        toldClose = area
+        if (isLiveMode || status(widget) is Status.Open) send(AgentWidgetEvent.fullscreen(true, area))
+    }
+
+    /** Left full screen: `fullscreen: false, close: null`, when the program was told it entered. */
+    internal fun fullscreenChanged(on: Boolean) {
+        if (on) return
+        closeInWindow = null
+        rootInWindow = null
+        val told = toldClose != null
+        toldClose = null
+        if (told && (isLiveMode || status(widget) is Status.Open)) send(AgentWidgetEvent.fullscreen(false, null))
+    }
+
+    /** The store that shows this widget full screen. */
+    internal var store: AgentWidgetStore? = null
 
     /** The last event or init step's time on the lane, for the perf log. */
     @Volatile var lastStepMicros: Long = 0
@@ -440,6 +493,7 @@ class AgentWidgetController internal constructor(
         val canvas = liveCanvases.values.firstOrNull { it.width > 0f }
         val width = canvas?.width ?: liveViewWidth
         val height = canvas?.height ?: liveViewHeight
+        val close = closeOver(if (canvas != null) canvas.bounds else rootInWindow)
         val p = canvas?.pointer
         val t = (nanos - liveStartNanos) / 1e9
         val dt = if (lastFrameNanos == 0L) 0.0 else (nanos - lastFrameNanos) / 1e9
@@ -449,7 +503,8 @@ class AgentWidgetController internal constructor(
             append(",\"width\":").append(width).append(",\"height\":").append(height).append(",\"scale\":").append(scale)
             append(",\"pointer\":")
             if (p == null) append("null") else append("{\"x\":").append(p[0]).append(",\"y\":").append(p[1]).append(",\"down\":true}")
-            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen).append("}}")
+            append(",\"dark\":").append(dark).append(",\"fullscreen\":").append(fullscreen)
+            append(",\"close\":").append(close?.json ?: "null").append("}}")
         }
         live?.deliver(frame)
     }

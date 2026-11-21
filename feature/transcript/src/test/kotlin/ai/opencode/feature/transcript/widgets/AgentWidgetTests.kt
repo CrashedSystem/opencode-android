@@ -420,7 +420,22 @@ class AgentWidgetTests {
         assertNull(plain.fullscreen)
         assertTrue(!AgentWidgetNode.drawsPixels(plain.view))
         assertEquals(false, AgentWidgetStep.output("""{"state":{},"view":{"type":"divider","fullscreen":false}}""").fullscreen)
-        assertEquals("""{"id":"","type":"fullscreen","value":true}""", AgentWidgetEvent.fullscreen(true).json)
+        // widgets-fullscreen.md, Telling the program: the close button's area in root coordinates, null on leaving.
+        assertEquals(
+            """{"id":"","type":"fullscreen","value":true,"close":{"x":339,"y":8,"width":44,"height":44}}""",
+            AgentWidgetEvent.fullscreen(true, AgentWidgetRect(339f, 8f, 44f, 44f)).json,
+        )
+        assertEquals("""{"id":"","type":"fullscreen","value":false,"close":null}""", AgentWidgetEvent.fullscreen(false, null).json)
+        // An absolute pointer value carries the area over its node, and leaves it out when there is none.
+        assertEquals(
+            """{"id":"0/:board","type":"pointer","value":{"kind":"down","x":1,"y":2,"width":391,"height":700,"close":{"x":339,"y":-4.5,"width":44,"height":44}}}""",
+            AgentWidgetEvent.pointer("0/:board", "down", 1f, 2f, 391f, 700f, AgentWidgetRect(339f, -4.5f, 44f, 44f)).json,
+        )
+        assertEquals(
+            """{"id":"0/:board","type":"pointer","value":{"kind":"up","x":1,"y":2,"width":10,"height":10}}""",
+            AgentWidgetEvent.pointer("0/:board", "up", 1f, 2f, 10f, 10f).json,
+        )
+        assertEquals("""{"x":338.29,"y":8,"width":44,"height":44}""", AgentWidgetRect(338.2857f, 8f, 44f, 44f).json)
     }
 
     @Test
