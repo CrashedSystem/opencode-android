@@ -107,6 +107,23 @@ class AgentWidgetTests {
     }
 
     @Test
+    fun alphaSetsOpacityAndRestoreBringsItBack() {
+        val opacity = CanvasOpacity()
+        opacity.set(0.5f)
+        opacity.save()
+        opacity.set(0.8f)
+        assertEquals(0.8f, opacity.value)
+        assertTrue(opacity.restore())
+        assertEquals(0.5f, opacity.value)
+        opacity.set(2f)
+        assertEquals(1f, opacity.value)
+        opacity.set(-1f)
+        assertEquals(0f, opacity.value)
+        assertTrue(!opacity.restore())
+        assertEquals(0f, opacity.value)
+    }
+
+    @Test
     fun readsColours() {
         assertEquals(0xFFFFFFFF.toInt(), AgentWidgetDrawList.color("#fff", palette))
         assertEquals(0x80000000.toInt(), AgentWidgetDrawList.color("#00000080", palette))

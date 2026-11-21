@@ -324,6 +324,40 @@ private class CanvasState {
     }
 }
 
+/**
+ * A draw list's opacity: `alpha` sets it (clamped to 0…1, like Canvas 2D `globalAlpha`), `save`/`restore` keep and
+ * bring back the value. Saves deeper than [capacity] still balance their restores but keep the current value.
+ */
+internal class CanvasOpacity(private val capacity: Int = 64) {
+    private val saved = FloatArray(capacity)
+    private var depth = 0
+
+    var value = 1f
+        private set
+
+    fun reset() {
+        value = 1f
+        depth = 0
+    }
+
+    fun set(alpha: Float) {
+        value = alpha.coerceIn(0f, 1f)
+    }
+
+    fun save() {
+        if (depth < capacity) saved[depth] = value
+        depth++
+    }
+
+    /** Returns false for an unmatched restore, which changes nothing. */
+    fun restore(): Boolean {
+        if (depth == 0) return false
+        depth--
+        if (depth < capacity) value = saved[depth]
+        return true
+    }
+}
+
 /** Replays a [AgentWidgetDrawList] on the native canvas with reused paints and path. */
 private class CanvasRenderer {
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -332,7 +366,7 @@ private class CanvasRenderer {
     private val path = Path()
     private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val bounds = RectF()
-    private val alphas = FloatArray(64)
+    private val opacity = CanvasOpacity()
     private val typefaces = HashMap<Int, Typeface>()
     var replayMicros = 0L
         private set
@@ -352,25 +386,23 @@ private class CanvasRenderer {
             var ip = 0
             var fp = 0
             var sp = 0
-            var depth = 0
-            var alpha = 1f
+            opacity.reset()
+            var alpha = opacity.value
             val end = list.intCount
             while (ip < end) {
                 when (ints[ip++]) {
                     AgentWidgetDrawList.SAVE -> {
                         canvas.save()
-                        if (depth < alphas.size) alphas[depth] = alpha
-                        depth++
+                        opacity.save()
                     }
-                    AgentWidgetDrawList.RESTORE -> if (depth > 0) {
+                    AgentWidgetDrawList.RESTORE -> if (opacity.restore()) {
                         canvas.restore()
-                        depth--
-                        if (depth < alphas.size) alpha = alphas[depth]
+                        alpha = opacity.value
                     }
                     AgentWidgetDrawList.TRANSLATE -> { canvas.translate(floats[fp], floats[fp + 1]); fp += 2 }
                     AgentWidgetDrawList.ROTATE -> { canvas.rotate(Math.toDegrees(floats[fp].toDouble()).toFloat()); fp += 1 }
                     AgentWidgetDrawList.SCALE -> { canvas.scale(floats[fp], floats[fp + 1]); fp += 2 }
-                    AgentWidgetDrawList.ALPHA -> { alpha *= floats[fp].coerceIn(0f, 1f); fp += 1 }
+                    AgentWidgetDrawList.ALPHA -> { opacity.set(floats[fp]); alpha = opacity.value; fp += 1 }
                     AgentWidgetDrawList.RECT -> {
                         val x = floats[fp]; val y = floats[fp + 1]; val w = floats[fp + 2]; val h = floats[fp + 3]
                         fp += 4
