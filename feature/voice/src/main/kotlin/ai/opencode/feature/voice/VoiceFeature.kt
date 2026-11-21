@@ -392,6 +392,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
                 viewing = viewing,
                 userSeesScreen = screenVisibility.userSeesScreen,
                 recordsLooking = usesDelegator,
+                model = activeRoute.modelID(voiceModelsByServer[supportServer.persistenceID]),
             )
 
         val isWorking: Boolean

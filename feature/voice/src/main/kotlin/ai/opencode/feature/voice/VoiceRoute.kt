@@ -55,6 +55,15 @@ sealed interface VoiceRoute {
     val provider: ServerVoiceProvider get() = if (this == serverGeminiLive) ServerVoiceProvider.geminiLive else ServerVoiceProvider.openAI
     val modelID: String get() = engine?.modelID ?: GeminiLiveSessionConfig.defaultModel
 
+    /** The model the call asks for: on a server, the one `answer` lists for it. */
+    fun modelID(answer: ServerVoiceModelsAnswer?): String {
+        if (this !is Server) return modelID
+        val listed = answer?.let { ServerVoiceModels.model(server, it.models) }
+        if (listed != null) return listed
+        if (engine == VoiceEngine.gptLive) return LiveSessionConfig.serverModel
+        return modelID
+    }
+
     val keySource: VoiceKeySource
         get() = when (this) {
             is Server -> when (server) {
@@ -75,11 +84,12 @@ sealed interface VoiceRoute {
         server: OpenCodeServer,
         delegation: LiveDelegation = LiveDelegation.client,
         unboundSpeechUsesInstructions: Boolean = false,
+        models: ServerVoiceModelsAnswer? = null,
     ): RealtimeSessionConfig = RealtimeSessionConfig(
         engine = engine,
-        model = modelID,
+        model = modelID(models),
         voice = voice,
-        instructions = VoiceInstructions.build(context, route = this),
+        instructions = VoiceInstructions.build(context.copy(model = modelID(models)), route = this),
         tools = if (engine == VoiceEngine.gptLive) emptyList() else VoiceInstructions.tools,
         isAtEar = isAtEar,
         serverVoice = if (isServer) server else null,

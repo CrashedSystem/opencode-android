@@ -251,7 +251,7 @@ internal fun VoiceFeature.startCall(state: VoiceFeature.State): Reduced<VoiceFea
                 val config = route.sessionConfig(
                     voice = voice, context = context, isAtEar = atEarBox.current,
                     server = server, delegation = delegation,
-                    unboundSpeechUsesInstructions = useSession,
+                    unboundSpeechUsesInstructions = useSession, models = readiness.answers[server.persistenceID],
                 )
                 try {
                     return voiceCall.start("", config)
@@ -282,7 +282,7 @@ internal fun VoiceFeature.startCall(state: VoiceFeature.State): Reduced<VoiceFea
                     val fallbackConfig = route.sessionConfig(
                         voice = voice, context = context, isAtEar = atEarBox.current,
                         server = server, delegation = fallbackDelegation,
-                        unboundSpeechUsesInstructions = false,
+                        unboundSpeechUsesInstructions = false, models = readiness.answers[server.persistenceID],
                     )
                     return voiceCall.start("", fallbackConfig)
                 }

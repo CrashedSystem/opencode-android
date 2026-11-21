@@ -48,12 +48,11 @@ enum class VoiceEngine(val rawValue: String) {
     /**
      * How the voice model names itself when asked.
      */
-    val selfDescription: String
-        get() = when (this) {
-            gptLive -> "GPT-Live ($modelID)"
-            realtime -> "the Realtime model ($modelID)"
-            grok -> "Grok Voice ($modelID) from xAI"
-        }
+    fun selfDescription(model: String = modelID): String = when (this) {
+        gptLive -> "GPT-Live ($model)"
+        realtime -> "the Realtime model ($model)"
+        grok -> "Grok Voice ($model) from xAI"
+    }
 
     /** The saved key this engine's calls use. */
     fun apiKey(openAI: String?, xAI: String?): String? = when (provider) {
@@ -240,6 +239,9 @@ data class LiveSessionConfig(
 
     companion object {
         const val defaultModel = "gpt-live-1.1"
+
+        /** What a call through a server asks for when it doesn't know the server's list: every server accepts it. */
+        const val serverModel = "gpt-live-1"
     }
 }
 

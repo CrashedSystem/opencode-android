@@ -155,6 +155,10 @@ object ServerVoiceModels {
     fun hostedByOpenCode(call: VoiceRoute.ServerRoute, models: List<ServerVoiceModel>): Boolean =
         models.any { it.available && it.provider == "opencode" && brokered(it.model) == call }
 
+    /** The model a server listing `models` names for `call`. */
+    fun model(call: VoiceRoute.ServerRoute, models: List<ServerVoiceModel>): String? =
+        models.firstOrNull { brokered(it.model) == call }?.model
+
     /** Whether a server listing `models` holds a key for `call`. */
     fun offers(call: VoiceRoute.ServerRoute, models: List<ServerVoiceModel>): Boolean =
         models.any { it.available && brokered(it.model) == call }

@@ -255,7 +255,8 @@ class ServerVoiceTests {
         assertEquals(1, capturedConfigs.value.size)
         assertEquals(server, capturedConfigs.value[0].serverVoice)
         assertEquals(ServerVoiceProvider.openAI, capturedConfigs.value[0].provider)
-        assertEquals("gpt-live-1.1", capturedConfigs.value[0].model)
+        assertEquals("gpt-live-1", capturedConfigs.value[0].model)
+        assertTrue(capturedConfigs.value[0].instructions.contains("You are GPT-Live (gpt-live-1)—"))
 
         val geminiShared = resetSharedVoiceState()
         val geminiStream = Channel<VoiceCallEvent>(Channel.UNLIMITED)
@@ -302,6 +303,25 @@ class ServerVoiceTests {
         assertEquals(ServerVoiceProvider.geminiLive, capturedConfigs.value[1].provider)
         assertEquals("gemini-3.8-live", capturedConfigs.value[1].model)
         assertEquals(listOf("delegate", "end_voice_session"), capturedConfigs.value[1].tools.map { it.name })
+    }
+
+    @Test fun serverVoiceCallsAskForTheModelTheServerLists() {
+        val context = VoiceInstructions.Context(
+            sessionTitle = "Fix", directoryName = "app", recentMessages = emptyList(), previousTail = emptyList(), previousEndedAt = null,
+        )
+        val gptLive = VoiceRoute.serverOpenAI(VoiceRoute.OpenAI.gptLive)
+        val listsOne = ServerVoiceModelsAnswer.Listed(listOf(ServerVoiceModel(model = "gpt-live-1", provider = "opencode", available = true)))
+        val listsOnePointOne = ServerVoiceModelsAnswer.Listed(listOf(ServerVoiceModel(model = "gpt-live-1.1", provider = "openai", available = true)))
+
+        val hosted = gptLive.sessionConfig(CallVoice.marin, context, isAtEar = false, server = server, models = listsOne)
+        assertEquals("gpt-live-1", hosted.model)
+        assertTrue(hosted.instructions.contains("You are GPT-Live (gpt-live-1)—"))
+        assertEquals("gpt-live-1.1", gptLive.sessionConfig(CallVoice.marin, context, isAtEar = false, server = server, models = listsOnePointOne).model)
+        assertEquals("gpt-live-1", gptLive.sessionConfig(CallVoice.marin, context, isAtEar = false, server = server, models = ServerVoiceModelsAnswer.NoAnswer).model)
+
+        val phone = VoiceRoute.PhoneKey(VoiceEngine.gptLive).sessionConfig(CallVoice.marin, context, isAtEar = false, server = server, models = listsOne)
+        assertEquals("gpt-live-1.1", phone.model)
+        assertTrue(phone.instructions.contains("You are GPT-Live (gpt-live-1.1)—"))
     }
 
     @Test fun serverVoiceFallsBackToPhoneKeyWhenServerDoesNotSupportEndpoint() = runBlocking {
