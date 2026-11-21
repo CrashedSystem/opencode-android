@@ -1,2 +1,2 @@
-# ART's JIT crashes in OkHttp's hostname code when R8 inlines the IDN mapping table's strings into it.
+# Works around a native crash in JIT-compiled OkHttp hostname parsing by keeping the IDN table out of that method.
 -keep,allowobfuscation class okhttp3.internal.idn.** { <fields>; <methods>; }
