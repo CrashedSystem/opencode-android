@@ -279,6 +279,8 @@ class AgentWidgetController internal constructor(
             rootFullscreen = fullscreen
             when (val current = phase) {
                 is Phase.Starting, is Phase.Ready -> phase = Phase.Ready("null", view, (current as? Phase.Ready)?.error)
+                // The run's first views were invalid (shown as the error); a valid one replaces it.
+                is Phase.Failed -> if (live != null) phase = Phase.Ready("null", view, null)
                 else -> Unit
             }
         }
@@ -324,6 +326,10 @@ class AgentWidgetController internal constructor(
 
         override fun reported(phase: String, message: String) {
             reportError(phase, message)
+            // A run whose views are all invalid would otherwise stay on Loading.
+            if (phase == "view" && this@AgentWidgetController.phase is Phase.Starting) {
+                this@AgentWidgetController.phase = Phase.Failed(message, Status.Open)
+            }
         }
 
         override fun ended() = Unit
