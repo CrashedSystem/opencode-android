@@ -59,7 +59,7 @@ object AgentWidgetAdapter {
 
     /** The title the tool call asked for, shown while its widget loads. */
     fun title(call: OpenCodeToolCall): String? =
-        call.input.obj?.get("title")?.string?.trim()?.ifEmpty { null } ?: call.input.obj?.get("template")?.string
+        call.input.obj?.get("title")?.string?.trim()?.ifEmpty { null } ?: call.input.obj?.let { it["widgetTemplate"] ?: it["template"] }?.string
 
     /** [value] as JSON text, whole numbers without a fraction (as the server wrote them). */
     private fun json(value: OpenCodeJSONValue): String = buildString { write(value) }
@@ -95,7 +95,7 @@ object AgentWidgetAdapter {
 
     /**
      * The session's widgets by `messageID/callID`: every `widget` tool call in [items], with its
-     * state from the widget plugin ([records]), else from the call alone (its `metadata.template`,
+     * state from the widget plugin ([records]), else from the call alone (its `metadata.widgetTemplate`,
      * or the template's latest version, open).
      */
     fun states(items: List<OpenCodeTranscriptItem>, records: Map<String, OpenCodeWidgetState> = emptyMap()): Map<String, AgentWidgetState> {
@@ -130,10 +130,11 @@ object AgentWidgetAdapter {
     internal fun widget(call: OpenCodeToolCall, messageID: String = call.messageID ?: ""): AgentWidgetState? {
         if (!isWidget(call) || call.status == OpenCodeToolCall.Status.Streaming || call.status == OpenCodeToolCall.Status.Error) return null
         val input = call.input.obj ?: return null
-        // The plugin's `metadata.template`; session-lab's `metadata.widget` also carries status and response.
+        // The plugin's `metadata.widgetTemplate` (`template` before the rename); session-lab's `metadata.widget` also
+        // carries status and response.
         val legacy = call.metadata["widget"]?.obj
-        val template = call.metadata["template"]?.obj ?: legacy?.get("template")?.obj
-        val name = input["template"]?.string ?: template?.get("name")?.string ?: return null
+        val template = (call.metadata["widgetTemplate"] ?: call.metadata["template"])?.obj ?: legacy?.get("template")?.obj
+        val name = (input["widgetTemplate"] ?: input["template"])?.string ?: template?.get("name")?.string ?: return null
         val ref = OpenCodeWidgetRef(name, template?.get("version")?.string ?: "")
         if (!ref.isValid) return null
         val status = when (legacy?.get("status")?.string) {

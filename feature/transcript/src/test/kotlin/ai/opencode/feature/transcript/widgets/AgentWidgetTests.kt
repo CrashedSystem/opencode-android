@@ -323,6 +323,19 @@ class AgentWidgetTests {
         assertEquals("Deploy?", widget.label)
     }
 
+    /** The plugin names it `widgetTemplate` (input and metadata); `template` before the rename. */
+    @Test
+    fun readsAWidgetCallNamingItsWidgetTemplate() {
+        val widget = AgentWidgetAdapter.widget(
+            call(
+                """{"widgetTemplate":"confirm","data":{"title":"Deploy?"}}""",
+                metadata = mapOf("widgetTemplate" to json("""{"name":"confirm","version":"0123456789abcdef"}""")),
+            ),
+        )!!
+        assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.template)
+        assertEquals("confirm", AgentWidgetAdapter.title(call("""{"widgetTemplate":"confirm"}""")))
+    }
+
     @Test
     fun anUnpinnedToolCallAsksForTheLatestTemplate() {
         val widget = AgentWidgetAdapter.widget(call("""{"template":"form","data":{}}"""))!!

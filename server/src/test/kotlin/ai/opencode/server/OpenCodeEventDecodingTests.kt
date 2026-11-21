@@ -70,6 +70,8 @@ class OpenCodeEventDecodingTests {
         assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), event.state.template)
         assertEquals(ai.opencode.server.model.OpenCodeWidgetStatus.Submitted, event.state.status)
         assertEquals("""{"confirmed":true}""", event.state.response)
+        val renamed = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","widgetTemplate":{"name":"confirm","version":"0123456789abcdef"},"status":"open","wait":false,"time":{"created":1}}}}"""
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), (decodeStreamFrame(renamed) as OpenCodeServerEvent.WidgetChanged).state.template)
         assertEquals(null, decodeStreamFrame("""{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"status":"open"}}}"""))
         // A cold server's plugins finished loading for a location: widget states can be read now.
         assertEquals(OpenCodeServerEvent.PluginsUpdated("/work"), decodeStreamFrame("""{"type":"plugin.updated","location":{"directory":"/work"},"data":{}}"""))

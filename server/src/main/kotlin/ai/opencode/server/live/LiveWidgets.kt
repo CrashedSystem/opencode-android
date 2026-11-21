@@ -134,7 +134,7 @@ internal suspend fun requestWidgetReportRPC(
 internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
     val o = element as? JsonObject ?: return null
     fun str(key: String, from: JsonObject = o) = (from[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
-    val template = o["template"] as? JsonObject ?: return null
+    val template = (o["widgetTemplate"] ?: o["template"]) as? JsonObject ?: return null
     val ref = OpenCodeWidgetRef(str("name", template) ?: return null, str("version", template) ?: return null)
     if (!ref.isValid || !ref.isPinned) return null
     val status = OpenCodeWidgetStatus.of(str("status")) ?: return null
