@@ -171,15 +171,15 @@ fun AgentWidgetFrame(
                 is Phase.Ready, is Phase.Stepping, is Phase.Responding -> {
                     val live = controller != null && (phase is Phase.Ready || phase is Phase.Stepping)
                     val view = phase.view!!
+                    val density = LocalDensity.current.density
                     // Full screen the view takes the height: a `fill` canvas grows into it, anything else scrolls.
                     val body = when {
                         !fullscreen -> Modifier
                         AgentWidgetNode.fills(view) -> Modifier.weight(1f)
                         else -> Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
                     }.then(
-                        if (fullscreen && controller != null) Modifier.onGloballyPositioned { controller.fullscreenRoot(it.boundsInWindow()) } else Modifier,
+                        if (fullscreen && controller != null) Modifier.onGloballyPositioned { controller.fullscreenRoot(it.boundsInWindow(), density) } else Modifier,
                     )
-                    val density = LocalDensity.current.density
                 AgentWidgetNodeView(
                     view,
                     AgentWidgetScope(controller, live, title),

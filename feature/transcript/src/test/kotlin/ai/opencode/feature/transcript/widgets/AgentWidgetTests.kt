@@ -438,6 +438,13 @@ class AgentWidgetTests {
         assertEquals("""{"x":338.29,"y":8,"width":44,"height":44}""", AgentWidgetRect(338.2857f, 8f, 44f, 44f).json)
     }
 
+    /** Android's close area (widgets-fullscreen.md, Chrome): 44 dp, 8 dp from the root's top and end; it moves only with the width. */
+    @Test
+    fun theCloseAreaFollowsTheRootsWidth() {
+        assertEquals(AgentWidgetRect(339f, 8f, 44f, 44f), AgentWidgetController.closeArea(391f))
+        assertEquals(AgentWidgetRect(862.29f, 8f, 44f, 44f).json, AgentWidgetController.closeArea(914.29f).json)
+    }
+
     @Test
     fun keyboardEventsAndQueuedReplacement() {
         // widgets-input.md: keys and focus belong to no node.

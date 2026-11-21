@@ -52,12 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -144,13 +141,7 @@ fun AgentWidgetFullscreenHost(store: AgentWidgetStore) {
                     .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
                 AgentWidgetFrame(controller.phase, open.title, Modifier.fillMaxSize(), controller = controller)
-                val density = LocalDensity.current.density
-                DisposableEffect(controller) { onDispose { controller.fullscreenCloseArea(null, density) } }
-                FullscreenCloseButton(
-                    store::exitFullscreen,
-                    onArea = { controller.fullscreenCloseArea(it, density) },
-                    modifier = Modifier.align(Alignment.TopEnd),
-                )
+                FullscreenCloseButton(store::exitFullscreen, Modifier.align(Alignment.TopEnd))
             }
         }
     }
@@ -161,14 +152,13 @@ fun AgentWidgetFullscreenHost(store: AgentWidgetStore) {
  * from the top and end edges, with a 32 dp circle centred in it. The widget is told this area.
  */
 @Composable
-private fun FullscreenCloseButton(onClick: () -> Unit, onArea: (Rect) -> Unit, modifier: Modifier = Modifier) {
+private fun FullscreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
     val label = stringResource(CoreR.string.common_close)
     Box(
         modifier
             .padding(top = CLOSE_INSET, end = CLOSE_INSET)
             .size(CLOSE_AREA)
-            .onGloballyPositioned { onArea(it.boundsInWindow()) }
             .clickable(interactions, ripple(bounded = false, radius = CLOSE_CIRCLE / 2), role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,

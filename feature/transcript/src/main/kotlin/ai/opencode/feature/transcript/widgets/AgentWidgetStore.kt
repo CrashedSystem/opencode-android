@@ -135,46 +135,46 @@ class AgentWidgetController internal constructor(
 
     fun startNanos(key: String, now: Long): Long = starts.getOrPut(key) { now }
 
-    // Full screen (widgets-fullscreen.md, Telling the program): the close button's hit area and the root's bounds, in
-    // the full-screen window's px, and what the program was last told.
-    private var closeInWindow: Rect? = null
+    // Full screen (widgets-fullscreen.md, Telling the program): the root's bounds in the full-screen window's px, and
+    // the close area the program was last told. The button sits CLOSE_INSET from the top-right of the box the root
+    // fills, so its area follows from the root alone and changes only with the root's width.
     private var rootInWindow: Rect? = null
     private var layoutDensity = 1f
     private var toldClose: AgentWidgetRect? = null
 
-    /** The full-screen close button's hit area moved (null: it's gone). */
-    internal fun fullscreenCloseArea(area: Rect?, density: Float) {
-        closeInWindow = area
+    /** The full-screen root node's bounds (laid out, or a new size). */
+    internal fun fullscreenRoot(bounds: Rect, density: Float) {
+        rootInWindow = bounds
         layoutDensity = density
         tellFullscreen()
     }
 
-    /** The full-screen root node's bounds. */
-    internal fun fullscreenRoot(bounds: Rect) {
-        rootInWindow = bounds
-        tellFullscreen()
-    }
+    /** The close button's hit area in the window, while full screen. */
+    private val closeInWindow: Rect?
+        get() {
+            val root = rootInWindow ?: return null
+            val inset = CLOSE_INSET.value * layoutDensity
+            val side = CLOSE_AREA.value * layoutDensity
+            return Rect(root.right - inset - side, root.top + inset, root.right - inset, root.top + inset + side)
+        }
 
     /** The close button's area in a node's coordinates when it overlaps [bounds] (full screen only), else null. */
     internal fun closeOver(bounds: Rect?): AgentWidgetRect? {
         val close = closeInWindow ?: return null
         if (bounds == null || !close.overlaps(bounds)) return null
-        return relative(close, bounds)
+        return AgentWidgetRect(
+            (close.left - bounds.left) / layoutDensity,
+            (close.top - bounds.top) / layoutDensity,
+            CLOSE_AREA.value,
+            CLOSE_AREA.value,
+        )
     }
 
-    private fun relative(area: Rect, to: Rect) = AgentWidgetRect(
-        (area.left - to.left) / layoutDensity,
-        (area.top - to.top) / layoutDensity,
-        area.width / layoutDensity,
-        area.height / layoutDensity,
-    )
-
-    /** Enter (once laid out) and every root size change: `fullscreen: true` with the close area in root coordinates. */
+    /** Enter (once laid out) and each root width change: `fullscreen: true` with the close area in root coordinates. */
     private fun tellFullscreen() {
         if (store?.fullscreen?.controller !== this) return
-        val close = closeInWindow ?: return
         val root = rootInWindow ?: return
-        val area = relative(close, root)
+        val area = closeArea(root.width / layoutDensity)
         if (area == toldClose) return
         toldClose = area
         if (isLiveMode || status(widget) is Status.Open) send(AgentWidgetEvent.fullscreen(true, area))
@@ -183,7 +183,6 @@ class AgentWidgetController internal constructor(
     /** Left full screen: `fullscreen: false, close: null`, when the program was told it entered. */
     internal fun fullscreenChanged(on: Boolean) {
         if (on) return
-        closeInWindow = null
         rootInWindow = null
         val told = toldClose != null
         toldClose = null
@@ -624,8 +623,16 @@ class AgentWidgetController internal constructor(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_REPORTS = 8
+
+        /** The close button's area in a full-screen root [width] dp wide: CLOSE_AREA square, CLOSE_INSET from its top-right. */
+        fun closeArea(width: Float) = AgentWidgetRect(
+            width - CLOSE_INSET.value - CLOSE_AREA.value,
+            CLOSE_INSET.value,
+            CLOSE_AREA.value,
+            CLOSE_AREA.value,
+        )
 
         fun openFailure(widget: AgentWidgetState): OpenCodeWidgetFailure? =
             widget.failure.takeIf { widget.status == AgentWidgetState.Status.Open }
