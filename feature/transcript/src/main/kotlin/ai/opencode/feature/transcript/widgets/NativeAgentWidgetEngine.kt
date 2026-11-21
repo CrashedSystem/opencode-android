@@ -59,7 +59,13 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
                     override fun onWarning(message: String) = listener.warned(message)
                     override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let { mapped(it, draw = false) })
                 }
-                val options = LiveOptions(sliceBudgetMs = 50uL, maxPostsPerSecond = 240u, httpsHosts = httpsHosts, allowLocalNetwork = AgentWidgetCapabilities.allowsLocalNetwork)
+                val options = LiveOptions(
+                    sliceBudgetMs = 50uL,
+                    maxPostsPerSecond = 240u,
+                    httpsHosts = httpsHosts,
+                    allowLocalNetwork = AgentWidgetCapabilities.allowsLocalNetwork,
+                    maxHeapBytes = LIVE_HEAP_BYTES,
+                )
                 val transport = if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport(listener::fetchFailed)
                 val live = mapping { compiled.startLive(inputJson, handler, options, transport) }
                 return NativeLiveRun(live)
@@ -148,6 +154,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         is PsychoScriptException.MemoryLimitExceeded -> error.reason
     }
 
+    private const val LIVE_HEAP_BYTES: ULong = 33_554_432uL
     private const val ENTRY = "\nreturn __widget_step(__input())"
     private const val LIVE_ENTRY = "\nreturn await __widget_live(__input())"
     private val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL)
