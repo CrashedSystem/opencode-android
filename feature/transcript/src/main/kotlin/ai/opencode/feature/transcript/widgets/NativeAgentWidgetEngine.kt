@@ -15,7 +15,7 @@ import com.anomalyco.psychoscript.translateWgsl
 
 /**
  * The step ABI and shader wrapping on the Rust PsychoScript (`psychoscript-mobile`), when this
- * build bundles it: a template's program compiles once with the step entry appended, steps run
+ * build bundles it: a widget template's program compiles once with the step entry appended, steps run
  * under the contract's 250 ms (draws 8 ms; a timeout there is an overrun), and a shader's WGSL
  * goes in the spec's header and a GL entry point that flips `frag.y` to a top-left origin.
  */
@@ -116,8 +116,8 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         throw AgentWidgetEngineException(shaderMessage(error, wgsl.lines().size), line = at, column = if (at != null) column?.toInt() else null, isProgramError = invalid)
     }
 
-    /** The reason, with where it happened as a line of the template when it happened there. */
-    private fun shaderMessage(error: ShaderException, templateLines: Int): String {
+    /** The reason, with where it happened as a line of the widget template when it happened there. */
+    private fun shaderMessage(error: ShaderException, widgetTemplateLines: Int): String {
         val (reason, line, column) = when (error) {
             is ShaderException.Parse -> Triple(error.reason, error.line, error.column)
             is ShaderException.Validation -> Triple(error.reason, error.line, error.column)
@@ -125,7 +125,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             is ShaderException.Translation -> Triple(error.reason, null, null)
         }
         val at = line?.toInt()?.minus(HEADER_LINES)
-        return if (at != null && at in 1..templateLines) "$reason (line $at, column ${column ?: 0u})" else reason
+        return if (at != null && at in 1..widgetTemplateLines) "$reason (line $at, column ${column ?: 0u})" else reason
     }
 
     private inline fun <T> mapping(draw: Boolean = false, block: () -> T): T = try {

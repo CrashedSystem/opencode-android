@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">让智能体修复</string>
     <string name="transcript_widget_agent_told">已告知智能体此错误。</string>
     <string name="transcript_widget_superseded">已在下方更新</string>
-    <string name="transcript_widget_template_saved_revision">已保存模板 %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">已保存模板 %1$s</string>
-    <string name="transcript_widget_template_edited_revision">已编辑模板 %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">已编辑模板 %1$s</string>
-    <string name="transcript_widget_template_read">已读取模板 %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">已保存小部件模板 %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">已保存小部件模板 %1$s</string>
+    <string name="transcript_widget_template_edited_revision">已编辑小部件模板 %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">已编辑小部件模板 %1$s</string>
+    <string name="transcript_widget_template_read">已读取小部件模板 %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="other">已列出 %d 个小部件模板</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">按键将发送到此小部件。按 Esc 键可退出。</string>
 </resources>

@@ -4,7 +4,7 @@ import ai.opencode.core.dependencies.DependencyKey
 
 /**
  * Runs widget programs on the Rust PsychoScript (`psychoscript-mobile`). A program compiles once
- * per template version; each step takes the step input's JSON and returns the step output's (or
+ * per widget template version; each step takes the step input's JSON and returns the step output's (or
  * a draw step's `{ commands }`). Every call throws [AgentWidgetEngineException] when it fails.
  */
 interface AgentWidgetEngine {
@@ -12,7 +12,7 @@ interface AgentWidgetEngine {
 
     fun compile(program: String): AgentWidgetProgram
 
-    /** A live template's program, run with `return await __widget_live(__input())` (specs/v2/widgets-live.md). */
+    /** A live widget template's program, run with `return await __widget_live(__input())` (specs/v2/widgets-live.md). */
     fun compileLive(program: String): AgentWidgetLiveProgram
 
     /** A `shader` node's `wgsl` (its `shade` function) in the spec's header and entry point, as GLSL ES 3.00, with the vertex stage. */
@@ -63,14 +63,14 @@ fun interface AgentWidgetProgram : AutoCloseable {
 
 /**
  * [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three.
- * [isProgramError]: the template's code failed or broke a limit (specs/v2/widgets.md, Failures); false for the
+ * [isProgramError]: the widget template's code failed or broke a limit (specs/v2/widgets.md, Failures); false for the
  * runtime's own failures, which are client errors.
  */
 class AgentWidgetEngineException(
     message: String,
     val isTimeout: Boolean = false,
     val isBudget: Boolean = false,
-    /** Where in the compiled program (or a shader's template WGSL) it failed, 1-based, when known. */
+    /** Where in the compiled program (or a shader's WGSL in the widget template) it failed, 1-based, when known. */
     val line: Int? = null,
     val column: Int? = null,
     val isProgramError: Boolean = true,

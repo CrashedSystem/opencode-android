@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">এজেন্টকে ঠিক করতে বলুন</string>
     <string name="transcript_widget_agent_told">এই ত্রুটি সম্পর্কে এজেন্টকে জানানো হয়েছে।</string>
     <string name="transcript_widget_superseded">নিচে আপডেট হয়েছে</string>
-    <string name="transcript_widget_template_saved_revision">টেমপ্লেট %1$s v%2$d সেভ করা হয়েছে</string>
-    <string name="transcript_widget_template_saved">টেমপ্লেট %1$s সেভ করা হয়েছে</string>
-    <string name="transcript_widget_template_edited_revision">টেমপ্লেট %1$s v%2$d সম্পাদিত হয়েছে</string>
-    <string name="transcript_widget_template_edited">টেমপ্লেট %1$s সম্পাদিত হয়েছে</string>
-    <string name="transcript_widget_template_read">টেমপ্লেট %1$s পড়া হয়েছে</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">উইজেট টেমপ্লেট %1$s v%2$d সেভ করা হয়েছে</string>
+    <string name="transcript_widget_template_saved">উইজেট টেমপ্লেট %1$s সেভ করা হয়েছে</string>
+    <string name="transcript_widget_template_edited_revision">উইজেট টেমপ্লেট %1$s v%2$d সম্পাদিত</string>
+    <string name="transcript_widget_template_edited">উইজেট টেমপ্লেট %1$s সম্পাদিত</string>
+    <string name="transcript_widget_template_read">উইজেট টেমপ্লেট %1$s পড়া</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%dটি উইজেট টেমপ্লেট তালিকাভুক্ত হয়েছে</item>
-        <item quantity="other">%dটি উইজেট টেমপ্লেট তালিকাভুক্ত হয়েছে</item>
+        <item quantity="one">%dটি উইজেট টেমপ্লেট তালিকাভুক্ত</item>
+        <item quantity="other">%dটি উইজেট টেমপ্লেট তালিকাভুক্ত</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">কীগুলো এই উইজেটে যায়। সেগুলো ফিরিয়ে দিতে Esc চাপুন।</string>
 </resources>

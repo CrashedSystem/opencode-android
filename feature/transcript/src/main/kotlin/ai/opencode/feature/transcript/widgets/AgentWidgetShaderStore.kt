@@ -22,7 +22,7 @@ import java.security.MessageDigest
 
 /**
  * Translated shaders by the hash of their WGSL (and target): the few most recent in memory, all of
- * them on disk, so a template's banner translates once per device. A failure is kept for the
+ * them on disk, so a widget template's banner translates once per device. A failure is kept for the
  * process only, so a newer runner gets another try next launch.
  */
 class AgentWidgetShaderStore(

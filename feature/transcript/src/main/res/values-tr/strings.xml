@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Ajandan düzeltmesini iste</string>
     <string name="transcript_widget_agent_told">Ajana bu hata bildirildi.</string>
     <string name="transcript_widget_superseded">Aşağıda güncellendi</string>
-    <string name="transcript_widget_template_saved_revision">%1$s şablonu v%2$d kaydedildi</string>
-    <string name="transcript_widget_template_saved">%1$s şablonu kaydedildi</string>
-    <string name="transcript_widget_template_edited_revision">%1$s şablonu v%2$d düzenlendi</string>
-    <string name="transcript_widget_template_edited">%1$s şablonu düzenlendi</string>
-    <string name="transcript_widget_template_read">%1$s şablonu okundu</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Pencere öğesi şablonu %1$s v%2$d kaydedildi</string>
+    <string name="transcript_widget_template_saved">Pencere öğesi şablonu %1$s kaydedildi</string>
+    <string name="transcript_widget_template_edited_revision">Pencere öğesi şablonu %1$s v%2$d düzenlendi</string>
+    <string name="transcript_widget_template_edited">Pencere öğesi şablonu %1$s düzenlendi</string>
+    <string name="transcript_widget_template_read">Pencere öğesi şablonu %1$s okundu</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">%d pencere öğesi şablonu listelendi</item>
         <item quantity="other">%d pencere öğesi şablonu listelendi</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tuşlar bu pencere öğesine gider. Geri almak için Esc tuşuna basın.</string>
 </resources>

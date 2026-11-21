@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">Minta Ejen Baiki</string>
     <string name="transcript_widget_agent_told">Ejen dimaklumkan tentang ralat ini.</string>
     <string name="transcript_widget_superseded">Dikemas kini di bawah</string>
-    <string name="transcript_widget_template_saved_revision">Templat %1$s v%2$d disimpan</string>
-    <string name="transcript_widget_template_saved">Templat %1$s disimpan</string>
-    <string name="transcript_widget_template_edited_revision">Templat %1$s v%2$d disunting</string>
-    <string name="transcript_widget_template_edited">Templat %1$s disunting</string>
-    <string name="transcript_widget_template_read">Templat %1$s dibaca</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Templat widget %1$s v%2$d disimpan</string>
+    <string name="transcript_widget_template_saved">Templat widget %1$s disimpan</string>
+    <string name="transcript_widget_template_edited_revision">Templat widget %1$s v%2$d disunting</string>
+    <string name="transcript_widget_template_edited">Templat widget %1$s disunting</string>
+    <string name="transcript_widget_template_read">Baca templat widget %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="other">Disenaraikan %d templat widget</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Kekunci dihantar ke widget ini. Tekan Esc untuk mengembalikannya.</string>
 </resources>

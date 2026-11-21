@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">एजेंट से इसे ठीक करने को कहें</string>
     <string name="transcript_widget_agent_told">एजेंट को इस त्रुटि के बारे में बताया गया।</string>
     <string name="transcript_widget_superseded">नीचे अपडेट किया गया</string>
-    <string name="transcript_widget_template_saved_revision">टेम्पलेट %1$s v%2$d सहेजा गया</string>
-    <string name="transcript_widget_template_saved">टेम्पलेट %1$s सहेजा गया</string>
-    <string name="transcript_widget_template_edited_revision">टेम्पलेट %1$s v%2$d संपादित किया</string>
-    <string name="transcript_widget_template_edited">टेम्पलेट %1$s संपादित किया</string>
-    <string name="transcript_widget_template_read">टेम्पलेट %1$s पढ़ा</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">विजेट टेम्पलेट %1$s v%2$d सहेजा</string>
+    <string name="transcript_widget_template_saved">विजेट टेम्पलेट %1$s सहेजा</string>
+    <string name="transcript_widget_template_edited_revision">विजेट टेम्पलेट %1$s v%2$d संपादित किया</string>
+    <string name="transcript_widget_template_edited">विजेट टेम्पलेट %1$s संपादित किया</string>
+    <string name="transcript_widget_template_read">विजेट टेम्पलेट %1$s पढ़ा</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d विजेट टेम्पलेट सूचीबद्ध</item>
-        <item quantity="other">%d विजेट टेम्पलेट सूचीबद्ध</item>
+        <item quantity="one">%d विजेट टेम्पलेट सूचीबद्ध किया</item>
+        <item quantity="other">%d विजेट टेम्पलेट सूचीबद्ध किए</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">कुंजियाँ इस विजेट में जाती हैं। इन्हें वापस पाने के लिए Esc दबाएँ।</string>
 </resources>

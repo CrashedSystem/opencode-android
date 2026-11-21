@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Vraag agent om het op te lossen</string>
     <string name="transcript_widget_agent_told">De agent is over deze fout geïnformeerd.</string>
     <string name="transcript_widget_superseded">Hieronder bijgewerkt</string>
-    <string name="transcript_widget_template_saved_revision">Sjabloon %1$s v%2$d opgeslagen</string>
-    <string name="transcript_widget_template_saved">Sjabloon %1$s opgeslagen</string>
-    <string name="transcript_widget_template_edited_revision">Sjabloon %1$s v%2$d bewerkt</string>
-    <string name="transcript_widget_template_edited">Sjabloon %1$s bewerkt</string>
-    <string name="transcript_widget_template_read">Sjabloon %1$s gelezen</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Widgetsjabloon %1$s v%2$d opgeslagen</string>
+    <string name="transcript_widget_template_saved">Widgetsjabloon %1$s opgeslagen</string>
+    <string name="transcript_widget_template_edited_revision">Widgetsjabloon %1$s v%2$d bewerkt</string>
+    <string name="transcript_widget_template_edited">Widgetsjabloon %1$s bewerkt</string>
+    <string name="transcript_widget_template_read">Widgetsjabloon %1$s gelezen</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d widget-sjabloon weergegeven</item>
-        <item quantity="other">%d widget-sjablonen weergegeven</item>
+        <item quantity="one">%d widgetsjabloon getoond</item>
+        <item quantity="other">%d widgetsjablonen getoond</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Toetsen gaan naar deze widget. Druk op Esc om ze terug te geven.</string>
 </resources>

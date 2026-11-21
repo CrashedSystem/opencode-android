@@ -109,7 +109,7 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
 }
 
 /**
- * The widget in its frame: a placeholder while the template loads, the live view with a failed
+ * The widget in its frame: a placeholder while the widget template loads, the live view with a failed
  * step's error under it, Sending… while the answer goes, the final view read-only with how it
  * ended, or an error card with Try Again. Without a [controller] nothing in it responds.
  */

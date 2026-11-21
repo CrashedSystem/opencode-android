@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Аз агент хоҳиш кунед, ки ислоҳ кунад</string>
     <string name="transcript_widget_agent_told">Ба агент дар бораи ин хато хабар дода шуд.</string>
     <string name="transcript_widget_superseded">Дар поён навсозӣ шуд</string>
-    <string name="transcript_widget_template_saved_revision">Қолаби %1$s v%2$d захира шуд</string>
-    <string name="transcript_widget_template_saved">Қолаби %1$s захира шуд</string>
-    <string name="transcript_widget_template_edited_revision">Қолаби %1$s v%2$d таҳрир шуд</string>
-    <string name="transcript_widget_template_edited">Қолаби %1$s таҳрир шуд</string>
-    <string name="transcript_widget_template_read">Қолаби %1$s хонда шуд</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Шаблони виджет %1$s v%2$d захира шуд</string>
+    <string name="transcript_widget_template_saved">Шаблони виджет %1$s захира шуд</string>
+    <string name="transcript_widget_template_edited_revision">Шаблони виджет %1$s v%2$d таҳрир шуд</string>
+    <string name="transcript_widget_template_edited">Шаблони виджет %1$s таҳрир шуд</string>
+    <string name="transcript_widget_template_read">Шаблони виджет %1$s хонда шуд</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d қолаби виджет рӯйхат шуд</item>
-        <item quantity="other">%d қолаби виджет рӯйхат шуд</item>
+        <item quantity="one">%d шаблони виджет рӯйхат карда шуд</item>
+        <item quantity="other">%d шаблони виджет рӯйхат карда шуд</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Тугмаҳо ба ин виджет мераванд. Барои баргардонидан Esc-ро пахш кунед.</string>
 </resources>

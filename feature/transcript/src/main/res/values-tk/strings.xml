@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Agentden düzetmegini sora</string>
     <string name="transcript_widget_agent_told">Agente bu ýalňyşlyk barada habar berildi.</string>
     <string name="transcript_widget_superseded">Aşakda täzelendi</string>
-    <string name="transcript_widget_template_saved_revision">Şablon %1$s v%2$d ýatda saklandy</string>
-    <string name="transcript_widget_template_saved">Şablon %1$s ýatda saklandy</string>
-    <string name="transcript_widget_template_edited_revision">Şablon %1$s v%2$d redaktirlendi</string>
-    <string name="transcript_widget_template_edited">Şablon %1$s redaktirlendi</string>
-    <string name="transcript_widget_template_read">Şablon %1$s okalandy</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Saklanan widjet şablony %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Saklanan widjet şablony %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redaktirlenen widjet şablony %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redaktirlenen widjet şablony %1$s</string>
+    <string name="transcript_widget_template_read">Okalan widjet şablony %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d widget şablony sanawda</item>
-        <item quantity="other">%d widget şablony sanawda</item>
+        <item quantity="one">Sanawlanan %d widjet şablony</item>
+        <item quantity="other">Sanawlanan %d widjet şablony</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Düwmeler bu widgete gidýär. Olary yzyna gaýtarmak üçin Esc basyň.</string>
 </resources>

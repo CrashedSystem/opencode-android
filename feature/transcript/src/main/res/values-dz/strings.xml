@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">ལས་ཚབ་ལུ་ནོར་བཅོས་ཞུ།</string>
     <string name="transcript_widget_agent_told">ལས་ཚབ་ལུ་འཛོལ་བ་འདིའི་སྐོར་ལས་བཤད་ཡོདཔ།</string>
     <string name="transcript_widget_superseded">འོག་ལུ་དུས་མཐུན་བཟོ་ཡོདཔ།</string>
-    <string name="transcript_widget_template_saved_revision">དཔེ་གཞི %1$s v%2$d བསྲུངས་ཡོདཔ།</string>
-    <string name="transcript_widget_template_saved">དཔེ་གཞི %1$s བསྲུངས་ཡོདཔ།</string>
-    <string name="transcript_widget_template_edited_revision">དཔེ་གཞི %1$s v%2$d ཞུན་དག་འབད་ཡོདཔ།</string>
-    <string name="transcript_widget_template_edited">དཔེ་གཞི %1$s ཞུན་དག་འབད་ཡོདཔ།</string>
-    <string name="transcript_widget_template_read">དཔེ་གཞི %1$s ལྸག་ནི</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">ཝི་ཇེཊི་མ་དཔེ་ %1$s ཐོན་རིམ་ %2$d བསྲུངས་ཡོདཔ།</string>
+    <string name="transcript_widget_template_saved">ཝི་ཇེཊི་མ་དཔེ་ %1$s བསྲུངས་ཡོདཔ།</string>
+    <string name="transcript_widget_template_edited_revision">ཝི་ཇེཊི་མ་དཔེ་ %1$s ཐོན་རིམ་ %2$d ཞུན་དག་འབད་ཡོདཔ།</string>
+    <string name="transcript_widget_template_edited">ཝི་ཇེཊི་མ་དཔེ་ %1$s ཞུན་དག་འབད་ཡོདཔ།</string>
+    <string name="transcript_widget_template_read">ཝི་ཇེཊི་མ་དཔེ་ %1$s ལྸག་ནི</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="other">ཝི་ཇེཊི་དཔེ་གཞི %d ཐོ་བཀོད་འབད་ཡོདཔ།</item>
+        <item quantity="other">ཝི་ཇེཊི་མ་དཔེ་ %d ཐོ་བཀོད་འབད་ཡོདཔ།</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">ལྡེ་མིག་ཚུ་ཝི་ཇེཊི་འདི་ལུ་འགྱོ་དོ། ཕྱིར་སྤྲོད་ནི་ལུ ESC ཨེབ་གནང་།</string>
 </resources>

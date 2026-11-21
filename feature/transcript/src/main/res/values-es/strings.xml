@@ -197,15 +197,17 @@
     <string name="transcript_widget_ask_agent">Pedir al agente que lo arregle</string>
     <string name="transcript_widget_agent_told">Se informó al agente de este error.</string>
     <string name="transcript_widget_superseded">Actualizado abajo</string>
-    <string name="transcript_widget_template_saved_revision">Plantilla guardada %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Plantilla guardada %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Plantilla editada %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Plantilla editada %1$s</string>
-    <string name="transcript_widget_template_read">Plantilla leída %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Plantilla de widget %1$s v%2$d guardada</string>
+    <string name="transcript_widget_template_saved">Plantilla de widget %1$s guardada</string>
+    <string name="transcript_widget_template_edited_revision">Plantilla de widget %1$s v%2$d editada</string>
+    <string name="transcript_widget_template_edited">Plantilla de widget %1$s editada</string>
+    <string name="transcript_widget_template_read">Plantilla de widget %1$s leída</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">%d plantilla de widget listada</item>
         <item quantity="many">%d plantillas de widget listadas</item>
         <item quantity="other">%d plantillas de widget listadas</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Las teclas van a este widget. Presiona Esc para devolverlas.</string>
 </resources>

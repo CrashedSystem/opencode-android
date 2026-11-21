@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Spyr agentin at rætta tað</string>
     <string name="transcript_widget_agent_told">Agentin varð kunnaður um henda feilin.</string>
     <string name="transcript_widget_superseded">Dagført niðanfyri</string>
-    <string name="transcript_widget_template_saved_revision">Goymdi fyrimynd %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Goymdi fyrimynd %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Rættaði fyrimynd %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Rættaði fyrimynd %1$s</string>
-    <string name="transcript_widget_template_read">Las fyrimynd %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Goymdi widget skabelón %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Goymdi widget skabelón %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Rættaði widget skabelón %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Rættaði widget skabelón %1$s</string>
+    <string name="transcript_widget_template_read">Les widget skabelón %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Listaði %d widget fyrimynd</item>
-        <item quantity="other">Listaði %d widget fyrimyndir</item>
+        <item quantity="one">Listaði %d widget skabelón</item>
+        <item quantity="other">Listaði %d widget skabelónir</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Knøttir fara til henda widget. Trýst á Esc fyri at geva teir aftur.</string>
 </resources>

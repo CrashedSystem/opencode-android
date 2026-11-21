@@ -89,7 +89,7 @@ val LocalAgentWidgetFullscreen = staticCompositionLocalOf { false }
 /** True while the list isn't on screen (its lifecycle is below resumed): shaders stop rendering. */
 val LocalAgentWidgetPaused = androidx.compose.runtime.compositionLocalOf { false }
 
-/** Runs one widget's machine: fetches and compiles its template, steps it off the main thread, and answers it once. */
+/** Runs one widget's machine: fetches and compiles its widget template, steps it off the main thread, and answers it once. */
 @Stable
 class AgentWidgetController internal constructor(
     widget: AgentWidgetState,
@@ -103,7 +103,7 @@ class AgentWidgetController internal constructor(
 ) {
     val key: String = widget.key
     val data: String = widget.data
-    private val ref = widget.template
+    private val ref = widget.widgetTemplate
     private var widget = widget
     private var machine: AgentWidgetMachine.Machine
     private var pendingEffects: List<Effect>
@@ -257,7 +257,7 @@ class AgentWidgetController internal constructor(
 
     // Live mode (specs/v2/widgets-live.md).
 
-    /** A live template: its program runs on its own and posts views, draws and answers. */
+    /** A live widget template: its program runs on its own and posts views, draws and answers. */
     var isLiveMode: Boolean by mutableStateOf(false)
         private set
 
@@ -354,7 +354,7 @@ class AgentWidgetController internal constructor(
         }
 
         override fun reported(phase: String, message: String) {
-            // A failed fetch is the program's to handle (it gets the rejection): never the template's error here.
+            // A failed fetch is the program's to handle (it gets the rejection): never the widget template's error here.
             if (phase == "fetch") clientError(phase, message) else reportError(phase, message)
             // A run whose views are all invalid would otherwise stay on Loading.
             if (phase == "view" && this@AgentWidgetController.phase is Phase.Starting) {
@@ -373,7 +373,7 @@ class AgentWidgetController internal constructor(
         phase = Phase.Closed(phase.view, how, phase.state)
     }
 
-    /** Where the template's source sits in its program: lines of prelude before it, and its own lines. */
+    /** Where the widget template's source sits in its program: lines of prelude before it, and its own lines. */
     private var sourceLineOffset = 0
     private var sourceLineCount = 0
 
@@ -385,18 +385,18 @@ class AgentWidgetController internal constructor(
 
     /**
      * Reports a program error in [phase] to the widget plugin, once per distinct error; a client error (the runtime's
-     * own failure, anything not the template's) only goes to the dev-mode log.
+     * own failure, anything not the widget template's) only goes to the dev-mode log.
      */
     fun reportError(phase: String, error: Throwable) {
         if (!error.isProgramError()) return clientError(phase, error.message ?: error.javaClass.simpleName)
         val engine = (error as? AgentWidgetPrograms.CompileFailed)?.cause ?: error as? AgentWidgetEngineException
-        // Shader lines are already the template's; program lines count the prelude.
+        // Shader lines are already the widget template's; program lines count the prelude.
         val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l in 1..sourceLineCount } }
         val message = error.message?.let { if (engine != null && phase != "shader") programMessage(it) else it } ?: error.javaClass.simpleName
         reportError(phase, message, line, if (line != null) engine?.column else null)
     }
 
-    /** A client error: a bug to fix in the app, not the template's; logged in dev mode only. */
+    /** A client error: a bug to fix in the app, not the widget template's; logged in dev mode only. */
     fun clientError(phase: String, message: String) {
         if (AgentWidgetCapabilities.isDevMode) AppLog.app.notice { "Widget ${ref.name} client error ($phase): ${message.take(160)}" }
     }

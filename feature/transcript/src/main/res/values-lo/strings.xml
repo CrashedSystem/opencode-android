@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">ຖາມຕົວແທນໃຫ້ແກ້ໄຂ</string>
     <string name="transcript_widget_agent_told">ໄດ້ແຈ້ງຕົວແທນກ່ຽວກັບຄວາມຜິດພາດນີ້ແລ້ວ</string>
     <string name="transcript_widget_superseded">ອັບເດດຢູ່ລຸ່ມ</string>
-    <string name="transcript_widget_template_saved_revision">ບັນທຶກແມ່ແບບ %1$s v%2$d ແລ້ວ</string>
-    <string name="transcript_widget_template_saved">ບັນທຶກແມ່ແບບ %1$s ແລ້ວ</string>
-    <string name="transcript_widget_template_edited_revision">ແກ້ໄຂແມ່ແບບ %1$s v%2$d ແລ້ວ</string>
-    <string name="transcript_widget_template_edited">ແກ້ໄຂແມ່ແບບ %1$s ແລ້ວ</string>
-    <string name="transcript_widget_template_read">ອ່ານແມ່ແບບ %1$s ແລ້ວ</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">ບັນທຶກແມ່ແບບ widget %1$s v%2$d ແລ້ວ</string>
+    <string name="transcript_widget_template_saved">ບັນທຶກແມ່ແບບ widget %1$s ແລ້ວ</string>
+    <string name="transcript_widget_template_edited_revision">ແກ້ໄຂແມ່ແບບ widget %1$s v%2$d ແລ້ວ</string>
+    <string name="transcript_widget_template_edited">ແກ້ໄຂແມ່ແບບ widget %1$s ແລ້ວ</string>
+    <string name="transcript_widget_template_read">ອ່ານແມ່ແບບ widget %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="other">ລາຍການແມ່ແບບ widget %d ອັນ</item>
+        <item quantity="other">ສະແດງແມ່ແບບ widget %d ລາຍການ</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">ປຸ່ມກົດຈະໄປທີ່ widget ນີ້. ກົດ Esc ເພື່ອສົ່ງກັບຄືນ.</string>
 </resources>

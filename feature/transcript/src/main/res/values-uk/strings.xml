@@ -203,16 +203,18 @@
     <string name="transcript_widget_ask_agent">Попросити агента виправити</string>
     <string name="transcript_widget_agent_told">Агента повідомлено про цю помилку.</string>
     <string name="transcript_widget_superseded">Оновлено нижче</string>
-    <string name="transcript_widget_template_saved_revision">Збережено шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Збережено шаблон %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Відредаговано шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Відредаговано шаблон %1$s</string>
-    <string name="transcript_widget_template_read">Прочитано шаблон %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Збережено шаблон віджета %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Збережено шаблон віджета %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Відредаговано шаблон віджета %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Відредаговано шаблон віджета %1$s</string>
+    <string name="transcript_widget_template_read">Прочитано шаблон віджета %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">Перелічено %d шаблон віджета</item>
         <item quantity="few">Перелічено %d шаблони віджета</item>
         <item quantity="many">Перелічено %d шаблонів віджета</item>
         <item quantity="other">Перелічено %d шаблонів віджета</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Клавіші надсилаються цьому віджету. Натисніть Esc, щоб повернути їх.</string>
 </resources>

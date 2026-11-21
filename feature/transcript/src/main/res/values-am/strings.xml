@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">እንዲያስተካክለው ወኪሉን ጠይቅ</string>
     <string name="transcript_widget_agent_told">ወኪሉ ስለዚህ ስህተት ተነግሮታል።</string>
     <string name="transcript_widget_superseded">ከታች ተዘምኗል</string>
-    <string name="transcript_widget_template_saved_revision">አብነት %1$s v%2$d ተቀምጧል</string>
-    <string name="transcript_widget_template_saved">አብነት %1$s ተቀምጧል</string>
-    <string name="transcript_widget_template_edited_revision">አብነት %1$s v%2$d ተስተካክሏል</string>
-    <string name="transcript_widget_template_edited">አብነት %1$s ተስተካክሏል</string>
-    <string name="transcript_widget_template_read">አብነት %1$s ተነቧል</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">ዊጀት አብነት %1$s v%2$d ተቀምጧል</string>
+    <string name="transcript_widget_template_saved">ዊጀት አብነት %1$s ተቀምጧል</string>
+    <string name="transcript_widget_template_edited_revision">ዊጀት አብነት %1$s v%2$d ተስተካክሏል</string>
+    <string name="transcript_widget_template_edited">ዊጀት አብነት %1$s ተስተካክሏል</string>
+    <string name="transcript_widget_template_read">ዊጀት አብነት %1$s ተነቧል</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d የዊጀት አብነት ተዘርዝሯል</item>
-        <item quantity="other">%d የዊጀት አብነቶች ተዘርዝረዋል</item>
+        <item quantity="one">%d ዊጀት አብነት ተዘርዝሯል</item>
+        <item quantity="other">%d ዊጀት አብነቶች ተዘርዝረዋል</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">ቁልፎች ወደዚህ ዊጀት ይሄዳሉ። መልሰው ለማግኘት Esc ይጫኑ።</string>
 </resources>

@@ -197,15 +197,17 @@
     <string name="transcript_widget_ask_agent">Замоли агента да то поправи</string>
     <string name="transcript_widget_agent_told">Агент је обавештен о овој грешци.</string>
     <string name="transcript_widget_superseded">Ажурирано испод</string>
-    <string name="transcript_widget_template_saved_revision">Сачуван шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Сачуван шаблон %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Измењен шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Измењен шаблон %1$s</string>
-    <string name="transcript_widget_template_read">Прочитан шаблон %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Сачуван шаблон виџета %1$s в%2$d</string>
+    <string name="transcript_widget_template_saved">Сачуван шаблон виџета %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Измењен шаблон виџета %1$s в%2$d</string>
+    <string name="transcript_widget_template_edited">Измењен шаблон виџета %1$s</string>
+    <string name="transcript_widget_template_read">Прочитан шаблон виџета %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Наведен %d шаблон виџета</item>
-        <item quantity="few">Наведена %d шаблона виџета</item>
-        <item quantity="other">Наведено %d шаблона виџета</item>
+        <item quantity="one">Приказан %d шаблон виџета</item>
+        <item quantity="few">Приказана %d шаблона виџета</item>
+        <item quantity="other">Приказано %d шаблона виџета</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Притисци на тастере се шаљу овом виџету. Притисните Esc да их вратите.</string>
 </resources>

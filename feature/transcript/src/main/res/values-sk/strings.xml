@@ -203,16 +203,18 @@
     <string name="transcript_widget_ask_agent">Požiadať agenta o opravu</string>
     <string name="transcript_widget_agent_told">Agent bol o tejto chybe informovaný.</string>
     <string name="transcript_widget_superseded">Aktualizované nižšie</string>
-    <string name="transcript_widget_template_saved_revision">Uložená šablóna %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Uložená šablóna %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Upravená šablóna %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Upravená šablóna %1$s</string>
-    <string name="transcript_widget_template_read">Prečítaná šablóna %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Uložená šablóna widgetu %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Uložená šablóna widgetu %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Upravená šablóna widgetu %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Upravená šablóna widgetu %1$s</string>
+    <string name="transcript_widget_template_read">Prečítaná šablóna widgetu %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Uvedená %d šablóna widgetu</item>
-        <item quantity="few">Uvedené %d šablóny widgetu</item>
-        <item quantity="many">Uvedených %d šablón widgetu</item>
-        <item quantity="other">Uvedených %d šablóny widgetu</item>
+        <item quantity="one">Zobrazená %d šablóna widgetu</item>
+        <item quantity="few">Zobrazené %d šablóny widgetu</item>
+        <item quantity="many">Zobrazených %d šablón widgetu</item>
+        <item quantity="other">Zobrazených %d šablón widgetu</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Klávesy smerujú do tohto widgetu. Stlačením Esc ich vrátite späť.</string>
 </resources>

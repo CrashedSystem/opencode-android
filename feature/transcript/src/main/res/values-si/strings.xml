@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">නිවැරදි කිරීමට නියෝජිතයාගෙන් අසන්න</string>
     <string name="transcript_widget_agent_told">මෙම දෝෂය ගැන නියෝජිතයාට දන්වා ඇත.</string>
     <string name="transcript_widget_superseded">පහත යාවත්කාලීනයි</string>
-    <string name="transcript_widget_template_saved_revision">සැකිල්ල %1$s v%2$d සුරැකුවා</string>
-    <string name="transcript_widget_template_saved">සැකිල්ල %1$s සුරැකුවා</string>
-    <string name="transcript_widget_template_edited_revision">සැකිල්ල %1$s v%2$d සංස්කරණය කළා</string>
-    <string name="transcript_widget_template_edited">සැකිල්ල %1$s සංස්කරණය කළා</string>
-    <string name="transcript_widget_template_read">සැකිල්ල %1$s කියෙව්වා</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">විජට් සැකිල්ල %1$s v%2$d සුරැකුවා</string>
+    <string name="transcript_widget_template_saved">විජට් සැකිල්ල %1$s සුරැකුවා</string>
+    <string name="transcript_widget_template_edited_revision">විජට් සැකිල්ල %1$s v%2$d සංස්කරණය කළා</string>
+    <string name="transcript_widget_template_edited">විජට් සැකිල්ල %1$s සංස්කරණය කළා</string>
+    <string name="transcript_widget_template_read">විජට් සැකිල්ල %1$s කියෙව්වා</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">විජට් සැකිල්ල %dක් ලැයිස්තුගත කළා</item>
+        <item quantity="one">%d විජට් සැකිල්ලක් ලැයිස්තුගත කළා</item>
         <item quantity="other">විජට් සැකිලි %dක් ලැයිස්තුගත කළා</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">යතුරු මෙම විජට් එකට යයි. ඒවා ආපසු ලබා ගැනීමට Esc ඔබන්න.</string>
 </resources>

@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Διόρθωση από τον πράκτορα</string>
     <string name="transcript_widget_agent_told">Ο πράκτορας ενημερώθηκε για αυτό το σφάλμα.</string>
     <string name="transcript_widget_superseded">Ενημερώθηκε παρακάτω</string>
-    <string name="transcript_widget_template_saved_revision">Αποθηκεύτηκε το πρότυπο %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Αποθηκεύτηκε το πρότυπο %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Επεξεργάστηκε το πρότυπο %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Επεξεργάστηκε το πρότυπο %1$s</string>
-    <string name="transcript_widget_template_read">Διαβάστηκε το πρότυπο %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Αποθηκεύτηκε το πρότυπο widget %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Αποθηκεύτηκε το πρότυπο widget %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Επεξεργάστηκε το πρότυπο widget %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Επεξεργάστηκε το πρότυπο widget %1$s</string>
+    <string name="transcript_widget_template_read">Διαβάστηκε το πρότυπο widget %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Καταχωρήθηκε %d πρότυπο widget</item>
-        <item quantity="other">Καταχωρήθηκαν %d πρότυπα widget</item>
+        <item quantity="one">Παρατέθηκε %d πρότυπο widget</item>
+        <item quantity="other">Παρατέθηκαν %d πρότυπα widget</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Τα πλήκτρα πηγαίνουν σε αυτό το widget. Πατήστε Esc για να τα επιστρέψετε.</string>
 </resources>

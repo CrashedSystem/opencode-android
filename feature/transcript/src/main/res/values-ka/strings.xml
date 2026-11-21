@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">სთხოვე აგენტს გამოსწორება</string>
     <string name="transcript_widget_agent_told">აგენტს შეცდომის შესახებ ეცნობა.</string>
     <string name="transcript_widget_superseded">ქვემოთ განახლდა</string>
-    <string name="transcript_widget_template_saved_revision">შაბლონი %1$s v%2$d შენახულია</string>
-    <string name="transcript_widget_template_saved">შაბლონი %1$s შენახულია</string>
-    <string name="transcript_widget_template_edited_revision">შაბლონი %1$s v%2$d რედაქტირებულია</string>
-    <string name="transcript_widget_template_edited">შაბლონი %1$s რედაქტირებულია</string>
-    <string name="transcript_widget_template_read">შაბლონი %1$s წაკითხულია</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">შენახულია ვიჯეტის თარგი %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">შენახულია ვიჯეტის თარგი %1$s</string>
+    <string name="transcript_widget_template_edited_revision">რედაქტირებულია ვიჯეტის თარგი %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">რედაქტირებულია ვიჯეტის თარგი %1$s</string>
+    <string name="transcript_widget_template_read">წაკითხულია ვიჯეტის თარგი %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">ნაჩვენებია %d ვიჯეტის შაბლონი</item>
-        <item quantity="other">ნაჩვენებია %d ვიჯეტის შაბლონი</item>
+        <item quantity="one">ჩამოთვლილია %d ვიჯეტის თარგი</item>
+        <item quantity="other">ჩამოთვლილია %d ვიჯეტის თარგი</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">კლავიშები ვიჯეტს გადაეცემა. Esc-ით დააბრუნებთ.</string>
 </resources>

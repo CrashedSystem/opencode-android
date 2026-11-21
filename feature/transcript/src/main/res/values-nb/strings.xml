@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Spør agenten om å fikse det</string>
     <string name="transcript_widget_agent_told">Agenten fikk beskjed om denne feilen.</string>
     <string name="transcript_widget_superseded">Oppdatert nedenfor</string>
-    <string name="transcript_widget_template_saved_revision">Lagret mal %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Lagret mal %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Redigert mal %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Redigert mal %1$s</string>
-    <string name="transcript_widget_template_read">Lest mal %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Lagret widgetmal %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Lagret widgetmal %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redigert widgetmal %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redigert widgetmal %1$s</string>
+    <string name="transcript_widget_template_read">Lest widgetmal %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Listet %d widget-mal</item>
-        <item quantity="other">Listet %d widget-maler</item>
+        <item quantity="one">Listet %d widgetmal</item>
+        <item quantity="other">Listet %d widgetmaler</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tastene går til denne widgeten. Trykk Esc for å gi dem tilbake.</string>
 </resources>

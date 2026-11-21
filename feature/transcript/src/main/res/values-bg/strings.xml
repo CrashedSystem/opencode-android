@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Помолете агента да го поправи</string>
     <string name="transcript_widget_agent_told">Агентът беше уведомен за тази грешка.</string>
     <string name="transcript_widget_superseded">Обновено по-долу</string>
-    <string name="transcript_widget_template_saved_revision">Запазен шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Запазен шаблон %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Редактиран шаблон %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Редактиран шаблон %1$s</string>
-    <string name="transcript_widget_template_read">Прочетен шаблон %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Запазен шаблон на уиджет %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Запазен шаблон на уиджет %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Редактиран шаблон на уиджет %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Редактиран шаблон на уиджет %1$s</string>
+    <string name="transcript_widget_template_read">Прочетен шаблон на уиджет %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Показан %d шаблон за уиджет</item>
-        <item quantity="other">Показани %d шаблона за уиджет</item>
+        <item quantity="one">Изброен %d шаблон на уиджет</item>
+        <item quantity="other">Изброени %d шаблона на уиджет</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Клавишите се изпращат към този уиджет. Натиснете Esc, за да ги върнете.</string>
 </resources>

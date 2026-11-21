@@ -63,19 +63,19 @@ class OpenCodeEventDecodingTests {
     /** The widget plugin's `changed` event (`rpc.opencode.widget.changed`, specs/v2/widgets.md). */
     @Test
     fun widgetChangedCarriesThePluginsState() {
-        val frame = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","template":{"name":"confirm","version":"0123456789abcdef"},"title":"Deploy?","status":"submitted","response":{"confirmed":true},"wait":false,"time":{"created":1,"responded":2}}}}"""
+        val frame = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","widgetTemplate":{"name":"confirm","version":"0123456789abcdef"},"title":"Deploy?","status":"submitted","response":{"confirmed":true},"wait":false,"time":{"created":1,"responded":2}}}}"""
         val event = decodeStreamFrame(frame) as OpenCodeServerEvent.WidgetChanged
         assertEquals("ses_w", event.sessionID)
         assertEquals("msg_a/call_1", event.state.key)
-        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), event.state.template)
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), event.state.widgetTemplate)
         assertEquals(ai.opencode.server.model.OpenCodeWidgetStatus.Submitted, event.state.status)
         assertEquals("""{"confirmed":true}""", event.state.response)
-        val renamed = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","widgetTemplate":{"name":"confirm","version":"0123456789abcdef"},"status":"open","wait":false,"failure":{"phase":"main","message":"x is not defined","line":12,"column":5,"client":"ios","sent":false},"time":{"created":1}}}}"""
-        val renamedState = (decodeStreamFrame(renamed) as OpenCodeServerEvent.WidgetChanged).state
-        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), renamedState.template)
+        val failed = """{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"sessionID":"ses_w","messageID":"msg_a","callID":"call_1","widgetTemplate":{"name":"confirm","version":"0123456789abcdef"},"status":"open","wait":false,"failure":{"phase":"main","message":"x is not defined","line":12,"column":5,"client":"ios","sent":false},"time":{"created":1}}}}"""
+        val failedState = (decodeStreamFrame(failed) as OpenCodeServerEvent.WidgetChanged).state
+        assertEquals(ai.opencode.server.model.OpenCodeWidgetRef("confirm", "0123456789abcdef"), failedState.widgetTemplate)
         assertEquals(
             ai.opencode.server.model.OpenCodeWidgetFailure(ai.opencode.server.model.OpenCodeWidgetError("main", "x is not defined", 12, 5), "ios", sent = false),
-            renamedState.failure,
+            failedState.failure,
         )
         assertEquals(null, decodeStreamFrame("""{"type":"rpc.opencode.widget.changed","data":{"sessionID":"ses_w","state":{"status":"open"}}}"""))
         // A cold server's plugins finished loading for a location: widget states can be read now.

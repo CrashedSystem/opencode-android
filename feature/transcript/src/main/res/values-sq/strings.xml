@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Kërkoji agjentit ta rregullojë</string>
     <string name="transcript_widget_agent_told">Agjenti u njoftua për këtë gabim.</string>
     <string name="transcript_widget_superseded">Përditësuar më poshtë</string>
-    <string name="transcript_widget_template_saved_revision">U ruajt shablloni %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">U ruajt shablloni %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Redaktoi shabllonin %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Redaktoi shabllonin %1$s</string>
-    <string name="transcript_widget_template_read">Lexoi shabllonin %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Ruajti shabllonin e widget-it %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Ruajti shabllonin e widget-it %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redaktoi shabllonin e widget-it %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redaktoi shabllonin e widget-it %1$s</string>
+    <string name="transcript_widget_template_read">Lexoi shabllonin e widget-it %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Listuar %d shabllon widget-i</item>
-        <item quantity="other">Listuar %d shabllone widget-i</item>
+        <item quantity="one">Renditi %d shabllon widget-i</item>
+        <item quantity="other">Renditi %d shabllone widget-i</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tastet shkojnë te ky widget. Shtyp Esc për t\'i kthyer.</string>
 </resources>

@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Agentdən düzəltməsini istə</string>
     <string name="transcript_widget_agent_told">Agentə bu xəta haqqında məlumat verildi.</string>
     <string name="transcript_widget_superseded">Aşağıda yeniləndi</string>
-    <string name="transcript_widget_template_saved_revision">Şablon %1$s v%2$d saxlanılıb</string>
-    <string name="transcript_widget_template_saved">Şablon %1$s saxlanılıb</string>
-    <string name="transcript_widget_template_edited_revision">Şablon %1$s v%2$d redaktə edildi</string>
-    <string name="transcript_widget_template_edited">Şablon %1$s redaktə edildi</string>
-    <string name="transcript_widget_template_read">Şablon %1$s oxundu</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Vidcet şablonu %1$s v%2$d saxlanılıb</string>
+    <string name="transcript_widget_template_saved">Vidcet şablonu %1$s saxlanılıb</string>
+    <string name="transcript_widget_template_edited_revision">Vidcet şablonu %1$s v%2$d redaktə edildi</string>
+    <string name="transcript_widget_template_edited">Vidcet şablonu %1$s redaktə edildi</string>
+    <string name="transcript_widget_template_read">Vidcet şablonu %1$s oxundu</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d vidcet şablonu sıralandı</item>
-        <item quantity="other">%d vidcet şablonu sıralandı</item>
+        <item quantity="one">%d vidcet şablonu listələndi</item>
+        <item quantity="other">%d vidcet şablonu listələndi</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Düymələr bu vidcetə gedir. Onları geri qaytarmaq üçün Esc düyməsinə basın.</string>
 </resources>

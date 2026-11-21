@@ -203,16 +203,18 @@
     <string name="transcript_widget_ask_agent">Prosite agenta, naj to odpravi</string>
     <string name="transcript_widget_agent_told">Agent je bil obveščen o tej napaki.</string>
     <string name="transcript_widget_superseded">Posodobljeno spodaj</string>
-    <string name="transcript_widget_template_saved_revision">Shranjena predloga %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Shranjena predloga %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Urejena predloga %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Urejena predloga %1$s</string>
-    <string name="transcript_widget_template_read">Prebrana predloga %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Shranjena predloga gradnika %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Shranjena predloga gradnika %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Urejena predloga gradnika %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Urejena predloga gradnika %1$s</string>
+    <string name="transcript_widget_template_read">Prebrana predloga gradnika %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Navedena %d predloga gradnika</item>
-        <item quantity="two">Navedeni %d predlogi gradnika</item>
-        <item quantity="few">Navedene %d predloge gradnika</item>
-        <item quantity="other">Navedenih %d predlog gradnika</item>
+        <item quantity="one">%d navedena predloga gradnika</item>
+        <item quantity="two">%d navedeni predlogi gradnika</item>
+        <item quantity="few">%d navedene predloge gradnika</item>
+        <item quantity="other">%d navedenih predlog gradnika</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Pritiski tipk se pošiljajo v ta gradnik. Pritisnite Esc, da jih dobite nazaj.</string>
 </resources>

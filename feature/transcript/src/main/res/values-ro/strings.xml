@@ -197,15 +197,17 @@
     <string name="transcript_widget_ask_agent">Cere agentului să o repare</string>
     <string name="transcript_widget_agent_told">Agentul a fost informat despre această eroare.</string>
     <string name="transcript_widget_superseded">Actualizat mai jos</string>
-    <string name="transcript_widget_template_saved_revision">Șablon salvat %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Șablon salvat %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Șablon editat %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Șablon editat %1$s</string>
-    <string name="transcript_widget_template_read">Șablon citit %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Șablon de widget salvat %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Șablon de widget salvat %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Șablon de widget editat %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Șablon de widget editat %1$s</string>
+    <string name="transcript_widget_template_read">Șablon de widget citit %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d șablon de widget listat</item>
-        <item quantity="few">%d șabloane de widget listate</item>
-        <item quantity="other">%d de șabloane de widget listate</item>
+        <item quantity="one">A enumerat %d șablon de widget</item>
+        <item quantity="few">A enumerat %d șabloane de widget</item>
+        <item quantity="other">A enumerat %d șabloane de widget</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tastele ajung la acest widget. Apasă Esc pentru a le readuce.</string>
 </resources>

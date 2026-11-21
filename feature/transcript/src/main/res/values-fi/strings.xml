@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Pyydä agenttia korjaamaan</string>
     <string name="transcript_widget_agent_told">Agentille kerrottiin tästä virheestä.</string>
     <string name="transcript_widget_superseded">Päivitetty alla</string>
-    <string name="transcript_widget_template_saved_revision">Tallennettu pohja %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Tallennettu pohja %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Muokattu pohja %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Muokattu pohja %1$s</string>
-    <string name="transcript_widget_template_read">Luettu pohja %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Tallennettu widgetti-mallipohja %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Tallennettu widgetti-mallipohja %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Muokattu widgetti-mallipohja %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Muokattu widgetti-mallipohja %1$s</string>
+    <string name="transcript_widget_template_read">Luettu widgetti-mallipohja %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Listattu %d widgettipohja</item>
-        <item quantity="other">Listattu %d widgettipohjaa</item>
+        <item quantity="one">Listattu %d widgetti-mallipohja</item>
+        <item quantity="other">Listattu %d widgetti-mallipohjaa</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Näppäimet menevät tähän widgettiin. Paina Esc palauttaaksesi ne.</string>
 </resources>

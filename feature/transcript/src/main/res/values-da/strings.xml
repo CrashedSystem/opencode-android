@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Bed agenten om at rette det</string>
     <string name="transcript_widget_agent_told">Agenten fik besked om denne fejl.</string>
     <string name="transcript_widget_superseded">Opdateret nedenfor</string>
-    <string name="transcript_widget_template_saved_revision">Gemt skabelon %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Gemt skabelon %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Redigeret skabelon %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Redigeret skabelon %1$s</string>
-    <string name="transcript_widget_template_read">Læst skabelon %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Gemt widget-skabelon %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Gemt widget-skabelon %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Redigeret widget-skabelon %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Redigeret widget-skabelon %1$s</string>
+    <string name="transcript_widget_template_read">Læst widget-skabelon %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">Vist %d widget-skabelon</item>
         <item quantity="other">Vist %d widget-skabeloner</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Taster sendes til denne widget. Tryk på Esc for at få dem tilbage.</string>
 </resources>

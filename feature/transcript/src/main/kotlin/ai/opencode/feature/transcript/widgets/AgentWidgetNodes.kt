@@ -214,7 +214,7 @@ private fun CarouselNode(node: AgentWidgetNode.Carousel, scope: AgentWidgetScope
     val count = node.children.size
     if (count == 0) return
     val pager = rememberPagerState(initialPage = (node.index ?: 0).coerceIn(0, count - 1)) { count }
-    // The template's index moves the pager; a swipe tells the template (with an id).
+    // The widget template's index moves the pager; a swipe tells the widget template (with an id).
     LaunchedEffect(node.index) {
         val index = node.index ?: return@LaunchedEffect
         if (index in 0 until count && index != pager.currentPage) pager.scrollToPage(index)
@@ -302,7 +302,7 @@ private fun CheckboxNode(node: AgentWidgetNode.Checkbox, scope: AgentWidgetScope
 @Composable
 private fun SliderNode(node: AgentWidgetNode.Slider, scope: AgentWidgetScope, modifier: Modifier) {
     val colors = OpenCodeTheme.colors
-    // While dragged, the slider shows its own value; it goes to the template on release.
+    // While dragged, the slider shows its own value; it goes to the widget template on release.
     var dragging by remember { mutableStateOf(false) }
     var value by remember { mutableFloatStateOf(node.value) }
     if (!dragging && value != node.value) value = node.value
@@ -407,14 +407,14 @@ private fun SelectNode(node: AgentWidgetNode.Select, scope: AgentWidgetScope, mo
     }
 }
 
-/** Typing stays here and goes to the template once it rests 300 ms, on Done, on losing focus, or before any other event. */
+/** Typing stays here and goes to the widget template once it rests 300 ms, on Done, on losing focus, or before any other event. */
 @Composable
 private fun InputNode(node: AgentWidgetNode.Input, scope: AgentWidgetScope, modifier: Modifier) {
     val controller = scope.controller
     var text by remember(node.id) { mutableStateOf(node.value) }
     var typed by remember(node.id) { mutableStateOf(false) }
     var seen by remember(node.id) { mutableStateOf(node.value) }
-    // A new value from the template replaces the text unless typing is still waiting to go.
+    // A new value from the widget template replaces the text unless typing is still waiting to go.
     if (node.value != seen) {
         seen = node.value
         if (controller?.hasDraft(node.id) != true) {

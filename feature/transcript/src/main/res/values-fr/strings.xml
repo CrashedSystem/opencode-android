@@ -197,15 +197,17 @@
     <string name="transcript_widget_ask_agent">Demander à l’agent de corriger</string>
     <string name="transcript_widget_agent_told">L’agent a été informé de cette erreur.</string>
     <string name="transcript_widget_superseded">Mis à jour ci-dessous</string>
-    <string name="transcript_widget_template_saved_revision">Template %1$s v%2$d enregistré</string>
-    <string name="transcript_widget_template_saved">Template %1$s enregistré</string>
-    <string name="transcript_widget_template_edited_revision">Template %1$s v%2$d modifié</string>
-    <string name="transcript_widget_template_edited">Template %1$s modifié</string>
-    <string name="transcript_widget_template_read">Template %1$s lu</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Modèle de widget %1$s v%2$d enregistré</string>
+    <string name="transcript_widget_template_saved">Modèle de widget %1$s enregistré</string>
+    <string name="transcript_widget_template_edited_revision">Modèle de widget %1$s v%2$d modifié</string>
+    <string name="transcript_widget_template_edited">Modèle de widget %1$s modifié</string>
+    <string name="transcript_widget_template_read">Modèle de widget %1$s lu</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d template de widget listé</item>
-        <item quantity="many">%d templates de widget listés</item>
-        <item quantity="other">%d templates de widget listés</item>
+        <item quantity="one">%d modèle de widget listé</item>
+        <item quantity="many">%d modèles de widget listés</item>
+        <item quantity="other">%d modèles de widget listés</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Les touches sont envoyées à ce widget. Appuyez sur Esc pour les récupérer.</string>
 </resources>

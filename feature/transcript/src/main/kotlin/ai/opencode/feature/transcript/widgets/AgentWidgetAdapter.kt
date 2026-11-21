@@ -30,11 +30,11 @@ data class AgentWidgetState(
     val messageID: String,
     val callID: String,
     val title: String?,
-    val template: OpenCodeWidgetRef,
+    val widgetTemplate: OpenCodeWidgetRef,
     val data: String,
     val status: Status,
     val response: String? = null,
-    /** Hosts a live template may fetch from; shown on the widget. */
+    /** Hosts a live widget template may fetch from; shown on the widget. */
     val httpsHosts: List<String>? = null,
     /** The program error the server recorded (from any client); shown while the widget is open. */
     val failure: OpenCodeWidgetFailure? = null,
@@ -46,8 +46,8 @@ data class AgentWidgetState(
     /** One widget in a session: a call ID is unique only within its message. */
     val key: String get() = OpenCodeWidgetState.key(messageID, callID)
 
-    /** The title, else the template's name. */
-    val label: String get() = title?.trim()?.ifEmpty { null } ?: template.name
+    /** The title, else the widget template's name. */
+    val label: String get() = title?.trim()?.ifEmpty { null } ?: widgetTemplate.name
 }
 
 /**
@@ -62,7 +62,7 @@ object AgentWidgetAdapter {
 
     /** The title the tool call asked for, shown while its widget loads. */
     fun title(call: OpenCodeToolCall): String? =
-        call.input.obj?.get("title")?.string?.trim()?.ifEmpty { null } ?: call.input.obj?.let { it["widgetTemplate"] ?: it["template"] }?.string
+        call.input.obj?.get("title")?.string?.trim()?.ifEmpty { null } ?: call.input.obj?.get("widgetTemplate")?.string
 
     /** [value] as JSON text, whole numbers without a fraction (as the server wrote them). */
     private fun json(value: OpenCodeJSONValue): String = buildString { write(value) }
@@ -99,7 +99,7 @@ object AgentWidgetAdapter {
     /**
      * The session's widgets by `messageID/callID`: every `widget` tool call in [items], with its
      * state from the widget plugin ([records]), else from the call alone (its `metadata.widgetTemplate`,
-     * or the template's latest version, open).
+     * or the widget template's latest version, open).
      */
     fun states(items: List<OpenCodeTranscriptItem>, records: Map<String, OpenCodeWidgetState> = emptyMap()): Map<String, AgentWidgetState> {
         var states: HashMap<String, AgentWidgetState>? = null
@@ -109,7 +109,7 @@ object AgentWidgetAdapter {
             val record = records[base.key]
             val state = if (record == null) base else base.copy(
                 title = base.title ?: record.title,
-                template = record.template,
+                widgetTemplate = record.widgetTemplate,
                 status = status(record.status),
                 response = record.response,
                 httpsHosts = record.httpsHosts,
@@ -134,12 +134,11 @@ object AgentWidgetAdapter {
     internal fun widget(call: OpenCodeToolCall, messageID: String = call.messageID ?: ""): AgentWidgetState? {
         if (!isWidget(call) || call.status == OpenCodeToolCall.Status.Streaming || call.status == OpenCodeToolCall.Status.Error) return null
         val input = call.input.obj ?: return null
-        // The plugin's `metadata.widgetTemplate` (`template` before the rename); session-lab's `metadata.widget` also
-        // carries status and response.
+        // The plugin's `metadata.widgetTemplate`; session-lab's `metadata.widget` may carry status and response.
         val legacy = call.metadata["widget"]?.obj
-        val template = (call.metadata["widgetTemplate"] ?: call.metadata["template"])?.obj ?: legacy?.get("template")?.obj
-        val name = (input["widgetTemplate"] ?: input["template"])?.string ?: template?.get("name")?.string ?: return null
-        val ref = OpenCodeWidgetRef(name, template?.get("version")?.string ?: "")
+        val widgetTemplate = call.metadata["widgetTemplate"]?.obj
+        val name = input["widgetTemplate"]?.string ?: widgetTemplate?.get("name")?.string ?: return null
+        val ref = OpenCodeWidgetRef(name, widgetTemplate?.get("version")?.string ?: "")
         if (!ref.isValid) return null
         val status = when (legacy?.get("status")?.string) {
             "submitted" -> AgentWidgetState.Status.Submitted
@@ -151,7 +150,7 @@ object AgentWidgetAdapter {
             messageID = messageID,
             callID = call.callID,
             title = input["title"]?.string,
-            template = ref,
+            widgetTemplate = ref,
             data = input["data"]?.let(::json) ?: "null",
             status = status,
             response = if (status == AgentWidgetState.Status.Submitted) legacy?.get("response")?.let(::json) ?: "null" else null,
@@ -159,7 +158,7 @@ object AgentWidgetAdapter {
     }
 }
 
-/** Fetches template programs and answers widgets; throws [AgentWidgetTransportException]. */
+/** Fetches widget template programs and answers widgets; throws [AgentWidgetTransportException]. */
 class AgentWidgetTransport(
     val program: suspend (server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef) -> OpenCodeWidgetProgram,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, response: OpenCodeWidgetResponse) -> Unit,

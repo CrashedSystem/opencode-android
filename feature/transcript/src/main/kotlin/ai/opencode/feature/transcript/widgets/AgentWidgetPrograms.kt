@@ -14,7 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 
 /**
- * Compiled template programs by `name@version`, fetched (or read from disk) and compiled once and
+ * Compiled widget template programs by `name@version`, fetched (or read from disk) and compiled once and
  * shared by every widget using that version. The few most recently used stay compiled; one in
  * use by a widget stays alive through its controller.
  */
@@ -26,10 +26,10 @@ class AgentWidgetPrograms(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val entries = LinkedHashMap<String, Deferred<Compiled>>(16, 0.75f, true)
 
-    /** A template version's compiled program, shared by every widget using it: [step] or [live] by its mode. */
+    /** A widget template version's compiled program, shared by every widget using it: [step] or [live] by its mode. */
     class Compiled(val info: OpenCodeWidgetProgram, val step: AgentWidgetProgram?, val live: AgentWidgetLiveProgram?)
 
-    /** The template's program doesn't compile on this device. */
+    /** The widget template's program doesn't compile on this device. */
     class CompileFailed(override val cause: AgentWidgetEngineException, val info: OpenCodeWidgetProgram) : Exception(cause.message, cause)
 
     /** Throws the fetch's error or [CompileFailed]; a failed version is fetched again next time. */

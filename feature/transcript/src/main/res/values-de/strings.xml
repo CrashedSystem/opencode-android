@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Agenten bitten, das zu beheben</string>
     <string name="transcript_widget_agent_told">Der Agent wurde über diesen Fehler informiert.</string>
     <string name="transcript_widget_superseded">Unten aktualisiert</string>
-    <string name="transcript_widget_template_saved_revision">Vorlage %1$s v%2$d gespeichert</string>
-    <string name="transcript_widget_template_saved">Vorlage %1$s gespeichert</string>
-    <string name="transcript_widget_template_edited_revision">Vorlage %1$s v%2$d bearbeitet</string>
-    <string name="transcript_widget_template_edited">Vorlage %1$s bearbeitet</string>
-    <string name="transcript_widget_template_read">Vorlage %1$s gelesen</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Widget-Vorlage %1$s v%2$d gespeichert</string>
+    <string name="transcript_widget_template_saved">Widget-Vorlage %1$s gespeichert</string>
+    <string name="transcript_widget_template_edited_revision">Widget-Vorlage %1$s v%2$d bearbeitet</string>
+    <string name="transcript_widget_template_edited">Widget-Vorlage %1$s bearbeitet</string>
+    <string name="transcript_widget_template_read">Widget-Vorlage %1$s gelesen</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">%d Widget-Vorlage aufgelistet</item>
         <item quantity="other">%d Widget-Vorlagen aufgelistet</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tasten gehen an dieses Widget. Drücke Esc, um sie wieder freizugeben.</string>
 </resources>

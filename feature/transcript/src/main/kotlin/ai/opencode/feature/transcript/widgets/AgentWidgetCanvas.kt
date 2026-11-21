@@ -56,7 +56,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
 /**
- * A `canvas` node: the template's `draw` runs on the widget's lane when the canvas appears or
+ * A `canvas` node: the widget template's `draw` runs on the widget's lane when the canvas appears or
  * its state changes, then every frame while `fps > 0` (and `duration` hasn't run out) and the
  * row is on screen; frames come from `withFrameNanos`, so a hidden or stopped screen draws
  * nothing. Its commands are decoded into flat arrays and replayed on the native canvas. Three

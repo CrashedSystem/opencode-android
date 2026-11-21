@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Biðja fulltrúa að laga þetta</string>
     <string name="transcript_widget_agent_told">Fulltrúanum var sagt frá þessari villu.</string>
     <string name="transcript_widget_superseded">Uppfært fyrir neðan</string>
-    <string name="transcript_widget_template_saved_revision">Vistað sniðmát %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Vistað sniðmát %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Breytt sniðmát %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Breytt sniðmát %1$s</string>
-    <string name="transcript_widget_template_read">Lesið sniðmát %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Vistað græjusniðmát %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Vistað græjusniðmát %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Breytt græjusniðmát %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Breytt græjusniðmát %1$s</string>
+    <string name="transcript_widget_template_read">Lesið græjusniðmát %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">Skráð %d græjusniðmát</item>
         <item quantity="other">Skráð %d græjusniðmát</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Takkar fara í græjuna. Ýttu á Esc til að fá þá til baka.</string>
 </resources>

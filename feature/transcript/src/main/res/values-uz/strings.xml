@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Agentdan tuzatishni soʻrash</string>
     <string name="transcript_widget_agent_told">Agentga bu xato haqida xabar berildi.</string>
     <string name="transcript_widget_superseded">Quyida yangilandi</string>
-    <string name="transcript_widget_template_saved_revision">Shablon %1$s v%2$d saqlandi</string>
-    <string name="transcript_widget_template_saved">Shablon %1$s saqlandi</string>
-    <string name="transcript_widget_template_edited_revision">Shablon %1$s v%2$d tahrirlandi</string>
-    <string name="transcript_widget_template_edited">Shablon %1$s tahrirlandi</string>
-    <string name="transcript_widget_template_read">Shablon %1$s o\'qildi</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">%1$s v%2$d vidjet shabloni saqlandi</string>
+    <string name="transcript_widget_template_saved">%1$s vidjet shabloni saqlandi</string>
+    <string name="transcript_widget_template_edited_revision">%1$s v%2$d vidjet shabloni tahrirlandi</string>
+    <string name="transcript_widget_template_edited">%1$s vidjet shabloni tahrirlandi</string>
+    <string name="transcript_widget_template_read">%1$s vidjet shabloni o\'qildi</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d ta vidjet shabloni ro\'yxatga olindi</item>
-        <item quantity="other">%d ta vidjet shabloni ro\'yxatga olindi</item>
+        <item quantity="one">%d ta vidjet shabloni ro\'yxatlandi</item>
+        <item quantity="other">%d ta vidjet shabloni ro\'yxatlandi</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tugmalar ushbu vidjetga yo‘naltiriladi. Ularni qaytarish uchun Esc tugmasini bosing.</string>
 </resources>

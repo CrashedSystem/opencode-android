@@ -55,7 +55,7 @@ internal suspend fun requestWidgetRPC(
     return decoded(data.data, "widget $method") { (it.obj()["output"] ?: JsonNull) }
 }
 
-/** A template version's program (the latest without a version) from the widget plugin. */
+/** A widget template version's program (the latest without a version) from the widget plugin. */
 internal suspend fun requestWidgetProgramRPC(server: OpenCodeServer, directory: String?, ref: OpenCodeWidgetRef): OpenCodeWidgetProgram {
     val input = buildJsonObject {
         put("name", ref.name)
@@ -137,8 +137,8 @@ internal suspend fun requestWidgetReportRPC(
 internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
     val o = element as? JsonObject ?: return null
     fun str(key: String, from: JsonObject = o) = (from[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
-    val template = (o["widgetTemplate"] ?: o["template"]) as? JsonObject ?: return null
-    val ref = OpenCodeWidgetRef(str("name", template) ?: return null, str("version", template) ?: return null)
+    val widgetTemplate = o["widgetTemplate"] as? JsonObject ?: return null
+    val ref = OpenCodeWidgetRef(str("name", widgetTemplate) ?: return null, str("version", widgetTemplate) ?: return null)
     if (!ref.isValid || !ref.isPinned) return null
     val status = OpenCodeWidgetStatus.of(str("status")) ?: return null
     val hosts = ((o["capabilities"] as? JsonObject)?.get("https") as? JsonObject)?.get("hosts") as? JsonArray
@@ -146,7 +146,7 @@ internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
         sessionID = str("sessionID") ?: return null,
         messageID = str("messageID") ?: return null,
         callID = str("callID") ?: return null,
-        template = ref,
+        widgetTemplate = ref,
         title = str("title"),
         status = status,
         response = if (status == OpenCodeWidgetStatus.Submitted) (o["response"] ?: JsonNull).toString() else null,

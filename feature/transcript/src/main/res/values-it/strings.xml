@@ -197,15 +197,17 @@
     <string name="transcript_widget_ask_agent">Chiedi all\'agente di risolverlo</string>
     <string name="transcript_widget_agent_told">L\'agente è stato informato di questo errore.</string>
     <string name="transcript_widget_superseded">Aggiornato sotto</string>
-    <string name="transcript_widget_template_saved_revision">Salvato template %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Salvato template %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Modificato template %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Modificato template %1$s</string>
-    <string name="transcript_widget_template_read">Letto template %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Modello widget salvato %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Modello widget salvato %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Modello widget modificato %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Modello widget modificato %1$s</string>
+    <string name="transcript_widget_template_read">Modello widget letto %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Elencato %d template widget</item>
-        <item quantity="many">Elencati %d template widget</item>
-        <item quantity="other">Elencati %d template widget</item>
+        <item quantity="one">Elencato %d modello widget</item>
+        <item quantity="many">Elencati %d modelli widget</item>
+        <item quantity="other">Elencati %d modelli widget</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">I tasti vanno a questo widget. Premi Esc per restituirli.</string>
 </resources>

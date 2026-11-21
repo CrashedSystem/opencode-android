@@ -28,7 +28,7 @@ import kotlinx.serialization.json.put
 import java.io.File
 
 /**
- * Agent widgets' server half, the `opencode.widget` plugin RPC: template programs by
+ * Agent widgets' server half, the `opencode.widget` plugin RPC: widget template programs by
  * `name@version` (immutable, so kept on disk forever), the session's widget states, and the one
  * answer to and messages from an open widget. Throws [OpenCodeClientError]; `isWidgetClosed` means
  * it isn't open any more, `isWidgetRPCUnavailable` that the plugin isn't loaded in the location yet.
@@ -92,7 +92,7 @@ class AgentWidgetClient(
 }
 
 /**
- * One file per template version (`<name>@<version>.json`: program, mode, hosts), written once through
+ * One file per widget template version (`<name>@<version>.json`: program, mode, hosts), written once through
  * a temporary file so a torn write never reads back. Older `.js` files hold a step program alone.
  */
 class AgentWidgetProgramCache(private val directory: File) {

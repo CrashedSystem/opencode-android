@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Խնդրել գործակալին շտկել այն</string>
     <string name="transcript_widget_agent_told">Գործակալը տեղեկացվել է այս սխալի մասին։</string>
     <string name="transcript_widget_superseded">Թարմացվել է ներքևում</string>
-    <string name="transcript_widget_template_saved_revision">Պահված կաղապար՝ %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Պահված կաղապար՝ %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Խմբագրված կաղապար՝ %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Խմբագրված կաղապար՝ %1$s</string>
-    <string name="transcript_widget_template_read">Կարդացված կաղապար՝ %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Պահված վիջեթի կաղապար՝ %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Պահված վիջեթի կաղապար՝ %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Խմբագրված վիջեթի կաղապար՝ %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Խմբագրված վիջեթի կաղապար՝ %1$s</string>
+    <string name="transcript_widget_template_read">Կարդացված վիջեթի կաղապար՝ %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">Թվարկված է %d վիջեթի կաղապար</item>
-        <item quantity="other">Թվարկված է %d վիջեթի կաղապար</item>
+        <item quantity="one">Ցուցակված՝ %d վիջեթի կաղապար</item>
+        <item quantity="other">Ցուցակված՝ %d վիջեթի կաղապար</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Ստեղների մուտքերն ուղարկվում են այս վիջեթին։ Սեղմեք Esc՝ դրանք հետ վերադարձնելու համար։</string>
 </resources>

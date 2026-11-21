@@ -205,7 +205,7 @@ class AgentWidgetTests {
         assertEquals(9, buffers.shown.ints[0])
     }
 
-    /** specs/v2/widgets.md, Failures: only the template's own errors are reported; the client's are logged. */
+    /** specs/v2/widgets.md, Failures: only the widget template's own errors are reported; the client's are logged. */
     @Test
     fun onlyProgramErrorsAreReported() {
         assertTrue(AgentWidgetEngineException("x is not defined", line = 3, column = 7).isProgramError())
@@ -220,7 +220,7 @@ class AgentWidgetTests {
         assertFalse(IllegalStateException("The widget's program isn't loaded.").isProgramError())
     }
 
-    /** The position the runtime appends counts the prelude; the report carries the template's own line and column. */
+    /** The position the runtime appends counts the prelude; the report carries the widget template's own line and column. */
     @Test
     fun aReportedMessageDropsTheRuntimesPosition() {
         assertEquals("ReferenceError: Unknown identifier 'x'.", programMessage("ReferenceError: Unknown identifier 'x'. (line 464, col 66)"))
@@ -336,18 +336,21 @@ class AgentWidgetTests {
     fun readsAWidgetFromItsToolCall() {
         val widget = AgentWidgetAdapter.widget(
             call(
-                """{"template":"confirm","title":"Deploy?","data":{"title":"Deploy?"}}""",
-                metadata = mapOf("widget" to json("""{"template":{"version":"0123456789abcdef"},"status":"submitted","response":{"confirmed":true}}""")),
+                """{"widgetTemplate":"confirm","title":"Deploy?","data":{"title":"Deploy?"}}""",
+                metadata = mapOf(
+                    "widgetTemplate" to json("""{"name":"confirm","version":"0123456789abcdef"}"""),
+                    "widget" to json("""{"status":"submitted","response":{"confirmed":true}}"""),
+                ),
             ),
         )!!
         assertEquals("call_1", widget.callID)
-        assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.template)
+        assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.widgetTemplate)
         assertEquals(AgentWidgetState.Status.Submitted, widget.status)
         assertEquals("""{"confirmed":true}""", widget.response)
         assertEquals("Deploy?", widget.label)
     }
 
-    /** The plugin names it `widgetTemplate` (input and metadata); `template` before the rename. */
+    /** The call names its widget template in the input and, once posted, the pinned version in `metadata.widgetTemplate`. */
     @Test
     fun readsAWidgetCallNamingItsWidgetTemplate() {
         val widget = AgentWidgetAdapter.widget(
@@ -356,30 +359,30 @@ class AgentWidgetTests {
                 metadata = mapOf("widgetTemplate" to json("""{"name":"confirm","version":"0123456789abcdef"}""")),
             ),
         )!!
-        assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.template)
+        assertEquals(OpenCodeWidgetRef("confirm", "0123456789abcdef"), widget.widgetTemplate)
         assertEquals("confirm", AgentWidgetAdapter.title(call("""{"widgetTemplate":"confirm"}""")))
     }
 
     @Test
-    fun anUnpinnedToolCallAsksForTheLatestTemplate() {
-        val widget = AgentWidgetAdapter.widget(call("""{"template":"form","data":{}}"""))!!
-        assertEquals("", widget.template.version)
-        assertTrue(widget.template.isValid)
+    fun anUnpinnedToolCallAsksForTheLatestWidgetTemplate() {
+        val widget = AgentWidgetAdapter.widget(call("""{"widgetTemplate":"form","data":{}}"""))!!
+        assertEquals("", widget.widgetTemplate.version)
+        assertTrue(widget.widgetTemplate.isValid)
         assertEquals(AgentWidgetState.Status.Open, widget.status)
     }
 
     @Test
     fun otherCallsAndStreamingInputAreNotWidgets() {
-        assertNull(AgentWidgetAdapter.widget(call("""{"template":"form"}""", status = OpenCodeToolCall.Status.Streaming)))
-        assertNull(AgentWidgetAdapter.widget(call("""{"template":"../etc"}""")))
-        assertNull(AgentWidgetAdapter.widget(call("""{"template":"form"}""", name = "read")))
+        assertNull(AgentWidgetAdapter.widget(call("""{"widgetTemplate":"form"}""", status = OpenCodeToolCall.Status.Streaming)))
+        assertNull(AgentWidgetAdapter.widget(call("""{"widgetTemplate":"../etc"}""")))
+        assertNull(AgentWidgetAdapter.widget(call("""{"widgetTemplate":"form"}""", name = "read")))
     }
 
     @Test
     fun aWidgetCallIsItsOwnRow() {
         val items = listOf(
             OpenCodeTranscriptItem.Tool("t1", call("null", name = "read", callID = "c0")),
-            OpenCodeTranscriptItem.Tool("t2", call("""{"template":"form"}""")),
+            OpenCodeTranscriptItem.Tool("t2", call("""{"widgetTemplate":"form"}""")),
         )
         val entries = TranscriptEntry.build(items)
         assertTrue(entries.any { ((it as? TranscriptEntry.Single)?.item as? OpenCodeTranscriptItem.Tool)?.call?.name == "widget" })
@@ -388,13 +391,13 @@ class AgentWidgetTests {
     /** Android: the plugin's state pins the version and says how the widget ended. */
     @Test
     fun aToolCallTakesItsStateFromThePlugin() {
-        val tool = OpenCodeTranscriptItem.Tool("msg_a-tool-0", call("""{"template":"confirm","data":{"a":1}}""").copy(messageID = "msg_a"))
+        val tool = OpenCodeTranscriptItem.Tool("msg_a-tool-0", call("""{"widgetTemplate":"confirm","data":{"a":1}}""").copy(messageID = "msg_a"))
         val record = ai.opencode.server.model.OpenCodeWidgetState(
-            sessionID = "ses", messageID = "msg_a", callID = "call_1", template = OpenCodeWidgetRef("confirm", "0123456789abcdef"),
+            sessionID = "ses", messageID = "msg_a", callID = "call_1", widgetTemplate = OpenCodeWidgetRef("confirm", "0123456789abcdef"),
             title = "Deploy?", status = ai.opencode.server.model.OpenCodeWidgetStatus.Submitted, response = "true",
         )
         val pinned = AgentWidgetAdapter.states(listOf(tool), mapOf(record.key to record))["msg_a/call_1"]!!
-        assertEquals("0123456789abcdef", pinned.template.version)
+        assertEquals("0123456789abcdef", pinned.widgetTemplate.version)
         assertEquals(AgentWidgetState.Status.Submitted, pinned.status)
         assertEquals("true", pinned.response)
         assertEquals("Deploy?", pinned.label)
@@ -402,11 +405,11 @@ class AgentWidgetTests {
         assertEquals("msg_a/call_1", AgentWidgetAdapter.key(tool))
 
         val unpinned = AgentWidgetAdapter.states(listOf(tool))["msg_a/call_1"]!!
-        assertEquals("", unpinned.template.version)
+        assertEquals("", unpinned.widgetTemplate.version)
         assertEquals(AgentWidgetState.Status.Open, unpinned.status)
     }
 
-    /** Android: specs/v2/widgets-fullscreen.md: the root's `fullscreen`, `fill` canvases, and the event a template hears. */
+    /** Android: specs/v2/widgets-fullscreen.md: the root's `fullscreen`, `fill` canvases, and the event a widget template hears. */
     @Test
     fun readsFullScreenOffersFillAndTheEvent() {
         val asked = AgentWidgetStep.output("""{"state":{},"view":{"type":"column","fullscreen":true,"children":[{"type":"canvas","height":120,"fill":true}]}}""")

@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">ขอให้เอเจนต์แก้ไข</string>
     <string name="transcript_widget_agent_told">เอเจนต์ทราบข้อผิดพลาดนี้แล้ว</string>
     <string name="transcript_widget_superseded">อัปเดตด้านล่าง</string>
-    <string name="transcript_widget_template_saved_revision">บันทึกเทมเพลต %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">บันทึกเทมเพลต %1$s</string>
-    <string name="transcript_widget_template_edited_revision">แก้ไขเทมเพลต %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">แก้ไขเทมเพลต %1$s</string>
-    <string name="transcript_widget_template_read">อ่านเทมเพลต %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">บันทึกเทมเพลตวิดเจ็ต %1$s v%2$d แล้ว</string>
+    <string name="transcript_widget_template_saved">บันทึกเทมเพลตวิดเจ็ต %1$s แล้ว</string>
+    <string name="transcript_widget_template_edited_revision">แก้ไขเทมเพลตวิดเจ็ต %1$s v%2$d แล้ว</string>
+    <string name="transcript_widget_template_edited">แก้ไขเทมเพลตวิดเจ็ต %1$s แล้ว</string>
+    <string name="transcript_widget_template_read">อ่านเทมเพลตวิดเจ็ต %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="other">แสดงเทมเพลตวิดเจ็ต %d รายการ</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">ปุ่มกดจะส่งไปที่วิดเจ็ตนี้ กด Esc เพื่อคืน</string>
 </resources>

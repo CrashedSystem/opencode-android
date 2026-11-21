@@ -29,7 +29,7 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
 
 ## Server seam: the `opencode.widget` plugin
 
-A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found by `(messageID, callID)`.
+A widget is the `widget` tool call (`{ widgetTemplate, data, title?, wait? }`), found by `(messageID, callID)`.
 `:server` talks to the plugin over `POST /api/rpc/opencode.widget/<method>?location[directory]=…`
 (`live/LiveWidgets.kt`, `AgentWidgetClient`): `program` (pinned versions cached on disk forever),
 `states`, `respond`, `send`, `report`; RPC errors keep their `type` (`OpenCodeClientError.rpcErrorType`: `closed`,
@@ -41,7 +41,7 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   `TranscriptConfiguration.widgets` through `AgentWidgetAdapter.states(items, records)`. The pre-plugin
   `widget` message type and REST routes are gone (servers from 877be1f02 on).
 - `widgets/AgentWidgetAdapter.kt` pairs each `widget` tool call with its plugin state (else the call
-  alone: `metadata.template`, or the latest version, open) and routes answers. Rows, runtime and
+  alone: `metadata.widgetTemplate`, or the latest version, open) and routes answers. Rows, runtime and
   renderer see only `AgentWidgetState` and `AgentWidgetTransport`.
 - `send` over 10 a second fails `rate_limited` and is dropped; `closed` shows "This widget isn't open
   any more." / "already answered".
@@ -53,8 +53,8 @@ A widget is the `widget` tool call (`{ template, data, title?, wait? }`), found 
   `view` (invalid view, step or live post), `draw` (canvas draw throws; budget overruns don't count),
   `main` (live exit), `shader` (WGSL translation or GL compile), `fetch` (transfer failures, not
   cancels), plus a program that doesn't compile (`init` for step, `main` for live, as the TUI does). Program
-  lines subtract the prelude before the template source (`sourceLineOffset`, from
-  `program`'s `source`, kept in the disk cache); shader lines are already the template WGSL's. The agent
+  lines subtract the prelude before the widget template source (`sourceLineOffset`, from
+  `program`'s `source`, kept in the disk cache); shader lines are already the widget template WGSL's. The agent
   gets a synthetic `kind: "error"` message and can fix and re-post.
 - `rpc.unavailable` means the plugin isn't loaded yet (a cold server never waits for plugins; ~0.5 s),
   never "no widgets": `program`, `respond` and `send` try again a few times (0.75 s, 1.5 s, …); a failed
@@ -110,18 +110,18 @@ or Developer Mode). Cleartext `http:` still needs the debug network security con
 
 ## Handlers, hooks and input (server `a405b4f066`/`deb8e2315a` on)
 
-- Templates attach handlers to nodes (`onPress`, `onChange`, `onPointer`) and the prelude assigns node ids from
+- Widget templates attach handlers to nodes (`onPress`, `onChange`, `onPointer`) and the prelude assigns node ids from
   paths (`0/:board`); the client sends `{ id, type, value }` for those ids and never interprets them. Live
   `widget.event()`/`next()` are gone. Nothing changed in the node reader; the app's coalescing of queued step events
   now only replaces `change` values and pointer moves (a `down`/`up` pair or keys never collapse).
-- Events that belong to no node use `id: ""`: `fullscreen` (now for step templates too, their `onFullscreen` hook),
+- Events that belong to no node use `id: ""`: `fullscreen` (now for step widget templates too, their `onFullscreen` hook),
   `focus` and `key` (`AgentWidgetKeys.kt`, hardware keyboard only), `capture` (never sent: no pointer lock on a phone).
 - Shaders with an id send `pointer` like canvases (`agentWidgetPointer`).
 - Report phases: `init`, `event` (a handler or hook, was `update`), `view`, `draw`, `main`, `shader`, `fetch`.
 
 ## Live widgets (`specs/v2/widgets-live.md`)
 
-- A template's `mode` comes with its program (`OpenCodeWidgetProgram.isLive`, cached with it on disk);
+- A widget template's `mode` comes with its program (`OpenCodeWidgetProgram.isLive`, cached with it on disk);
   `AgentWidgetPrograms` compiles it with `\nreturn await __widget_live(__input())` (`compileLive`).
 - `AgentWidgetLiveDriver` owns one run per open widget (`Program.startLive`, input `{ data }`): started when
   the widget first shows, `pause()` while it's off screen, the list isn't resumed (background) and it isn't

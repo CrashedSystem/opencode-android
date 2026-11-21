@@ -203,16 +203,18 @@
     <string name="transcript_widget_ask_agent">Požádat agenta o opravu</string>
     <string name="transcript_widget_agent_told">Agent byl o této chybě informován.</string>
     <string name="transcript_widget_superseded">Aktualizováno níže</string>
-    <string name="transcript_widget_template_saved_revision">Uložena šablona %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Uložena šablona %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Upravena šablona %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Upravena šablona %1$s</string>
-    <string name="transcript_widget_template_read">Přečtena šablona %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Uložena šablona widgetu %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Uložena šablona widgetu %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Upravena šablona widgetu %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Upravena šablona widgetu %1$s</string>
+    <string name="transcript_widget_template_read">Přečtena šablona widgetu %1$s</string>
     <plurals name="transcript_widget_template_listed">
         <item quantity="one">Vypsána %d šablona widgetu</item>
         <item quantity="few">Vypsány %d šablony widgetu</item>
         <item quantity="many">Vypsáno %d šablon widgetu</item>
         <item quantity="other">Vypsáno %d šablon widgetu</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Klávesy směřují do tohoto widgetu. Stisknutím Esc je vrátíte zpět.</string>
 </resources>

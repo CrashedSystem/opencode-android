@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">Minta agen memperbaikinya</string>
     <string name="transcript_widget_agent_told">Agen sudah diberi tahu tentang kesalahan ini.</string>
     <string name="transcript_widget_superseded">Diperbarui di bawah</string>
-    <string name="transcript_widget_template_saved_revision">Template %1$s v%2$d tersimpan</string>
-    <string name="transcript_widget_template_saved">Template %1$s tersimpan</string>
-    <string name="transcript_widget_template_edited_revision">Template %1$s v%2$d disunting</string>
-    <string name="transcript_widget_template_edited">Template %1$s disunting</string>
-    <string name="transcript_widget_template_read">Template %1$s dibaca</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Tersimpan templat widget %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Tersimpan templat widget %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Menyunting templat widget %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Menyunting templat widget %1$s</string>
+    <string name="transcript_widget_template_read">Baca templat widget %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="other">Tercantum %d template widget</item>
+        <item quantity="other">Tercantum %d templat widget</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">Tombol dikirim ke widget ini. Tekan Esc untuk mengembalikannya.</string>
 </resources>

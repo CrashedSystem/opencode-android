@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">エージェントに修正を依頼</string>
     <string name="transcript_widget_agent_told">エージェントにこのエラーを通知しました。</string>
     <string name="transcript_widget_superseded">下で更新</string>
-    <string name="transcript_widget_template_saved_revision">テンプレート %1$s v%2$d を保存</string>
-    <string name="transcript_widget_template_saved">テンプレート %1$s を保存</string>
-    <string name="transcript_widget_template_edited_revision">テンプレート %1$s v%2$d を編集</string>
-    <string name="transcript_widget_template_edited">テンプレート %1$s を編集</string>
-    <string name="transcript_widget_template_read">テンプレート %1$s を読み込み</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">ウィジェットテンプレート %1$s v%2$d を保存</string>
+    <string name="transcript_widget_template_saved">ウィジェットテンプレート %1$s を保存</string>
+    <string name="transcript_widget_template_edited_revision">ウィジェットテンプレート %1$s v%2$d を編集</string>
+    <string name="transcript_widget_template_edited">ウィジェットテンプレート %1$s を編集</string>
+    <string name="transcript_widget_template_read">ウィジェットテンプレート %1$s を読み込み</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="other">ウィジェットテンプレートを%d件表示</item>
+        <item quantity="other">ウィジェットテンプレート %d 件を一覧表示</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">キー操作はこのウィジェットに送られます。Escを押すと元に戻ります。</string>
 </resources>

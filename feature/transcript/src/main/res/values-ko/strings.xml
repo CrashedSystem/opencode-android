@@ -185,13 +185,15 @@
     <string name="transcript_widget_ask_agent">에이전트에게 수정 요청</string>
     <string name="transcript_widget_agent_told">에이전트에게 이 오류를 알렸어요</string>
     <string name="transcript_widget_superseded">아래에 업데이트됨</string>
-    <string name="transcript_widget_template_saved_revision">템플릿 %1$s v%2$d 저장됨</string>
-    <string name="transcript_widget_template_saved">템플릿 %1$s 저장됨</string>
-    <string name="transcript_widget_template_edited_revision">템플릿 %1$s v%2$d 편집함</string>
-    <string name="transcript_widget_template_edited">템플릿 %1$s 편집함</string>
-    <string name="transcript_widget_template_read">템플릿 %1$s 읽기</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">위젯 템플릿 %1$s v%2$d 저장됨</string>
+    <string name="transcript_widget_template_saved">위젯 템플릿 %1$s 저장됨</string>
+    <string name="transcript_widget_template_edited_revision">위젯 템플릿 %1$s v%2$d 편집함</string>
+    <string name="transcript_widget_template_edited">위젯 템플릿 %1$s 편집함</string>
+    <string name="transcript_widget_template_read">위젯 템플릿 %1$s 읽기</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="other">위젯 템플릿 %d개 나열함</item>
+        <item quantity="other">위젯 템플릿 %d개 표시</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">키 입력이 이 위젯으로 전달됩니다. Esc를 누르면 다시 돌아옵니다.</string>
 </resources>

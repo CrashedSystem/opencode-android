@@ -191,14 +191,16 @@
     <string name="transcript_widget_ask_agent">Kérje meg az ügynököt a javításra</string>
     <string name="transcript_widget_agent_told">Az ügynököt értesítettük a hibáról.</string>
     <string name="transcript_widget_superseded">Frissítve alább</string>
-    <string name="transcript_widget_template_saved_revision">Sablon mentve: %1$s v%2$d</string>
-    <string name="transcript_widget_template_saved">Sablon mentve: %1$s</string>
-    <string name="transcript_widget_template_edited_revision">Sablon szerkesztve: %1$s v%2$d</string>
-    <string name="transcript_widget_template_edited">Sablon szerkesztve: %1$s</string>
-    <string name="transcript_widget_template_read">Sablon olvasva: %1$s</string>
+    <!-- One-line widget_template tool calls. "Widget template" is one term, a widget's reusable program: translate both words (e.g. German "Widget-Vorlage"), never a bare "template". -->
+    <string name="transcript_widget_template_saved_revision">Widgetsablon mentve: %1$s v%2$d</string>
+    <string name="transcript_widget_template_saved">Widgetsablon mentve: %1$s</string>
+    <string name="transcript_widget_template_edited_revision">Widgetsablon szerkesztve: %1$s v%2$d</string>
+    <string name="transcript_widget_template_edited">Widgetsablon szerkesztve: %1$s</string>
+    <string name="transcript_widget_template_read">Widgetsablon olvasva: %1$s</string>
     <plurals name="transcript_widget_template_listed">
-        <item quantity="one">%d widgetsablon listázva</item>
-        <item quantity="other">%d widgetsablon listázva</item>
+        <item quantity="one">Listázva: %d widgetsablon</item>
+        <item quantity="other">Listázva: %d widgetsablon</item>
     </plurals>
+    <!-- Widgets -->
     <string name="transcript_widget_keyboard_description">A billentyűleütések ehhez a widgethez kerülnek. Nyomja meg az Esc-et a visszaadásukhoz.</string>
 </resources>

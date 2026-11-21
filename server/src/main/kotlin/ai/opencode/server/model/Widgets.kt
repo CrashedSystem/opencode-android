@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 data class OpenCodeWidgetRef(val name: String, val version: String = "") {
     val key: String get() = "$name@${version.ifEmpty { "latest" }}"
 
-    /** A version is named; without one the program is the template's latest, never cached on disk. */
+    /** A version is named; without one the program is the widget template's latest, never cached on disk. */
     val isPinned: Boolean get() = version.isNotEmpty()
 
     /** Names and versions the server accepts, so a ref is safe as a path segment and a file name. */
@@ -53,18 +53,18 @@ data class OpenCodeWidgetMessageValue(val json: String, val wake: Boolean) {
 
 /**
  * The widget plugin's record of one widget (`opencode.widget` `State`): the `widget` tool call it
- * belongs to ([messageID], [callID]), the pinned template, and how it ended. [response] is JSON text.
+ * belongs to ([messageID], [callID]), the pinned widget template, and how it ended. [response] is JSON text.
  */
 data class OpenCodeWidgetState(
     val sessionID: String,
     val messageID: String,
     val callID: String,
-    val template: OpenCodeWidgetRef,
+    val widgetTemplate: OpenCodeWidgetRef,
     val title: String? = null,
     val status: OpenCodeWidgetStatus,
     val response: String? = null,
     val wait: Boolean = false,
-    /** Hosts a live template may fetch from (`capabilities.https.hosts`). */
+    /** Hosts a live widget template may fetch from (`capabilities.https.hosts`). */
     val httpsHosts: List<String>? = null,
     /** The program error the last report recorded; the widget keeps its status. */
     val failure: OpenCodeWidgetFailure? = null,
@@ -77,12 +77,12 @@ data class OpenCodeWidgetState(
     }
 }
 
-/** A template version's runnable program and how it runs: `step` (the default) or `live`, with the hosts a live one may fetch from. */
+/** A widget template version's runnable program and how it runs: `step` (the default) or `live`, with the hosts a live one may fetch from. */
 data class OpenCodeWidgetProgram(
     val program: String,
     val isLive: Boolean = false,
     val httpsHosts: List<String>? = null,
-    /** Lines of prelude before the template's source in [program], to report errors at template lines. */
+    /** Lines of prelude before the widget template's source in [program], to report errors at its own lines. */
     val sourceLineOffset: Int = 0,
 )
 
