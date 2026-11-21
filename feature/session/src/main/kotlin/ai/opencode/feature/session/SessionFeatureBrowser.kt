@@ -220,8 +220,10 @@ internal fun SessionFeature.reduceBrowserAndBackgroundWork(state: State, action:
             } else {
                 // Moved even if its send let the claim go meanwhile.
                 next = next.copy(movedWorkKeys = next.movedWorkKeys + key)
-                // The moved shell now outlives its tool call; list it for the capsule.
-                refreshShells(next)
+                // The moved shell (or script) now outlives its tool call; list it for the capsule.
+                val shells = refreshShells(next)
+                val jobs = refreshJobs(shells.state)
+                Reduced(jobs.state, Effect.merge(shells.effect, jobs.effect))
             }
         }
     }
@@ -277,7 +279,7 @@ internal fun SessionFeature.reduceBrowserAndBackgroundWork(state: State, action:
             familySessions = state.familySessions.filter { it.id != sessionID },
             activeFamilySessionIDs = state.activeFamilySessionIDs - sessionID,
             familyTranscriptCache = state.familyTranscriptCache - sessionID,
-        )
+        ).pruningJobs(ownedBy = sessionID)
         // Its requests went with it. Left here, reconciliation would keep them for an owner it never
         // rediscovers, docked forever.
         next = next.pruneRequests(removing = { _, owner -> owner == sessionID })
@@ -473,7 +475,9 @@ internal fun SessionFeature.refreshBackgroundWork(state: State, reason: RefreshR
     if (!refreshes) return Reduced(state)
     val family = refreshFamily(state)
     val shells = refreshShells(family.state)
-    return Reduced(shells.state, Effect.merge(family.effect, shells.effect))
+    // Jobs arrive as events; only a return re-lists them.
+    val jobs = if (reason == RefreshReason.Resume) refreshJobs(shells.state) else Reduced(shells.state)
+    return Reduced(jobs.state, Effect.merge(family.effect, shells.effect, jobs.effect))
 }
 
 internal fun SessionFeature.refreshFamily(state: State): Reduced<State, Action> {
