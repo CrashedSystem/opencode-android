@@ -21,6 +21,7 @@ androidComponents {
 dependencies {
     api(project(":feature:media"))
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.jlatexmath.android)
     // The aar carries JNA's native dispatch library for every ABI.
     implementation(libs.jna) { artifact { type = "aar" } }

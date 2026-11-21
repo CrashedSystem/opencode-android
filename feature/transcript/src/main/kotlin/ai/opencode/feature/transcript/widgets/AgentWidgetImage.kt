@@ -44,6 +44,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.SingletonImageLoader
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.size.Size
@@ -110,7 +112,12 @@ fun AgentWidgetImage(src: String, alt: String?, aspect: Float?, modifier: Modifi
 /** [src] decoded no wider than [widthPx]: web images through Coil, the rest through the server's file endpoint. */
 internal suspend fun loadWidgetImage(context: Context, client: OpenCodeClient, server: OpenCodeServer?, directory: String?, src: String, widthPx: Int): Bitmap? {
     if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) {
-        val result = SingletonImageLoader.get(context).execute(ImageRequest.Builder(context).data(src).size(Size(widthPx, widthPx)).build())
+        val request = ImageRequest.Builder(context)
+            .data(src)
+            .size(Size(widthPx, widthPx))
+            .httpHeaders(NetworkHeaders.Builder().set("User-Agent", userAgent(context)).build())
+            .build()
+        val result = SingletonImageLoader.get(context).execute(request)
         return (result as? SuccessResult)?.image?.toBitmap()
     }
     val server = server ?: return null
@@ -122,4 +129,10 @@ internal suspend fun loadWidgetImage(context: Context, client: OpenCodeClient, s
     var sample = 1
     while (bounds.outWidth / (sample * 2) >= widthPx) sample *= 2
     return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+}
+
+/** “OpenCode/1.2 (Android; ai.opencode)”: hosts such as Wikimedia refuse OkHttp's default agent. */
+private fun userAgent(context: Context): String {
+    val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "1"
+    return "OpenCode/$version (Android; ${context.packageName})"
 }
