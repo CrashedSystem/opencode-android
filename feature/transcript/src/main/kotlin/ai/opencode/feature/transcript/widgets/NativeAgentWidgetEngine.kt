@@ -47,7 +47,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         return object : AgentWidgetLiveProgram {
             override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
                 val handler = object : LiveHandler {
-                    override fun onPost(messageJson: String) = listener.posted(messageJson)
+                    override fun onPosts(messagesJson: List<String>) = messagesJson.forEach(listener::posted)
                     override fun onWarning(message: String) = listener.warned(message)
                     override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let { mapped(it, draw = false) })
                 }
@@ -137,6 +137,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         is PsychoScriptException.SliceBudget -> error.reason
         is PsychoScriptException.Snapshot -> error.reason
         is PsychoScriptException.InvalidState -> error.reason
+        is PsychoScriptException.MemoryLimitExceeded -> error.reason
     }
 
     private const val ENTRY = "\nreturn __widget_step(__input())"
