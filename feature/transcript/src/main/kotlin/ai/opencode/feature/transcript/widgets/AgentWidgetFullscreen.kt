@@ -2,10 +2,10 @@ package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.R as CoreR
 import ai.opencode.core.motion.MotionRole
+import ai.opencode.core.motion.motionPress
 import ai.opencode.core.ui.OpenCodeIcon
-import ai.opencode.core.ui.OpenCodeIconButton
-import ai.opencode.core.ui.OpenCodeIconButtonStyle
 import ai.opencode.core.ui.OpenCodeShape
+import ai.opencode.core.ui.OpenCodeSurfaces
 import ai.opencode.core.ui.OpenCodeTextStyles
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.SFSymbol
@@ -18,9 +18,12 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +35,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -53,6 +59,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -63,8 +72,8 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * The widget the list's [AgentWidgetStore] shows full screen, as a cover above the session:
@@ -132,19 +141,44 @@ fun AgentWidgetFullscreenHost(store: AgentWidgetStore) {
                     .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
                 AgentWidgetFrame(controller.phase, open.title, Modifier.fillMaxSize(), controller = controller)
-                OpenCodeIconButton(
-                    SFSymbol.Xmark,
-                    stringResource(CoreR.string.common_close),
-                    store::exitFullscreen,
-                    Modifier.align(Alignment.TopEnd).padding(4.dp),
-                    style = OpenCodeIconButtonStyle.Circle,
-                    size = 40.dp,
-                    iconSize = 18.dp,
-                )
+                FullscreenCloseButton(store::exitFullscreen, Modifier.align(Alignment.TopEnd))
             }
         }
     }
 }
+
+/**
+ * The floating close button over the root's top-right corner (widgets-fullscreen.md, Chrome): a 44 dp hit area 8 dp
+ * from the top and end edges, with a 32 dp circle centred in it. The widget is told this area.
+ */
+@Composable
+private fun FullscreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interactions = remember { MutableInteractionSource() }
+    val label = stringResource(CoreR.string.common_close)
+    Box(
+        modifier
+            .padding(top = CLOSE_INSET, end = CLOSE_INSET)
+            .size(CLOSE_AREA)
+            .clickable(interactions, ripple(bounded = false, radius = CLOSE_CIRCLE / 2), role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(CLOSE_CIRCLE)
+                .motionPress(interactions)
+                .background(OpenCodeSurfaces.neutralFill, CircleShape)
+                .border(OpenCodeSurfaces.border, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            OpenCodeIcon(SFSymbol.Xmark, contentDescription = null, size = 16.dp, tint = OpenCodeTheme.colors.text)
+        }
+    }
+}
+
+internal val CLOSE_AREA = 44.dp
+internal val CLOSE_INSET = 8.dp
+private val CLOSE_CIRCLE = 32.dp
 
 /** What a widget's inline row shows while it's full screen, at the height it had. */
 @Composable

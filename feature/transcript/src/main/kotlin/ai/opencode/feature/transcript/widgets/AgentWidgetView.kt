@@ -132,27 +132,29 @@ fun AgentWidgetFrame(
         Column(
             Modifier
                 .then(if (fullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth())
-                .padding(if (fullscreen) PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp) else PaddingValues(16.dp))
+                .padding(if (fullscreen) PaddingValues(0.dp) else PaddingValues(16.dp))
                 .semantics { paneTitle = title },
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Full screen the root fills the safe area (widgets-fullscreen.md); the frame's own lines keep a margin.
+            val side = if (fullscreen) Modifier.padding(horizontal = 16.dp) else Modifier
             when (phase) {
                 is Phase.Loading, is Phase.Starting -> {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(side, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
                         Text(stringResource(R.string.transcript_widget_loading), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
                     }
                     val starting = phase is Phase.Starting && controller != null && controller.isLiveMode
                     val density = LocalDensity.current.density
                     Box(
-                        Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
+                        side.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
                             if (starting) Modifier.onSizeChanged { controller!!.liveViewWidth = it.width / density } else Modifier,
                         ),
                     )
                     // A live program may wait for a frame before it renders anything.
                     if (starting) LiveFrames(controller!!, density, fullscreen)
                 }
-                is Phase.Failed -> {
+                is Phase.Failed -> Column(side, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatusLine(SFSymbol.XmarkCircleFill, colors.danger, stringResource(R.string.transcript_widget_failed))
                     SelectionContainer {
                         Text(phase.message, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.secondaryText)
@@ -188,6 +190,7 @@ fun AgentWidgetFrame(
                 controller?.httpsHosts?.let { hosts ->
                     Text(
                         stringResource(R.string.transcript_widget_network, hosts.joinToString(", ")),
+                        modifier = side,
                         style = OpenCodeTextStyles.caption1,
                         color = colors.tertiaryText,
                         maxLines = 1,
@@ -195,9 +198,9 @@ fun AgentWidgetFrame(
                     )
                 }
                     val error = (phase as? Phase.Ready)?.error
-                    if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true)
+                    if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true, modifier = side)
                     if (phase is Phase.Responding) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(side, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
                             Text(stringResource(R.string.transcript_widget_sending), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
                         }
@@ -216,7 +219,7 @@ fun AgentWidgetFrame(
                 }
             }
             val failure = controller?.failure
-            if (controller != null && failure != null && phase !is Phase.Closed) FailureNote(failure, told = failure.sent || controller.askedAgent, onAsk = controller::askAgentToFix)
+            if (controller != null && failure != null && phase !is Phase.Closed) FailureNote(failure, told = failure.sent || controller.askedAgent, onAsk = controller::askAgentToFix, modifier = side)
         }
         if (keyboard.focused) KeyboardHint(Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (onExpand != null) {
@@ -235,7 +238,7 @@ fun AgentWidgetFrame(
 
 /** A program error the server recorded for this widget, and whether the agent heard of it or the user can ask. */
 @Composable
-private fun FailureNote(failure: OpenCodeWidgetFailure, told: Boolean, onAsk: () -> Unit) {
+private fun FailureNote(failure: OpenCodeWidgetFailure, told: Boolean, onAsk: () -> Unit, modifier: Modifier = Modifier) {
     val colors = OpenCodeTheme.colors
     val error = failure.error
     val at = error.line?.let { line -> error.column?.let { "$line:$it" } ?: "$line" }
@@ -244,7 +247,7 @@ private fun FailureNote(failure: OpenCodeWidgetFailure, told: Boolean, onAsk: ()
     } else {
         stringResource(R.string.transcript_widget_failed_on, failure.client, error.phase, error.message)
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SelectionContainer {
             Text(text, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.danger)
         }
@@ -295,10 +298,10 @@ private fun LiveFrames(controller: AgentWidgetController, density: Float, fullsc
 }
 
 @Composable
-private fun StatusLine(symbol: SFSymbol, tint: Color, words: String, detail: String? = null, live: Boolean = false) {
+private fun StatusLine(symbol: SFSymbol, tint: Color, words: String, detail: String? = null, live: Boolean = false, modifier: Modifier = Modifier) {
     val colors = OpenCodeTheme.colors
     Row(
-        Modifier.fillMaxWidth().then(if (live) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
+        modifier.fillMaxWidth().then(if (live) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

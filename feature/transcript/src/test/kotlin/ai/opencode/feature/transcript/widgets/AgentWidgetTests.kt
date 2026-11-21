@@ -436,6 +436,8 @@ class AgentWidgetTests {
         assertEquals("ArrowLeft", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_DPAD_LEFT))
         assertEquals("Space", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_SPACE))
         assertEquals("ShiftLeft", AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_SHIFT_LEFT))
+        // Back is never a widget key: it always closes full screen.
+        assertNull(AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_BACK))
         assertNull(AgentWidgetKeys.code(android.view.KeyEvent.KEYCODE_VOLUME_UP))
 
         // A queued event is replaced only by a newer value of the same control or a newer move of the same press.

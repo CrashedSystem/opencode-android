@@ -77,6 +77,8 @@ internal class AgentWidgetKeyboard(private val focusManager: FocusManager) {
             KeyEventType.KeyUp -> "up"
             else -> return false
         }
+        // Back is always the app's: it closes full screen whatever has focus (widgets-fullscreen.md).
+        if (native.keyCode == AndroidKeyEvent.KEYCODE_BACK) return false
         if (native.keyCode == AndroidKeyEvent.KEYCODE_ESCAPE) {
             if (kind == "up") release()
             return true
