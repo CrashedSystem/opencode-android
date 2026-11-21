@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skíggja</string>
     <string name="transcript_widget_network">Net: %1$s</string>
     <string name="transcript_widget_restart">Endurbyrja</string>
+    <string name="transcript_widget_failed_on">Mistókst á %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Mistókst á %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Spyr agentin at rætta tað</string>
+    <string name="transcript_widget_agent_told">Agentin varð kunnaður um henda feilin.</string>
     <string name="transcript_widget_superseded">Dagført niðanfyri</string>
     <string name="transcript_widget_template_saved_revision">Goymdi fyrimynd %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Goymdi fyrimynd %1$s</string>

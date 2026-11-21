@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Åpne i fullskjerm</string>
     <string name="transcript_widget_network">Nettverk: %1$s</string>
     <string name="transcript_widget_restart">Start på nytt</string>
+    <string name="transcript_widget_failed_on">Mislyktes på %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Mislyktes på %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Spør agenten om å fikse det</string>
+    <string name="transcript_widget_agent_told">Agenten fikk beskjed om denne feilen.</string>
     <string name="transcript_widget_superseded">Oppdatert nedenfor</string>
     <string name="transcript_widget_template_saved_revision">Lagret mal %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Lagret mal %1$s</string>

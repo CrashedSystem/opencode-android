@@ -11,6 +11,7 @@ import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.RespondFailure
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Status
 import ai.opencode.server.OpenCodeServer
 import ai.opencode.server.model.OpenCodeWidgetError
+import ai.opencode.server.model.OpenCodeWidgetFailure
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetResponse
@@ -157,9 +158,37 @@ class AgentWidgetController internal constructor(
         run(effects)
     }
 
+    /** The program error the server recorded (from any client), while the widget is open. */
+    var failure: OpenCodeWidgetFailure? by mutableStateOf(openFailure(widget))
+        private set
+
+    /** Ask Agent to Fix It went out for [failure]; shown as told until the server says so too. */
+    var askedAgent: Boolean by mutableStateOf(false)
+        private set
+
+    /** Sends [failure] to the agent in the widget's session (`report` with `ask`), once. */
+    fun askAgentToFix() {
+        val failure = failure ?: return
+        if (failure.sent || askedAgent) return
+        askedAgent = true
+        scope.launch {
+            try {
+                transport.report(server, directory, sessionID, widget, failure.error, true)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLog.app.notice { "Widget ${ref.name} ask to fix didn't go: ${error.message?.take(80)}" }
+                askedAgent = false
+            }
+        }
+    }
+
     /** The widget as the server now reports it. */
     fun update(widget: AgentWidgetState) {
         this.widget = widget
+        val recorded = openFailure(widget)
+        if (recorded?.error != failure?.error) askedAgent = false
+        failure = recorded
         val status = status(widget)
         if (isLiveMode) {
             if (status is Status.Answered) closeLive(status.how)
@@ -541,6 +570,9 @@ class AgentWidgetController internal constructor(
 
     private companion object {
         const val MAX_REPORTS = 8
+
+        fun openFailure(widget: AgentWidgetState): OpenCodeWidgetFailure? =
+            widget.failure.takeIf { widget.status == AgentWidgetState.Status.Open }
 
         fun status(widget: AgentWidgetState): Status = when (widget.status) {
             AgentWidgetState.Status.Open -> Status.Open

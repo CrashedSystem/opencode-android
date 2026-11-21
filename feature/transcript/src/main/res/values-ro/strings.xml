@@ -192,6 +192,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Deschide pe ecran întreg</string>
     <string name="transcript_widget_network">Rețea: %1$s</string>
     <string name="transcript_widget_restart">Repornește</string>
+    <string name="transcript_widget_failed_on">Eșuat pe %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Eșuat pe %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Cere agentului să o repare</string>
+    <string name="transcript_widget_agent_told">Agentul a fost informat despre această eroare.</string>
     <string name="transcript_widget_superseded">Actualizat mai jos</string>
     <string name="transcript_widget_template_saved_revision">Șablon salvat %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Șablon salvat %1$s</string>

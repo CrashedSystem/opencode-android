@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">To‘liq ekranda ochish</string>
     <string name="transcript_widget_network">Tarmoq: %1$s</string>
     <string name="transcript_widget_restart">Qayta ishga tushirish</string>
+    <string name="transcript_widget_failed_on">%1$s da muvaffaqiyatsiz: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s da muvaffaqiyatsiz: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Agentdan tuzatishni soʻrash</string>
+    <string name="transcript_widget_agent_told">Agentga bu xato haqida xabar berildi.</string>
     <string name="transcript_widget_superseded">Quyida yangilandi</string>
     <string name="transcript_widget_template_saved_revision">Shablon %1$s v%2$d saqlandi</string>
     <string name="transcript_widget_template_saved">Shablon %1$s saqlandi</string>

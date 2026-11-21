@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Mở toàn màn hình</string>
     <string name="transcript_widget_network">Mạng: %1$s</string>
     <string name="transcript_widget_restart">Khởi động lại</string>
+    <string name="transcript_widget_failed_on">Thất bại tại %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Thất bại tại %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Nhờ tác nhân sửa lỗi</string>
+    <string name="transcript_widget_agent_told">Đã báo lỗi này cho tác nhân.</string>
     <string name="transcript_widget_superseded">Đã cập nhật bên dưới</string>
     <string name="transcript_widget_template_saved_revision">Đã lưu mẫu %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Đã lưu mẫu %1$s</string>

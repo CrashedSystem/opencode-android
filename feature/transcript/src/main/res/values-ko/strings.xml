@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">전체 화면으로 열기</string>
     <string name="transcript_widget_network">네트워크: %1$s</string>
     <string name="transcript_widget_restart">다시 시작</string>
+    <string name="transcript_widget_failed_on">%1$s 실패: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s 실패: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">에이전트에게 수정 요청</string>
+    <string name="transcript_widget_agent_told">에이전트에게 이 오류를 알렸어요</string>
     <string name="transcript_widget_superseded">아래에 업데이트됨</string>
     <string name="transcript_widget_template_saved_revision">템플릿 %1$s v%2$d 저장됨</string>
     <string name="transcript_widget_template_saved">템플릿 %1$s 저장됨</string>

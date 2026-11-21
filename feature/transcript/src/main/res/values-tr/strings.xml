@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Tam ekranda aç</string>
     <string name="transcript_widget_network">Ağ: %1$s</string>
     <string name="transcript_widget_restart">Yeniden Başlat</string>
+    <string name="transcript_widget_failed_on">%1$s üzerinde başarısız: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s üzerinde başarısız: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Ajandan düzeltmesini iste</string>
+    <string name="transcript_widget_agent_told">Ajana bu hata bildirildi.</string>
     <string name="transcript_widget_superseded">Aşağıda güncellendi</string>
     <string name="transcript_widget_template_saved_revision">%1$s şablonu v%2$d kaydedildi</string>
     <string name="transcript_widget_template_saved">%1$s şablonu kaydedildi</string>

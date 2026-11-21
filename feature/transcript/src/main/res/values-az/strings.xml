@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Tam ekranda aç</string>
     <string name="transcript_widget_network">Şəbəkə: %1$s</string>
     <string name="transcript_widget_restart">Yenidən başlat</string>
+    <string name="transcript_widget_failed_on">%1$s üzərində uğursuz oldu: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s üzərində uğursuz oldu: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Agentdən düzəltməsini istə</string>
+    <string name="transcript_widget_agent_told">Agentə bu xəta haqqında məlumat verildi.</string>
     <string name="transcript_widget_superseded">Aşağıda yeniləndi</string>
     <string name="transcript_widget_template_saved_revision">Şablon %1$s v%2$d saxlanılıb</string>
     <string name="transcript_widget_template_saved">Şablon %1$s saxlanılıb</string>

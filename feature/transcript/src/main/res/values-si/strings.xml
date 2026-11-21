@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">පූර්ණ තිරයේ විවෘත කරන්න</string>
     <string name="transcript_widget_network">ජාලය: %1$s</string>
     <string name="transcript_widget_restart">යළි අරඹන්න</string>
+    <string name="transcript_widget_failed_on">%1$s හිදී අසාර්ථකයි: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s හිදී අසාර්ථකයි: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">නිවැරදි කිරීමට නියෝජිතයාගෙන් අසන්න</string>
+    <string name="transcript_widget_agent_told">මෙම දෝෂය ගැන නියෝජිතයාට දන්වා ඇත.</string>
     <string name="transcript_widget_superseded">පහත යාවත්කාලීනයි</string>
     <string name="transcript_widget_template_saved_revision">සැකිල්ල %1$s v%2$d සුරැකුවා</string>
     <string name="transcript_widget_template_saved">සැකිල්ල %1$s සුරැකුවා</string>

@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Im Vollbild öffnen</string>
     <string name="transcript_widget_network">Netzwerk: %1$s</string>
     <string name="transcript_widget_restart">Neustart</string>
+    <string name="transcript_widget_failed_on">Fehlgeschlagen bei %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Fehlgeschlagen bei %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Agenten bitten, das zu beheben</string>
+    <string name="transcript_widget_agent_told">Der Agent wurde über diesen Fehler informiert.</string>
     <string name="transcript_widget_superseded">Unten aktualisiert</string>
     <string name="transcript_widget_template_saved_revision">Vorlage %1$s v%2$d gespeichert</string>
     <string name="transcript_widget_template_saved">Vorlage %1$s gespeichert</string>

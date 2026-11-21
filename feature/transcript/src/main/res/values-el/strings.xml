@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Άνοιγμα σε πλήρη οθόνη</string>
     <string name="transcript_widget_network">Δίκτυο: %1$s</string>
     <string name="transcript_widget_restart">Επανεκκίνηση</string>
+    <string name="transcript_widget_failed_on">Απέτυχε στο %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Απέτυχε στο %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Διόρθωση από τον πράκτορα</string>
+    <string name="transcript_widget_agent_told">Ο πράκτορας ενημερώθηκε για αυτό το σφάλμα.</string>
     <string name="transcript_widget_superseded">Ενημερώθηκε παρακάτω</string>
     <string name="transcript_widget_template_saved_revision">Αποθηκεύτηκε το πρότυπο %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Αποθηκεύτηκε το πρότυπο %1$s</string>

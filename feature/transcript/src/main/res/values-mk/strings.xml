@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Отвори на цел екран</string>
     <string name="transcript_widget_network">Мрежа: %1$s</string>
     <string name="transcript_widget_restart">Рестартирај</string>
+    <string name="transcript_widget_failed_on">Не успеа на %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Не успеа на %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Побарај од агентот да го поправи</string>
+    <string name="transcript_widget_agent_told">Агентот е известен за грешкава.</string>
     <string name="transcript_widget_superseded">Ажурирано подолу</string>
     <string name="transcript_widget_template_saved_revision">Зачуван шаблон %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Зачуван шаблон %1$s</string>

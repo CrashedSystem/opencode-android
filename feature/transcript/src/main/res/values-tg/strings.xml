@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Дар экрани пурра кушоед</string>
     <string name="transcript_widget_network">Шабака: %1$s</string>
     <string name="transcript_widget_restart">Оғози дубора</string>
+    <string name="transcript_widget_failed_on">Дар %1$s ноком шуд: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Дар %1$s ноком шуд: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Аз агент хоҳиш кунед, ки ислоҳ кунад</string>
+    <string name="transcript_widget_agent_told">Ба агент дар бораи ин хато хабар дода шуд.</string>
     <string name="transcript_widget_superseded">Дар поён навсозӣ шуд</string>
     <string name="transcript_widget_template_saved_revision">Қолаби %1$s v%2$d захира шуд</string>
     <string name="transcript_widget_template_saved">Қолаби %1$s захира шуд</string>

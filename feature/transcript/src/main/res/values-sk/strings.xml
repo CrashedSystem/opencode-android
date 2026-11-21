@@ -198,6 +198,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Otvoriť na celej obrazovke</string>
     <string name="transcript_widget_network">Sieť: %1$s</string>
     <string name="transcript_widget_restart">Reštartovať</string>
+    <string name="transcript_widget_failed_on">Zlyhalo na %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Zlyhalo na %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Požiadať agenta o opravu</string>
+    <string name="transcript_widget_agent_told">Agent bol o tejto chybe informovaný.</string>
     <string name="transcript_widget_superseded">Aktualizované nižšie</string>
     <string name="transcript_widget_template_saved_revision">Uložená šablóna %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Uložená šablóna %1$s</string>

@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Ava täisekraanil</string>
     <string name="transcript_widget_network">Võrk: %1$s</string>
     <string name="transcript_widget_restart">Taaskäivita</string>
+    <string name="transcript_widget_failed_on">Ebaõnnestus %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Ebaõnnestus %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Palu agendil parandada</string>
+    <string name="transcript_widget_agent_told">Agendile teatati sellest veast.</string>
     <string name="transcript_widget_superseded">Uuendatud allpool</string>
     <string name="transcript_widget_template_saved_revision">Salvestatud mall %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Salvestatud mall %1$s</string>

@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">បើកពេញអេក្រង់</string>
     <string name="transcript_widget_network">បណ្តាញ៖ %1$s</string>
     <string name="transcript_widget_restart">ចាប់ផ្ដើមឡើងវិញ</string>
+    <string name="transcript_widget_failed_on">បរាជ័យលើ %1$s៖ %2$s៖ %3$s</string>
+    <string name="transcript_widget_failed_on_at">បរាជ័យលើ %1$s៖ %2$s៖ %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">សួរភ្នាក់ងារឲ្យជួសជុល</string>
+    <string name="transcript_widget_agent_told">បានប្រាប់ភ្នាក់ងារអំពីកំហុសនេះហើយ</string>
     <string name="transcript_widget_superseded">បានធ្វើបច្ចុប្បន្នភាពនៅខាងក្រោម</string>
     <string name="transcript_widget_template_saved_revision">បានរក្សាទុកគំរូ %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">បានរក្សាទុកគំរូ %1$s</string>

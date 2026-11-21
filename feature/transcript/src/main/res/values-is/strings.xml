@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Opna í fullum skjá</string>
     <string name="transcript_widget_network">Net: %1$s</string>
     <string name="transcript_widget_restart">Endurræstu</string>
+    <string name="transcript_widget_failed_on">Mistókst á %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Mistókst á %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Biðja fulltrúa að laga þetta</string>
+    <string name="transcript_widget_agent_told">Fulltrúanum var sagt frá þessari villu.</string>
     <string name="transcript_widget_superseded">Uppfært fyrir neðan</string>
     <string name="transcript_widget_template_saved_revision">Vistað sniðmát %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Vistað sniðmát %1$s</string>

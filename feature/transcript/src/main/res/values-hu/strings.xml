@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Megnyitás teljes képernyőn</string>
     <string name="transcript_widget_network">Hálózat: %1$s</string>
     <string name="transcript_widget_restart">Újraindítás</string>
+    <string name="transcript_widget_failed_on">Sikertelen: %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Sikertelen: %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Kérje meg az ügynököt a javításra</string>
+    <string name="transcript_widget_agent_told">Az ügynököt értesítettük a hibáról.</string>
     <string name="transcript_widget_superseded">Frissítve alább</string>
     <string name="transcript_widget_template_saved_revision">Sablon mentve: %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Sablon mentve: %1$s</string>

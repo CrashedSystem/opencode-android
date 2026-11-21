@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Buka dalam skrin penuh</string>
     <string name="transcript_widget_network">Rangkaian: %1$s</string>
     <string name="transcript_widget_restart">Mulakan semula</string>
+    <string name="transcript_widget_failed_on">Gagal pada %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Gagal pada %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Minta Ejen Baiki</string>
+    <string name="transcript_widget_agent_told">Ejen dimaklumkan tentang ralat ini.</string>
     <string name="transcript_widget_superseded">Dikemas kini di bawah</string>
     <string name="transcript_widget_template_saved_revision">Templat %1$s v%2$d disimpan</string>
     <string name="transcript_widget_template_saved">Templat %1$s disimpan</string>

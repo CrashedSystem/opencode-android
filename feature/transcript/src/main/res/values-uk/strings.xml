@@ -198,6 +198,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Відкрити на весь екран</string>
     <string name="transcript_widget_network">Мережа: %1$s</string>
     <string name="transcript_widget_restart">Перезапустити</string>
+    <string name="transcript_widget_failed_on">Помилка на %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Помилка на %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Попросити агента виправити</string>
+    <string name="transcript_widget_agent_told">Агента повідомлено про цю помилку.</string>
     <string name="transcript_widget_superseded">Оновлено нижче</string>
     <string name="transcript_widget_template_saved_revision">Збережено шаблон %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Збережено шаблон %1$s</string>

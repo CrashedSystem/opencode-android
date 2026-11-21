@@ -192,6 +192,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Ouvrir en plein écran</string>
     <string name="transcript_widget_network">Réseau : %1$s</string>
     <string name="transcript_widget_restart">Redémarrer</string>
+    <string name="transcript_widget_failed_on">Échec sur %1$s : %2$s : %3$s</string>
+    <string name="transcript_widget_failed_on_at">Échec sur %1$s : %2$s : %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Demander à l’agent de corriger</string>
+    <string name="transcript_widget_agent_told">L’agent a été informé de cette erreur.</string>
     <string name="transcript_widget_superseded">Mis à jour ci-dessous</string>
     <string name="transcript_widget_template_saved_revision">Template %1$s v%2$d enregistré</string>
     <string name="transcript_widget_template_saved">Template %1$s enregistré</string>

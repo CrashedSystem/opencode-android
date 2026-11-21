@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">სრულ ეკრანზე გახსნა</string>
     <string name="transcript_widget_network">ქსელი: %1$s</string>
     <string name="transcript_widget_restart">გადატვირთვა</string>
+    <string name="transcript_widget_failed_on">ვერ შედგა %1$s-ზე: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">ვერ შედგა %1$s-ზე: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">სთხოვე აგენტს გამოსწორება</string>
+    <string name="transcript_widget_agent_told">აგენტს შეცდომის შესახებ ეცნობა.</string>
     <string name="transcript_widget_superseded">ქვემოთ განახლდა</string>
     <string name="transcript_widget_template_saved_revision">შაბლონი %1$s v%2$d შენახულია</string>
     <string name="transcript_widget_template_saved">შაბლონი %1$s შენახულია</string>

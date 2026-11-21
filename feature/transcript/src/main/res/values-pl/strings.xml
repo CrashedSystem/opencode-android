@@ -198,6 +198,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Otwórz na pełnym ekranie</string>
     <string name="transcript_widget_network">Sieć: %1$s</string>
     <string name="transcript_widget_restart">Uruchom ponownie</string>
+    <string name="transcript_widget_failed_on">Błąd w %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Błąd w %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Poproś agenta o naprawę</string>
+    <string name="transcript_widget_agent_told">Agent został poinformowany o tym błędzie.</string>
     <string name="transcript_widget_superseded">Zaktualizowano poniżej</string>
     <string name="transcript_widget_template_saved_revision">Zapisano szablon %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Zapisano szablon %1$s</string>

@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Բացել ամբողջ էկրանով</string>
     <string name="transcript_widget_network">Ցանց՝ %1$s</string>
     <string name="transcript_widget_restart">Վերագործարկեք</string>
+    <string name="transcript_widget_failed_on">Ձախողվեց %1$s-ում՝ %2$s՝ %3$s</string>
+    <string name="transcript_widget_failed_on_at">Ձախողվեց %1$s-ում՝ %2$s՝ %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Խնդրել գործակալին շտկել այն</string>
+    <string name="transcript_widget_agent_told">Գործակալը տեղեկացվել է այս սխալի մասին։</string>
     <string name="transcript_widget_superseded">Թարմացվել է ներքևում</string>
     <string name="transcript_widget_template_saved_revision">Պահված կաղապար՝ %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Պահված կաղապար՝ %1$s</string>

@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">পূর্ণ স্ক্রিনে খুলুন</string>
     <string name="transcript_widget_network">নেটওয়ার্ক: %1$s</string>
     <string name="transcript_widget_restart">রিস্টার্ট করুন</string>
+    <string name="transcript_widget_failed_on">%1$s-এ ব্যর্থ হয়েছে: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s-এ ব্যর্থ হয়েছে: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">এজেন্টকে ঠিক করতে বলুন</string>
+    <string name="transcript_widget_agent_told">এই ত্রুটি সম্পর্কে এজেন্টকে জানানো হয়েছে।</string>
     <string name="transcript_widget_superseded">নিচে আপডেট হয়েছে</string>
     <string name="transcript_widget_template_saved_revision">টেমপ্লেট %1$s v%2$d সেভ করা হয়েছে</string>
     <string name="transcript_widget_template_saved">টেমপ্লেট %1$s সেভ করা হয়েছে</string>

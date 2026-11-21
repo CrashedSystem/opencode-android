@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">全画面で開く</string>
     <string name="transcript_widget_network">ネットワーク: %1$s</string>
     <string name="transcript_widget_restart">再起動</string>
+    <string name="transcript_widget_failed_on">%1$sで失敗: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$sで失敗: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">エージェントに修正を依頼</string>
+    <string name="transcript_widget_agent_told">エージェントにこのエラーを通知しました。</string>
     <string name="transcript_widget_superseded">下で更新</string>
     <string name="transcript_widget_template_saved_revision">テンプレート %1$s v%2$d を保存</string>
     <string name="transcript_widget_template_saved">テンプレート %1$s を保存</string>

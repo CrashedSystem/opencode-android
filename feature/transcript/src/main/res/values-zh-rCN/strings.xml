@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">全屏打开</string>
     <string name="transcript_widget_network">网络：%1$s</string>
     <string name="transcript_widget_restart">重启</string>
+    <string name="transcript_widget_failed_on">在 %1$s 上失败：%2$s：%3$s</string>
+    <string name="transcript_widget_failed_on_at">在 %1$s 上失败：%2$s：%3$s（%4$s）</string>
+    <string name="transcript_widget_ask_agent">让智能体修复</string>
+    <string name="transcript_widget_agent_told">已告知智能体此错误。</string>
     <string name="transcript_widget_superseded">已在下方更新</string>
     <string name="transcript_widget_template_saved_revision">已保存模板 %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">已保存模板 %1$s</string>

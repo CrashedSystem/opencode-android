@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Doly ekranda açyň</string>
     <string name="transcript_widget_network">Tor: %1$s</string>
     <string name="transcript_widget_restart">Gaýtadan açyň</string>
+    <string name="transcript_widget_failed_on">%1$s-de şowsuz: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s-de şowsuz: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Agentden düzetmegini sora</string>
+    <string name="transcript_widget_agent_told">Agente bu ýalňyşlyk barada habar berildi.</string>
     <string name="transcript_widget_superseded">Aşakda täzelendi</string>
     <string name="transcript_widget_template_saved_revision">Şablon %1$s v%2$d ýatda saklandy</string>
     <string name="transcript_widget_template_saved">Şablon %1$s ýatda saklandy</string>

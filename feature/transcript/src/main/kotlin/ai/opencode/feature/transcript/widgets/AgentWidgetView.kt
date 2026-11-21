@@ -19,6 +19,7 @@ import ai.opencode.feature.transcript.LocalTranscriptRowContext
 import ai.opencode.feature.transcript.R
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Phase
 import ai.opencode.server.model.OpenCodeTranscriptItem
+import ai.opencode.server.model.OpenCodeWidgetFailure
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -214,6 +215,8 @@ fun AgentWidgetFrame(
                     }
                 }
             }
+            val failure = controller?.failure
+            if (controller != null && failure != null && phase !is Phase.Closed) FailureNote(failure, told = failure.sent || controller.askedAgent, onAsk = controller::askAgentToFix)
         }
         if (keyboard.focused) KeyboardHint(Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (onExpand != null) {
@@ -226,6 +229,29 @@ fun AgentWidgetFrame(
                 size = 32.dp,
                 iconSize = 16.dp,
             )
+        }
+    }
+}
+
+/** A program error the server recorded for this widget, and whether the agent heard of it or the user can ask. */
+@Composable
+private fun FailureNote(failure: OpenCodeWidgetFailure, told: Boolean, onAsk: () -> Unit) {
+    val colors = OpenCodeTheme.colors
+    val error = failure.error
+    val at = error.line?.let { line -> error.column?.let { "$line:$it" } ?: "$line" }
+    val text = if (at != null) {
+        stringResource(R.string.transcript_widget_failed_on_at, failure.client, error.phase, error.message, at)
+    } else {
+        stringResource(R.string.transcript_widget_failed_on, failure.client, error.phase, error.message)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SelectionContainer {
+            Text(text, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.danger)
+        }
+        if (told) {
+            Text(stringResource(R.string.transcript_widget_agent_told), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
+        } else {
+            Row { OpenCodeSecondaryButton(stringResource(R.string.transcript_widget_ask_agent), onClick = onAsk) }
         }
     }
 }

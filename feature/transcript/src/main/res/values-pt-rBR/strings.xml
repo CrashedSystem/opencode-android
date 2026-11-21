@@ -192,6 +192,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Abrir em tela cheia</string>
     <string name="transcript_widget_network">Rede: %1$s</string>
     <string name="transcript_widget_restart">Reiniciar</string>
+    <string name="transcript_widget_failed_on">Falhou em %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Falhou em %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Pedir ao agente para corrigir</string>
+    <string name="transcript_widget_agent_told">O agente foi informado sobre este erro.</string>
     <string name="transcript_widget_superseded">Atualizado abaixo</string>
     <string name="transcript_widget_template_saved_revision">Modelo %1$s v%2$d salvo</string>
     <string name="transcript_widget_template_saved">Modelo %1$s salvo</string>

@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Open in full screen</string>
     <string name="transcript_widget_network">Network: %1$s</string>
     <string name="transcript_widget_restart">Restart</string>
+    <string name="transcript_widget_failed_on">Failed on %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Failed on %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Ask Agent to Fix It</string>
+    <string name="transcript_widget_agent_told">The agent was told about this error.</string>
     <string name="transcript_widget_keyboard_hint" translatable="false">Esc</string>
     <string name="transcript_widget_superseded">Updated below</string>
     <string name="transcript_widget_template_saved_revision">Saved template %1$s v%2$d</string>

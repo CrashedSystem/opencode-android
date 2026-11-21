@@ -186,6 +186,10 @@
     <string name="transcript_widget_fullscreen_placeholder">फ़ुल स्क्रीन में खोलें</string>
     <string name="transcript_widget_network">नेटवर्क: %1$s</string>
     <string name="transcript_widget_restart">पुनः आरंभ करें</string>
+    <string name="transcript_widget_failed_on">%1$s पर असफल: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">%1$s पर असफल: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">एजेंट से इसे ठीक करने को कहें</string>
+    <string name="transcript_widget_agent_told">एजेंट को इस त्रुटि के बारे में बताया गया।</string>
     <string name="transcript_widget_superseded">नीचे अपडेट किया गया</string>
     <string name="transcript_widget_template_saved_revision">टेम्पलेट %1$s v%2$d सहेजा गया</string>
     <string name="transcript_widget_template_saved">टेम्पलेट %1$s सहेजा गया</string>

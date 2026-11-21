@@ -180,6 +180,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Buka dalam layar penuh</string>
     <string name="transcript_widget_network">Jaringan: %1$s</string>
     <string name="transcript_widget_restart">Mulai ulang</string>
+    <string name="transcript_widget_failed_on">Gagal pada %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Gagal pada %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Minta agen memperbaikinya</string>
+    <string name="transcript_widget_agent_told">Agen sudah diberi tahu tentang kesalahan ini.</string>
     <string name="transcript_widget_superseded">Diperbarui di bawah</string>
     <string name="transcript_widget_template_saved_revision">Template %1$s v%2$d tersimpan</string>
     <string name="transcript_widget_template_saved">Template %1$s tersimpan</string>

@@ -192,6 +192,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Atvērt pilnekrānā</string>
     <string name="transcript_widget_network">Tīkls: %1$s</string>
     <string name="transcript_widget_restart">Restartēt</string>
+    <string name="transcript_widget_failed_on">Neizdevās — %1$s: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Neizdevās — %1$s: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Lūgt aģentam novērst</string>
+    <string name="transcript_widget_agent_told">Aģents tika informēts par šo kļūdu.</string>
     <string name="transcript_widget_superseded">Atjaunināts zemāk</string>
     <string name="transcript_widget_template_saved_revision">Saglabāta veidne %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Saglabāta veidne %1$s</string>

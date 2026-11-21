@@ -198,6 +198,10 @@
     <string name="transcript_widget_fullscreen_placeholder">Odpri čez cel zaslon</string>
     <string name="transcript_widget_network">Omrežje: %1$s</string>
     <string name="transcript_widget_restart">Znova zaženite</string>
+    <string name="transcript_widget_failed_on">Na %1$s ni uspelo: %2$s: %3$s</string>
+    <string name="transcript_widget_failed_on_at">Na %1$s ni uspelo: %2$s: %3$s (%4$s)</string>
+    <string name="transcript_widget_ask_agent">Prosite agenta, naj to odpravi</string>
+    <string name="transcript_widget_agent_told">Agent je bil obveščen o tej napaki.</string>
     <string name="transcript_widget_superseded">Posodobljeno spodaj</string>
     <string name="transcript_widget_template_saved_revision">Shranjena predloga %1$s v%2$d</string>
     <string name="transcript_widget_template_saved">Shranjena predloga %1$s</string>
