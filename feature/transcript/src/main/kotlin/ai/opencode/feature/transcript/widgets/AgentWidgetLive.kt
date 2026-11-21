@@ -127,14 +127,7 @@ internal class AgentWidgetLiveDriver(
             }
 
             override fun exited(failure: AgentWidgetEngineException?) {
-                scope.launch {
-                    if (current != generation) return@launch
-                    run = null
-                    if (finished) return@launch
-                    finished = true
-                    AppLog.perf.info { "Live widget exited: ${failure?.message ?: "finished"}" }
-                    if (failure != null) events.failed(failure) else events.ended()
-                }
+                inbox.trySend(Exit(current, failure))
             }
         }
         run = try {
@@ -155,24 +148,54 @@ internal class AgentWidgetLiveDriver(
         paused = false
     }
 
-    private class Batch(val generation: Int, val messages: List<String>)
+    private sealed interface Inbound { val generation: Int }
+    private class Batch(override val generation: Int, val messages: List<String>) : Inbound
+    private class Exit(override val generation: Int, val failure: AgentWidgetEngineException?) : Inbound
 
-    /** The run's posts: its thread only enqueues them (its callback time counts against its slice budget). */
-    private val inbox = Channel<Batch>(Channel.UNLIMITED)
+    /**
+     * The run's posts and its exit, in the order it made them: its thread only enqueues them. An exit is handled after
+     * the posts before it, so a submit that ends the run lands before the run's end does.
+     */
+    private val inbox = Channel<Inbound>(Channel.UNLIMITED)
 
     init {
         scope.launch(Dispatchers.Default) {
-            val waiting = ArrayList<Batch>()
+            val waiting = ArrayList<Inbound>()
             for (first in inbox) {
                 waiting += first
                 while (true) waiting += inbox.tryReceive().getOrNull() ?: break
-                for ((generation, posts) in waiting.groupBy { it.generation }) {
-                    val actions = read(posts.flatMap { it.messages })
-                    if (actions.isNotEmpty()) scope.launch { if (generation == this@AgentWidgetLiveDriver.generation) actions.forEach { it() } }
+                var start = 0
+                while (start < waiting.size) {
+                    val item = waiting[start]
+                    if (item is Exit) {
+                        scope.launch { exited(item.generation, item.failure) }
+                        start++
+                        continue
+                    }
+                    var end = start
+                    while (end < waiting.size && (waiting[end] as? Batch)?.generation == item.generation) end++
+                    val actions = read(waiting.subList(start, end).flatMap { (it as Batch).messages })
+                    if (actions.isNotEmpty()) scope.launch { if (item.generation == generation) actions.forEach { it() } }
+                    start = end
                 }
                 waiting.clear()
             }
         }
+    }
+
+    private fun exited(current: Int, failure: AgentWidgetEngineException?) {
+        if (current != generation) return
+        run = null
+        if (finished) return
+        finished = true
+        AppLog.perf.info { "Live widget exited: ${failure?.message ?: "finished"}" }
+        if (failure != null) events.failed(failure) else events.ended()
+    }
+
+    /** A submit or dismiss is final: the run is stopped, and how it then ends isn't reported. */
+    private fun answered(response: OpenCodeWidgetResponse) {
+        stop()
+        events.answered(response)
     }
 
     /**
@@ -217,9 +240,9 @@ internal class AgentWidgetLiveDriver(
             "frame" -> ({ events.wantsFrame() })
             "submit" -> {
                 val value = (o["value"] ?: JsonNull).toString()
-                ({ events.answered(OpenCodeWidgetResponse.Submit(value)) })
+                ({ answered(OpenCodeWidgetResponse.Submit(value)) })
             }
-            "dismiss" -> ({ events.answered(OpenCodeWidgetResponse.Dismiss) })
+            "dismiss" -> ({ answered(OpenCodeWidgetResponse.Dismiss) })
             "send" -> {
                 val value = (o["value"] ?: JsonNull).toString()
                 val wake = (o["wake"] as? JsonPrimitive)?.content != "false"

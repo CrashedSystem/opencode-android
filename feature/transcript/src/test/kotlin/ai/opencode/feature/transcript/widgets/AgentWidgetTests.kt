@@ -14,7 +14,19 @@ import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
+import ai.opencode.core.testing.eventually
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -104,6 +116,50 @@ class AgentWidgetTests {
         AgentWidgetDrawList.decode(many, palette, list)
         assertTrue(list.truncated)
         assertEquals(AgentWidgetDrawList.MAX_COMMANDS, list.commandCount)
+    }
+
+    /** A game awaiting `widget.frame()` when its Done handler submits ends in a deadlock exit right after the submit. */
+    @Test
+    fun liveSubmitEndsTheRunWithoutReportingItsExit() = runBlocking {
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob() + main)
+        val log = CopyOnWriteArrayList<String>()
+        val stopped = AtomicBoolean(false)
+        val program = object : AgentWidgetLiveProgram {
+            override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
+                val run = object : AgentWidgetLiveRun {
+                    override fun deliver(messageJson: String) = Unit
+                    override fun pause() = Unit
+                    override fun resume() = Unit
+                    override fun snapshot() = true
+                    override fun stop() = stopped.set(true)
+                }
+                thread {
+                    listener.posted(listOf("""{"type":"submit","value":{"score":40}}"""))
+                    listener.exited(AgentWidgetEngineException("main: Error: The program is waiting on a promise that can never settle: nothing else is running"))
+                }
+                return run
+            }
+        }
+        val events = object : AgentWidgetLiveDriver.Events {
+            override fun rendered(view: AgentWidgetNode, fullscreen: Boolean?) = Unit
+            override fun drew(id: String, commandsJson: String) = Unit
+            override fun wantsFrame() = Unit
+            override fun answered(response: OpenCodeWidgetResponse) { log += "answered ${(response as OpenCodeWidgetResponse.Submit).json}" }
+            override fun sent(message: OpenCodeWidgetMessageValue) = Unit
+            override fun failed(error: AgentWidgetEngineException) { log += "failed" }
+            override fun reported(phase: String, message: String) = Unit
+            override fun ended() { log += "ended" }
+        }
+        val driver = AgentWidgetLiveDriver(program, "{}", null, scope, events)
+        withContext(main) { driver.setVisible(true) }
+        assertTrue(eventually(wallClock = true) { log.isNotEmpty() })
+        withContext(Dispatchers.IO) { Thread.sleep(300) }
+        assertEquals(listOf("""answered {"score":40}"""), log.toList())
+        assertTrue(stopped.get())
+        assertTrue(!withContext(main) { driver.isRunning })
+        scope.cancel()
+        main.close()
     }
 
     @Test
