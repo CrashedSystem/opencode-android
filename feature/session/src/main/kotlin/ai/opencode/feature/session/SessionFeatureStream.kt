@@ -653,6 +653,7 @@ private fun SessionFeature.visibilityChanged(state: SessionFeature.State, visibl
                 Effect.cancel(CancelID.ViewReceipt),
                 Effect.cancel(CancelID.FamilyRefresh),
                 Effect.cancel(CancelID.Shells),
+                Effect.cancel(CancelID.Jobs),
                 abandoned.effect,
             ),
         )
@@ -719,7 +720,7 @@ private fun SessionFeature.task(state: SessionFeature.State): Reduced<SessionFea
                 listOf(
                     CancelID.Models, CancelID.Requests, CancelID.Inbox, CancelID.InboxFetch, CancelID.PromptEcho,
                     CancelID.RequestsRetry, CancelID.RequestsChanged, CancelID.Freshness, CancelID.Watchdog,
-                    CancelID.EarlierHistory, CancelID.FamilyRefresh, CancelID.Shells, CancelID.Revert,
+                    CancelID.EarlierHistory, CancelID.FamilyRefresh, CancelID.Shells, CancelID.Jobs, CancelID.Revert,
                     CancelID.BackgroundHint, CancelID.ViewReceipt, CancelID.ResyncDelay, CancelID.ResyncMinimum,
                     CancelID.AutocompleteCatalog, CancelID.AutocompleteCommands,
                     CancelID.AutocompleteFiles, CancelID.AutocompleteSessions, CancelID.AutocompleteAutoRun,
@@ -740,7 +741,13 @@ private fun SessionFeature.task(state: SessionFeature.State): Reduced<SessionFea
         val loadModels = loadModelsIfNeeded(s)
         return Reduced(
             loadModels.state,
-            Effect.merge(stopSessionWork, loadModels.effect, outbox.effect, Effect.run<Action> { dictation.prepare() }),
+            Effect.merge(
+                stopSessionWork,
+                loadModels.effect,
+                Effect.send(Action.AgentsRequested),
+                outbox.effect,
+                Effect.run<Action> { dictation.prepare() },
+            ),
         )
     }
     if (s.loadError != null && s.items.isEmpty()) s = s.copy(isLoading = true)
@@ -780,6 +787,8 @@ private fun SessionFeature.firstContentFrameRendered(state: SessionFeature.State
     s = family.state
     val shells = refreshShells(s)
     s = shells.state
+    val jobs = refreshJobs(s)
+    s = jobs.state
     val dictation = dictation
     return Reduced(
         s,
@@ -787,6 +796,7 @@ private fun SessionFeature.firstContentFrameRendered(state: SessionFeature.State
             Effect.run<Action> { dictation.prepare() },
             family.effect,
             shells.effect,
+            jobs.effect,
             backgroundHint.effect,
             loadModels.effect,
             if (s.initialTranscriptIsFresh || s.loadError != null) Effect.none() else Effect.send(Action.RefreshRequested(RefreshReason.Open)),
