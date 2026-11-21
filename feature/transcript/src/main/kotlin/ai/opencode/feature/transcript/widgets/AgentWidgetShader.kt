@@ -127,7 +127,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     val currentScope by rememberUpdatedState(scope)
     Box(
         size
-            .onVisibilityChanged { visible = it }
+            .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
             .excludedFromDrawerPan(node.id != null && scope.live)
             .agentWidgetPointer(node.id, density, { currentScope.send(it) })
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)

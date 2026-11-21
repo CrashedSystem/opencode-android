@@ -98,7 +98,7 @@ fun AgentWidgetRow(widget: AgentWidgetState, modifier: Modifier = Modifier) {
         controller = controller,
         modifier = modifier
             .onSizeChanged { controller.inlineHeight = it.height }
-            .onVisibilityChanged { controller.shownChanged(inline = it) },
+            .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { controller.shownChanged(inline = it) },
         onExpand = if (controller.offersFullscreen) ({ store.enterFullscreen(controller, title) }) else null,
     )
 }

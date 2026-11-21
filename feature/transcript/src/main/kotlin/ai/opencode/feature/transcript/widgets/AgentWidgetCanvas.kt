@@ -169,7 +169,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 liveCanvas.width = it.width / density
                 liveCanvas.height = it.height / density
             }
-            .onVisibilityChanged { visible = it }
+            .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
             .excludedFromDrawerPan(node.id != null && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
             .agentWidgetPointer(node.id, density, { currentScope.send(it) }) { state.pointer = it },
@@ -526,3 +526,6 @@ private class CanvasImages(private val request: (src: String, widthPx: Int) -> U
         const val LIMIT = 16
     }
 }
+
+/** Any part on screen counts as shown: a canvas or widget taller than the list would otherwise never be. */
+internal const val VISIBLE_FRACTION = 0.01f
