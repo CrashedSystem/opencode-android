@@ -76,6 +76,11 @@ class AgentWidgetEngineException(
     val isProgramError: Boolean = true,
 ) : Exception(message)
 
+/** The runtime's message without the position it appends, "(line N, col M)", which counts the prelude's lines. */
+internal fun programMessage(message: String): String = message.replace(RUNTIME_POSITION, "")
+
+private val RUNTIME_POSITION = Regex("""\s*\(line \d+, col \d+\)\s*$""")
+
 /** A program error goes to the server with `report`; anything else is a client error, logged in dev mode only. */
 internal fun Throwable.isProgramError(): Boolean = when (this) {
     is AgentWidgetEngineException -> isProgramError

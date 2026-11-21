@@ -220,6 +220,13 @@ class AgentWidgetTests {
         assertFalse(IllegalStateException("The widget's program isn't loaded.").isProgramError())
     }
 
+    /** The position the runtime appends counts the prelude; the report carries the template's own line and column. */
+    @Test
+    fun aReportedMessageDropsTheRuntimesPosition() {
+        assertEquals("ReferenceError: Unknown identifier 'x'.", programMessage("ReferenceError: Unknown identifier 'x'. (line 464, col 66)"))
+        assertEquals("Unexpected token", programMessage("Unexpected token"))
+    }
+
     @Test
     fun alphaSetsOpacityAndRestoreBringsItBack() {
         val opacity = CanvasOpacity()

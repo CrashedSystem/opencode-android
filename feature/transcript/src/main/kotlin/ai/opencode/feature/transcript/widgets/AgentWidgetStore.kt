@@ -392,7 +392,8 @@ class AgentWidgetController internal constructor(
         val engine = (error as? AgentWidgetPrograms.CompileFailed)?.cause ?: error as? AgentWidgetEngineException
         // Shader lines are already the template's; program lines count the prelude.
         val line = engine?.line?.let { if (phase == "shader") it else (it - sourceLineOffset).takeIf { l -> l in 1..sourceLineCount } }
-        reportError(phase, error.message ?: error.javaClass.simpleName, line, if (line != null) engine?.column else null)
+        val message = error.message?.let { if (engine != null && phase != "shader") programMessage(it) else it } ?: error.javaClass.simpleName
+        reportError(phase, message, line, if (line != null) engine?.column else null)
     }
 
     /** A client error: a bug to fix in the app, not the template's; logged in dev mode only. */
