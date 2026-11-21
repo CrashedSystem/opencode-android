@@ -66,6 +66,8 @@ data class OpenCodeWidgetState(
     val wait: Boolean = false,
     /** Hosts a live template may fetch from (`capabilities.https.hosts`). */
     val httpsHosts: List<String>? = null,
+    /** The program error the last report recorded; the widget keeps its status. */
+    val failure: OpenCodeWidgetFailure? = null,
 ) {
     /** One widget in a session: a call ID is unique only within its message. */
     val key: String get() = key(messageID, callID)
@@ -86,3 +88,6 @@ data class OpenCodeWidgetProgram(
 
 /** A widget failure on this device, for the widget plugin's `report` (the agent hears of it). */
 data class OpenCodeWidgetError(val phase: String, val message: String, val line: Int? = null, val column: Int? = null)
+
+/** A widget's recorded program error: the [client] that hit it, and whether the agent was [sent] it. */
+data class OpenCodeWidgetFailure(val error: OpenCodeWidgetError, val client: String, val sent: Boolean)

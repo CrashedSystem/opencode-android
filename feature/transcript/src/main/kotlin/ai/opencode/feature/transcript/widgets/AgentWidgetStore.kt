@@ -367,7 +367,7 @@ class AgentWidgetController internal constructor(
         val error = OpenCodeWidgetError(phase, message, line, column)
         scope.launch {
             try {
-                transport.report(server, directory, sessionID, widget, error)
+                transport.report(server, directory, sessionID, widget, error, false)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

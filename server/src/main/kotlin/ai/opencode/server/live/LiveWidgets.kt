@@ -6,6 +6,7 @@ import ai.opencode.server.internal.obj
 import ai.opencode.server.internal.req
 import ai.opencode.server.internal.str
 import ai.opencode.server.model.OpenCodeWidgetError
+import ai.opencode.server.model.OpenCodeWidgetFailure
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
@@ -106,7 +107,7 @@ internal suspend fun requestWidgetSendRPC(
     requestWidgetRPC(server, "send", directory, input)
 }
 
-/** Tells the widget plugin (and so the agent) that a widget failed on this device. */
+/** Records a program error on the widget; with [ask] the user asks the agent to fix it. */
 internal suspend fun requestWidgetReportRPC(
     server: OpenCodeServer,
     directory: String?,
@@ -114,6 +115,7 @@ internal suspend fun requestWidgetReportRPC(
     messageID: String,
     callID: String,
     error: OpenCodeWidgetError,
+    ask: Boolean = false,
 ) {
     val input = buildJsonObject {
         put("sessionID", sessionID)
@@ -126,6 +128,7 @@ internal suspend fun requestWidgetReportRPC(
             error.column?.let { put("column", it) }
         })
         put("client", "android")
+        if (ask) put("ask", true)
     }
     requestWidgetRPC(server, "report", directory, input)
 }
@@ -149,7 +152,16 @@ internal fun decodeWidgetState(element: JsonElement?): OpenCodeWidgetState? {
         response = if (status == OpenCodeWidgetStatus.Submitted) (o["response"] ?: JsonNull).toString() else null,
         wait = (o["wait"] as? JsonPrimitive)?.booleanOrNull ?: false,
         httpsHosts = hosts?.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content },
+        failure = decodeWidgetFailure(o["failure"] as? JsonObject),
     )
+}
+
+private fun decodeWidgetFailure(o: JsonObject?): OpenCodeWidgetFailure? {
+    o ?: return null
+    fun str(key: String) = (o[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    fun int(key: String) = (o[key] as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toDoubleOrNull()?.toInt()
+    val error = OpenCodeWidgetError(str("phase") ?: return null, str("message") ?: return null, int("line"), int("column"))
+    return OpenCodeWidgetFailure(error, str("client") ?: "", (o["sent"] as? JsonPrimitive)?.booleanOrNull ?: false)
 }
 
 /** A plugin RPC error's type: the widget isn't open any more. */

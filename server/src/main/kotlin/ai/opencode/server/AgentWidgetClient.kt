@@ -38,8 +38,8 @@ class AgentWidgetClient(
     val states: suspend (server: OpenCodeServer, directory: String?, sessionID: String) -> List<OpenCodeWidgetState>,
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, response: OpenCodeWidgetResponse) -> Unit,
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, message: OpenCodeWidgetMessageValue) -> Unit,
-    /** A widget failed on this device (`report`): the agent hears of it and can fix and re-post. */
-    val report: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, error: OpenCodeWidgetError) -> Unit,
+    /** A program error on this device (`report`), recorded on the widget; [ask]: the user asks the agent to fix it. */
+    val report: suspend (server: OpenCodeServer, directory: String?, sessionID: String, messageID: String, callID: String, error: OpenCodeWidgetError, ask: Boolean) -> Unit,
 ) {
     companion object Key : DependencyKey<AgentWidgetClient> {
         override val liveValue: AgentWidgetClient by lazy {
@@ -55,8 +55,8 @@ class AgentWidgetClient(
                 send = { server, directory, sessionID, messageID, callID, message ->
                     whileUnavailable { requestWidgetSendRPC(server, directory, sessionID, messageID, callID, message) }
                 },
-                report = { server, directory, sessionID, messageID, callID, error ->
-                    whileUnavailable { requestWidgetReportRPC(server, directory, sessionID, messageID, callID, error) }
+                report = { server, directory, sessionID, messageID, callID, error, ask ->
+                    whileUnavailable { requestWidgetReportRPC(server, directory, sessionID, messageID, callID, error, ask) }
                 },
             )
         }
@@ -67,7 +67,7 @@ class AgentWidgetClient(
                 states = { _, _, _ -> emptyList() },
                 respond = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.respond") },
                 send = { _, _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetClient.send") },
-                report = { _, _, _, _, _, _ -> },
+                report = { _, _, _, _, _, _, _ -> },
             )
 
         /**

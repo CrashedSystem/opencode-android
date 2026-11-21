@@ -10,6 +10,7 @@ import ai.opencode.server.model.OpenCodeJSONValue
 import ai.opencode.server.model.OpenCodeToolCall
 import ai.opencode.server.model.OpenCodeTranscriptItem
 import ai.opencode.server.model.OpenCodeWidgetError
+import ai.opencode.server.model.OpenCodeWidgetFailure
 import ai.opencode.server.model.OpenCodeWidgetMessageValue
 import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
@@ -35,6 +36,8 @@ data class AgentWidgetState(
     val response: String? = null,
     /** Hosts a live template may fetch from; shown on the widget. */
     val httpsHosts: List<String>? = null,
+    /** The program error the server recorded (from any client); shown while the widget is open. */
+    val failure: OpenCodeWidgetFailure? = null,
 ) {
     /** [Superseded]: a newer widget replaced it; it shows as one quiet line. */
     enum class Status { Open, Submitted, Dismissed, Superseded }
@@ -110,6 +113,7 @@ object AgentWidgetAdapter {
                 status = status(record.status),
                 response = record.response,
                 httpsHosts = record.httpsHosts,
+                failure = record.failure,
             )
             (states ?: HashMap<String, AgentWidgetState>().also { states = it })[state.key] = state
         }
@@ -161,8 +165,8 @@ class AgentWidgetTransport(
     val respond: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, response: OpenCodeWidgetResponse) -> Unit,
     /** A message from a widget that stays open (`send`). */
     val send: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, message: OpenCodeWidgetMessageValue) -> Unit,
-    /** The widget failed on this device (`report`), so the agent can fix and re-post it. */
-    val report: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, error: OpenCodeWidgetError) -> Unit,
+    /** A program error on this device (`report`), recorded on the widget; [ask]: the user asks the agent to fix it. */
+    val report: suspend (server: OpenCodeServer, directory: String?, sessionID: String, widget: AgentWidgetState, error: OpenCodeWidgetError, ask: Boolean) -> Unit,
 ) {
     companion object Key : DependencyKey<AgentWidgetTransport> {
         override val liveValue: AgentWidgetTransport by lazy {
@@ -175,8 +179,8 @@ class AgentWidgetTransport(
                 send = { server, directory, sessionID, widget, message ->
                     mapped { client.send(server, directory, sessionID, widget.messageID, widget.callID, message) }
                 },
-                report = { server, directory, sessionID, widget, error ->
-                    mapped { client.report(server, directory, sessionID, widget.messageID, widget.callID, error) }
+                report = { server, directory, sessionID, widget, error, ask ->
+                    mapped { client.report(server, directory, sessionID, widget.messageID, widget.callID, error, ask) }
                 },
             )
         }
@@ -186,7 +190,7 @@ class AgentWidgetTransport(
                 program = { _, _, ref -> throw AgentWidgetTransportException("No widget template ${ref.key} under tests") },
                 respond = { _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetTransport.respond") },
                 send = { _, _, _, _, _ -> throw AssertionError("Unimplemented: AgentWidgetTransport.send") },
-                report = { _, _, _, _, _ -> },
+                report = { _, _, _, _, _, _ -> },
             )
 
         private inline fun <T> mapped(block: () -> T): T = try {
