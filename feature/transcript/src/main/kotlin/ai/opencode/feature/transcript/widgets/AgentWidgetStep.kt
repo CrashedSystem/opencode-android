@@ -81,13 +81,20 @@ data class AgentWidgetOutput(
 object AgentWidgetStep {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun init(data: String): String = "{\"phase\":\"init\",\"data\":$data}"
+    /** The fields every step of a widget shares, parsed once by its run session. */
+    fun shared(data: String): String = "{\"data\":$data}"
 
+    // Steps run in a session holding the widget's `data` ([shared]); the input carries the rest.
+    @Suppress("UNUSED_PARAMETER")
+    fun init(data: String): String = "{\"phase\":\"init\"}"
+
+    @Suppress("UNUSED_PARAMETER")
     fun event(data: String, state: String, event: AgentWidgetEvent): String =
-        "{\"phase\":\"event\",\"data\":$data,\"state\":$state,\"event\":${event.json}}"
+        "{\"phase\":\"event\",\"state\":$state,\"event\":${event.json}}"
 
+    @Suppress("UNUSED_PARAMETER")
     fun draw(data: String, state: String, frame: String): String =
-        "{\"phase\":\"draw\",\"data\":$data,\"state\":$state,\"frame\":$frame}"
+        "{\"phase\":\"draw\",\"state\":$state,\"frame\":$frame}"
 
     /** Reads a step's output, or throws [AgentWidgetNode.InvalidView] saying why it isn't one. */
     fun output(text: String): AgentWidgetOutput {

@@ -127,12 +127,13 @@ class AgentWidgetTests {
         var (machine, effects) = AgentWidgetMachine.open("""{"a":1}""", Status.Open)
         assertEquals(listOf(Effect.Fetch), effects)
         machine.handle(Event.Loaded).let { (m, e) -> machine = m; effects = e }
-        assertEquals(listOf(Effect.Run("""{"phase":"init","data":{"a":1}}""")), effects)
+        // Android: `data` lives in the program's run session (AgentWidgetStep.shared), not in each step's input.
+        assertEquals(listOf(Effect.Run("""{"phase":"init"}""")), effects)
         machine.handle(Event.Ran(Result.success(output("""{"n":1}""")))).let { (m, e) -> machine = m; effects = e }
         assertEquals(emptyList<Effect>(), effects)
         assertTrue(machine.phase is Phase.Ready)
         machine.handle(Event.Input(AgentWidgetEvent.press("go"))).let { (m, e) -> machine = m; effects = e }
-        assertEquals(listOf(Effect.Run("""{"phase":"event","data":{"a":1},"state":{"n":1},"event":{"id":"go","type":"press"}}""")), effects)
+        assertEquals(listOf(Effect.Run("""{"phase":"event","state":{"n":1},"event":{"id":"go","type":"press"}}""")), effects)
         val submit = OpenCodeWidgetResponse.Submit("true")
         machine.handle(Event.Ran(Result.success(output(response = submit)))).let { (m, e) -> machine = m; effects = e }
         assertEquals(listOf(Effect.Respond(submit, attempt = 1)), effects)

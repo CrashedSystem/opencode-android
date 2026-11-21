@@ -42,6 +42,23 @@ fun interface AgentWidgetProgram : AutoCloseable {
 
     /** Frees the interpreter now rather than when the collector gets to it. */
     override fun close() = Unit
+
+    /**
+     * Runs whose input starts with [fieldsJson] (a JSON object: a widget's `{ data }`), parsed once; each step's
+     * input then carries only its own fields.
+     */
+    fun session(fieldsJson: String): AgentWidgetProgram {
+        val base = this
+        val head = fieldsJson.trim().removeSuffix("}")
+        fun merged(input: String): String {
+            val rest = input.trim().removePrefix("{")
+            return if (rest.trimStart().startsWith("}")) "$head}" else "$head,$rest"
+        }
+        return object : AgentWidgetProgram {
+            override fun step(input: String): String = base.step(merged(input))
+            override fun draw(input: String): String = base.draw(merged(input))
+        }
+    }
 }
 
 /** [isBudget]: a draw step over 8 ms or 2,000 commands; the canvas counts these and stops after three. */

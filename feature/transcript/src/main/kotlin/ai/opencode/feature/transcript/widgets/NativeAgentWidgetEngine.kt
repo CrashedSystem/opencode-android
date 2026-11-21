@@ -39,6 +39,14 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             override fun step(input: String): String = mapping { compiled.run(input, STEP) }
             override fun draw(input: String): String = mapping(draw = true) { compiled.run(input, DRAW) }
             override fun close() = compiled.close()
+            override fun session(fieldsJson: String): AgentWidgetProgram {
+                val session = mapping { compiled.session(fieldsJson) }
+                return object : AgentWidgetProgram {
+                    override fun step(input: String): String = mapping { session.run(input, STEP) }
+                    override fun draw(input: String): String = mapping(draw = true) { session.run(input, DRAW) }
+                    override fun close() = session.close()
+                }
+            }
         }
     }
 

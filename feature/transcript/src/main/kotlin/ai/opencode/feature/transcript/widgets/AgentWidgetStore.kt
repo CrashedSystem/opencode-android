@@ -455,7 +455,7 @@ class AgentWidgetController internal constructor(
                             startLiveMode(live, compiled.info.httpsHosts)
                             return@launch
                         }
-                        program = compiled.step
+                        program = compiled.step?.session(AgentWidgetStep.shared(data))
                         Event.Loaded
                     } catch (error: CancellationException) {
                         throw error
