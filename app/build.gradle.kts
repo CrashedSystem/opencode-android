@@ -32,7 +32,7 @@ android {
             // and devirtualises the runtime. Every library we use ships its own keep rules.
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         create("benchmark") {
             initWith(getByName("release"))
