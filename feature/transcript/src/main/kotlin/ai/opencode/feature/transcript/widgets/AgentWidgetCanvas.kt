@@ -122,8 +122,8 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     LaunchedEffect(controller, drawState, node.fps, node.duration, palette, state.size, dark, visible, fullscreen, liveMode) {
         controller ?: return@LaunchedEffect
         if (liveMode) return@LaunchedEffect
-        // Off screen it keeps its last frame; the first one waits until it's seen.
-        if (state.size == IntSize.Zero || !visible) return@LaunchedEffect
+        // Off screen it keeps its last frame; the first one waits until it's seen, and every one for a positive size.
+        if (state.size.width == 0 || state.size.height == 0 || !visible) return@LaunchedEffect
         var last = 0L
         var overruns = 0
         val interval = if (node.fps > 0) 1_000_000_000L / node.fps else Long.MAX_VALUE

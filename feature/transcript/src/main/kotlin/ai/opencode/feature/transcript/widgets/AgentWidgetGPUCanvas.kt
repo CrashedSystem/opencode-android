@@ -37,12 +37,14 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onVisibilityChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.CancellationException
@@ -66,6 +68,17 @@ fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, 
     var ready by remember { mutableStateOf(false) }
     var stopped by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
+    var pixels by remember { mutableStateOf(IntSize.Zero) }
+    // Live mode: the program's frames carry this canvas's size and pointer, as a 2D canvas's do.
+    val controller = scope.controller
+    val liveKey = node.id ?: ""
+    val liveCanvas = remember(controller, liveKey) { AgentWidgetLiveCanvas() }
+    if (controller?.isLiveMode == true) {
+        DisposableEffect(controller, liveKey) {
+            controller.liveCanvases[liveKey] = liveCanvas
+            onDispose { if (controller.liveCanvases[liveKey] === liveCanvas) controller.liveCanvases.remove(liveKey) }
+        }
+    }
 
     LaunchedEffect(wgsl) {
         try {
@@ -117,8 +130,8 @@ fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, 
     val values by rememberUpdatedState(nodeValues)
     val start = remember { longArrayOf(0L) }
     val valuesKey = if (node.fps == 0) nodeValues.contentHashCode() else 0
-    LaunchedEffect(surface, ready, paused, stopped, visible, node.fps, valuesKey) {
-        if (!ready || paused || stopped || !visible) return@LaunchedEffect
+    LaunchedEffect(surface, ready, paused, stopped, visible, node.fps, valuesKey, pixels) {
+        if (!ready || paused || stopped || !visible || pixels.width == 0 || pixels.height == 0) return@LaunchedEffect
         val interval = if (node.fps > 0) 1_000_000_000L / node.fps else 0L
         var last = 0L
         while (true) {
@@ -136,9 +149,17 @@ fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, 
     Box(
         size
             .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
-            .onGloballyPositioned { bounds[0] = it.boundsInWindow() }
+            .onSizeChanged {
+                pixels = it
+                liveCanvas.width = it.width / density
+                liveCanvas.height = it.height / density
+            }
+            .onGloballyPositioned {
+                bounds[0] = it.boundsInWindow()
+                liveCanvas.bounds = bounds[0]
+            }
             .excludedFromDrawerPan(node.id != null && scope.live)
-            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { scope.controller?.closeOver(bounds[0]) })
+            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { scope.controller?.closeOver(bounds[0]) }) { liveCanvas.pointer = it }
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
