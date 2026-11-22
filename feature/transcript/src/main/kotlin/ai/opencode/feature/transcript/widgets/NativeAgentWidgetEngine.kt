@@ -16,8 +16,9 @@ import com.anomalyco.psychoscript.translateWgsl
 /**
  * The step ABI and shader wrapping on the Rust PsychoScript (`psychoscript-mobile`), when this
  * build bundles it: a widget template's program compiles once with the step entry appended, steps run
- * under the contract's 250 ms (draws 8 ms; a timeout there is an overrun), and a shader's WGSL
- * goes in the spec's header and a GL entry point that flips `frag.y` to a top-left origin.
+ * under the contract's 250 ms (draws 8 ms; a timeout there is an overrun), every run (steps, draws, live)
+ * within a 32 MB heap, and a shader's WGSL goes in the spec's header and a GL entry point that flips
+ * `frag.y` to a top-left origin.
  */
 internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     override val isAvailable: Boolean = true
@@ -64,7 +65,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
                     maxPostsPerSecond = 240u,
                     httpsHosts = httpsHosts,
                     allowLocalNetwork = AgentWidgetCapabilities.allowsLocalNetwork,
-                    maxHeapBytes = LIVE_HEAP_BYTES,
+                    maxHeapBytes = HEAP_BYTES,
                 )
                 val transport = if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport(listener::fetchFailed)
                 val live = mapping { compiled.startLive(inputJson, handler, options, transport) }
@@ -134,7 +135,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         throw mapped(error, draw)
     }
 
-    private fun mapped(error: PsychoScriptException, draw: Boolean): AgentWidgetEngineException {
+    internal fun mapped(error: PsychoScriptException, draw: Boolean): AgentWidgetEngineException {
         val timeout = error is PsychoScriptException.Timeout
         val (line, column) = when (error) {
             is PsychoScriptException.Syntax -> error.line to error.column
@@ -161,14 +162,14 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         is PsychoScriptException.SliceBudget -> error.reason
         is PsychoScriptException.Snapshot -> error.reason
         is PsychoScriptException.InvalidState -> error.reason
-        is PsychoScriptException.MemoryLimitExceeded -> error.reason
+        is PsychoScriptException.MemoryLimitExceeded -> "It used more than ${error.maxHeapBytes shr 20} MB of memory"
     }
 
-    private const val LIVE_HEAP_BYTES: ULong = 33_554_432uL
+    private const val HEAP_BYTES: ULong = 33_554_432uL
     private const val ENTRY = "\nreturn __widget_step(__input())"
     private const val LIVE_ENTRY = "\nreturn await __widget_live(__input())"
-    private val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL)
-    private val DRAW = RunOptions(timeoutMs = 8uL, maxOutputBytes = 1024uL * 1024uL)
+    internal val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL, maxHeapBytes = HEAP_BYTES)
+    internal val DRAW = RunOptions(timeoutMs = 8uL, maxOutputBytes = 1024uL * 1024uL, maxHeapBytes = HEAP_BYTES)
 
     private const val HEADER = "struct Widget { resolution: vec2f, time: f32, scale: f32, pointer: vec4f, values: array<vec4f, 4> }\n" +
         "@group(0) @binding(0) var<uniform> widget: Widget;\n"

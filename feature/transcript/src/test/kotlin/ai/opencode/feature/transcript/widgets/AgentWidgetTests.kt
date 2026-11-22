@@ -18,6 +18,7 @@ import ai.opencode.server.model.OpenCodeWidgetProgram
 import ai.opencode.server.model.OpenCodeWidgetRef
 import ai.opencode.server.model.OpenCodeWidgetResponse
 import ai.opencode.core.testing.eventually
+import com.anomalyco.psychoscript.PsychoScriptException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -172,6 +173,23 @@ class AgentWidgetTests {
         assertTrue(AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(virtual, builtIn, usb), chromeOS = false))
         assertTrue(AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(builtIn), chromeOS = true))
         assertTrue(!AgentWidgetHardwareKeyboard.isAttached(reported = false, listOf(usb), chromeOS = true))
+    }
+
+    /**
+     * Steps and draws run within the same 32 MB heap as live runs; going over it is the widget template's error,
+     * reported as one plain sentence without a position.
+     */
+    @Test
+    fun stepsAndDrawsShareTheLiveHeapCap() {
+        assertEquals(33_554_432uL, NativeAgentWidgetEngine.STEP.maxHeapBytes)
+        assertEquals(33_554_432uL, NativeAgentWidgetEngine.DRAW.maxHeapBytes)
+        for (draw in listOf(false, true)) {
+            val error = NativeAgentWidgetEngine.mapped(PsychoScriptException.MemoryLimitExceeded("heap limit exceeded (line 3, column 9)", 33_554_432uL), draw)
+            assertEquals("It used more than 32 MB of memory", error.message)
+            assertNull(error.line)
+            assertTrue(error.isProgramError())
+            assertTrue(!error.isTimeout && !error.isBudget)
+        }
     }
 
     // Draw commands
