@@ -21,6 +21,9 @@ object SystemNotificationChannels {
     /** The share sheet's “sent” and “continue” notices. */
     const val SHARE = "share"
 
+    /** Two short pulses: a finished run is worth noticing, a long buzz is not. */
+    private val SESSION_VIBRATION = longArrayOf(0, 120, 90, 120)
+
     fun ensure(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannels(
@@ -40,7 +43,12 @@ object SystemNotificationChannels {
                     enableVibration(false)
                     setShowBadge(false)
                 },
-                NotificationChannel(SESSIONS, context.getString(R.string.system_channel_session_updates), NotificationManager.IMPORTANCE_HIGH),
+                NotificationChannel(SESSIONS, context.getString(R.string.system_channel_session_updates), NotificationManager.IMPORTANCE_HIGH).apply {
+                    // A finished run is worth interrupting for: IMPORTANCE_HIGH alone still leaves
+                    // vibration off, so it is asked for here.
+                    enableVibration(true)
+                    setVibrationPattern(SESSION_VIBRATION)
+                },
                 NotificationChannel(SHARE, context.getString(R.string.system_channel_shared_items), NotificationManager.IMPORTANCE_DEFAULT).apply {
                     setShowBadge(false)
                 },
