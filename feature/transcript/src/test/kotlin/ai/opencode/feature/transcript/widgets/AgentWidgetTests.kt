@@ -438,11 +438,16 @@ class AgentWidgetTests {
         assertEquals("""{"x":338.29,"y":8,"width":44,"height":44}""", AgentWidgetRect(338.2857f, 8f, 44f, 44f).json)
     }
 
-    /** Android's close area (widgets-fullscreen.md, Chrome): 44 dp, 8 dp from the root's top and end; it moves only with the width. */
+    /**
+     * Android's close area (widgets-fullscreen.md, Chrome): 44 dp, 8 dp from the safe area's top and end, which is the
+     * 12 dp padding outside the root, so { x: W - 40, y: -4 } in the root's coordinates; it moves only with the width.
+     */
     @Test
     fun theCloseAreaFollowsTheRootsWidth() {
-        assertEquals(AgentWidgetRect(339f, 8f, 44f, 44f), AgentWidgetController.closeArea(391f))
-        assertEquals(AgentWidgetRect(862.29f, 8f, 44f, 44f).json, AgentWidgetController.closeArea(914.29f).json)
+        assertEquals(AgentWidgetRect(351f, -4f, 44f, 44f), AgentWidgetController.closeArea(391f))
+        assertEquals(AgentWidgetRect(874.29f, -4f, 44f, 44f).json, AgentWidgetController.closeArea(914.29f).json)
+        // Right-to-left the button sits at the left: x = 8 - 12.
+        assertEquals(AgentWidgetRect(-4f, -4f, 44f, 44f), AgentWidgetController.closeArea(391f, rtl = true))
     }
 
     @Test

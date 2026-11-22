@@ -177,6 +177,9 @@ private fun FullscreenCloseButton(onClick: () -> Unit, modifier: Modifier = Modi
 }
 
 internal val CLOSE_AREA = 44.dp
+
+/** The root's inset from the safe area in full screen (widgets-fullscreen.md, Layout). */
+internal val FULLSCREEN_PADDING = 12.dp
 internal val CLOSE_INSET = 8.dp
 private val CLOSE_CIRCLE = 32.dp
 

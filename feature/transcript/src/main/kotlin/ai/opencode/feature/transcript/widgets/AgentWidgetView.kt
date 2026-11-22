@@ -48,6 +48,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +57,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /**
@@ -134,29 +136,27 @@ fun AgentWidgetFrame(
         Column(
             Modifier
                 .then(if (fullscreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth())
-                .padding(if (fullscreen) PaddingValues(0.dp) else PaddingValues(16.dp))
+                .padding(if (fullscreen) PaddingValues(FULLSCREEN_PADDING) else PaddingValues(16.dp))
                 .semantics { paneTitle = title },
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Full screen the root fills the safe area (widgets-fullscreen.md); the frame's own lines keep a margin.
-            val side = if (fullscreen) Modifier.padding(horizontal = 16.dp) else Modifier
             when (phase) {
                 is Phase.Loading, is Phase.Starting -> {
-                    Row(side, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
                         Text(stringResource(R.string.transcript_widget_loading), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
                     }
                     val starting = phase is Phase.Starting && controller != null && controller.isLiveMode
                     val density = LocalDensity.current.density
                     Box(
-                        side.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
+                        Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
                             if (starting) Modifier.onSizeChanged { controller!!.liveViewWidth = it.width / density } else Modifier,
                         ),
                     )
                     // A live program may wait for a frame before it renders anything.
                     if (starting) LiveFrames(controller!!, density, fullscreen)
                 }
-                is Phase.Failed -> Column(side, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                is Phase.Failed -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatusLine(SFSymbol.XmarkCircleFill, colors.danger, stringResource(R.string.transcript_widget_failed))
                     SelectionContainer {
                         Text(phase.message, style = OpenCodeTextStyles.footnote.copy(fontFamily = FontFamily.Monospace), color = colors.secondaryText)
@@ -172,13 +172,14 @@ fun AgentWidgetFrame(
                     val live = controller != null && (phase is Phase.Ready || phase is Phase.Stepping)
                     val view = phase.view!!
                     val density = LocalDensity.current.density
+                    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                     // Full screen the view takes the height: a `fill` canvas grows into it, anything else scrolls.
                     val body = when {
                         !fullscreen -> Modifier
                         AgentWidgetNode.fills(view) -> Modifier.weight(1f)
                         else -> Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
                     }.then(
-                        if (fullscreen && controller != null) Modifier.onGloballyPositioned { controller.fullscreenRoot(it.boundsInWindow(), density) } else Modifier,
+                        if (fullscreen && controller != null) Modifier.onGloballyPositioned { controller.fullscreenRoot(it.boundsInWindow(), density, rtl) } else Modifier,
                     )
                 AgentWidgetNodeView(
                     view,
@@ -194,7 +195,6 @@ fun AgentWidgetFrame(
                 controller?.httpsHosts?.let { hosts ->
                     Text(
                         stringResource(R.string.transcript_widget_network, hosts.joinToString(", ")),
-                        modifier = side,
                         style = OpenCodeTextStyles.caption1,
                         color = colors.tertiaryText,
                         maxLines = 1,
@@ -202,9 +202,9 @@ fun AgentWidgetFrame(
                     )
                 }
                     val error = (phase as? Phase.Ready)?.error
-                    if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true, modifier = side)
+                    if (error != null) StatusLine(SFSymbol.XmarkCircleFill, colors.danger, error, live = true)
                     if (phase is Phase.Responding) {
-                        Row(side, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.secondaryText)
                             Text(stringResource(R.string.transcript_widget_sending), style = OpenCodeTextStyles.footnote, color = colors.secondaryText)
                         }
@@ -223,7 +223,7 @@ fun AgentWidgetFrame(
                 }
             }
             val failure = controller?.failure
-            if (controller != null && failure != null && phase !is Phase.Closed) FailureNote(failure, told = failure.sent || controller.askedAgent, onAsk = controller::askAgentToFix, modifier = side)
+            if (controller != null && failure != null && phase !is Phase.Closed) FailureNote(failure, told = failure.sent || controller.askedAgent, onAsk = controller::askAgentToFix)
         }
         if (keyboard.focused) KeyboardHint(Modifier.align(Alignment.BottomEnd).padding(6.dp))
         if (onExpand != null) {
