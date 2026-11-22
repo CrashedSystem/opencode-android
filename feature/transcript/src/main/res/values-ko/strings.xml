@@ -13,7 +13,7 @@
 
     <!-- Transcript list -->
     <string name="transcript_scroll_to_top">맨 위로 이동</string>
-    <string name="transcript_working">일하고 있는</string>
+    <string name="transcript_working">작업 중</string>
 
     <!-- Transcript list rows -->
     <string name="transcript_history_loading_description">이전 메시지 로딩 중</string>

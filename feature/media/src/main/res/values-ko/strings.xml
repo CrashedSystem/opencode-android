@@ -111,7 +111,7 @@
     <string name="media_browser_scroll_to_top_label">페이지 맨 위로 이동</string>
     <string name="media_browser_ask_placeholder">이 페이지에 대해 질문하기</string>
     <string name="media_browser_reply_needs_input">입력이 필요해요</string>
-    <string name="media_browser_reply_working">일하고 있는</string>
+    <string name="media_browser_reply_working">작업 중</string>
     <string name="media_browser_go_back_to_session_label">세션으로 돌아가기</string>
     <!-- Shown side by side on one line, in this order: “Reply ready · Back to read it” -->
     <string name="media_browser_reply_ready">응답 준비됨</string>

@@ -2,6 +2,7 @@ package ai.opencode.app
 
 import ai.opencode.core.dependencies.PasteboardClient
 import ai.opencode.core.testing.TestIsolationRule
+import ai.opencode.server.OpenCodePairingLink
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -27,8 +28,13 @@ class PairingPasteTests {
         assertNull(store.state.errorMessage)
         clipboard.set("hello")
         store.send(AppFeature.Action.PastePairingCodeTapped) { it.copy(pasteError = "That isn’t a pairing link") }
-        clipboard.set("http://127.0.0.1:4096/auth/connect/abc")
-        store.send(AppFeature.Action.PastePairingCodeTapped) { it.copy(pasteError = loopbackPairingMessage) }
+        // A code whose address can't be a server base URL still reports beside Paste. (A
+        // loopback-only code is attempted now, so it no longer lands here.)
+        val unusable = """{"code":"abc","urls":["file:///tmp/x"]}"""
+        clipboard.set(unusable)
+        store.send(AppFeature.Action.PastePairingCodeTapped) {
+            it.copy(pasteError = unusableAddressMessage(OpenCodePairingLink.unusableAddress(unusable)!!))
+        }
         assertNull(store.state.errorMessage)
         store.send(AppFeature.Action.ScanPairingCodeTapped) { it.copy(pasteError = null, isScanningPairingCode = true) }
         store.finish()

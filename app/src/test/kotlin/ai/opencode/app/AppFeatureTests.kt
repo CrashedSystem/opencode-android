@@ -578,10 +578,24 @@ class AppFeatureTests {
     }
 
     @Test
-    fun loopbackPairingLinkFailsWithoutSpendingTheCode() = runTest {
-        val store = store(shared.appState())
+    fun loopbackPairingLinkIsAttemptedAndExplainsItselfWhenItFails() = runTest {
+        // A server can run on this very device (Termux, say), where 127.0.0.1 does answer, so the
+        // code is redeemed instead of refused before anything is sent. A dead loopback address
+        // then still says how to pair from another computer.
+        var attempted: OpenCodePairingLink? = null
+        val store = store(
+            shared.appState(),
+            OpenCodeClient.testValue.copy(
+                redeemPairing = { link ->
+                    attempted = link
+                    throw OpenCodeClientError(OpenCodeClientError.UNREACHABLE_MESSAGE)
+                },
+            ),
+        )
         store.exhaustive = false
         store.send(AppFeature.Action.PairingCodeScanned("http://127.0.0.1:4096/auth/connect/abc"))
+        store.receiveCase<AppFeature.Action.PairingRedeemed>()
+        assertEquals("http://127.0.0.1:4096", attempted?.origin)
         assertEquals(true, store.state.errorMessage?.contains("only listens on localhost"))
         assertEquals(false, store.state.errorMessage?.contains("`"))
         effects.skipInFlightEffects()
@@ -816,7 +830,6 @@ class AppFeatureTests {
         val malformedLinks = listOf(
             "opencode-ios://connect?url=https://mini-trial.taila8e7c7.ts.net:4196&username=opencode&password=synthetic-pw",
             "https://opencode.abc123.opentunnel.xyz/auth/connect/Ab3_x-9Q?extra=1#frag",
-            "http://127.0.0.1:4096/auth/connect/Ab3_x-9Q",
         )
         for (raw in malformedLinks) {
             store.send(AppFeature.Action.PairingURLOpened(raw))

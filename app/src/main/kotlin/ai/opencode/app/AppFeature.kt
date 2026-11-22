@@ -945,7 +945,7 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
             return Reduced(
                 state.copy(
                     connectionAttempt = null,
-                    connection = failed(clientError, attempt.server, FailureContext.of(attempt.server, FailureContext.Phase.Pair, action.attemptID, clientError.connectionFailures)),
+                    connection = failed(clientError.withLoopbackHint(attempt.server), attempt.server, FailureContext.of(attempt.server, FailureContext.Phase.Pair, action.attemptID, clientError.connectionFailures)),
                 ),
             )
         }

@@ -26,7 +26,7 @@
     <string name="system_intent_background_call_title">백그라운드에서 음성 통화 시작</string>
     <string name="system_intent_background_call_description">앱을 열지 않고 OpenCode와 음성 통화를 시작합니다. 통화는 상태 표시줄과 잠금 화면에 표시됩니다.</string>
     <string name="system_delivery_type_name">전송 방식</string>
-    <string name="system_delivery_steer">방향 지시</string>
+    <string name="system_delivery_steer">지시</string>
     <string name="system_delivery_queue">대기열에 추가</string>
     <string name="system_ask_title">OpenCode에 요청하기</string>
     <string name="system_ask_description">앱을 열지 않고 OpenCode 세션에 메시지를 보냅니다.</string>
@@ -62,7 +62,7 @@
     <string name="system_recording_new_session">새 세션</string>
 
     <!-- Live Updates: session run -->
-    <string name="system_session_working">일하고 있는</string>
+    <string name="system_session_working">작업 중</string>
     <string name="system_session_last_seen_working">마지막 확인 시 작업 중</string>
     <!-- Where the run is (Working), then its current step (a tool name, Thinking or Replying). -->
     <string name="system_session_status_with_step">%1$s · %2$s</string>

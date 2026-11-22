@@ -74,9 +74,9 @@ internal fun validatePairing(text: String): Result<OpenCodePairingLink> {
             ?: return Result.failure(OpenCodeClientError(invalidPairingCodeMessage))
         return Result.failure(OpenCodeClientError(unusableAddressMessage(unusable)))
     }
-    // `opencode pair` reports whatever the service is bound to. If that's only loopback, no
-    // amount of retrying will help — say so precisely.
-    if (link.isLoopback) return Result.failure(OpenCodeClientError(loopbackPairingMessage))
+    // A loopback-only code usually means `opencode pair` ran on a computer this phone can't
+    // answer at, but a server can also live on this very device, where 127.0.0.1 does answer.
+    // Try it: a dead address refuses immediately, and the failure says why (see `loopbackHint`).
     return Result.success(link.normalizedForRedemption)
 }
 
@@ -170,3 +170,13 @@ internal fun unusableAddressMessage(unusable: OpenCodePairingLink.UnusableAddres
 
 internal val loopbackPairingMessage: String
     get() = localized(R.string.app_pairing_loopback, ThisDevice.casualName)
+
+/**
+ * Pairing a loopback-only code is attempted, so a server on this same device works; when that
+ * attempt fails, the plain "unreachable" line isn't actionable, so it says what to run instead.
+ */
+internal fun OpenCodeClientError.withLoopbackHint(server: OpenCodeServer): OpenCodeClientError {
+    if (!OpenCodeServer.isLoopback(server.url)) return this
+    if (statusCode != null) return this
+    return copy(message = loopbackPairingMessage)
+}

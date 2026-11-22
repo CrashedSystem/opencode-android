@@ -14,10 +14,8 @@
 name: Release
 
 on:
-  schedule:
-    # GitHub cron is UTC. These cover noon and 6 p.m. in both CST and CDT; plan.sh drops the
-    # two that don't match.
-    - cron: "0 0,17,18,23 * * *"
+  # This fork builds debug APKs through CI only; the upstream Play release needs Anomaly's
+  # signing secrets, so the schedule is off. Dispatch it by hand if that ever changes.
   workflow_dispatch:
     inputs:
       bump:
@@ -63,7 +61,7 @@ jobs:
   build:
     needs: plan
     if: needs.plan.outputs.skip != 'true'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read

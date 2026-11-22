@@ -73,7 +73,7 @@
     <string name="voice_status_weak_connection">연결 불안정</string>
     <string name="voice_status_paused">일시 정지됨</string>
     <string name="voice_status_needs_input">입력이 필요해요</string>
-    <string name="voice_status_working">일하고 있는</string>
+    <string name="voice_status_working">작업 중</string>
     <string name="voice_status_speaking">말하는 중</string>
     <string name="voice_status_muted">음소거됨</string>
     <string name="voice_status_listening">듣는 중</string>

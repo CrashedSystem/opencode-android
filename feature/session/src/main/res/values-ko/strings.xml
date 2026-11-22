@@ -24,9 +24,9 @@
     <string name="session_dictation_stop_recording_description">녹음 중지</string>
     <string name="session_dictation_stop_recording_hint">말한 내용을 메시지에 넣기</string>
     <string name="session_sending_message_description">메시지 보내는 중</string>
-    <string name="session_delivery_steer_label">다음 단계에서 방향 지시</string>
+    <string name="session_delivery_steer_label">다음 단계에서 지시</string>
     <string name="session_delivery_queue_label">이 응답 뒤에 대기열에 추가</string>
-    <string name="session_delivery_steer">방향 지시</string>
+    <string name="session_delivery_steer">지시</string>
     <string name="session_delivery_queue">대기열에 추가</string>
     <!-- Draft project picker -->
     <string name="session_draft_project_choose_label">세션을 시작할 위치 선택</string>
@@ -103,7 +103,7 @@
     <string name="session_dictate_message_description">음성으로 메시지 입력</string>
     <string name="session_dictate_message_hint">말해서 메시지를 입력하거나 길게 눌러 녹음하고 보내세요</string>
     <string name="session_send_waiting_for_uploads_description">업로드가 끝나면 보내요</string>
-    <string name="session_steer_message_description">메시지로 방향 지시</string>
+    <string name="session_steer_message_description">메시지로 지시</string>
     <string name="session_stopping_description">중지 중</string>
     <string name="session_start_voice_call">음성 통화 시작</string>
     <string name="session_dictation_stop_description">음성 입력 중지</string>
@@ -179,7 +179,7 @@
     <string name="session_activity_done">완료</string>
     <string name="session_activity_failed">실패</string>
     <string name="session_working_stopping">중지 중…</string>
-    <string name="session_status_working">일하고 있는</string>
+    <string name="session_status_working">작업 중</string>
     <string name="session_status_needs_input">입력이 필요해요</string>
     <string name="session_status_done">완료</string>
 
