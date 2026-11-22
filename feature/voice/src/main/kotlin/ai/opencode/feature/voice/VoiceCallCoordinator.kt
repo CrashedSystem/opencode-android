@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
-/** Realtime and Grok: server VAD owns turns, while the local floor prevents
+/** Realtime: server VAD owns turns, while the local floor prevents
  * tool replies from talking over the user or audio still playing. */
 class VoiceCallCoordinator(
     timing: VoiceCallTiming = VoiceCallTiming.live,

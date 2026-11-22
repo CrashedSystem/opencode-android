@@ -4,6 +4,9 @@ import ai.opencode.core.sharing.SharedKey
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.testing.TestIsolationRule
+import ai.opencode.feature.voice.VoiceEngine
+import ai.opencode.feature.voice.VoiceServerChoice
+import ai.opencode.feature.voice.VoiceSharedKeys
 import ai.opencode.feature.transcript.SessionSeenWatermark
 import ai.opencode.feature.transcript.sessionSeenWatermarks
 import ai.opencode.server.CachedHomeSnapshot
@@ -32,6 +35,23 @@ class AppFeatureTestsMigrations {
 
         store.send(AppFeature.Action.Task)
         assertFalse(shared.store.contains(style))
+        store.finish()
+    }
+
+    /** Phone keys are gone: launch deletes the saved keys, and a phone pick reads as Automatic. */
+    @Test
+    fun savedPhoneVoiceKeysAreDeleted() = runTest {
+        shared.run {
+            for (key in retiredVoiceKeys) shared(key).set("sk-test")
+            shared(SharedKey.appStorage("voice-server", "")).set("phone")
+            shared(SharedKey.appStorage("voice-engine", "")).set("grok")
+        }
+        val store = shared.appStore(shared.appState(), detachedScope(coroutineContext))
+
+        store.send(AppFeature.Action.Task)
+        for (key in retiredVoiceKeys) assertFalse(shared.store.contains(key))
+        assertEquals(VoiceServerChoice.Automatic, shared.run { shared(VoiceSharedKeys.voiceServerChoice).value })
+        assertEquals(VoiceEngine.gptLive, shared.run { shared(VoiceSharedKeys.voiceEngine).value })
         store.finish()
     }
 

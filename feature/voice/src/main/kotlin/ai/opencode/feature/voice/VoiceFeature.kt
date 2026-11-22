@@ -132,7 +132,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
          */
         val pendingModel: OpenCodeModelRef? = null,
         /** The route locked in when the call starts: its engine and provider are what the call runs on. */
-        val activeRoute: VoiceRoute = VoiceRoute.PhoneKey(VoiceEngine.gptLive),
+        val activeRoute: VoiceRoute = VoiceRoute.serverOpenAI(VoiceRoute.OpenAI.gptLive),
         /** Whether [supportServer] supports `POST /api/experimental/voice/session`. */
         val serverVoiceSupport: ServerVoiceSupport = ServerVoiceSupport.unknown,
         /**
@@ -177,10 +177,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
          * fails. Null on this phone.
          */
         val callPlace: VoiceCallPlace? = null,
-        /**
-         * A failed start says why and offers the one fix; a Grok call's card
-         * shows the error as it came, with Check API Key for its xAI key.
-         */
+        /** Set when a call starts: its failed start says why and offers the one fix. */
         val diagnosesFailure: Boolean = false,
         /** Pure state machine tracking delegated session prompts and their outcomes. */
         val replyWatch: ReplyWatch = ReplyWatch(),
@@ -337,15 +334,6 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
                 return VoiceCallDiagnosis.diagnose(message = failed.message, route = activeRoute, place = callPlace?.name)
             }
 
-        /** The OpenAI key (GPT-Live, Realtime, and the delegator). */
-        val apiKey: String? get() = shared(SharedKeys.openAIAPIKey).value
-
-        /** The xAI key (Grok Voice). */
-        val xaiAPIKey: String? get() = shared(SharedKeys.xaiAPIKey).value
-
-        /** Settings' last accepted key and model: a call skips the preflight then. */
-        val verifiedKeyFingerprint: String? get() = shared(SharedKeys.verifiedVoiceKeyFingerprint).value
-
         /** Read by the delegator's tools: which sessions the drawer pins. */
         val pinnedSessionKeys: List<String> get() = shared(SharedKeys.pinnedSessionKeys).value
 
@@ -359,16 +347,6 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         /** Null on a draft, which has nothing to remember yet. */
         val transcriptKey: String? get() = target.sessionID?.let { "${target.server.id}:$it" }
         val isOnDraft: Boolean get() = target.sessionID == null
-
-        /**
-         * The key a call on [engine] uses. The lab's scripted call needs no key;
-         * a debug build can take one from the lab (debug builds only).
-         */
-        fun callAPIKey(engine: VoiceEngine): String? {
-            if (VoiceLabFlags.isEnabled || VoiceLabFlags.hasStandInServer) return "lab"
-            VoiceLabFlags.labAPIKey?.let { return it }
-            return engine.apiKey(openAI = apiKey, xAI = xaiAPIKey)
-        }
 
         val resolvedEngine: VoiceEngine get() = VoiceLabFlags.overrideEngine ?: voiceEngine
 
@@ -859,10 +837,6 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
             is Action.CallPlaceChanged -> Reduced(state.copy(callPlace = action.place))
 
             is Action.FailureFixTapped -> when (action.fix) {
-                VoiceCallFix.setUpOnIPhone -> Reduced(
-                    state,
-                    Effect.send(Action.Delegate(DelegateAction.OpenVoiceSettings(if (state.diagnosesFailure) VoiceSettingsPage.account else VoiceSettingsPage.voice))),
-                )
                 VoiceCallFix.chooseProvider -> Reduced(
                     state,
                     Effect.send(Action.Delegate(DelegateAction.OpenVoiceSettings(VoiceSettingsPage.provider))),
@@ -1245,7 +1219,7 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
 
             is VoiceCallEvent.ServerDelegation -> {
                 if (!state.usesDelegator) return Reduced(state)
-                delegateToDelegator(state.copy(replyWatch = state.replyWatch.noteUserActed()), callID = event.callID, onCall = true)
+                delegateToDelegator(state.copy(replyWatch = state.replyWatch.noteUserActed()), callID = event.callID)
             }
 
             is VoiceCallEvent.FunctionCall -> when (event.name) {

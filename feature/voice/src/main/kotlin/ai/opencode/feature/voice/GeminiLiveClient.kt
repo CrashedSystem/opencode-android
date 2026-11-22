@@ -18,11 +18,9 @@ class GeminiLiveClient(val connect: suspend (String, GeminiLiveSessionConfig) ->
 }
 class GeminiLiveSocket(private val apiKey: String, private val config: GeminiLiveSessionConfig) {
     suspend fun open(): GeminiLiveConnection {
-        val server = config.serverVoice
-        val targetURL = if (server != null) {
-            val transport = VoiceBrokerTransport(server).webSocket(config.model, config.serverSessionPayload)
-            GeminiLiveSessionConfig.webSocketURL(transport.url, transport.token)
-        } else GeminiLiveSessionConfig.webSocketURL(GeminiLiveSessionConfig.defaultWebSocketURL, apiKey)
+        val server = config.serverVoice ?: throw RealtimeClientError.InvalidURL
+        val transport = VoiceBrokerTransport(server).webSocket(config.model, config.serverSessionPayload)
+        val targetURL = GeminiLiveSessionConfig.webSocketURL(transport.url, transport.token)
         val socket = VoiceWebSocket(targetURL ?: throw RealtimeClientError.InvalidURL)
         socket.sendVoiceHandshake("gemini.setup") { socket.sendUTF8(GeminiLiveCommand.Setup(config).encoded()) }
         return GeminiLiveConnection(

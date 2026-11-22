@@ -47,7 +47,7 @@ class VoiceCallHost {
                 val coordinator = LiveCallCoordinator(timing = timing)
                 launch(coordinator) { coordinator.start(apiKey, initial.liveSessionConfig(), live, audio) }
             }
-            VoiceEngine.realtime, VoiceEngine.grok -> {
+            VoiceEngine.realtime -> {
                 val coordinator = VoiceCallCoordinator()
                 launch(coordinator) { coordinator.start(apiKey, initial, realtime, audio) }
             }

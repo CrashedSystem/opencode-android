@@ -12,7 +12,6 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
-/** The preflight lives in RealtimePreflight.kt. */
 class RealtimeConnection(
     override val events: Flow<RealtimeServerEvent>,
     override val send: suspend (RealtimeCommand) -> Unit,
@@ -23,8 +22,7 @@ class RealtimeConnection(
 class RealtimeClient(val connect: suspend (String, RealtimeSessionConfig) -> RealtimeConnection) {
     companion object Key : DependencyKey<RealtimeClient> {
         override val liveValue = RealtimeClient { apiKey, config ->
-            if (config.engine == VoiceEngine.grok) RealtimeSocket(apiKey, config).open()
-            else dependency(LiveTransportChoice).connect(
+            dependency(LiveTransportChoice).connect(
                 webRTC = { RealtimeRTC.connect(apiKey, config) },
                 webSocket = { RealtimeSocket(apiKey, config).open() },
             )
@@ -64,20 +62,9 @@ sealed class RealtimeClientError(override val message: String) : Exception(messa
 
 class RealtimeSocket(private val apiKey: String, private val config: RealtimeSessionConfig) {
     suspend fun open(): RealtimeConnection {
-        val targetURL: String
-        val bearerToken: String
-        val server = config.serverVoice
-        if (server != null) {
-            val transport = VoiceBrokerTransport(server).webSocket(config.model, config.sessionPayload(true))
-            targetURL = transport.url; bearerToken = transport.token
-        } else {
-            val lab = VoiceLabEnvironment.string("OPENCODE_LAB_REALTIME_URL")
-            targetURL = if (lab != null) {
-                voiceSocketRequest(lab).url.newBuilder().query(null).addQueryParameter("model", config.model).build().toString()
-            } else config.webSocketURL ?: throw RealtimeClientError.InvalidURL
-            bearerToken = apiKey
-        }
-        val socket = VoiceWebSocket(targetURL, bearerToken)
+        val server = config.serverVoice ?: throw RealtimeClientError.InvalidURL
+        val transport = VoiceBrokerTransport(server).webSocket(config.model, config.sessionPayload(true))
+        val socket = VoiceWebSocket(transport.url, transport.token)
         socket.sendVoiceHandshake("realtime.session_update") { socket.sendUTF8(RealtimeCommand.SessionUpdate(config).encoded()) }
         return RealtimeConnection(
             events = socket.voiceEventStream { listOf(RealtimeServerEvent.decode(it)) },

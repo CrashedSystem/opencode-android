@@ -1,22 +1,14 @@
 package ai.opencode.feature.voice
 
 import ai.opencode.core.dependencies.DependencyKey
-import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.tuning.DeveloperMode
 import ai.opencode.server.OpenCodeClientError
-import ai.opencode.server.OpenCodeTransport
-import ai.opencode.server.retry.NetworkRetry
-import ai.opencode.server.retry.RequestIdempotency
-import ai.opencode.server.retry.TransportFailure
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * The invisible agent behind a GPT-Live call: the voice agent hands it what
@@ -289,47 +281,6 @@ The voice agent has already acknowledged the request out loud, so lead with the 
     fun requestText(viewing: String, conversation: List<String>, request: String): String =
         "$viewing\nRecent voice conversation:\n${if (conversation.isEmpty()) "(none)" else conversation.joinToString("\n")}\n\n" +
             "The user's request: ${request.ifEmpty { "(see conversation)" }}"
-
-    fun requestBody(input: List<InputItem>, previousResponseID: String?): JsonObject {
-        val body = linkedMapOf<String, JsonElement>(
-            "model" to s(model),
-            "instructions" to s(instructions),
-            "tools" to JsonArray(tools),
-            "reasoning" to prop("effort" to s("low")),
-            "input" to JsonArray(
-                input.map { item ->
-                    when (item) {
-                        is InputItem.User -> prop("role" to s("user"), "content" to s(item.text))
-                        is InputItem.ToolOutput -> prop("type" to s("function_call_output"), "call_id" to s(item.callID), "output" to s(item.output))
-                    }
-                },
-            ),
-        )
-        if (previousResponseID != null) body["previous_response_id"] = s(previousResponseID)
-        return JsonObject(body)
-    }
-
-    /** @throws OpenCodeClientError when the reply is unreadable or carries an error. */
-    fun parse(data: ByteArray): Response {
-        val json = try { VoiceWireJson.parseToJsonElement(data.decodeToString()) as? JsonObject } catch (_: Exception) { null }
-            ?: throw OpenCodeClientError("The delegator's reply wasn't readable.")
-        ((json["error"] as? JsonObject)?.get("message")?.stringValue)?.let { throw OpenCodeClientError(it) }
-        val output = (json["output"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
-        val calls = output.mapNotNull { item ->
-            if (item["type"]?.stringValue != "function_call") return@mapNotNull null
-            val callID = item["call_id"]?.stringValue ?: return@mapNotNull null
-            val name = item["name"]?.stringValue ?: return@mapNotNull null
-            ToolCall(callID, name, item["arguments"]?.stringValue ?: "{}")
-        }
-        val text = output
-            .filter { it["type"]?.stringValue == "message" }
-            .flatMap { (it["content"] as? JsonArray)?.mapNotNull { part -> part as? JsonObject } ?: emptyList() }
-            .filter { it["type"]?.stringValue == "output_text" }
-            .mapNotNull { it["text"]?.stringValue }
-            .joinToString(" ")
-            .trim()
-        return Response(json["id"]?.stringValue ?: "", calls, text)
-    }
 }
 
 /** Server Voice: a Responses delegation's rounds, carried by the call. */
@@ -359,22 +310,7 @@ class VoiceDelegatorClient(
      * into the session on screen as before.
      */
     val isEnabled: Boolean,
-    /** @throws OpenCodeClientError */
-    val respond: suspend (apiKey: String, input: List<VoiceDelegator.InputItem>, previousResponseID: String?) -> VoiceDelegator.Response,
 ) {
-    /** Model rounds until a spoken answer, running tools in between. @throws OpenCodeClientError */
-    suspend fun run(
-        apiKey: String,
-        request: String,
-        previousResponseID: String?,
-        tools: VoiceDelegatorTools,
-    ): VoiceDelegator.Outcome = Key.rounds(
-        first = listOf(VoiceDelegator.InputItem.User(request)),
-        previousResponseID = previousResponseID,
-        spoken = false,
-        tools = tools,
-    ) { input, previous -> respond(apiKey, input, previous) }
-
     /**
      * Server Voice: the rounds of a delegation GPT-Live already started on its
      * Responses backend. Each round arrives over the call; the tools run here
@@ -455,51 +391,8 @@ class VoiceDelegatorClient(
             return VoiceDelegator.Outcome(reply = VoiceDelegator.outOfRoundsReply, responseID = previousResponseID, unanswered = tools.sent())
         }
 
-        private const val RESPONSES_URL = "https://api.openai.com/v1/responses"
+        override val liveValue: VoiceDelegatorClient = VoiceDelegatorClient(isEnabled = true)
 
-        override val liveValue: VoiceDelegatorClient = VoiceDelegatorClient(isEnabled = true) { apiKey, input, previousResponseID ->
-            val body = try {
-                VoiceDelegator.requestBody(input, previousResponseID).encodedBytes()
-            } catch (_: Exception) {
-                throw OpenCodeClientError("Couldn’t build the delegator request.")
-            }
-            val request = Request.Builder()
-                .url(RESPONSES_URL)
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer $apiKey")
-                .post(body.toRequestBody(voiceJsonMediaType))
-                .build()
-            val client = dependency(OpenCodeTransport).request.withVoiceTimeout(60)
-            // Planning has no side effects (tools run here, after the response), so a
-            // lost response is safe to ask for again.
-            val data = NetworkRetry.run(idempotency = RequestIdempotency.Idempotent) { _ ->
-                val response = try {
-                    client.voiceSend(request)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    throw OpenCodeClientError(error.localizedMessage ?: error::class.java.simpleName, transport = TransportFailure.of(error))
-                }
-                if (response.statusCode !in 200..<300) {
-                    val detail = try {
-                        ((VoiceWireJson.parseToJsonElement(response.body.decodeToString()) as? JsonObject)
-                            ?.get("error") as? JsonObject)?.get("message")?.stringValue
-                    } catch (_: Exception) {
-                        null
-                    }
-                    throw OpenCodeClientError(
-                        detail ?: "The delegator returned HTTP ${response.statusCode}.",
-                        statusCode = response.statusCode,
-                        retryAfter = OpenCodeClientError.retryAfter(response.header("Retry-After")),
-                    )
-                }
-                response.body
-            }
-            VoiceDelegator.parse(data)
-        }
-
-        override val testValue: VoiceDelegatorClient = VoiceDelegatorClient(isEnabled = false) { _, _, _ ->
-            throw OpenCodeClientError("The delegator isn't available in tests.")
-        }
+        override val testValue: VoiceDelegatorClient = VoiceDelegatorClient(isEnabled = false)
     }
 }
