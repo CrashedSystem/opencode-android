@@ -13,7 +13,7 @@
 # without Rust compile; this script refreshes them. Without the libraries, widgets show "The widget
 # runtime isn't available".
 set -euo pipefail
-REV=819c9201a4e0f53578d5269c443747952bd7235a
+REV=83608bc4983c5d4d19aa4525495498121e948de2
 cd "$(dirname "$0")/.."
 out=vendor/psychoscript
 bindings=feature/transcript/src/main/kotlin/com/anomalyco/psychoscript
