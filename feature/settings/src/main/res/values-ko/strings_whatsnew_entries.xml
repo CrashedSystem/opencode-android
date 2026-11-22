@@ -4,7 +4,7 @@
 
     <!-- 2026-10-06-01-voice-messages -->
     <string name="settings_whatsnew_entry_voice_messages_title">음성 메시지</string>
-    <string name="settings_whatsnew_entry_voice_messages_summary">목소리가 대신 세션에 요청한 내용은 파형이 표시된 음성 메시지로 나타나요.</string>
+    <string name="settings_whatsnew_entry_voice_messages_summary">음성이 대신 세션에 요청한 내용은 파형이 표시된 음성 메시지로 나타나요.</string>
 
     <!-- 2026-10-07-01-attachment-menu-hold -->
     <string name="settings_whatsnew_entry_attachment_menu_hold_title">+로 첨부하기</string>
@@ -88,13 +88,13 @@
 
     <!-- 2026-10-10-02-call-voice -->
     <string name="settings_whatsnew_entry_call_voice_title">음성 통화</string>
-    <string name="settings_whatsnew_entry_call_voice_summary">빈 메시지 입력창의 파형을 탭하고 말해 보세요. 대화하는 동안 목소리가 세션에서 작업하고, 끝나면 알려 줘요.</string>
-    <string name="settings_whatsnew_entry_call_voice_detail_1">세션 이름을 말해 보세요. 목소리가 해당 세션을 열고 작업을 시작하거나 방향을 지시해요.</string>
+    <string name="settings_whatsnew_entry_call_voice_summary">빈 메시지 입력창의 파형을 탭하고 말해 보세요. 대화하는 동안 음성이 세션에서 작업하고, 끝나면 알려 줘요.</string>
+    <string name="settings_whatsnew_entry_call_voice_detail_1">세션 이름을 말해 보세요. 음성이 해당 세션을 열고 작업을 시작하거나 지시를 내려요.</string>
     <string name="settings_whatsnew_entry_call_voice_detail_2">말하는 중에 끼어들어 중단하거나 작업이 어떻게 진행되는지 물어보세요.</string>
     <string name="settings_whatsnew_entry_call_voice_detail_3">통화 바를 누르면 실시간 자막이 표시돼요.</string>
     <string name="settings_whatsnew_entry_call_voice_detail_4">잠금 화면에서도 통화 알림에서 마이크를 끄거나 통화를 종료할 수 있어요.</string>
     <string name="settings_whatsnew_entry_call_voice_detail_5">에이전트가 작업 중일 때 중지를 길게 누르면 통화할 수 있어요.</string>
-    <string name="settings_whatsnew_entry_call_voice_detail_6">설정 → 목소리에서 목소리를 선택하세요.</string>
+    <string name="settings_whatsnew_entry_call_voice_detail_6">설정 → 음성에서 음성을 선택하세요.</string>
     <string name="settings_whatsnew_entry_call_voice_example">통화를 시작하고 “업로드 수정 세션을 열고 테스트를 확인해 줘”라고 말해 보세요</string>
 
     <!-- 2026-10-10-03-drawer-one-edge -->
@@ -202,7 +202,7 @@
     <string name="settings_whatsnew_entry_transcript_day_stamps_title">대화 기록에 날짜 표시</string>
     <string name="settings_whatsnew_entry_transcript_day_stamps_summary">여러 날 이어진 세션에서는 매일 첫 메시지 위에 ‘수요일 오전 8:24’처럼 요일과 시간이 표시돼요. 한 시간 이상 지난 뒤 보낸 메시지 위에도 시간이 표시돼요.</string>
     <string name="settings_whatsnew_entry_transcript_day_stamps_detail_1">오늘, 어제 또는 이번 주의 요일로 표시하고, 그 이전은 날짜로 표시해요.</string>
-    <string name="settings_whatsnew_entry_transcript_day_stamps_detail_2">방향 조정 메시지와 대기열의 메시지에는 기다리는 동안 날짜와 시간이 표시되지 않아요.</string>
+    <string name="settings_whatsnew_entry_transcript_day_stamps_detail_2">지시 메시지와 대기열의 메시지에는 기다리는 동안 날짜와 시간이 표시되지 않아요.</string>
     <string name="settings_whatsnew_entry_transcript_day_stamps_example">이번 주에 시작한 세션을 열고 위로 스크롤해 보세요</string>
 
     <!-- 2026-10-12-13-rich-link-previews -->
@@ -221,7 +221,7 @@
 
     <!-- 2026-10-13-02-grouped-steering -->
     <string name="settings_whatsnew_entry_grouped_steering_title">메시지 묶음</string>
-    <string name="settings_whatsnew_entry_grouped_steering_summary">연달아 보낸 메시지가 하나로 묶이고, 에이전트를 기다리는 방향 조정 메시지에는 ‘방향 조정’ 라벨이 하나만 표시돼요.</string>
+    <string name="settings_whatsnew_entry_grouped_steering_summary">연달아 보낸 메시지가 하나로 묶이고, 에이전트를 기다리는 지시 메시지에는 ‘지시’ 라벨이 하나만 표시돼요.</string>
     <string name="settings_whatsnew_entry_grouped_steering_detail_1">연속된 말풍선이 가까이 붙고, 맞닿은 모서리가 이어져요.</string>
     <string name="settings_whatsnew_entry_grouped_steering_detail_2">사진과 파일은 묶음 안에서도 각각 둥근 모양을 유지해요.</string>
     <string name="settings_whatsnew_entry_grouped_steering_detail_3">에이전트가 메시지를 받을 때마다 메시지가 한 번에 위로 이동해 제자리에 놓여요.</string>
@@ -242,7 +242,7 @@
     <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_2">작은 카드에 화면에 표시된 컨트롤을 보여 줘요. 움직임과 간격을 조절하는 이름별 프리셋과 출시 상태로 되돌리는 ‘기본’이 있어요. 프리셋의 값은 한 번에 함께 적용돼요.</string>
     <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_3">Mac이 연결되면 떠 있는 튜닝 패널이 숨겨져요. 튜닝 제스처로 다시 열고 ‘플레이그라운드 나가기’를 선택하면 나갈 수 있어요.</string>
     <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_4">고정된 시나리오로 같은 예시 세션을 재생해 빌드별 움직임을 비교할 수 있어요.</string>
-    <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_5">다시 재생할 때는 처음부터 시작하며, 방향 조정 메시지와 대기열의 메시지도 기다리는 상태로 두지 않고 전달해요.</string>
+    <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_5">다시 재생할 때는 처음부터 시작하며, 지시 메시지와 대기열의 메시지도 기다리는 상태로 두지 않고 전달해요.</string>
     <string name="settings_whatsnew_entry_mac_motion_playgrounds_detail_6">Mac의 검토 플레이어에서 캡처한 화면 요소의 위치와 크기를 프레임별로 살펴보고, 프레임에 표시하고, 애니메이션 피드백을 보낼 수 있어요.</string>
     <string name="settings_whatsnew_entry_mac_motion_playgrounds_example">설정 → 개발자를 열고 Mac 튜닝 페이지와 페어링한 뒤, 대화 기록 → 응답 스트리밍을 0.25×로 재생해 보세요</string>
 
@@ -607,11 +607,11 @@
 
     <!-- 2026-10-23-04-voice-server-picker -->
     <string name="settings_whatsnew_entry_voice_server_picker_title">음성 서버 선택</string>
-    <string name="settings_whatsnew_entry_voice_server_picker_summary">설정 › 목소리 › 음성 공급자에서 통화에 사용할 저장된 서버나 이 휴대폰의 내 OpenAI 계정을 선택하세요.</string>
+    <string name="settings_whatsnew_entry_voice_server_picker_summary">설정 › 음성 › 음성 공급자에서 통화에 사용할 저장된 서버나 이 휴대폰의 내 OpenAI 계정을 선택하세요.</string>
 
     <!-- 2026-10-24-01-living-orb-floats -->
     <string name="settings_whatsnew_entry_living_orb_floats_title">어디서나 떠 있는 생동하는 원형 표시</string>
-    <string name="settings_whatsnew_entry_living_orb_floats_summary">설정 › 실험적 › 통화의 통화 스타일에서 생동하는 원형 표시를 선택하면 화면 위에 떠 있어요. 크기가 더 커지고 설정을 비롯한 모든 화면 위에 표시돼요. 양쪽 목소리에 맞춰 움직이며, 동시에 말하면 각각 다른 색으로 반응해요. 탭하면 카드로 커지고, 위로 드래그하면 전체 통화와 대화 기록이, 아래로 드래그하면 작은 표시가 나타나요. 통화 스타일 아래의 원형 표시에서 모양을 바꿀 수 있어요.</string>
+    <string name="settings_whatsnew_entry_living_orb_floats_summary">설정 › 실험적 › 통화에서 통화 스타일을 열고 생동하는 원형 표시를 선택하면 화면 위에 떠 있어요. 크기가 더 커지고 설정을 비롯한 모든 화면 위에 표시돼요. 양쪽 음성에 맞춰 움직이며, 동시에 말하면 각각 다른 색으로 반응해요. 탭하면 카드로 커지고, 위로 드래그하면 전체 통화와 대화 기록이, 아래로 드래그하면 작은 표시가 나타나요. 통화 스타일 아래의 원형 표시에서 모양을 바꿀 수 있어요.</string>
 
     <!-- 2026-10-24-02-new-messages-divider-on -->
     <string name="settings_whatsnew_entry_new_messages_divider_on_title">새 메시지 구분선</string>
@@ -688,7 +688,7 @@
 
     <!-- 2026-10-26-05-living-orb-presets -->
     <string name="settings_whatsnew_entry_living_orb_presets_title">원형 상태 표시 프리셋과 Fancy</string>
-    <string name="settings_whatsnew_entry_living_orb_presets_summary">설정 › 실험적 › 통화의 통화 스타일 아래에서 원형 상태 표시를 열면 이제 Fancy가 먼저 나와요. 실시간 미리보기가 커지고 프리셋 목록도 생겼어요. 나만의 프리셋을 저장하고 이름을 바꾸거나, 설정을 복사하고 붙여넣어 공유해 보세요.</string>
+    <string name="settings_whatsnew_entry_living_orb_presets_summary">설정 › 실험적 › 통화에서 통화 스타일 아래의 원형 상태 표시를 열면 이제 Fancy가 먼저 나와요. 실시간 미리보기가 커지고 프리셋 목록도 생겼어요. 나만의 프리셋을 저장하고 이름을 바꾸거나, 설정을 복사하고 붙여넣어 공유해 보세요.</string>
 
     <!-- 2026-10-26-06-send-after-a-pause -->
     <string name="settings_whatsnew_entry_send_after_a_pause_title">잠시 후에도 부드럽게 전송</string>
@@ -724,11 +724,11 @@
 
     <!-- 2026-10-30-02-wisp-call-sounds -->
     <string name="settings_whatsnew_entry_wisp_call_sounds_title">음성 통화에 Wisp 사운드 적용</string>
-    <string name="settings_whatsnew_entry_wisp_call_sounds_summary">통화를 시작하면 잔잔하게 반짝이는 연결음 위로 부드러운 숨소리가 나고, 연결되면 알림음이 울려요. 에이전트가 살펴보거나 열거나 실행할 때는 가볍게 톡톡 소리가 나고, 통화가 끝나면 한숨 소리가 나요. 설정 › 목소리 › 통화 소리에서 다른 사운드를 고를 수 있어요.</string>
+    <string name="settings_whatsnew_entry_wisp_call_sounds_summary">통화를 시작하면 잔잔하게 반짝이는 연결음 위로 부드러운 숨소리가 나고, 연결되면 알림음이 울려요. 에이전트가 살펴보거나 열거나 실행할 때는 가볍게 톡톡 소리가 나고, 통화가 끝나면 한숨 소리가 나요. 설정 › 음성 › 통화 소리에서 다른 사운드를 고를 수 있어요.</string>
 
     <!-- 2026-10-30-03-wisp-orb -->
     <string name="settings_whatsnew_entry_wisp_orb_title">음성 원형 표시가 Wisp로 변경</string>
-    <string name="settings_whatsnew_entry_wisp_orb_summary">통화의 원형 상태 표시가 Wisp 모습으로 바뀌었어요. 유리 렌즈 아래 빛나는 점들이 양쪽 목소리에 반응하며, 연결 중, 듣는 중, 작업 중, 말하는 중, 응답 대기 상태를 Wisp 표정으로 보여 줘요. 이제 이 스타일만 사용하므로 이전 스타일과 원형 상태 표시 설정은 사라졌어요.</string>
+    <string name="settings_whatsnew_entry_wisp_orb_summary">통화의 원형 상태 표시가 Wisp 모습으로 바뀌었어요. 유리 렌즈 아래 빛나는 점들이 양쪽 음성에 반응하며, 연결 중, 듣는 중, 작업 중, 말하는 중, 응답 대기 상태를 Wisp 표정으로 보여 줘요. 이제 이 스타일만 사용하므로 이전 스타일과 원형 상태 표시 설정은 사라졌어요.</string>
 
     <!-- 2026-10-31-01-encrypted-notification-previews -->
     <string name="settings_whatsnew_entry_encrypted_notification_previews_title">알림 미리보기 암호화</string>
@@ -782,7 +782,7 @@
 
     <!-- 2026-11-01-03-open-links-from-calls -->
     <string name="settings_whatsnew_entry_open_links_from_calls_title">통화에서 링크 열기</string>
-    <string name="settings_whatsnew_entry_open_links_from_calls_summary">설정 › 실험적 › 통화에서 통화에서 링크 열기를 켜면 에이전트가 통화 중 Uber 차량 호출 같은 링크를 제안할 수 있어요. 열기를 탭해 해당 앱에서 열거나 나중에를 선택하세요.</string>
+    <string name="settings_whatsnew_entry_open_links_from_calls_summary">설정 › 실험적 › 통화에서 링크 열기를 켜면 에이전트가 통화 중 Uber 차량 호출 같은 링크를 제안할 수 있어요. 열기를 탭해 해당 앱에서 열거나 나중에를 선택하세요.</string>
 
     <!-- 2026-11-02-01-fold-questions -->
     <string name="settings_whatsnew_entry_fold_questions_title">질문을 작게 접어 두기</string>

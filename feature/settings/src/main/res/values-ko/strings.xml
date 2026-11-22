@@ -137,7 +137,7 @@
     <string name="settings_voice_enable">음성 기능 사용</string>
     <string name="settings_voice_model">모델</string>
     <string name="settings_voice_model_description">음성 모델</string>
-    <string name="settings_voice_call_voice">목소리</string>
+    <string name="settings_voice_call_voice">음성</string>
     <string name="settings_voice_raise_to_talk">귀에 대고 말하기</string>
     <string name="settings_voice_call_sounds">통화 소리</string>
     <string name="settings_voice_call_history">통화 기록</string>
@@ -146,10 +146,10 @@
     <string name="settings_voice_key_checking">확인 중…</string>
     <string name="settings_voice_key_saved">저장됨</string>
     <string name="settings_voice_key_missing">없음</string>
-    <string name="settings_voice_preview_disabled_hint">목소리를 미리 들으려면 %1$s 키를 추가해 주세요</string>
+    <string name="settings_voice_preview_disabled_hint">음성을 미리 들으려면 %1$s 키를 추가해 주세요</string>
 
     <!-- Voice › Voice Picker -->
-    <string name="settings_voice_picker_add_key_footer">목소리를 미리 들으려면 %1$s 키를 추가해 주세요.</string>
+    <string name="settings_voice_picker_add_key_footer">음성을 미리 들으려면 %1$s 키를 추가해 주세요.</string>
     <string name="settings_voice_picker_unavailable_footer">%2$s에서 %1$s 사용이 불가능해 통화에 %3$s 사용 중이에요.</string>
     <string name="settings_voice_stop_preview_description">%1$s 미리 듣기 중지</string>
     <string name="settings_voice_preview_description">%1$s 미리 듣기</string>

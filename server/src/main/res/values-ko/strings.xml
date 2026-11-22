@@ -183,6 +183,6 @@
     <string name="server_model_variant_off">끄기</string>
     <string name="server_model_variant_extra_high">매우 높음</string>
     <string name="server_model_variant_max">최대</string>
-    <string name="server_delivery_steering">방향 조정</string>
+    <string name="server_delivery_steering">지시</string>
     <string name="server_delivery_queued">대기열에 추가됨</string>
 </resources>

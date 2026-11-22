@@ -182,10 +182,10 @@
     <string name="voice_call_log_duration_seconds">%1$d초</string>
     <string name="voice_call_log_duration_minutes">%1$d분 %2$d초</string>
     <string name="voice_replay_to_delegator">→ 위임 에이전트</string>
-    <string name="voice_replay_to_voice">→ 목소리</string>
+    <string name="voice_replay_to_voice">→ 음성</string>
     <string name="voice_replay_audio">오디오</string>
     <string name="voice_replay_track_user">나</string>
-    <string name="voice_replay_track_voice">목소리</string>
+    <string name="voice_replay_track_voice">음성</string>
     <string name="voice_replay_track_delegator">위임 에이전트</string>
     <string name="voice_replay_track_tools">도구</string>
 </resources>
