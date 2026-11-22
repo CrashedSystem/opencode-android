@@ -50,6 +50,18 @@ jobs:
       - name: Prefer Google's Maven Central mirror
         run: install -Dm644 .github/gradle/maven-mirror.init.gradle.kts "${GRADLE_USER_HOME:-$HOME/.gradle}/init.d/maven-mirror.init.gradle.kts"
 
+      - name: Sign debug builds with the fork's fixed key
+        # Absent on pull requests from forks: the build then falls back to the runner's own debug
+        # key, which is fine because those artifacts are never installed over a release.
+        env:
+          OPENCODE_DEBUG_KEYSTORE: ${{ secrets.OPENCODE_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$OPENCODE_DEBUG_KEYSTORE" ]; then
+            echo "keystore present; debug APKs will update in place"
+          else
+            echo "::warning::OPENCODE_DEBUG_KEYSTORE is unset; this APK won't update an installed build"
+          fi
+
       - name: Check (translations, assemble, lint, unit tests)
         run: scripts/check.sh
 

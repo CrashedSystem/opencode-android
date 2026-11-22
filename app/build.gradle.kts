@@ -23,9 +23,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // The release bundle is built unsigned; release.yml signs it with the Play upload key.
+    signingConfigs {
+        // Every CI run starts with an empty ~/.android, so its generated debug key changed on each
+        // build and every sideloaded update failed with INSTALL_FAILED_UPDATE_INCOMPATIBLE. This
+        // fork signs debug builds with a key that outlives the runner: OPENCODE_DEBUG_KEYSTORE is
+        // the base64 PKCS12 file, set from a GitHub secret (or a local file when building here).
+        create("forkDebug") {
+            val encoded = providers.environmentVariable("OPENCODE_DEBUG_KEYSTORE").orNull
+                ?: providers.gradleProperty("opencodeDebugKeystore").orNull
+            if (!encoded.isNullOrBlank()) {
+                val file = layout.buildDirectory.file("fork-debug.jks").get().asFile
+                file.parentFile.mkdirs()
+                file.writeBytes(java.util.Base64.getMimeDecoder().decode(encoded))
+                storeFile = file
+                storePassword = System.getenv("OPENCODE_DEBUG_STORE_PASSWORD") ?: "opencode"
+                keyAlias = System.getenv("OPENCODE_DEBUG_KEY_ALIAS") ?: "opencode-debug"
+                keyPassword = System.getenv("OPENCODE_DEBUG_KEY_PASSWORD") ?: "opencode"
+            }
+        }
+    }
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("forkDebug").takeIf { it.storeFile != null }
+                ?: signingConfigs.getByName("debug")
         }
         release {
             // R8 is what makes Compose fast in release: it strips the debug-only paths, inlines
