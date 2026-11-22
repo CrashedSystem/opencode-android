@@ -386,6 +386,32 @@ class MediaReferenceTests {
     }
 
     @Test
+    fun theLocationLabelAbbreviatesHomeRatherThanNamingIt() {
+        val reference = ai.opencode.server.model.AgentFileReference(path = ".github/workflows/ci.yml")
+        // A session opened at home used to read "home/.github/workflows", which looks like a folder
+        // inside home; the tilde says the same thing without inviting that reading.
+        assertEquals("~/.github/workflows", AgentFileViewerModel(reference, server(), "/home/kit").locationLabel)
+        // A session at home on the phone itself, as Termux runs it.
+        assertEquals(
+            "~/.github/workflows",
+            AgentFileViewerModel(reference, server(), "/data/data/com.termux/files/home").locationLabel,
+        )
+        assertEquals(
+            "~/.github/workflows",
+            AgentFileViewerModel(reference, server(), "/data/user/0/com.termux/files/home").locationLabel,
+        )
+        // A project hides the rest of its path behind its own name.
+        assertEquals(
+            "app/.github/workflows",
+            AgentFileViewerModel(reference, server(), "/home/kit/code/app").locationLabel,
+        )
+        // With no home to abbreviate, the session's own name still stands in for its path.
+        assertEquals("app/.github/workflows", AgentFileViewerModel(reference, server(), "/srv/app").locationLabel)
+    }
+
+    private fun server() = OpenCodeServer(url = "https://fixture.invalid", username = "", password = "")
+
+    @Test
     fun aFreshFileShowsItsResidentPixelsWithoutAnyRequest() {
         val server = OpenCodeServer(url = "https://fixture.invalid", username = "", password = "")
         val reference = ai.opencode.server.model.AgentFileReference(path = "shots/a.png")

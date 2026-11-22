@@ -138,15 +138,20 @@ class AgentFileViewerModel(
         get() {
             val target = target ?: return null
             val parent = deletingLastPathComponent(target.absolutePath)
-            // A Windows target's absolute path is normalized; compare it with the directory normalized the same way.
             val directory = AgentFileReference.comparableDirectory(this.directory)
-            if (directory != null && (parent == directory || parent.startsWith("$directory/"))) {
-                val project = lastPathComponent(directory)
-                return if (parent == directory) project else project + parent.drop(directory.length)
-            }
+            val sessionPrefix = directory?.takeIf { parent == it || parent.startsWith("$it/") }
             val home = AgentFileReference.home(this.directory)
-            if (home != null && (parent == home || parent.startsWith("$home/"))) return "~" + parent.drop(home.length)
-            return parent
+            val homePrefix = home?.takeIf { parent == it || parent.startsWith("$it/") }
+            // The more specific prefix wins, so a project names itself; when both are equal, the
+            // tilde beats the folder's own name ("~/.github", not "home/.github").
+            return when {
+                sessionPrefix != null && (homePrefix == null || sessionPrefix.length > homePrefix.length) -> {
+                    val name = lastPathComponent(sessionPrefix)
+                    if (parent == sessionPrefix) name else name + parent.drop(sessionPrefix.length)
+                }
+                homePrefix != null -> "~" + parent.drop(homePrefix.length)
+                else -> parent
+            }
         }
 
     /**

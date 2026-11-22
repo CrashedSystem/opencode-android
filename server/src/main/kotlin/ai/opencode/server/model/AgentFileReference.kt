@@ -281,6 +281,14 @@ data class AgentFileReference(
                 return "${parts[0]}/${parts[1]}/${parts[2]}"
             }
             val parts = directory.split('/').filter { it.isNotEmpty() }
+            // Android's home, where the server often runs on the phone itself: Termux reports
+            // `/data/data/com.termux/files/home`, and the same folder under `/data/user/0/…`.
+            if (parts.firstOrNull() == "data") {
+                val android = parts.indexOfFirst { it.startsWith("com.") || it.startsWith("org.") }
+                if (android > 0 && parts.getOrNull(android + 1) == "files" && parts.getOrNull(android + 2) == "home") {
+                    return "/" + parts.take(android + 3).joinToString("/")
+                }
+            }
             if (parts.size < 2 || parts[0] !in setOf("Users", "home")) return null
             return "/${parts[0]}/${parts[1]}"
         }

@@ -97,6 +97,23 @@ class AgentFileReferenceTests {
         assertEquals("/Users/kit/code/app2", AgentFileReference("/Users/kit/code/app2/a.md").target(directory)?.location)
     }
 
+    /** A server on the phone itself (Termux) has its home under `/data/data/<package>/files/home`. */
+    @Test
+    fun androidTermuxHomeExpandsTilde() {
+        val directory = "/data/data/com.termux/files/home/projects/app"
+        assertEquals("/data/data/com.termux/files/home/a.pdf", AgentFileReference("~/a.pdf").target(directory)?.absolutePath)
+        assertEquals(
+            "/data/user/0/com.termux/files/home/a.pdf",
+            AgentFileReference("~/a.pdf").target("/data/user/0/com.termux/files/home/app")?.absolutePath,
+        )
+        assertEquals("/home/kit/a.pdf", AgentFileReference("~/a.pdf").target("/home/kit/app")?.absolutePath)
+        assertEquals("C:/Users/kit/a.pdf", AgentFileReference("~/a.pdf").target("C:\\Users\\kit\\app")?.absolutePath)
+        // Paths that only look like a home.
+        assertNull(AgentFileReference("~/a.pdf").target("/data/data"))
+        assertNull(AgentFileReference("~/a.pdf").target("/data/data/com.termux/files"))
+        assertNull(AgentFileReference("~/a.pdf").target("/data/data/com.example/app"))
+    }
+
     /**
      * A Windows server reports `C:\…` directories: files inside the session read from its location
      * as the server spelled it.
