@@ -22,15 +22,14 @@ import ai.opencode.feature.session.SessionTestSupport.settle
 import ai.opencode.feature.voice.LiveClient
 import ai.opencode.feature.voice.LiveConnection
 import ai.opencode.feature.voice.RealtimeClient
-import ai.opencode.feature.voice.RealtimePreflightClient
 import ai.opencode.feature.voice.RealtimeSessionConfig
+import ai.opencode.feature.voice.ServerVoiceClient
+import ai.opencode.feature.voice.ServerVoiceSupport
 import ai.opencode.feature.voice.VoiceAudioClient
 import ai.opencode.feature.voice.VoiceCallClient
 import ai.opencode.feature.voice.VoiceCallEvent
 import ai.opencode.feature.voice.VoiceCallHost
 import ai.opencode.feature.voice.VoiceFeature
-import ai.opencode.feature.voice.VoiceServerChoice
-import ai.opencode.feature.voice.VoiceSharedKeys
 import ai.opencode.feature.voice.VoiceWorkClient
 import ai.opencode.server.OpenCodeClient
 import ai.opencode.server.OpenCodeServer
@@ -55,9 +54,8 @@ class RaiseToTalkTests {
     private val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
     private val session = OpenCodeSession(id = "ses_ear", serverTitle = "Ear", projectID = "p", directory = "/Users/kit/project", updatedAt = SessionTestSupport.distantPast)
 
-    private fun Harness.earState(voice: Boolean = true, apiKey: String? = "sk-test"): SessionFeature.State {
+    private fun Harness.earState(voice: Boolean = true): SessionFeature.State {
         sharedStore.reference(SharedKeys.voiceModeEnabled).set(voice)
-        sharedStore.reference(SharedKeys.openAIAPIKey).set(apiKey)
         return state { SessionFeature.State.session(server = server, session = session, cachedItems = emptyList()) }
     }
 
@@ -272,7 +270,7 @@ class RaiseToTalkTests {
     }
 
     @Test fun holdingStopWithoutVoiceDoesNothing() = sessionTest { h ->
-        val store = h.store(h.earState(voice = false, apiKey = null).copy(isExternallyActive = true))
+        val store = h.store(h.earState(voice = false).copy(isExternallyActive = true))
         store.send(Action.StopLongPressed)
         assertNull(store.state.voice)
         assertFalse(store.state.isInterrupting)
@@ -300,7 +298,6 @@ class RaiseToTalkTests {
             this[Clock] = ImmediateClock()
             // Android: every call start mints its notification identity.
             this[ai.opencode.core.dependencies.UuidClient] = ai.opencode.core.dependencies.UuidClient.incrementing()
-            this[RealtimePreflightClient] = RealtimePreflightClient(verify = { _, _ -> })
             this[VoiceCallClient] = callClient(start = { _, config ->
                 startedAtEar.append(config.isAtEar)
                 flow { awaitCancellation() }
@@ -318,7 +315,6 @@ class RaiseToTalkTests {
     }
 
     @Test fun failedPreflightFollowedByManualCallStartsOnSpeaker() = sessionTest { h ->
-        h.sharedStore.reference(VoiceSharedKeys.voiceServerChoice).set(VoiceServerChoice.Phone)
         val host = VoiceCallHost()
         val shouldFailPreflight = LockIsolated(true)
         val startedAtEar = LockIsolated(listOf<Boolean>())
@@ -326,8 +322,8 @@ class RaiseToTalkTests {
             this[DateClient] = DateClient.constant(Instant.ofEpochSecond(0))
             this[Clock] = ImmediateClock()
             this[ai.opencode.core.dependencies.UuidClient] = ai.opencode.core.dependencies.UuidClient.incrementing()
-            this[RealtimePreflightClient] = RealtimePreflightClient(verify = { _, _ ->
-                if (shouldFailPreflight.value) throw Exception("Preflight failed")
+            this[ServerVoiceClient] = ServerVoiceClient(models = ServerVoiceClient.testValue.models, createSession = ServerVoiceClient.testValue.createSession, checkSupport = {
+                if (shouldFailPreflight.value) ServerVoiceSupport.unsupported else ServerVoiceSupport.supported
             })
             this[VoiceCallClient] = callClient(
                 setAtEar = { host.setAtEar(it) },
@@ -352,13 +348,13 @@ class RaiseToTalkTests {
         }
         store.exhaustive = false
 
-        // 1. Raise-start fails during preflight before `voiceCall.start` is reached.
+        // 1. Raise-start fails at the server check before `voiceCall.start` is reached.
         store.send(Action.RaisedToEar)
         store.receive(Action.VoiceTapped::class)
         store.receive(Action.AtEarChanged::class)
         store.send(voice(VoiceFeature.Action.Start))
         store.receive(isVoice { it is VoiceFeature.Action.CallEnded }, "voice.callEnded")
-        assertEquals(VoiceFeature.State.Phase.Failed("Preflight failed"), store.state.voice?.phase)
+        assertTrue(store.state.voice?.phase is VoiceFeature.State.Phase.Failed)
         assertTrue(startedAtEar.value.isEmpty())
 
         // Dismiss the failed card and start a manual call via the call button.
@@ -378,7 +374,6 @@ class RaiseToTalkTests {
     }
 
     @Test fun loweringDuringPreflightStartsOnSpeakerAndConnectedReappliesCurrentState() = sessionTest { h ->
-        h.sharedStore.reference(VoiceSharedKeys.voiceServerChoice).set(VoiceServerChoice.Phone)
         val preflight = CompletableDeferred<Unit>()
         val startedConfigs = LockIsolated(listOf<Boolean>())
         val setAtEarCalls = LockIsolated(listOf<Boolean>())
@@ -388,7 +383,10 @@ class RaiseToTalkTests {
             this[Clock] = ImmediateClock()
             // Android: every call start mints its notification identity.
             this[ai.opencode.core.dependencies.UuidClient] = ai.opencode.core.dependencies.UuidClient.incrementing()
-            this[RealtimePreflightClient] = RealtimePreflightClient(verify = { _, _ -> preflight.await() })
+            this[ServerVoiceClient] = ServerVoiceClient(models = ServerVoiceClient.testValue.models, createSession = ServerVoiceClient.testValue.createSession, checkSupport = {
+                preflight.await()
+                ServerVoiceSupport.supported
+            })
             this[VoiceCallClient] = callClient(
                 setAtEar = { setAtEarCalls.append(it) },
                 start = { _, config ->
@@ -399,7 +397,7 @@ class RaiseToTalkTests {
         }
         store.exhaustive = false
 
-        // Raise to ear starts the call, then user lowers during preflight before `voiceCall.start`.
+        // Raise to ear starts the call, then user lowers during the server check before `voiceCall.start`.
         store.send(Action.RaisedToEar)
         store.receive(Action.VoiceTapped::class)
         store.receive(Action.AtEarChanged::class)

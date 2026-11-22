@@ -137,7 +137,6 @@ internal fun VoiceFeature.startCall(state: VoiceFeature.State): Reduced<VoiceFea
     // delegation.
     next = next.copy(
         activeVoice = voice,
-        delegatorResponseID = null,
         // Android: the call's ongoing notification, started with the call.
         callPresenceID = uuid.next(),
     )

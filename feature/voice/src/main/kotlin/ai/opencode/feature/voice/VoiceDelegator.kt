@@ -112,7 +112,6 @@ The voice agent has already acknowledged the request out loud, so lead with the 
 
     data class Outcome(
         val reply: String,
-        val responseID: String?,
         /** Prompts whose replies the delegator didn't already wait for. */
         val unanswered: List<SentPrompt>,
         /**
@@ -321,7 +320,7 @@ class VoiceDelegatorClient(
         delegationID: String,
         rounds: VoiceDelegatorRounds,
         tools: VoiceDelegatorTools,
-    ): VoiceDelegator.Outcome = Key.rounds(first = emptyList(), previousResponseID = null, spoken = true, tools = tools) { input, _ ->
+    ): VoiceDelegator.Outcome = Key.rounds(tools = tools) { input ->
         if (input.isNotEmpty()) {
             if (!rounds.submit(delegationID, input)) {
                 throw OpenCodeClientError("Couldn’t return the tool results to the voice call.")
@@ -332,30 +331,23 @@ class VoiceDelegatorClient(
 
     companion object Key : DependencyKey<VoiceDelegatorClient> {
         private suspend fun rounds(
-            first: List<VoiceDelegator.InputItem>,
-            previousResponseID: String?,
-            spoken: Boolean,
             tools: VoiceDelegatorTools,
-            respond: suspend (input: List<VoiceDelegator.InputItem>, previousResponseID: String?) -> VoiceDelegator.Response,
+            respond: suspend (input: List<VoiceDelegator.InputItem>) -> VoiceDelegator.Response,
         ): VoiceDelegator.Outcome {
-            var previous = previousResponseID
-            var input = first
+            var input = emptyList<VoiceDelegator.InputItem>()
             for (round in 0 until VoiceDelegator.maxRounds) {
                 if (!currentCoroutineContext().isActive) throw OpenCodeClientError("Cancelled")
                 tools.trace(VoiceDelegator.Trace.RoundStarted(round))
                 val response = try {
-                    respond(input, previous)
+                    respond(input)
                 } catch (error: OpenCodeClientError) {
                     tools.trace(VoiceDelegator.Trace.RoundEnded(round, label = "Failed", detail = error.message, failed = true))
                     // Messages it already sent arrived, and the call watches for their
-                    // replies: the request didn't fail for the user. `previous` has tool
-                    // calls whose outputs never reached it, so the next request chains
-                    // onto the last finished response instead.
+                    // replies: the request didn't fail for the user.
                     val delivered = tools.delivered()
                     if (delivered.isEmpty() || !currentCoroutineContext().isActive) throw error
                     return VoiceDelegator.Outcome(
                         reply = VoiceDelegator.deliveredBeforeFailure(delivered),
-                        responseID = previousResponseID,
                         unanswered = tools.sent(),
                         interrupted = error.message,
                     )
@@ -368,13 +360,11 @@ class VoiceDelegatorClient(
                         failed = false,
                     ),
                 )
-                previous = response.id.ifEmpty { previous }
                 if (response.calls.isEmpty()) {
                     return VoiceDelegator.Outcome(
                         reply = response.text.ifEmpty { "Done." },
-                        responseID = previous,
                         unanswered = tools.sent(),
-                        spoken = spoken,
+                        spoken = true,
                     )
                 }
                 val outputs = mutableListOf<VoiceDelegator.InputItem>()
@@ -387,8 +377,7 @@ class VoiceDelegatorClient(
                 if (round == VoiceDelegator.maxRounds - 2) outputs += VoiceDelegator.InputItem.User(VoiceDelegator.lastRoundNote)
                 input = outputs
             }
-            // The last round's tool outputs were never sent: chain onto the last finished response.
-            return VoiceDelegator.Outcome(reply = VoiceDelegator.outOfRoundsReply, responseID = previousResponseID, unanswered = tools.sent())
+            return VoiceDelegator.Outcome(reply = VoiceDelegator.outOfRoundsReply, unanswered = tools.sent())
         }
 
         override val liveValue: VoiceDelegatorClient = VoiceDelegatorClient(isEnabled = true)

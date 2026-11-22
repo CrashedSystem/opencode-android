@@ -130,43 +130,45 @@ internal fun VoiceProviderDetailPage(store: SettingsStore) {
                 onCheckedChange = { use(if (it) null else active) },
             )
         }
-        settingsSection(key = "others", header = othersHeader) {
-            var rows = 0
-            catalog.others.forEach { other ->
-                if (rows++ > 0) SettingsDivider()
-                val useDescription = stringResource(R.string.settings_voice_provider_use_description, other.name)
-                VoiceProviderListRow(other, showsStatus = false) {
-                    FilledTonalButton(
-                        onClick = { use(other) },
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .semantics { contentDescription = useDescription },
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                        shape = OpenCodeShape.control,
-                    ) { Text(stringResource(R.string.settings_voice_provider_use), style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold)) }
+        if (catalog.others.isNotEmpty() || catalog.unavailable.isNotEmpty()) {
+            settingsSection(key = "others", header = othersHeader) {
+                var rows = 0
+                catalog.others.forEach { other ->
+                    if (rows++ > 0) SettingsDivider()
+                    val useDescription = stringResource(R.string.settings_voice_provider_use_description, other.name)
+                    VoiceProviderListRow(other, showsStatus = false) {
+                        FilledTonalButton(
+                            onClick = { use(other) },
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .semantics { contentDescription = useDescription },
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            shape = OpenCodeShape.control,
+                        ) { Text(stringResource(R.string.settings_voice_provider_use), style = OpenCodeTextStyles.subheadline.copy(fontWeight = FontWeight.SemiBold)) }
+                    }
                 }
-            }
-            if (catalog.unavailable.isNotEmpty()) {
-                if (rows++ > 0) SettingsDivider()
-                SettingsRowFrame(onClick = { showsUnavailable = !showsUnavailable }) {
-                    Text(
-                        pluralStringResource(R.plurals.settings_voice_provider_not_available_count, catalog.unavailable.size, catalog.unavailable.size),
-                        modifier = Modifier.weight(1f).padding(start = VoiceProviderTunables.listTile.value.dp + 12.dp),
-                        style = SettingsText.title,
-                        color = OpenCodeTheme.colors.secondaryText,
-                    )
-                    OpenCodeIcon(
-                        SFSymbol.ChevronRight,
-                        contentDescription = null,
-                        modifier = Modifier.rotate(if (showsUnavailable) 90f else 0f),
-                        size = 18.dp,
-                        tint = OpenCodeTheme.colors.tertiaryText,
-                    )
-                }
-                if (showsUnavailable) {
-                    catalog.unavailable.forEach { other ->
-                        SettingsDivider()
-                        VoiceProviderListRow(other) {}
+                if (catalog.unavailable.isNotEmpty()) {
+                    if (rows++ > 0) SettingsDivider()
+                    SettingsRowFrame(onClick = { showsUnavailable = !showsUnavailable }) {
+                        Text(
+                            pluralStringResource(R.plurals.settings_voice_provider_not_available_count, catalog.unavailable.size, catalog.unavailable.size),
+                            modifier = Modifier.weight(1f).padding(start = VoiceProviderTunables.listTile.value.dp + 12.dp),
+                            style = SettingsText.title,
+                            color = OpenCodeTheme.colors.secondaryText,
+                        )
+                        OpenCodeIcon(
+                            SFSymbol.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.rotate(if (showsUnavailable) 90f else 0f),
+                            size = 18.dp,
+                            tint = OpenCodeTheme.colors.tertiaryText,
+                        )
+                    }
+                    if (showsUnavailable) {
+                        catalog.unavailable.forEach { other ->
+                            SettingsDivider()
+                            VoiceProviderListRow(other) {}
+                        }
                     }
                 }
             }

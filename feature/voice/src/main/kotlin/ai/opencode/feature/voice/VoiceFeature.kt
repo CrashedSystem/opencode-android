@@ -159,8 +159,6 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
          * moving the call never abandons them.
          */
         val delegatorWork: List<String> = emptyList(),
-        /** The delegator's conversation, continued across a call's requests. */
-        val delegatorResponseID: String? = null,
         /** The call uses the delegator (locked in when it starts). */
         val usesDelegator: Boolean = false,
         /** The call uses the OpenCode Session Delegator (`voiceSessionDelegator`, locked in when it starts). */
@@ -1281,7 +1279,6 @@ class VoiceFeature : Reducer<VoiceFeature.State, VoiceFeature.Action> {
         val isVerify = callID.startsWith("client_verify_")
         val outcome = action.result.getOrNull()
         if (outcome != null) {
-            if (outcome.responseID != null) next = next.copy(delegatorResponseID = outcome.responseID)
             val prompts = outcome.unanswered.map { ReplyWatch.Prompt(it) }
             val speaks = !outcome.spoken && (!isVerify || VoiceActionClaim.correctsVoice(outcome.reply))
             // What it read counts as told only now its answer is spoken (never

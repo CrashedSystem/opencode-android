@@ -87,7 +87,6 @@ class DictationHoldReportingTests {
     /** Raise to Talk waits the same way, and the call hears it's at the ear. */
     @Test fun raiseToTalkWaitsForDictationToo() = sessionTest { h ->
         h.sharedStore.reference(SharedKeys.voiceModeEnabled).set(true)
-        h.sharedStore.reference(SharedKeys.openAIAPIKey).set("sk-test")
         val routes = LockIsolated(listOf<Boolean>())
         val store = h.store(h.screen()) {
             this[UuidClient] = UuidClient.incrementing()

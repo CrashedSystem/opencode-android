@@ -4,7 +4,6 @@ import ai.opencode.core.sharing.SharedKey
 import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.shared
 import ai.opencode.core.testing.TestIsolationRule
-import ai.opencode.feature.voice.VoiceEngine
 import ai.opencode.feature.voice.VoiceServerChoice
 import ai.opencode.feature.voice.VoiceSharedKeys
 import ai.opencode.feature.transcript.SessionSeenWatermark
@@ -15,8 +14,10 @@ import ai.opencode.server.ServerSharedKeys
 import ai.opencode.server.model.OpenCodeHomeSnapshot
 import ai.opencode.server.model.OpenCodeSession
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -41,18 +42,16 @@ class AppFeatureTestsMigrations {
     /** Phone keys are gone: launch deletes the saved keys, and a phone pick reads as Automatic. */
     @Test
     fun savedPhoneVoiceKeysAreDeleted() = runTest {
-        shared.run {
-            for (key in retiredVoiceKeys) shared(key).set("sk-test")
-            shared(SharedKey.appStorage("voice-server", "")).set("phone")
-            shared(SharedKey.appStorage("voice-engine", "")).set("grok")
-        }
+        shared.run { for (key in retiredVoiceKeys) shared(key).set("sk-test") }
         val store = shared.appStore(shared.appState(), detachedScope(coroutineContext))
 
         store.send(AppFeature.Action.Task)
         for (key in retiredVoiceKeys) assertFalse(shared.store.contains(key))
-        assertEquals(VoiceServerChoice.Automatic, shared.run { shared(VoiceSharedKeys.voiceServerChoice).value })
-        assertEquals(VoiceEngine.gptLive, shared.run { shared(VoiceSharedKeys.voiceEngine).value })
         store.finish()
+
+        // A saved phone pick reads as Automatic; a saved Grok engine doesn't decode, so it reads as the default.
+        assertEquals(VoiceServerChoice.Automatic, Json.decodeFromString(VoiceSharedKeys.voiceServerChoice.serializer, "\"phone\""))
+        assertTrue(runCatching { Json.decodeFromString(VoiceSharedKeys.voiceEngine.serializer, "\"grok\"") }.isFailure)
     }
 
     /**

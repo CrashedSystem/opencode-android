@@ -16,7 +16,6 @@ import ai.opencode.feature.voice.VoiceFeatureTestSupport.live
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.receive
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.server
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.session
-import ai.opencode.feature.voice.VoiceFeatureTestSupport.setAPIKey
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.voiceCall
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.voiceTest
 import ai.opencode.server.UrlErrorCode
@@ -720,7 +719,6 @@ class VoiceResumeFeatureTests {
             voiceCall { copy(start = { _, _ -> events.events }) }
         }
         store.exhaustive = false
-        store.setAPIKey("sk-test")
 
         store.send(Action.Start)
         events.yield(VoiceCallEvent.Connected)
@@ -761,7 +759,6 @@ class VoiceResumeFeatureTests {
             voiceCall { copy(start = { _, _ -> events.events }) }
         }
         store.exhaustive = false
-        store.setAPIKey("sk-test")
 
         store.send(Action.Start)
         events.yield(VoiceCallEvent.Connected)
@@ -807,7 +804,6 @@ class VoiceResumeFeatureTests {
             }
         }
         store.exhaustive = false
-        store.setAPIKey("sk-test")
 
         store.send(Action.Start)
         assertNull("Connecting isn't counted", store.state.connectedAt)

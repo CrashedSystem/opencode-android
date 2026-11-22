@@ -2,7 +2,6 @@ package ai.opencode.feature.voice
 
 import ai.opencode.core.dependencies.DateClient
 import ai.opencode.core.dependencies.DependencyValues
-import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.core.sharing.SharedStore
 import ai.opencode.core.store.TestStore
 import ai.opencode.server.OpenCodeClientError
@@ -33,7 +32,6 @@ class LiveDelegationFeatureTests {
     ): TestStore<VoiceFeature.State, VoiceFeature.Action> {
         val store = voiceTestStore(shared, { VoiceFeature.State(server, session) }, dependencies = dependencies)
         store.exhaustive = false
-        shared.set(SharedKeys.openAIAPIKey, "sk-test")
         shared.set(VoiceSharedKeys.voiceEngine, VoiceEngine.gptLive)
         return store
     }
@@ -407,7 +405,6 @@ class LiveDelegationFeatureTests {
             )
         }
         store.exhaustive = false
-        shared.set(SharedKeys.openAIAPIKey, "sk-test")
         store.send(VoiceFeature.Action.Start)
         events.yieldEvent(VoiceCallEvent.Connected)
         store.receive(::isCallEvent)

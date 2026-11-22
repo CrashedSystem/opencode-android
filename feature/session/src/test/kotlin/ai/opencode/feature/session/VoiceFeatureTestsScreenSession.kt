@@ -5,8 +5,6 @@ import ai.opencode.core.dependencies.DateClient
 import ai.opencode.core.dependencies.DependencyValues
 import ai.opencode.core.dependencies.ImmediateClock
 import ai.opencode.core.dependencies.UuidClient
-import ai.opencode.core.sharing.SharedKeys
-import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.PresentationAction
 import ai.opencode.feature.composer.ComposerFileAttachment
 import ai.opencode.feature.composer.PendingPrompt
@@ -26,7 +24,6 @@ import ai.opencode.feature.voice.VoiceAdmissionRecorder
 import ai.opencode.feature.voice.VoiceCallClient
 import ai.opencode.feature.voice.VoiceCallEvent
 import ai.opencode.feature.voice.VoiceDelegator
-import ai.opencode.feature.voice.VoiceEngine
 import ai.opencode.feature.voice.VoiceFeature
 import ai.opencode.feature.voice.VoiceHandoff
 import ai.opencode.feature.voice.VoiceRoute
@@ -156,7 +153,7 @@ class VoiceFeatureTestsScreenSession {
         val earlier = listOf<OpenCodeTranscriptItem>(OpenCodeTranscriptItem.UserText(id = "msg_before", text = "Earlier"))
         val state = h.state {
             State.session(server = server, session = session, cachedItems = earlier).copy(
-                voice = live(VoiceFeature.State(server, session)).copy(activeRoute = VoiceRoute.PhoneKey(VoiceEngine.realtime), usesDelegator = false),
+                voice = live(VoiceFeature.State(server, session)).copy(activeRoute = VoiceRoute.serverOpenAI(VoiceRoute.OpenAI.realtime), usesDelegator = false),
                 isVisible = true,
             )
         }
@@ -335,7 +332,6 @@ class VoiceFeatureTestsScreenSession {
             this[VoiceCallClient] = callClient(start = { _, config -> instructions.setValue(config.instructions); events.receiveAsFlow() })
             this[VoiceWorkClient] = workClient(recentMessages = { _, _, _ -> emptyList() })
         }
-        store.withDependencies { shared(SharedKeys.openAIAPIKey) }.set("sk-test")
         store.send(Action.voicePresented(VoiceFeature.Action.Start))
         repeat(200) { if (instructions.value == null) settle(1) }
         assertEquals(true, instructions.value?.contains("has not started yet"))

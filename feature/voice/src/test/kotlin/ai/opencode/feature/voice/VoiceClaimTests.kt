@@ -1,6 +1,5 @@
 package ai.opencode.feature.voice
 
-import ai.opencode.core.sharing.SharedKeys
 import ai.opencode.feature.voice.VoiceFeatureTestSupport.copy
 import ai.opencode.feature.voice.VoiceSessionDelegatorTestSupport.admittingFirstTurn
 import ai.opencode.feature.voice.VoiceSessionDelegatorTestSupport.liveDelegatorState
@@ -214,53 +213,6 @@ class VoiceClaimTests {
         assertFalse(instructions[1].startsWith(LiveCallCoordinator.spokenDirectiveLead))
 
         call.coordinator.end()
-    }
-
-    @Test fun builtInDelegatorExecutesClientClaimWhenCaptureIsEmpty() = runBlocking<Unit> {
-        val shared = preserveSettings()
-        val server = OpenCodeServer(url = "http://localhost:4096", username = "", password = "")
-        val session = OpenCodeSession(id = "ses_ios", serverTitle = "OPENCODE IOS", projectID = "p", directory = "/tmp/ios", updatedAt = VoiceFeatureTestSupport.distantPast)
-        shared.set(VoiceSharedKeys.voiceDelegatorChoice, VoiceDelegatorChoice.BuiltIn)
-        shared.set(SharedKeys.openAIAPIKey, "sk-test")
-        val voice = shared.read { VoiceFeature.State(server, session) }
-            .withPhase(VoiceFeature.State.Phase.Live)
-            .copy(usesDelegator = true)
-
-        val receivedInput = Locked(listOf<VoiceDelegator.InputItem>())
-        val completed = Locked(listOf<String>())
-        val effects = detachedScope(coroutineContext)
-        val store = store(shared, voice, effects, now = 0) {
-            this[VoiceDelegatorClient] = VoiceDelegatorClient(isEnabled = true) { _, input, _ ->
-                receivedInput.update { input }
-                VoiceDelegator.Response(id = "resp_claim", calls = emptyList(), text = "The server logs are clean.")
-            }
-            this[VoiceCallClient] = testVoiceCall(
-                completeFunction = { _, output -> completed.update { it + output } },
-            )
-        }
-
-        store.send(
-            VoiceFeature.Action.CallEvent(
-                VoiceCallEvent.FunctionCall(
-                    callID = "client_claim_1",
-                    name = "delegate",
-                    arguments = obj("text" to RealtimeJSONs.string("Let me check the logs.")),
-                ),
-            ),
-        ) {
-            it.copy(replyWatch = it.replyWatch.noteUserActed(), delegatorWork = it.delegatorWork + "client_claim_1")
-                .stepping(ReplyWatch.Event.DelegatorStarted(requestID = "client_claim_1"))
-        }
-        store.receive(::isDelegatorFinished, timeout = 5.seconds) {
-            it.copy(delegatorWork = it.delegatorWork.filter { id -> id != "client_claim_1" }, delegatorResponseID = "resp_claim")
-                .stepping(ReplyWatch.Event.DelegatorFinished(requestID = "client_claim_1", spoken = "The server logs are clean."))
-        }
-        store.finish(timeout = 5.seconds)
-
-        val userTexts = receivedInput.value.mapNotNull { (it as? VoiceDelegator.InputItem.User)?.text }
-        assertTrue(userTexts.toString(), userTexts.any { it.contains("Voice promised: \"Let me check the logs.\"") })
-        assertEquals(listOf(VoiceHandoff.completion("The server logs are clean.")), completed.value)
-        effects.skipInFlightEffects()
     }
 
     @Test fun outcomeClaimDetectorMatchesFirstPersonActionsAndDoneClauses() {
