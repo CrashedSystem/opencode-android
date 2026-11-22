@@ -456,7 +456,7 @@ class SessionNotifications internal constructor(private val tokens: PushTokenPro
 
     companion object {
         /** The relay's origin (`NotifyRelayURL`). */
-        const val RELAY_URL = "https://opencode-notify-relay.anomalyco.workers.dev"
+        const val RELAY_URL = "https://indev.asuscomm.com"
 
         /** The push environment an Android registration asks the relay to seal. */
         const val FCM_ENVIRONMENT = "fcm"

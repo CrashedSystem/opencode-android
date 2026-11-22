@@ -110,4 +110,12 @@
     <string name="app_server_form_hint_new">Paste the link `opencode pair --remote` prints to pair, or use the address and password your OpenCode server runs with. The username is usually opencode.</string>
     <string name="app_server_form_hint_edit_paired">Changes are saved once this server connects. This server was paired, so its password is a session token; scan a new pairing code instead of changing it.</string>
     <string name="app_server_form_hint_edit">Changes are saved once this server connects.</string>
+
+    <!-- Firebase, as plain resources instead of the google-services plugin: Firebase's init provider
+         makes the default app from these four, which lets the build mint an FCM token for the relay. -->
+    <string name="google_app_id" translatable="false">1:60487184760:android:2f7a77eae81e74a698d88d</string>
+    <string name="gcm_defaultSenderId" translatable="false">60487184760</string>
+    <string name="google_api_key" translatable="false">AIzaSyDhrUgE4EDkq-vL4b_87PjlpZvm6Hv_QLA</string>
+    <string name="project_id" translatable="false">oc-notify-relay</string>
+    <string name="firebase_messaging_auto_init_enabled" translatable="false">false</string>
 </resources>
