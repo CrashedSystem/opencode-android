@@ -37,42 +37,48 @@ sealed interface AgentWidgetNode {
     }
     data class Input(val id: String, val label: String?, val value: String, val placeholder: String?, val multiline: Boolean) : AgentWidgetNode
     data object Divider : AgentWidgetNode
-    data class Canvas(val id: String?, val height: Float, val width: Float?, val fps: Int, val duration: Float?, val alt: String?, val fill: Boolean = true) : AgentWidgetNode
-    data class Shader(
+    /**
+     * A drawing surface, drawn one way: by the widget template's `draw` commands (2D), or with [wgsl] by that fragment
+     * shader on the GPU, fed [values] (16 floats, zero padded; null for 2D).
+     */
+    data class Canvas(
         val id: String?,
         val height: Float,
         val width: Float?,
-        val wgsl: String,
-        val values: FloatArray,
         val fps: Int,
+        val duration: Float?,
         val alt: String?,
-        val poster: String?,
         val fill: Boolean = true,
+        val wgsl: String? = null,
+        val values: FloatArray? = null,
+        val poster: String? = null,
     ) : AgentWidgetNode {
-        override fun equals(other: Any?): Boolean = other is Shader && id == other.id && height == other.height &&
-            width == other.width && wgsl == other.wgsl && values.contentEquals(other.values) && fps == other.fps &&
-            alt == other.alt && poster == other.poster && fill == other.fill
+        val gpu: Boolean get() = wgsl != null
 
-        override fun hashCode(): Int = (wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()
+        override fun equals(other: Any?): Boolean = other is Canvas && id == other.id && height == other.height &&
+            width == other.width && fps == other.fps && duration == other.duration && alt == other.alt &&
+            fill == other.fill && wgsl == other.wgsl && values.contentEquals(other.values) && poster == other.poster
+
+        override fun hashCode(): Int = ((wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()) * 31 + id.hashCode()
     }
 
     val children: List<AgentWidgetNode> get() = emptyList()
 
     companion object {
         const val MAX_FPS = 60
-        const val MAX_SHADER_BYTES = 16 * 1024
+        const val MAX_WGSL_BYTES = 16 * 1024
 
         /** Reads a view, or throws [InvalidView] saying why it isn't one. */
         fun parse(element: JsonElement): AgentWidgetNode =
             node(element) ?: throw InvalidView("invalid view: unknown root node type")
 
-        /** Whether [node] or one under it is a `canvas` or `shader`: such a view offers full screen unless it says not to. */
+        /** Whether [node] or one under it is a `canvas`: such a view offers full screen unless it says not to. */
         fun drawsPixels(node: AgentWidgetNode): Boolean =
-            node is Canvas || node is Shader || node.children.any(::drawsPixels)
+            node is Canvas || node.children.any(::drawsPixels)
 
-        /** Whether [node] or one under it is a `canvas`/`shader` that grows to fill the height in full screen (unless `fill: false`). */
+        /** Whether [node] or one under it is a `canvas` that grows to fill the height in full screen (unless `fill: false`). */
         fun fills(node: AgentWidgetNode): Boolean =
-            (node is Canvas && node.fill) || (node is Shader && node.fill) || node.children.any(::fills)
+            (node is Canvas && node.fill) || node.children.any(::fills)
 
         /** Visits [node] and every node under it, depth first. */
         fun walk(node: AgentWidgetNode, visit: (AgentWidgetNode) -> Unit) {
@@ -112,30 +118,27 @@ sealed interface AgentWidgetNode {
                 }
                 "input" -> Input(o.required(type, "id"), o.string("label"), o.required(type, "value"), o.string("placeholder"), o.bool("multiline"))
                 "divider" -> Divider
-                "canvas" -> Canvas(
-                    o.string("id"),
-                    o.requiredNumber(type, "height").toFloat().coerceIn(1f, 2000f),
-                    o.number("width")?.toFloat()?.takeIf { it > 0f },
-                    (o.number("fps")?.toInt() ?: 0).coerceIn(0, MAX_FPS),
-                    o.number("duration")?.toFloat()?.takeIf { it >= 0f },
-                    o.string("alt"),
-                    o.bool("fill", default = true),
-                )
-                "shader" -> {
-                    val values = FloatArray(16)
-                    (o["values"] as? JsonArray)?.take(16)?.forEachIndexed { index, value ->
-                        values[index] = (value as? JsonPrimitive)?.doubleOrNull?.toFloat() ?: 0f
+                "canvas" -> {
+                    val wgsl = o.string("wgsl")
+                    if (wgsl != null && wgsl.encodeToByteArray().size > MAX_WGSL_BYTES) throw InvalidView("invalid view: a canvas's wgsl must be at most 16 KB")
+                    val raw = o["values"]?.takeIf { it !is JsonNull }
+                    if (raw != null && wgsl == null) throw InvalidView("invalid view: canvas values need wgsl")
+                    val values = if (wgsl == null) null else FloatArray(16).also { values ->
+                        (raw as? JsonArray)?.take(16)?.forEachIndexed { index, value ->
+                            values[index] = (value as? JsonPrimitive)?.doubleOrNull?.toFloat() ?: 0f
+                        }
                     }
-                    Shader(
+                    Canvas(
                         o.string("id"),
                         o.requiredNumber(type, "height").toFloat().coerceIn(1f, 2000f),
                         o.number("width")?.toFloat()?.takeIf { it > 0f },
-                        o.required(type, "wgsl"),
-                        values,
-                        (o.number("fps")?.toInt() ?: MAX_FPS).coerceIn(0, MAX_FPS),
+                        (o.number("fps")?.toInt() ?: if (wgsl != null) MAX_FPS else 0).coerceIn(0, MAX_FPS),
+                        o.number("duration")?.toFloat()?.takeIf { it >= 0f },
                         o.string("alt"),
-                        o.string("poster"),
                         o.bool("fill", default = true),
+                        wgsl,
+                        values,
+                        o.string("poster"),
                     )
                 }
                 else -> null

@@ -48,26 +48,28 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.CancellationException
 
 /**
- * A `shader` node: its WGSL translated to GLSL ES once per source ([AgentWidgetShaderStore]), drawn
+ * A GPU `canvas` (one with `wgsl`): its WGSL translated to GLSL ES once per source ([AgentWidgetShaderStore]), drawn
  * on the shared GL thread into a `TextureView` every frame at `fps` while composed and the list
  * is on screen, or once (and on `values` changes) with `fps: 0`. A shader that fails shows its
  * `poster` or `alt` with the error; one that runs over budget keeps its last frame.
  */
 @Composable
-fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, modifier: Modifier = Modifier) {
+fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, modifier: Modifier = Modifier) {
+    val wgsl = checkNotNull(node.wgsl)
+    val nodeValues = checkNotNull(node.values)
     val shaders = remember { dependency(AgentWidgetShaderStore) }
     val density = LocalDensity.current.density
     val paused = LocalAgentWidgetPaused.current
-    var failure by remember(node.wgsl) { mutableStateOf<String?>(null) }
-    var fragment by remember(node.wgsl) { mutableStateOf<AgentWidgetShaderCode?>(null) }
+    var failure by remember(wgsl) { mutableStateOf<String?>(null) }
+    var fragment by remember(wgsl) { mutableStateOf<AgentWidgetShaderCode?>(null) }
     var vertex by remember { mutableStateOf<AgentWidgetShaderCode?>(null) }
     var ready by remember { mutableStateOf(false) }
     var stopped by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(node.wgsl) {
+    LaunchedEffect(wgsl) {
         try {
-            val stages = shaders.stages(node.wgsl)
+            val stages = shaders.stages(wgsl)
             vertex = stages.vertex
             fragment = stages.fragment
         } catch (error: CancellationException) {
@@ -111,16 +113,16 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
     LaunchedEffect(surface, fragment) { fragment?.let(surface::use) }
 
     val pointer = remember { FloatArray(3) }
-    val values by rememberUpdatedState(node.values)
+    val values by rememberUpdatedState(nodeValues)
     val start = remember { longArrayOf(0L) }
-    val valuesKey = if (node.fps == 0) node.values.contentHashCode() else 0
+    val valuesKey = if (node.fps == 0) nodeValues.contentHashCode() else 0
     LaunchedEffect(surface, ready, paused, stopped, visible, node.fps, valuesKey) {
         if (!ready || paused || stopped || !visible) return@LaunchedEffect
         val interval = if (node.fps > 0) 1_000_000_000L / node.fps else 0L
         var last = 0L
         while (true) {
             val now = withFrameNanos { it }
-            if (start[0] == 0L) start[0] = scope.controller?.startNanos("shader:${node.id}", now) ?: now
+            if (start[0] == 0L) start[0] = scope.controller?.startNanos("canvas:${node.id}", now) ?: now
             if (last != 0L && now - last < interval - 2_000_000L) continue
             val t = (now - start[0]) / 1e9f
             if (surface.render(t, density, pointer[0], pointer[1], pointer[2] > 0f, values)) last = now
@@ -177,7 +179,7 @@ fun AgentWidgetShader(node: AgentWidgetNode.Shader, scope: AgentWidgetScope, mod
 }
 
 @Composable
-private fun ShaderFallback(node: AgentWidgetNode.Shader, error: String, modifier: Modifier) {
+private fun ShaderFallback(node: AgentWidgetNode.Canvas, error: String, modifier: Modifier) {
     val colors = OpenCodeTheme.colors
     val poster = node.poster
     if (poster != null) {

@@ -88,6 +88,33 @@ class AgentWidgetTests {
         }
     }
 
+    /** widgets.md, Canvas: drawn one way; `wgsl` makes it a GPU canvas (fps 60 by default), `values` need `wgsl`. */
+    @Test
+    fun readsACanvasDrawnOneWay() {
+        fun canvas(props: String) = AgentWidgetStep.output("""{"state":{},"view":{"type":"canvas","height":120$props}}""").view as AgentWidgetNode.Canvas
+        val flat = canvas("")
+        assertTrue(!flat.gpu)
+        assertEquals(0, flat.fps)
+        assertNull(flat.values)
+        val gpu = canvas(""","id":"0/:sky","wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","values":[0.5,2],"poster":"sky.png","duration":3""")
+        assertTrue(gpu.gpu)
+        assertEquals(60, gpu.fps)
+        assertEquals(16, gpu.values?.size)
+        assertEquals(listOf(0.5f, 2f, 0f), gpu.values?.take(3))
+        assertEquals("sky.png", gpu.poster)
+        assertEquals(3f, gpu.duration)
+        assertEquals(0, canvas(""","wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","fps":0""").fps)
+        // Only values change: the same node apart from them.
+        assertTrue(gpu != canvas(""","id":"0/:sky","wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","values":[0.6,2],"poster":"sky.png","duration":3"""))
+        assertEquals(gpu, canvas(""","id":"0/:sky","wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","values":[0.5,2],"poster":"sky.png","duration":3"""))
+        for (props in listOf(""","values":[1]""", ""","wgsl":"${"x".repeat(AgentWidgetNode.MAX_WGSL_BYTES + 1)}"""")) {
+            val failure = runCatching { canvas(props) }.exceptionOrNull()
+            assertTrue(props.take(40), failure is AgentWidgetNode.InvalidView)
+        }
+        // The node type is gone.
+        assertTrue(runCatching { AgentWidgetStep.output("""{"state":{},"view":{"type":"shader","height":1,"wgsl":""}}""") }.exceptionOrNull() is AgentWidgetNode.InvalidView)
+    }
+
     // Draw commands
 
     private val palette = AgentWidgetDrawList.Palette(IntArray(AgentWidgetDrawList.Token.entries.size) { 0x10 + it })

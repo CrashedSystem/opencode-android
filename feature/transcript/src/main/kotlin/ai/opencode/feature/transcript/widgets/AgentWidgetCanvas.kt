@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
 /**
- * A `canvas` node: the widget template's `draw` runs on the widget's lane when the canvas appears or
+ * A 2D `canvas` node: the widget template's `draw` runs on the widget's lane when the canvas appears or
  * its state changes, then every frame while `fps > 0` (and `duration` hasn't run out) and the
  * row is on screen; frames come from `withFrameNanos`, so a hidden or stopped screen draws
  * nothing. Its commands are decoded into flat arrays and replayed on the native canvas. Three
@@ -181,7 +181,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
 }
 
 /**
- * A canvas's or shader's `pointer` events, when it has an [id]: `down`, `move` while down (at most every 16 ms) and
+ * A canvas's `pointer` events, when it has an [id]: `down`, `move` while down (at most every 16 ms) and
  * `up`, in logical px with its size. A vertical drag ends the press and scrolls the list. [track] gets the pointer
  * while down (null after).
  */

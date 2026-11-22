@@ -36,7 +36,7 @@ class AgentWidgetShaderStore(
     /** The node's stages, or throws why it can't run. */
     suspend fun stages(wgsl: String): AgentWidgetShaderStages {
         val bytes = wgsl.toByteArray()
-        if (bytes.size > AgentWidgetNode.MAX_SHADER_BYTES) throw AgentWidgetEngineException("The shader is ${bytes.size} bytes, over the 16 KB cap.")
+        if (bytes.size > AgentWidgetNode.MAX_WGSL_BYTES) throw AgentWidgetEngineException("The shader is ${bytes.size} bytes, over the 16 KB cap.")
         val key = hash(bytes)
         synchronized(memory) { memory[key] }?.let { return it.getOrThrow() }
         val result = withContext(Dispatchers.IO) {

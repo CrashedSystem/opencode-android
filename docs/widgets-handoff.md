@@ -17,12 +17,12 @@ tap to submit) and `backdrop` (GLES 3 shader, speed slider).
   compiles `program + "\nreturn __widget_step(__input())"` once and `run`s steps at 250 ms and draws at 8 ms
   (a draw timeout counts as an overrun). Everything else widget-shaped is the app's: step inputs, output
   parsing and validation, the 2,000-command cap, rendering.
-- Shader: `AgentWidgetEngine.translateShader(wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
+- Canvas GPU mode (a `canvas` with `wgsl`): `AgentWidgetEngine.translateShader(wgsl)` → vertex + fragment GLSL ES 3.00 with uniform block
   names. `NativeAgentWidgetEngine` wraps the node's WGSL in the spec's header and a GL entry that flips
   `frag.y`, then calls the runner's `translateWgsl` (feature `shader`). `AgentWidgetShaderStore` caches the
   result by sha256(target + wgsl) in memory and under `files/support/widget-shaders/`. `AgentWidgetGL` (one
   GL thread and context, programs cached by GLSL, 96-byte UBO bound to the reported blocks),
-  `AgentWidgetShader` (`TextureView` per node, `withFrameNanos`, pause off screen / list not resumed,
+  `AgentWidgetGPUCanvas` (`TextureView` per node, `withFrameNanos`, pause off screen / list not resumed,
   50 ms × 3 stop, poster/alt on failure).
 - Canvas: step and draw-list decode on the widget's lane, own program copy while animating,
   frames only while visible, `Budget` errors count toward the 3-overrun stop.
@@ -65,7 +65,7 @@ A widget is the `widget` tool call (`{ widgetTemplate, data, title?, wait? }`), 
 ## Full screen (`specs/v2/widgets-fullscreen.md`)
 
 - Offered (expand button, top right, always shown) while the widget is open and its root's
-  `fullscreen` is true, or absent and the view has a `canvas`/`shader` (`AgentWidgetController.offersFullscreen`).
+  `fullscreen` is true, or absent and the view has a `canvas`, a stack's included (`AgentWidgetController.offersFullscreen`).
 - `AgentWidgetStore.fullscreen` holds the one widget open full screen; `AgentWidgetFullscreenHost`
   (mounted in `TranscriptList`, outside the lazy list) shows it in a `Dialog`: status bar hidden,
   `SCREEN_ORIENTATION_FULL_USER` while open, a title bar with Close, swipe down (nested-scroll overscroll
