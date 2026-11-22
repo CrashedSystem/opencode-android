@@ -155,6 +155,25 @@ class AgentWidgetTests {
         assertTrue(AgentWidgetNode.drawsPixels(fixed))
     }
 
+    /**
+     * widgets-input.md: keyboard focus (its ring and the Esc hint) only with a reported hardware keyboard. A phone's or
+     * the emulator's built-in keyboard and the virtual one don't count; a USB or Bluetooth keyboard and a Chromebook do.
+     */
+    @Test
+    fun keyboardFocusNeedsAReportedHardwareKeyboard() {
+        val virtual = AgentWidgetHardwareKeyboard.Device(alphabetic = true, external = false, virtual = true)
+        val builtIn = AgentWidgetHardwareKeyboard.Device(alphabetic = true, external = false, virtual = false)
+        val buttons = AgentWidgetHardwareKeyboard.Device(alphabetic = false, external = false, virtual = false)
+        val usb = AgentWidgetHardwareKeyboard.Device(alphabetic = true, external = true, virtual = false)
+        val headset = AgentWidgetHardwareKeyboard.Device(alphabetic = false, external = true, virtual = false)
+        assertTrue(!AgentWidgetHardwareKeyboard.isAttached(reported = false, listOf(virtual, buttons), chromeOS = false))
+        assertTrue(!AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(virtual, buttons, builtIn), chromeOS = false))
+        assertTrue(!AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(virtual, headset), chromeOS = false))
+        assertTrue(AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(virtual, builtIn, usb), chromeOS = false))
+        assertTrue(AgentWidgetHardwareKeyboard.isAttached(reported = true, listOf(builtIn), chromeOS = true))
+        assertTrue(!AgentWidgetHardwareKeyboard.isAttached(reported = false, listOf(usb), chromeOS = true))
+    }
+
     // Draw commands
 
     private val palette = AgentWidgetDrawList.Palette(IntArray(AgentWidgetDrawList.Token.entries.size) { 0x10 + it })

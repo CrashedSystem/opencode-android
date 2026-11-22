@@ -1,6 +1,7 @@
 package ai.opencode.feature.transcript.widgets
 
 import android.content.res.Configuration
+import android.view.InputDevice
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -24,6 +25,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 
 /**
@@ -95,8 +97,19 @@ internal class AgentWidgetKeyboard(private val focusManager: FocusManager) {
 @Composable
 internal fun rememberAgentWidgetKeyboard(controller: AgentWidgetController?, enabled: Boolean): AgentWidgetKeyboard {
     val configuration = LocalConfiguration.current
-    val hardware = configuration.keyboard == Configuration.KEYBOARD_QWERTY &&
+    val context = LocalContext.current
+    val reported = configuration.keyboard == Configuration.KEYBOARD_QWERTY &&
         configuration.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO
+    // A keyboard attaching or detaching changes the configuration, so the devices are read again then.
+    val hardware = remember(reported) {
+        AgentWidgetHardwareKeyboard.isAttached(
+            reported,
+            InputDevice.getDeviceIds().toList().mapNotNull { id: Int -> InputDevice.getDevice(id) }.map { device: InputDevice ->
+                AgentWidgetHardwareKeyboard.Device(device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC, device.isExternal, device.isVirtual)
+            },
+            chromeOS = context.packageManager.hasSystemFeature("org.chromium.arc"),
+        )
+    }
     val focusManager = LocalFocusManager.current
     val keyboard = remember(focusManager) { AgentWidgetKeyboard(focusManager) }
     keyboard.controller = controller
@@ -104,6 +117,18 @@ internal fun rememberAgentWidgetKeyboard(controller: AgentWidgetController?, ena
     LaunchedEffect(keyboard.active) { if (!keyboard.active) keyboard.release() }
     DisposableEffect(keyboard) { onDispose { keyboard.release() } }
     return keyboard
+}
+
+/**
+ * Whether a hardware keyboard is attached: the configuration reports one and it's an external alphabetic keyboard
+ * (USB, Bluetooth), or the device is a Chromebook, whose built-in keyboard is real. The emulator's built-in keyboard
+ * (the host's, passed through) doesn't count, so there widgets behave as on a phone without one: no focus on taps.
+ */
+internal object AgentWidgetHardwareKeyboard {
+    data class Device(val alphabetic: Boolean, val external: Boolean, val virtual: Boolean)
+
+    fun isAttached(reported: Boolean, devices: List<Device>, chromeOS: Boolean): Boolean =
+        reported && (chromeOS || devices.any { it.alphabetic && it.external && !it.virtual })
 }
 
 /** Android keys as DOM `KeyboardEvent` `key` and `code`. */
