@@ -82,9 +82,10 @@ fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, 
 
     val width = node.width
     val fullscreen = LocalAgentWidgetFullscreen.current
+    val grows = fullscreen && LocalAgentWidgetGrows.current && node.fill
     val size = modifier
         .then(if (width != null) Modifier.width(width.dp) else Modifier.fillMaxWidth())
-        .then(if (fullscreen && node.fill) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
+        .then(if (grows) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
         .clip(OpenCodeShape.control)
     val error = failure
     if (error != null) {

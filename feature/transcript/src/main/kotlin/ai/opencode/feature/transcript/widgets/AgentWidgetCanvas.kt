@@ -94,6 +94,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     var visible by remember { mutableStateOf(false) }
 
     val fullscreen = LocalAgentWidgetFullscreen.current
+    val grows = fullscreen && LocalAgentWidgetGrows.current && node.fill
     // Live mode: the program posts this canvas's commands; it draws the latest and reports its size and pointer.
     val liveMode = controller?.isLiveMode == true
     val liveKey = node.id ?: ""
@@ -158,7 +159,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     Canvas(
         modifier
             .then(if (width != null) Modifier.width(width.dp) else Modifier.fillMaxWidth())
-            .then(if (fullscreen && node.fill) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
+            .then(if (grows) Modifier.heightIn(min = node.height.dp).fillMaxHeight() else Modifier.height(node.height.dp))
             .clip(OpenCodeShape.control)
             .onSizeChanged {
                 state.size = it

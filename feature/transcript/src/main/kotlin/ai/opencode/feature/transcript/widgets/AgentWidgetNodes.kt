@@ -113,6 +113,7 @@ fun AgentWidgetNodeView(node: AgentWidgetNode, scope: AgentWidgetScope, modifier
         is AgentWidgetNode.Select -> SelectNode(node, scope, modifier)
         is AgentWidgetNode.Input -> InputNode(node, scope, modifier)
         AgentWidgetNode.Divider -> HorizontalDivider(modifier, thickness = 1.dp, color = OpenCodeTheme.colors.border)
+        is AgentWidgetNode.Stack -> AgentWidgetStack(node, scope, modifier, path)
         is AgentWidgetNode.Canvas -> if (node.gpu) AgentWidgetGPUCanvas(node, scope, modifier) else AgentWidgetCanvas(node, scope, modifier)
     }
 }
@@ -126,7 +127,7 @@ private fun ColumnNode(node: AgentWidgetNode.Column, scope: AgentWidgetScope, mo
     }
     val child = if (node.align == Align.Stretch) Modifier.fillMaxWidth() else Modifier
     // Full screen, the branch holding a `fill` canvas takes the height left.
-    val fills = LocalAgentWidgetFullscreen.current && AgentWidgetNode.fills(node)
+    val fills = LocalAgentWidgetFullscreen.current && LocalAgentWidgetGrows.current && AgentWidgetNode.fills(node)
     Column(if (fills) modifier.fillMaxHeight() else modifier, verticalArrangement = Arrangement.spacedBy(gap(node.gap)), horizontalAlignment = alignment) {
         node.children.forEachIndexed { index, it ->
             AgentWidgetNodeView(it, scope, if (fills && AgentWidgetNode.fills(it)) child.weight(1f) else child, "$path.$index")
@@ -173,7 +174,7 @@ private fun RowNode(node: AgentWidgetNode.Row, scope: AgentWidgetScope, modifier
         Row(modifier, horizontalArrangement = Arrangement.spacedBy(spacing), verticalAlignment = vertical) {
             node.children.forEachIndexed { index, it ->
                 val grows = it is AgentWidgetNode.Input || it is AgentWidgetNode.Slider || it is AgentWidgetNode.Select ||
-                    it is AgentWidgetNode.Column || it is AgentWidgetNode.Canvas
+                    it is AgentWidgetNode.Column || it is AgentWidgetNode.Canvas || it is AgentWidgetNode.Stack
                 AgentWidgetNodeView(it, scope, if (grows) Modifier.weight(1f) else Modifier, "$path.$index")
             }
         }

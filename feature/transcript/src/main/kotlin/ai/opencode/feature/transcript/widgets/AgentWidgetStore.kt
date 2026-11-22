@@ -86,6 +86,9 @@ class AgentWidgetFullscreen(val controller: AgentWidgetController, val title: St
 /** True inside a full-screen widget: `fill` canvases grow, frames say `fullscreen: true`. */
 val LocalAgentWidgetFullscreen = staticCompositionLocalOf { false }
 
+/** False inside a stack's children: there only the stack grows in full screen, and its `fill` children with it. */
+internal val LocalAgentWidgetGrows = staticCompositionLocalOf { true }
+
 /** True while the list isn't on screen (its lifecycle is below resumed): shaders stop rendering. */
 val LocalAgentWidgetPaused = androidx.compose.runtime.compositionLocalOf { false }
 

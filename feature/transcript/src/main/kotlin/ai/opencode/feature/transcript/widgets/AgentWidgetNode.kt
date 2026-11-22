@@ -62,6 +62,20 @@ sealed interface AgentWidgetNode {
         override fun hashCode(): Int = ((wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()) * 31 + id.hashCode()
     }
 
+    /** Children layered in one box, the first at the bottom, each placed by its [layers] entry. */
+    data class Stack(override val children: List<AgentWidgetNode>, val layers: List<Layer>) : AgentWidgetNode
+
+    /** Where a stack's child sits in the box, as fractions of the free space ([Fill] takes the whole area). */
+    enum class Place(val x: Float, val y: Float) {
+        TopLeft(0f, 0f), Top(0.5f, 0f), TopRight(1f, 0f),
+        Left(0f, 0.5f), Center(0.5f, 0.5f), Right(1f, 0.5f),
+        BottomLeft(0f, 1f), Bottom(0.5f, 1f), BottomRight(1f, 1f),
+        Fill(0f, 0f),
+    }
+
+    /** A stack child's `place` and `inset` (logical px per side): its area is the stack's box minus the inset. */
+    data class Layer(val place: Place = Place.TopLeft, val top: Float = 0f, val right: Float = 0f, val bottom: Float = 0f, val left: Float = 0f)
+
     val children: List<AgentWidgetNode> get() = emptyList()
 
     companion object {
@@ -76,9 +90,24 @@ sealed interface AgentWidgetNode {
         fun drawsPixels(node: AgentWidgetNode): Boolean =
             node is Canvas || node.children.any(::drawsPixels)
 
-        /** Whether [node] or one under it is a `canvas` that grows to fill the height in full screen (unless `fill: false`). */
-        fun fills(node: AgentWidgetNode): Boolean =
-            (node is Canvas && node.fill) || node.children.any(::fills)
+        /**
+         * Whether [node] or one under it grows to fill the height in full screen: a `canvas` (unless `fill: false`), or a
+         * stack with such a canvas among its children.
+         */
+        fun fills(node: AgentWidgetNode): Boolean = when (node) {
+            is Canvas -> node.fill
+            is Stack -> node.children.any { it is Canvas && it.fill }
+            else -> node.children.any(::fills)
+        }
+
+        /** Whether [node] takes pointer input in a stack: an interactive node, or a container through one under it. */
+        fun takesPointer(node: AgentWidgetNode): Boolean = when (node) {
+            is Button, is Checkbox, is Slider, is Select, is Input -> true
+            is Card -> node.id != null || node.children.any(::takesPointer)
+            is Carousel -> node.id != null || node.children.any(::takesPointer)
+            is Canvas -> node.id != null
+            else -> node.children.any(::takesPointer)
+        }
 
         /** Visits [node] and every node under it, depth first. */
         fun walk(node: AgentWidgetNode, visit: (AgentWidgetNode) -> Unit) {
@@ -118,6 +147,11 @@ sealed interface AgentWidgetNode {
                 }
                 "input" -> Input(o.required(type, "id"), o.string("label"), o.required(type, "value"), o.string("placeholder"), o.bool("multiline"))
                 "divider" -> Divider
+                "stack" -> {
+                    val raws = ArrayList<JsonObject>()
+                    val children = o.children(raws)
+                    Stack(children, raws.map { it.layer() })
+                }
                 "canvas" -> {
                     val wgsl = o.string("wgsl")
                     if (wgsl != null && wgsl.encodeToByteArray().size > MAX_WGSL_BYTES) throw InvalidView("invalid view: a canvas's wgsl must be at most 16 KB")
@@ -145,25 +179,38 @@ sealed interface AgentWidgetNode {
             }
         }
 
-        private fun JsonObject.children(): List<AgentWidgetNode> {
+        /** The children, and into [raws] (when given) each kept child's own object. */
+        private fun JsonObject.children(raws: MutableList<JsonObject>? = null): List<AgentWidgetNode> {
             val raw = this["children"] ?: return emptyList()
             if (raw is JsonNull) return emptyList()
             val list = raw as? JsonArray ?: throw InvalidView("invalid view: children must be an array")
             val out = ArrayList<AgentWidgetNode>(list.size)
-            flatten(list, out)
+            flatten(list, out, raws)
             return out
         }
 
         /** Nested arrays flatten; `null` and `false` (a `cond && node` that didn't hold) drop out. */
-        private fun flatten(list: JsonArray, out: MutableList<AgentWidgetNode>) {
+        private fun flatten(list: JsonArray, out: MutableList<AgentWidgetNode>, raws: MutableList<JsonObject>?) {
             for (element in list) {
                 when {
-                    element is JsonArray -> flatten(element, out)
+                    element is JsonArray -> flatten(element, out, raws)
                     element is JsonNull -> Unit
                     element is JsonPrimitive && !element.isString && element.booleanOrNull == false -> Unit
-                    else -> node(element)?.let(out::add)
+                    else -> node(element)?.let {
+                        out.add(it)
+                        raws?.add(element as JsonObject)
+                    }
                 }
             }
+        }
+
+        private fun JsonObject.layer(): Layer {
+            val place = string("place")?.replace("-", "")?.let { raw -> Place.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } } ?: Place.TopLeft
+            fun side(value: Double?) = value?.toFloat()?.coerceAtLeast(0f) ?: 0f
+            val all = number("inset")
+            if (all != null) return Layer(place, side(all), side(all), side(all), side(all))
+            val sides = this["inset"] as? JsonObject ?: return Layer(place)
+            return Layer(place, side(sides.number("top")), side(sides.number("right")), side(sides.number("bottom")), side(sides.number("left")))
         }
 
         private fun JsonObject.gap(): Int? = number("gap")?.toInt()?.coerceIn(0, 3)
