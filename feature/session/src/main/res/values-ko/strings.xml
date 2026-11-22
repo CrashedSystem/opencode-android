@@ -58,7 +58,7 @@
     <string name="session_unread">읽지 않음</string>
     <string name="session_mute">알림 끄기</string>
     <string name="session_muted">알림 꺼짐</string>
-    <string name="session_compact">콤팩트</string>
+    <string name="session_compact">압축</string>
     <string name="session_fork">분기</string>
     <string name="session_toggle_on_description">켜기</string>
     <string name="session_toggle_off_description">끄기</string>

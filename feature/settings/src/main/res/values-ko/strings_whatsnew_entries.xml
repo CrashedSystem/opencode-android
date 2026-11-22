@@ -160,7 +160,7 @@
 
     <!-- 2026-10-12-05-run-error-line -->
     <string name="settings_whatsnew_entry_run_error_line_title">실행이 실패했을 때</string>
-    <string name="settings_whatsnew_entry_run_error_line_summary">실행이 도중에 멈추면 쉬운 말로 이유를 알려 주고, 편집, 콤팩트, 모델 전환, 다시 시도 중 다음에 할 수 있는 동작을 제시해요.</string>
+    <string name="settings_whatsnew_entry_run_error_line_summary">실행이 도중에 멈추면 쉬운 말로 이유를 알려 주고, 편집, 압축, 모델 전환, 다시 시도 중 다음에 할 수 있는 동작을 제시해요.</string>
     <string name="settings_whatsnew_entry_run_error_line_detail_1">편집을 누르면 메시지가 실행 취소되고 입력란으로 돌아와 내용을 고칠 수 있어요.</string>
     <string name="settings_whatsnew_entry_run_error_line_detail_2">오류가 표시된 줄을 길게 누르면 전체 오류를 보고 복사할 수 있어요.</string>
     <string name="settings_whatsnew_entry_run_error_line_detail_3">에이전트가 자동으로 다시 시도할 때는 작업 중 표시에 다음 시도까지 남은 시간이 나와요.</string>
