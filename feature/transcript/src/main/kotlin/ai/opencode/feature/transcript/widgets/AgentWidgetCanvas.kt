@@ -110,7 +110,13 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
             val started = System.nanoTime()
             val decoded = state.buffers.update({ list ->
                 withContext(Dispatchers.Default) {
-                    runCatching { AgentWidgetDrawList.decode("{\"commands\":$commands}", palette, list) }.isSuccess
+                    try {
+                        AgentWidgetWire.draw(commands.message, commands.section, palette, list)
+                        true
+                    } catch (error: AgentWidgetWire.Malformed) {
+                        controller.clientError("draw", error.message ?: "malformed draw")
+                        false
+                    }
                 }
             }) { it }
             if (decoded) revision++
@@ -287,9 +293,15 @@ private class CanvasState {
         var decodeMicros = 0L
         val micros = try {
             buffers.update({ list ->
-                controller.draw(frame) { text ->
+                controller.draw(frame) { bytes ->
                     val started = System.nanoTime()
-                    decoded = runCatching { AgentWidgetDrawList.decode(text, palette, list) }.isSuccess
+                    decoded = try {
+                        AgentWidgetWire.drawOutput(bytes, palette, list)
+                        true
+                    } catch (error: AgentWidgetWire.Malformed) {
+                        controller.clientError("draw", error.message ?: "malformed draw")
+                        false
+                    }
                     decodeMicros = (System.nanoTime() - started) / 1_000
                 }
             }) { it != null && decoded } ?: return null

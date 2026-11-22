@@ -436,7 +436,7 @@ class AgentWidgetTests {
                     override fun stop() = stopped.set(true)
                 }
                 thread {
-                    listener.posted(listOf("""{"type":"submit","value":{"score":40}}"""))
+                    listener.posted(listOf(Wire().u8(1, 4).str("""{"score":40}""").build()))
                     listener.exited(AgentWidgetEngineException("main: Error: The program is waiting on a promise that can never settle: nothing else is running"))
                 }
                 return run
@@ -444,12 +444,13 @@ class AgentWidgetTests {
         }
         val events = object : AgentWidgetLiveDriver.Events {
             override fun rendered(view: AgentWidgetNode, fullscreen: Boolean?) = Unit
-            override fun drew(id: String, commandsJson: String) = Unit
+            override fun drew(draw: AgentWidgetWire.Post.Draw) = Unit
             override fun wantsFrame() = Unit
             override fun answered(response: OpenCodeWidgetResponse) { log += "answered ${(response as OpenCodeWidgetResponse.Submit).json}" }
             override fun sent(message: OpenCodeWidgetMessageValue) = Unit
             override fun failed(error: AgentWidgetEngineException) { log += "failed" }
             override fun reported(phase: String, message: String) = Unit
+            override fun malformed(message: String) = Unit
             override fun ended() { log += "ended" }
         }
         val driver = AgentWidgetLiveDriver(program, "{}", null, scope, events)

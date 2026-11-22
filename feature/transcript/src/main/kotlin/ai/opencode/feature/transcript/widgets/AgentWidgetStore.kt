@@ -325,7 +325,7 @@ class AgentWidgetController internal constructor(
         private set
 
     /** Each canvas's last posted commands (JSON array text), by canvas id. */
-    internal val liveDraws = mutableStateMapOf<String, String>()
+    internal val liveDraws = mutableStateMapOf<String, AgentWidgetWire.Post.Draw>()
 
     /** The program asked for one display frame. */
     var liveWantsFrame: Boolean = false
@@ -373,8 +373,8 @@ class AgentWidgetController internal constructor(
             }
         }
 
-        override fun drew(id: String, commandsJson: String) {
-            liveDraws[id] = commandsJson
+        override fun drew(draw: AgentWidgetWire.Post.Draw) {
+            liveDraws[draw.id] = draw
         }
 
         override fun wantsFrame() {
@@ -420,6 +420,8 @@ class AgentWidgetController internal constructor(
                 this@AgentWidgetController.phase = Phase.Failed(message, Status.Open)
             }
         }
+
+        override fun malformed(message: String) = clientError("post", message)
 
         override fun ended() = Unit
     }
@@ -523,15 +525,15 @@ class AgentWidgetController internal constructor(
      * One draw step for a canvas on this widget's lane, its output handed to [read] there too.
      * Returns the step's time in µs, or null when there's no program or state yet.
      */
-    suspend fun draw(frame: String, read: (String) -> Unit): Long? {
+    suspend fun draw(frame: String, read: (ByteArray) -> Unit): Long? {
         val program = program ?: return null
         val state = phase.state ?: return null
         val input = AgentWidgetStep.draw(data, state, frame)
         return lane.run {
             val started = System.nanoTime()
-            val text = program.draw(input)
+            val bytes = program.draw(input)
             val micros = (System.nanoTime() - started) / 1_000
-            read(text)
+            read(bytes)
             micros
         }
     }
@@ -583,12 +585,12 @@ class AgentWidgetController internal constructor(
                         lane.run {
                             runCatching {
                                 val started = System.nanoTime()
-                                val text = program.step(effect.input)
+                                val bytes = program.step(effect.input)
                                 val stepped = System.nanoTime()
-                                val output = AgentWidgetStep.output(text)
+                                val output = AgentWidgetWire.output(bytes)
                                 lastStepMicros = (stepped - started) / 1_000
                                 AppLog.perf.debug {
-                                    "Widget ${ref.name} step ${lastStepMicros} µs, decode ${(System.nanoTime() - stepped) / 1_000} µs, ${text.length} chars"
+                                    "Widget ${ref.name} step ${lastStepMicros} µs, decode ${(System.nanoTime() - stepped) / 1_000} µs, ${bytes.size} bytes"
                                 }
                                 output
                             }
@@ -598,6 +600,7 @@ class AgentWidgetController internal constructor(
                     result.exceptionOrNull()?.let { error ->
                         val phase = when {
                             error is AgentWidgetNode.InvalidView -> "view"
+                            (error as? AgentWidgetEngineException)?.isInvalidOutput == true -> "view"
                             effect.input.startsWith("{\"phase\":\"init\"") -> "init"
                             else -> "event"
                         }

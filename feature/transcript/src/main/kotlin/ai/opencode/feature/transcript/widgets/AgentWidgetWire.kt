@@ -36,9 +36,8 @@ internal object AgentWidgetWire {
 
     private const val VERSION = 1
     private const val STEP = 'S'.code
-    private const val DRAW_OUTPUT = 'D'.code
-    private const val RENDER = 1
-    private const val DRAW = 2
+    const val RENDER = 1
+    const val DRAW = 2
     private const val FRAME = 3
     private const val SUBMIT = 4
     private const val DISMISS = 5
@@ -116,6 +115,17 @@ internal object AgentWidgetWire {
         }
         c.end("the message")
         return post
+    }
+
+    /** A post's kind byte without reading the rest, or -1 when it isn't a version 1 message. */
+    fun kind(message: ByteArray): Int =
+        if (message.size >= 2 && message[0].toInt() == VERSION) message[1].toInt() and 0xff else -1
+
+    /** A `draw` post's canvas id without reading its commands, or null when it can't be read. */
+    fun drawId(message: ByteArray): String? = try {
+        Cursor(message, 2, message.size).str()
+    } catch (_: Malformed) {
+        null
     }
 
     private fun version(c: Cursor) {

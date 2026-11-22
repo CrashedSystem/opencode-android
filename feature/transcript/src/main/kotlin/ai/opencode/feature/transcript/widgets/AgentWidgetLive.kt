@@ -10,10 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * One open live widget's program (specs/v2/widgets-live.md): started when the widget first shows,
@@ -30,13 +26,15 @@ internal class AgentWidgetLiveDriver(
 ) {
     interface Events {
         fun rendered(view: AgentWidgetNode, fullscreen: Boolean?)
-        fun drew(id: String, commandsJson: String)
+        fun drew(draw: AgentWidgetWire.Post.Draw)
         fun wantsFrame()
         fun answered(response: OpenCodeWidgetResponse)
         fun sent(message: OpenCodeWidgetMessageValue)
         fun failed(error: AgentWidgetEngineException)
         /** A post that couldn't be used (an invalid view), or a fetch that failed: reported, the run goes on. */
         fun reported(phase: String, message: String)
+        /** A post that wasn't the format (a client error): dropped. */
+        fun malformed(message: String)
         /** `main` returned without an answer: the last view stays. */
         fun ended()
     }
@@ -115,8 +113,8 @@ internal class AgentWidgetLiveDriver(
         val current = ++generation
         paused = false
         val listener = object : AgentWidgetLiveListener {
-            override fun posted(messagesJson: List<String>) {
-                inbox.trySend(Batch(current, messagesJson))
+            override fun posted(messages: List<ByteArray>) {
+                inbox.trySend(Batch(current, messages))
             }
 
             override fun warned(message: String) {
@@ -150,7 +148,7 @@ internal class AgentWidgetLiveDriver(
     }
 
     private sealed interface Inbound { val generation: Int }
-    private class Batch(override val generation: Int, val messages: List<String>) : Inbound
+    private class Batch(override val generation: Int, val messages: List<ByteArray>) : Inbound
     private class Exit(override val generation: Int, val failure: AgentWidgetEngineException?) : Inbound
 
     /**
@@ -201,61 +199,50 @@ internal class AgentWidgetLiveDriver(
 
     /**
      * Posts in order: what to do with each on the main thread. When posts piled up, only the last `render` and each
-     * canvas's last `draw` are read; the rest keep their order.
+     * canvas's last `draw` are read; the rest keep their order. A post that isn't the format is dropped.
      */
-    private fun read(messages: List<String>): List<() -> Unit> {
-        val posts = messages.mapNotNull { runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
-        fun type(o: JsonObject) = (o["type"] as? JsonPrimitive)?.content
-        val lastRender = posts.indexOfLast { type(it) == "render" }
+    private fun read(messages: List<ByteArray>): List<() -> Unit> {
+        val kinds = messages.map(AgentWidgetWire::kind)
+        val lastRender = kinds.lastIndexOf(AgentWidgetWire.RENDER)
         val lastDraw = HashMap<String, Int>()
-        posts.forEachIndexed { index, o -> if (type(o) == "draw") (o["id"] as? JsonPrimitive)?.content?.let { lastDraw[it] = index } }
-        return posts.mapIndexedNotNull { index, o ->
-            when (type(o)) {
-                "render" -> if (index != lastRender) return@mapIndexedNotNull null
-                "draw" -> if (lastDraw[(o["id"] as? JsonPrimitive)?.content] != index) return@mapIndexedNotNull null
+        val ids = arrayOfNulls<String>(messages.size)
+        messages.forEachIndexed { index, m ->
+            if (kinds[index] == AgentWidgetWire.DRAW) AgentWidgetWire.drawId(m)?.let { ids[index] = it; lastDraw[it] = index }
+        }
+        return messages.mapIndexedNotNull { index, m ->
+            when (kinds[index]) {
+                AgentWidgetWire.RENDER -> if (index != lastRender) return@mapIndexedNotNull null
+                AgentWidgetWire.DRAW -> if (ids[index] != null && lastDraw[ids[index]] != index) return@mapIndexedNotNull null
             }
-            read(o)
+            read(m)
         }
     }
 
     /** One post: what to do with it on the main thread, or null to drop it. */
-    private fun read(o: JsonObject): (() -> Unit)? {
-        return when ((o["type"] as? JsonPrimitive)?.content) {
-            "render" -> {
-                val node = o["node"] ?: return null
-                val view = try {
-                    AgentWidgetNode.parse(node)
-                } catch (error: AgentWidgetNode.InvalidView) {
-                    AppLog.app.notice { "Live widget render dropped: ${error.message}" }
-                    val message = error.message ?: "invalid view"
-                    return { events.reported("view", message) }
-                }
-                val fullscreen = ((node as? JsonObject)?.get("fullscreen") as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toBooleanStrictOrNull()
-                ({ events.rendered(view, fullscreen) })
-            }
-            "draw" -> {
-                val id = (o["id"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
-                val commands = o["commands"]?.toString() ?: return null
-                ({ events.drew(id, commands) })
-            }
-            "frame" -> ({ events.wantsFrame() })
-            "submit" -> {
-                val value = (o["value"] ?: JsonNull).toString()
-                ({ answered(OpenCodeWidgetResponse.Submit(value)) })
-            }
-            "dismiss" -> ({ answered(OpenCodeWidgetResponse.Dismiss) })
-            "send" -> {
-                val value = (o["value"] ?: JsonNull).toString()
-                val wake = (o["wake"] as? JsonPrimitive)?.content != "false"
-                ({ events.sent(OpenCodeWidgetMessageValue(value, wake)) })
-            }
-            else -> null
+    private fun read(message: ByteArray): (() -> Unit)? {
+        val post = try {
+            AgentWidgetWire.post(message)
+        } catch (error: AgentWidgetWire.Malformed) {
+            val text = error.message ?: "malformed post"
+            return { events.malformed(text) }
+        } catch (error: AgentWidgetNode.InvalidView) {
+            AppLog.app.notice { "Live widget render dropped: ${error.message}" }
+            val text = error.message ?: "invalid view"
+            return { events.reported("view", text) }
+        }
+        return when (post) {
+            is AgentWidgetWire.Post.Render -> ({ events.rendered(post.view, post.fullscreen) })
+            is AgentWidgetWire.Post.Draw -> ({ events.drew(post) })
+            AgentWidgetWire.Post.Frame -> ({ events.wantsFrame() })
+            is AgentWidgetWire.Post.Submit -> ({ answered(OpenCodeWidgetResponse.Submit(post.value)) })
+            AgentWidgetWire.Post.Dismiss -> ({ answered(OpenCodeWidgetResponse.Dismiss) })
+            is AgentWidgetWire.Post.Send -> ({ events.sent(OpenCodeWidgetMessageValue(post.value, post.wake)) })
+            is AgentWidgetWire.Post.Capture, AgentWidgetWire.Post.Gpu -> null
         }
     }
 
     private companion object {
         const val SNAPSHOT_AFTER_MILLIS = 30_000L
-        val json = Json { ignoreUnknownKeys = true }
     }
 }
 

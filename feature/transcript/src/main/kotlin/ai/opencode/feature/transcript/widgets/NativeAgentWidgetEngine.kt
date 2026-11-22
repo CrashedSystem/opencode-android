@@ -11,6 +11,7 @@ import com.anomalyco.psychoscript.RunOptions
 import com.anomalyco.psychoscript.ShaderException
 import com.anomalyco.psychoscript.ShaderStage
 import com.anomalyco.psychoscript.ShaderTarget
+import com.anomalyco.psychoscript.ValueEncoder
 import com.anomalyco.psychoscript.translateWgsl
 
 /**
@@ -37,14 +38,14 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     override fun compile(program: String): AgentWidgetProgram {
         val compiled = mapping { Program(program + ENTRY) }
         return object : AgentWidgetProgram {
-            override fun step(input: String): String = mapping { compiled.run(input, STEP) }
-            override fun draw(input: String): String = mapping(draw = true) { compiled.run(input, DRAW) }
+            override fun step(input: String): ByteArray = mapping { compiled.runBytes(input, encoder, STEP) }
+            override fun draw(input: String): ByteArray = mapping(draw = true) { compiled.runBytes(input, encoder, DRAW) }
             override fun close() = compiled.close()
             override fun session(fieldsJson: String): AgentWidgetProgram {
                 val session = mapping { compiled.session(fieldsJson) }
                 return object : AgentWidgetProgram {
-                    override fun step(input: String): String = mapping { session.run(input, STEP) }
-                    override fun draw(input: String): String = mapping(draw = true) { session.run(input, DRAW) }
+                    override fun step(input: String): ByteArray = mapping { session.runBytes(input, encoder, STEP) }
+                    override fun draw(input: String): ByteArray = mapping(draw = true) { session.runBytes(input, encoder, DRAW) }
                     override fun close() = session.close()
                 }
             }
@@ -56,8 +57,8 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
         return object : AgentWidgetLiveProgram {
             override fun start(inputJson: String, listener: AgentWidgetLiveListener, httpsHosts: List<String>?): AgentWidgetLiveRun {
                 val handler = object : LiveHandler {
-                    override fun onPosts(messagesJson: List<String>) = listener.posted(messagesJson)
-                    override fun onPostsBytes(messages: List<ByteArray>) = Unit
+                    override fun onPosts(messagesJson: List<String>) = Unit
+                    override fun onPostsBytes(messages: List<ByteArray>) = listener.posted(messages)
                     override fun onWarning(message: String) = listener.warned(message)
                     override fun onExit(exit: LiveExit) = listener.exited((exit as? LiveExit.Failed)?.error?.let { mapped(it, draw = false) })
                 }
@@ -69,7 +70,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
                     maxHeapBytes = HEAP_BYTES,
                 )
                 val transport = if (httpsHosts.isNullOrEmpty()) null else AgentWidgetFetchTransport(listener::fetchFailed)
-                val live = mapping { compiled.startLive(inputJson, handler, options, transport) }
+                val live = mapping { compiled.startLive(inputJson, handler, options, transport, encoder) }
                 return NativeLiveRun(live)
             }
 
@@ -144,6 +145,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             else -> null to null
         }
         val client = error is PsychoScriptException.Snapshot || error is PsychoScriptException.InvalidState || error is PsychoScriptException.InvalidInput
+        val invalidOutput = error is PsychoScriptException.Runtime && error.kind == "InvalidDataValue"
         return AgentWidgetEngineException(
             reason(error),
             isTimeout = timeout && !draw,
@@ -151,6 +153,7 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
             line = line?.toInt(),
             column = column?.toInt(),
             isProgramError = !client,
+            isInvalidOutput = invalidOutput,
         )
     }
 
@@ -167,7 +170,9 @@ internal object NativeAgentWidgetEngine : AgentWidgetEngine {
     }
 
     private const val HEAP_BYTES: ULong = 33_554_432uL
-    private const val ENTRY = "\nreturn __widget_step(__input())"
+    /** Writes the binary format: steps hand their output to its global, live posts go through it. */
+    private val encoder: ValueEncoder by lazy { ValueEncoder.widget() }
+    private val ENTRY: String by lazy { "\n${encoder.emitName()}(__widget_step(__input()))" }
     private const val LIVE_ENTRY = "\nreturn await __widget_live(__input())"
     internal val STEP = RunOptions(timeoutMs = 250uL, maxOutputBytes = 4uL * 1024uL * 1024uL, maxHeapBytes = HEAP_BYTES)
     internal val DRAW = RunOptions(timeoutMs = 8uL, maxOutputBytes = 1024uL * 1024uL, maxHeapBytes = HEAP_BYTES)

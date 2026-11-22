@@ -4,8 +4,9 @@ import ai.opencode.core.dependencies.DependencyKey
 
 /**
  * Runs widget programs on the Rust PsychoScript (`psychoscript-mobile`). A program compiles once
- * per widget template version; each step takes the step input's JSON and returns the step output's (or
- * a draw step's `{ commands }`). Every call throws [AgentWidgetEngineException] when it fails.
+ * per widget template version; each step takes the step input's JSON and returns the step output (or
+ * a draw step's `{ commands }`) in the binary format ([AgentWidgetWire]). Every call throws
+ * [AgentWidgetEngineException] when it fails.
  */
 interface AgentWidgetEngine {
     val isAvailable: Boolean
@@ -34,11 +35,11 @@ interface AgentWidgetEngine {
 }
 
 fun interface AgentWidgetProgram : AutoCloseable {
-    /** An `init` or `event` step (250 ms). */
-    fun step(input: String): String
+    /** An `init` or `event` step (250 ms): its output as `01 'S'` bytes. */
+    fun step(input: String): ByteArray
 
-    /** A draw step (8 ms; over it fails with `isBudget`). */
-    fun draw(input: String): String = step(input)
+    /** A draw step (8 ms; over it fails with `isBudget`): `01 'D'` bytes. */
+    fun draw(input: String): ByteArray = step(input)
 
     /** Frees the interpreter now rather than when the collector gets to it. */
     override fun close() = Unit
@@ -55,8 +56,8 @@ fun interface AgentWidgetProgram : AutoCloseable {
             return if (rest.trimStart().startsWith("}")) "$head}" else "$head,$rest"
         }
         return object : AgentWidgetProgram {
-            override fun step(input: String): String = base.step(merged(input))
-            override fun draw(input: String): String = base.draw(merged(input))
+            override fun step(input: String): ByteArray = base.step(merged(input))
+            override fun draw(input: String): ByteArray = base.draw(merged(input))
         }
     }
 }
@@ -74,6 +75,8 @@ class AgentWidgetEngineException(
     val line: Int? = null,
     val column: Int? = null,
     val isProgramError: Boolean = true,
+    /** The output was a value the binary format can't hold (an invalid view or draw): the program's error. */
+    val isInvalidOutput: Boolean = false,
 ) : Exception(message)
 
 /** The runtime's message without the position it appends, "(line N, col M)", which counts the prelude's lines. */
@@ -116,8 +119,8 @@ interface AgentWidgetLiveRun {
 
 /** What a live run tells its widget, on the run's own thread: hand it to the main thread and return. */
 interface AgentWidgetLiveListener {
-    /** A wake-up's posts, in order. Called on the run's thread: hand them off and return at once. */
-    fun posted(messagesJson: List<String>)
+    /** A wake-up's posts, in order, in the binary format. Called on the run's thread: hand them off and return at once. */
+    fun posted(messages: List<ByteArray>)
     fun warned(message: String)
     /** It ended: [failure] null when `main` returned or the run was stopped. */
     fun exited(failure: AgentWidgetEngineException?)
