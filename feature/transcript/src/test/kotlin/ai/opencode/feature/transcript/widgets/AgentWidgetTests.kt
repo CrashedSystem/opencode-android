@@ -192,6 +192,196 @@ class AgentWidgetTests {
         }
     }
 
+    // Binary format (specs/v2/widgets-binary.md)
+
+    private fun fixture(name: String): ByteArray =
+        java.util.zip.GZIPInputStream(checkNotNull(javaClass.getResourceAsStream("/widget-wire/$name.gz")) { name }).use { it.readBytes() }
+
+    private val stepWorkloads = listOf("suggestions", "form", "table-50", "table-200", "shader-view", "grid-200-view", "draw-chart", "draw-scatter", "draw-heatmap")
+    private val liveWorkloads = listOf("live-shader", "live-table-50", "live-grid-200", "live-minigame", "live-canvas-heavy")
+
+    private fun posts(name: String): List<ByteArray> {
+        val b = fixture("$name.posts.bin")
+        val out = ArrayList<ByteArray>()
+        var at = 0
+        while (at < b.size) {
+            val n = (b[at].toInt() and 0xff) or ((b[at + 1].toInt() and 0xff) shl 8) or ((b[at + 2].toInt() and 0xff) shl 16) or ((b[at + 3].toInt() and 0xff) shl 24)
+            out += b.copyOfRange(at + 4, at + 4 + n)
+            at += 4 + n
+        }
+        return out
+    }
+
+    private fun assertSameDrawing(name: String, a: AgentWidgetDrawList, b: AgentWidgetDrawList) {
+        assertEquals(name, a.commandCount, b.commandCount)
+        assertEquals(name, a.ints.copyOf(a.intCount).toList(), b.ints.copyOf(b.intCount).toList())
+        assertEquals(name, a.floats.copyOf(a.floatCount).map { it.toRawBits() }, b.floats.copyOf(b.floatCount).map { it.toRawBits() })
+        assertEquals(name, a.strings, b.strings)
+    }
+
+    /**
+     * The committed workloads (psychoscript-mobile 6d49474) decode from the bytes its encoder wrote to the same values
+     * the JSON form gives: every node and prop, step field, draw stream and live post.
+     */
+    @Test
+    fun binaryWorkloadsDecodeAsTheirJson() {
+        val json = Json { ignoreUnknownKeys = true }
+        for (name in stepWorkloads) {
+            val text = fixture("$name.json").decodeToString()
+            val bytes = fixture("$name.bin")
+            if (name.startsWith("draw-")) {
+                val a = AgentWidgetDrawList().also { AgentWidgetDrawList.decode(text, palette, it) }
+                val b = AgentWidgetDrawList().also { AgentWidgetWire.drawOutput(bytes, palette, it) }
+                assertTrue(name, a.commandCount > 0)
+                assertSameDrawing(name, a, b)
+            } else {
+                val a = AgentWidgetStep.output(text)
+                val b = AgentWidgetWire.output(bytes)
+                assertEquals(name, a.view, b.view)
+                assertEquals(name, json.parseToJsonElement(a.state), json.parseToJsonElement(b.state))
+                assertEquals(name, a.response, b.response)
+                assertEquals(name, a.message, b.message)
+                assertEquals(name, a.fullscreen, b.fullscreen)
+            }
+        }
+        for (name in liveWorkloads) {
+            val texts = (json.parseToJsonElement(fixture("$name.posts.json").decodeToString()) as kotlinx.serialization.json.JsonArray)
+                .map { it as kotlinx.serialization.json.JsonObject }
+            val bytes = posts(name)
+            assertEquals(name, texts.size, bytes.size)
+            texts.zip(bytes).forEachIndexed { i, (o, b) ->
+                val at = "$name post $i"
+                when (val post = AgentWidgetWire.post(b)) {
+                    is AgentWidgetWire.Post.Render -> assertEquals(at, AgentWidgetNode.parse(o.getValue("node")), post.view)
+                    is AgentWidgetWire.Post.Draw -> {
+                        assertEquals(at, (o.getValue("id") as kotlinx.serialization.json.JsonPrimitive).content, post.id)
+                        val a = AgentWidgetDrawList().also { AgentWidgetDrawList.decode("{\"commands\":${o.getValue("commands")}}", palette, it) }
+                        val d = AgentWidgetDrawList().also { AgentWidgetWire.draw(post.message, post.section, palette, it) }
+                        assertSameDrawing(at, a, d)
+                    }
+                    AgentWidgetWire.Post.Frame -> assertEquals(at, "\"frame\"", o.getValue("type").toString())
+                    else -> throw AssertionError("$at: $post")
+                }
+            }
+        }
+    }
+
+    /** Decodes [bytes] the way the app reads them: a step or draw output, or a live post (a draw's commands too). */
+    private fun decodeAny(bytes: ByteArray, post: Boolean) {
+        if (post) {
+            val p = AgentWidgetWire.post(bytes)
+            if (p is AgentWidgetWire.Post.Draw) AgentWidgetWire.draw(p.message, p.section, palette, AgentWidgetDrawList())
+        } else if (bytes.size > 1 && bytes[1] == 'D'.code.toByte()) {
+            AgentWidgetWire.drawOutput(bytes, palette, AgentWidgetDrawList())
+        } else {
+            AgentWidgetWire.output(bytes)
+        }
+    }
+
+    /**
+     * Malformed bytes are a client error and nothing else: every truncation of each workload message fails as
+     * [AgentWidgetWire.Malformed], and random corruptions either decode or fail as malformed or as an invalid view
+     * (a corrupted but well-formed message), never with another exception.
+     */
+    @Test
+    fun malformedBytesAreAClientErrorUnderFuzzing() {
+        val random = java.util.Random(0x51DE)
+        val messages = stepWorkloads.map { fixture("$it.bin") to false } + liveWorkloads.flatMap { name -> posts(name).map { it to true } }
+        var corrupted = 0
+        for ((bytes, post) in messages) {
+            decodeAny(bytes, post)
+            val cuts = if (bytes.size <= 4096) (0 until bytes.size).toList() else (0 until 256).toList() + (256 until bytes.size step bytes.size / 1500)
+            for (n in cuts) {
+                val failure = runCatching { decodeAny(bytes.copyOf(n), post) }.exceptionOrNull()
+                assertTrue("a ${bytes.size}-byte message cut to $n: $failure", failure is AgentWidgetWire.Malformed)
+            }
+            repeat(if (bytes.size > 50_000) 60 else 250) {
+                val copy = bytes.copyOf()
+                repeat(1 + random.nextInt(3)) { copy[random.nextInt(copy.size)] = random.nextInt(256).toByte() }
+                val failure = runCatching { decodeAny(copy, post) }.exceptionOrNull()
+                if (failure != null) corrupted++
+                assertTrue("a corrupted message: $failure", failure == null || failure is AgentWidgetWire.Malformed || failure is AgentWidgetNode.InvalidView)
+            }
+        }
+        assertTrue(corrupted > 0)
+    }
+
+    /** A message written by hand: `01`, then [body]. */
+    private class Wire {
+        val out = java.io.ByteArrayOutputStream()
+        fun u8(vararg v: Int) = apply { v.forEach { out.write(it) } }
+        fun varint(v: Long) = apply {
+            var x = v
+            while (x >= 0x80) { out.write(((x and 0x7f) or 0x80).toInt()); x = x ushr 7 }
+            out.write(x.toInt())
+        }
+        fun str(s: String) = apply { val b = s.encodeToByteArray(); varint(b.size.toLong()); out.write(b) }
+        fun u32(v: Long) = apply { for (i in 0 until 4) out.write(((v ushr (8 * i)) and 0xff).toInt()) }
+        fun bytes(b: ByteArray) = apply { out.write(b) }
+        fun build(): ByteArray = out.toByteArray()
+
+        companion object {
+            /** Section N from its ints (varints), floats and strings. */
+            fun view(ints: List<Long>, floats: List<Double> = emptyList(), strs: List<String> = emptyList()): ByteArray {
+                val i = Wire().apply { ints.forEach { varint(it) } }.build()
+                val f = Wire().apply { floats.forEach { val bits = it.toRawBits(); for (k in 0 until 8) u8(((bits ushr (8 * k)) and 0xff).toInt()) } }.build()
+                val s = Wire().apply { strs.forEach { str(it) } }.build()
+                return Wire().u8('N'.code).varint(i.size.toLong()).varint(f.size.toLong()).varint(s.size.toLong()).bytes(i).bytes(f).bytes(s).build()
+            }
+
+            fun step(view: ByteArray, flags: Int = 0, state: String = "{}") = Wire().u8(1, 'S'.code, flags).str(state).bytes(view).build()
+        }
+    }
+
+    private fun tag(id: Int, kind: Int) = (id shl 3 or kind).toLong()
+
+    /** The format's edges: version, unknown props and types, GPU batches, flags, nesting and which error wins. */
+    @Test
+    fun binaryMessagesFollowTheFormatsRules() {
+        fun malformed(block: () -> Unit) = assertTrue(runCatching(block).exceptionOrNull() is AgentWidgetWire.Malformed)
+        fun invalid(block: () -> Unit) = assertTrue(runCatching(block).exceptionOrNull() is AgentWidgetNode.InvalidView)
+        // A text node with an unknown prop (id 60, a string): skipped by its kind.
+        val text = Wire.view(listOf(3, tag(4, 2), tag(60, 2), 0), strs = listOf("Hi", "later"))
+        assertEquals(AgentWidgetNode.Text("Hi", AgentWidgetNode.TextStyle.Body, AgentWidgetNode.Tone.Default), AgentWidgetWire.output(Wire.step(text)).view)
+        // Another version.
+        malformed { AgentWidgetWire.output(Wire.step(text).also { it[0] = 2 }) }
+        // A column holding an unknown type ("sparkle", dropped) and a typeless node (an invalid view).
+        val sparkle = Wire.view(listOf(1, 0, 2, 63, 0, 3, tag(4, 2), 0), strs = listOf("sparkle", "Hi"))
+        assertEquals(1, AgentWidgetWire.output(Wire.step(sparkle)).view.children.size)
+        invalid { AgentWidgetWire.output(Wire.step(Wire.view(listOf(1, 0, 1, 63, 0), strs = listOf("")))) }
+        invalid { AgentWidgetWire.output(Wire.step(Wire.view(listOf(63, 0), strs = listOf("sparkle")))) }
+        // A button without its label is invalid, but bytes left in a stream make the message malformed first.
+        val button = listOf(8L, tag(10, 2), 0)
+        invalid { AgentWidgetWire.output(Wire.step(Wire.view(button, strs = listOf("0/1")))) }
+        malformed { AgentWidgetWire.output(Wire.step(Wire.view(button + 0, strs = listOf("0/1")))) }
+        // A boolean is 0 or 1; a submit flag carries its JSON, which must be JSON.
+        malformed { AgentWidgetWire.output(Wire.step(Wire.view(listOf(2, tag(3, 0), 2, 0, 0)))) }
+        assertEquals(OpenCodeWidgetResponse.Submit("{\"ok\":true}"), AgentWidgetWire.output(Wire().u8(1, 'S'.code, 1).str("{}").str("{\"ok\":true}").bytes(text).build()).response)
+        malformed { AgentWidgetWire.output(Wire().u8(1, 'S'.code, 1).str("{}").str("{oops").bytes(text).build()) }
+        // A stack child's place and inset (the list form: top, right, bottom, left).
+        val stack = Wire.view(listOf(16, 0, 1, 13, tag(36, 0), 8, tag(37, 3), 4, 0), floats = listOf(1.0, 2.0, 3.0, 4.0))
+        assertEquals(
+            AgentWidgetNode.Layer(AgentWidgetNode.Place.BottomRight, 1f, 2f, 3f, 4f),
+            (AgentWidgetWire.output(Wire.step(stack)).view as AgentWidgetNode.Stack).layers.single(),
+        )
+        // Nesting past 100 levels.
+        val deep = (0..101).flatMap { listOf(1L, 0L, 1L) } + listOf(13L, 0L)
+        malformed { AgentWidgetWire.output(Wire.step(Wire.view(deep))) }
+        // GPU batches are the runtime's: a frame request with one is a frame request, one on its own is nothing.
+        fun gpu(bytes: Long) = Wire().u8('G'.code).u32(1).varint(0).u32(bytes).bytes(ByteArray(minOf(bytes, 16).toInt())).build()
+        assertEquals(AgentWidgetWire.Post.Frame, AgentWidgetWire.post(Wire().u8(1, 9).bytes(gpu(16)).build()))
+        assertEquals(AgentWidgetWire.Post.Gpu, AgentWidgetWire.post(Wire().u8(1, 10).bytes(gpu(16)).build()))
+        malformed { AgentWidgetWire.post(Wire().u8(1, 10).bytes(gpu(5L * 1024 * 1024)).build()) }
+        malformed { AgentWidgetWire.post(Wire().u8(1, 11).build()) }
+        // Send and capture.
+        val send = AgentWidgetWire.post(Wire().u8(1, 6, 0).str("[1,2]").build()) as AgentWidgetWire.Post.Send
+        assertEquals("[1,2]" to false, send.value to send.wake)
+        assertEquals(true, (AgentWidgetWire.post(Wire().u8(1, 7, 1).build()) as AgentWidgetWire.Post.Capture).on)
+        // A draw with an op outside the table, and one with too many commands.
+        malformed { AgentWidgetWire.drawOutput(Wire().u8(1, 'D'.code).u32(1).u32(1).u32(0).u32(0).u32(99).build(), palette, AgentWidgetDrawList()) }
+        malformed { AgentWidgetWire.drawOutput(Wire().u8(1, 'D'.code).u32(2001).u32(0).u32(0).u32(0).build(), palette, AgentWidgetDrawList()) }
+    }
+
     // Draw commands
 
     private val palette = AgentWidgetDrawList.Palette(IntArray(AgentWidgetDrawList.Token.entries.size) { 0x10 + it })

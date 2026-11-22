@@ -120,67 +120,77 @@ sealed interface AgentWidgetNode {
 
         private fun node(element: JsonElement): AgentWidgetNode? {
             val o = element as? JsonObject ?: throw InvalidView("invalid view: a node must be an object")
-            val type = o.string("type") ?: throw InvalidView("invalid view: a node needs a type")
-            return when (type) {
-                "column" -> Column(o.children(), o.gap(), o.enum("align", Align.Stretch))
-                "row" -> Row(o.children(), o.gap(), o.enum("align", Align.Start).let { if (it == Align.Stretch) Align.Start else it }, o.bool("wrap"))
-                "text" -> Text(o.required(type, "text"), o.enum("style", TextStyle.Body), o.enum("tone", Tone.Default))
-                "markdown" -> Markdown(o.required(type, "text"))
-                "image" -> Image(o.required(type, "src"), o.string("alt"), o.number("aspect")?.toFloat()?.takeIf { it > 0f && it.isFinite() })
-                "carousel" -> Carousel(o.string("id"), o.number("index")?.toInt(), o.children())
-                "card" -> Card(o.string("id"), o.bool("selected"), o.children())
-                "button" -> Button(o.required(type, "id"), o.required(type, "label"), o.enum("variant", Variant.Secondary), o.bool("disabled"))
-                "checkbox" -> Checkbox(o.required(type, "id"), o.required(type, "label"), o.requiredBool(type, "checked"), o.bool("disabled"))
-                "slider" -> {
-                    val min = o.requiredNumber(type, "min").toFloat()
-                    val max = o.requiredNumber(type, "max").toFloat()
-                    Slider(o.required(type, "id"), o.string("label"), o.requiredNumber(type, "value").toFloat(), min, maxOf(min, max), o.number("step")?.toFloat()?.takeIf { it > 0f })
-                }
-                "select" -> {
-                    val options = (o["options"] as? JsonArray ?: throw InvalidView("invalid view: select needs options")).map { option ->
-                        val p = option as? JsonObject ?: throw InvalidView("invalid view: a select option must be an object")
-                        Select.Option(p.required("option", "value"), p.required("option", "label"), p.string("description"))
-                    }
-                    val value = when (val raw = o["value"]) {
-                        is JsonPrimitive -> listOfNotNull(raw.takeIf { it.isString }?.content)
-                        is JsonArray -> raw.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
-                        else -> emptyList()
-                    }
-                    Select(o.required(type, "id"), o.string("label"), options, value, o.bool("multiple"))
-                }
-                "input" -> Input(o.required(type, "id"), o.string("label"), o.required(type, "value"), o.string("placeholder"), o.bool("multiline"))
-                "divider" -> Divider
-                "stack" -> {
-                    val raws = ArrayList<JsonObject>()
-                    val children = o.children(raws)
-                    Stack(children, raws.map { it.layer() })
-                }
-                "canvas" -> {
-                    val wgsl = o.string("wgsl")
-                    if (wgsl != null && wgsl.encodeToByteArray().size > MAX_WGSL_BYTES) throw InvalidView("invalid view: a canvas's wgsl must be at most 16 KB")
-                    val raw = o["values"]?.takeIf { it !is JsonNull }
-                    if (raw != null && wgsl == null) throw InvalidView("invalid view: canvas values need wgsl")
-                    val values = if (wgsl == null) null else FloatArray(16).also { values ->
-                        (raw as? JsonArray)?.take(16)?.forEachIndexed { index, value ->
-                            values[index] = (value as? JsonPrimitive)?.doubleOrNull?.toFloat() ?: 0f
-                        }
-                    }
-                    Canvas(
-                        o.string("id"),
-                        o.requiredNumber(type, "height").toFloat().coerceIn(1f, 2000f),
-                        o.number("width")?.toFloat()?.takeIf { it > 0f },
-                        (o.number("fps")?.toInt() ?: if (wgsl != null) MAX_FPS else 0).coerceIn(0, MAX_FPS),
-                        o.number("duration")?.toFloat()?.takeIf { it >= 0f },
-                        o.string("alt"),
-                        o.bool("fill", default = true),
-                        wgsl,
-                        values,
-                        o.string("poster"),
-                        o.bool("pointer"),
-                    )
-                }
-                else -> null
+            val fields = JsonFields(o)
+            val type = fields.string("type") ?: throw InvalidView("invalid view: a node needs a type")
+            if (type !in TYPES) return null
+            if (type == "stack") {
+                val raws = ArrayList<JsonObject>()
+                val children = o.children(raws)
+                return build(type, fields, children, raws.map { layer(JsonFields(it)) })
             }
+            return build(type, fields, if (type in CONTAINERS) o.children() else emptyList(), emptyList())
+        }
+
+        /** The node types this client knows; others are dropped from their parent. */
+        internal val TYPES = setOf(
+            "column", "row", "text", "markdown", "image", "carousel", "card", "button", "checkbox", "slider", "select",
+            "input", "divider", "canvas", "stack",
+        )
+        internal val CONTAINERS = setOf("column", "row", "carousel", "card", "stack")
+
+        /**
+         * A node of a known [type] from its props, however they were read (JSON, the binary format): every default,
+         * clamp and required prop is here, so both readers give the same node. A missing or mistyped required prop
+         * fails the view.
+         */
+        internal fun build(type: String, f: Fields, children: List<AgentWidgetNode>, layers: List<Layer>): AgentWidgetNode = when (type) {
+            "column" -> Column(children, f.gap(), f.enum("align", Align.Stretch))
+            "row" -> Row(children, f.gap(), f.enum("align", Align.Start).let { if (it == Align.Stretch) Align.Start else it }, f.bool("wrap"))
+            "text" -> Text(f.required(type, "text"), f.enum("style", TextStyle.Body), f.enum("tone", Tone.Default))
+            "markdown" -> Markdown(f.required(type, "text"))
+            "image" -> Image(f.required(type, "src"), f.string("alt"), f.number("aspect")?.toFloat()?.takeIf { it > 0f && it.isFinite() })
+            "carousel" -> Carousel(f.string("id"), f.number("index")?.toInt(), children)
+            "card" -> Card(f.string("id"), f.bool("selected"), children)
+            "button" -> Button(f.required(type, "id"), f.required(type, "label"), f.enum("variant", Variant.Secondary), f.bool("disabled"))
+            "checkbox" -> Checkbox(f.required(type, "id"), f.required(type, "label"), f.requiredBool(type, "checked"), f.bool("disabled"))
+            "slider" -> {
+                val min = f.requiredNumber(type, "min").toFloat()
+                val max = f.requiredNumber(type, "max").toFloat()
+                Slider(f.required(type, "id"), f.string("label"), f.requiredNumber(type, "value").toFloat(), min, maxOf(min, max), f.number("step")?.toFloat()?.takeIf { it > 0f })
+            }
+            "select" -> {
+                val options = f.options() ?: throw InvalidView("invalid view: select needs options")
+                Select(f.required(type, "id"), f.string("label"), options, f.strings("value"), f.bool("multiple"))
+            }
+            "input" -> Input(f.required(type, "id"), f.string("label"), f.required(type, "value"), f.string("placeholder"), f.bool("multiline"))
+            "divider" -> Divider
+            "stack" -> Stack(children, layers)
+            "canvas" -> {
+                val wgsl = f.string("wgsl")
+                if (wgsl != null && wgsl.encodeToByteArray().size > MAX_WGSL_BYTES) throw InvalidView("invalid view: a canvas's wgsl must be at most 16 KB")
+                if (f.has("values") && wgsl == null) throw InvalidView("invalid view: canvas values need wgsl")
+                Canvas(
+                    f.string("id"),
+                    f.requiredNumber(type, "height").toFloat().coerceIn(1f, 2000f),
+                    f.number("width")?.toFloat()?.takeIf { it > 0f },
+                    (f.number("fps")?.toInt() ?: if (wgsl != null) MAX_FPS else 0).coerceIn(0, MAX_FPS),
+                    f.number("duration")?.toFloat()?.takeIf { it >= 0f },
+                    f.string("alt"),
+                    f.bool("fill", default = true),
+                    wgsl,
+                    if (wgsl == null) null else FloatArray(16).also { f.values(it) },
+                    f.string("poster"),
+                    f.bool("pointer"),
+                )
+            }
+            else -> throw IllegalArgumentException(type)
+        }
+
+        /** A stack child's `place` and `inset`, from the child's own props. */
+        internal fun layer(f: Fields): Layer {
+            val place = f.string("place")?.replace("-", "")?.let { raw -> Place.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } } ?: Place.TopLeft
+            val sides = f.inset() ?: return Layer(place)
+            return Layer(place, sides[0].coerceAtLeast(0f), sides[1].coerceAtLeast(0f), sides[2].coerceAtLeast(0f), sides[3].coerceAtLeast(0f))
         }
 
         /** The children, and into [raws] (when given) each kept child's own object. */
@@ -208,38 +218,90 @@ sealed interface AgentWidgetNode {
             }
         }
 
-        private fun JsonObject.layer(): Layer {
-            val place = string("place")?.replace("-", "")?.let { raw -> Place.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } } ?: Place.TopLeft
-            fun side(value: Double?) = value?.toFloat()?.coerceAtLeast(0f) ?: 0f
-            val all = number("inset")
-            if (all != null) return Layer(place, side(all), side(all), side(all), side(all))
-            val sides = this["inset"] as? JsonObject ?: return Layer(place)
-            return Layer(place, side(sides.number("top")), side(sides.number("right")), side(sides.number("bottom")), side(sides.number("left")))
-        }
+        private fun Fields.gap(): Int? = number("gap")?.toInt()?.coerceIn(0, 3)
 
-        private fun JsonObject.gap(): Int? = number("gap")?.toInt()?.coerceIn(0, 3)
+        private fun Fields.bool(key: String, default: Boolean = false): Boolean = boolean(key) ?: default
 
-        private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
-
-        private fun JsonObject.number(key: String): Double? =
-            (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull?.takeIf { it.isFinite() }
-
-        private fun JsonObject.bool(key: String, default: Boolean = false): Boolean = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: default
-
-        private fun JsonObject.required(type: String, key: String): String =
+        private fun Fields.required(type: String, key: String): String =
             string(key) ?: throw InvalidView("invalid view: $type needs a string $key")
 
-        private fun JsonObject.requiredNumber(type: String, key: String): Double =
+        private fun Fields.requiredNumber(type: String, key: String): Double =
             number(key) ?: throw InvalidView("invalid view: $type needs a number $key")
 
-        private fun JsonObject.requiredBool(type: String, key: String): Boolean =
-            (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: throw InvalidView("invalid view: $type needs a boolean $key")
+        private fun Fields.requiredBool(type: String, key: String): Boolean =
+            boolean(key) ?: throw InvalidView("invalid view: $type needs a boolean $key")
 
-        private inline fun <reified E : Enum<E>> JsonObject.enum(key: String, default: E): E {
+        private inline fun <reified E : Enum<E>> Fields.enum(key: String, default: E): E {
             val raw = string(key) ?: return default
             return enumValues<E>().firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: default
         }
     }
 
     class InvalidView(message: String) : Exception(message)
+
+    /**
+     * A node's props as a reader has them. Enumerated props come back as their wire strings (`"top-left"`), so
+     * [build] reads every format alike.
+     */
+    interface Fields {
+        /** A string prop; null when absent or not a string. */
+        fun string(key: String): String?
+        /** A finite number prop; null when absent or not a number. */
+        fun number(key: String): Double?
+        /** A boolean prop; null when absent or not a boolean. */
+        fun boolean(key: String): Boolean?
+        /** Whether the prop is there and not null. */
+        fun has(key: String): Boolean
+        /** `select.value`: one string, or a list's strings; empty otherwise. */
+        fun strings(key: String): List<String>
+        /** `canvas.values` into [into] (16 floats, zero padded). */
+        fun values(into: FloatArray)
+        /** `select.options`, or null when absent or not a list; an option without its value or label fails the view. */
+        fun options(): List<Select.Option>?
+        /** `inset` as top, right, bottom, left (unclamped), or null when absent. */
+        fun inset(): FloatArray?
+    }
+
+    /** A node's JSON object, read with the rules the JSON form always had. */
+    class JsonFields(private val o: JsonObject) : Fields {
+        override fun string(key: String): String? = (o[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+        override fun number(key: String): Double? = o.number(key)
+
+        override fun boolean(key: String): Boolean? = (o[key] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull
+
+        override fun has(key: String): Boolean = o[key].let { it != null && it !is JsonNull }
+
+        override fun strings(key: String): List<String> = when (val raw = o[key]) {
+            is JsonPrimitive -> listOfNotNull(raw.takeIf { it.isString }?.content)
+            is JsonArray -> raw.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+            else -> emptyList()
+        }
+
+        override fun values(into: FloatArray) {
+            (o["values"] as? JsonArray)?.take(into.size)?.forEachIndexed { index, value ->
+                into[index] = (value as? JsonPrimitive)?.doubleOrNull?.toFloat() ?: 0f
+            }
+        }
+
+        override fun options(): List<Select.Option>? = (o["options"] as? JsonArray)?.map { option ->
+            val p = option as? JsonObject ?: throw InvalidView("invalid view: a select option must be an object")
+            val fields = JsonFields(p)
+            Select.Option(
+                fields.string("value") ?: throw InvalidView("invalid view: option needs a string value"),
+                fields.string("label") ?: throw InvalidView("invalid view: option needs a string label"),
+                fields.string("description"),
+            )
+        }
+
+        override fun inset(): FloatArray? {
+            o.number("inset")?.toFloat()?.let { return floatArrayOf(it, it, it, it) }
+            val sides = o["inset"] as? JsonObject ?: return null
+            fun side(key: String) = sides.number(key)?.toFloat() ?: 0f
+            return floatArrayOf(side("top"), side("right"), side("bottom"), side("left"))
+        }
+
+        private fun JsonObject.number(key: String): Double? =
+            (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull?.takeIf { it.isFinite() }
+    }
 }
