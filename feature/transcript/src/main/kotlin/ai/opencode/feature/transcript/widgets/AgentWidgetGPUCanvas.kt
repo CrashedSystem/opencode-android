@@ -158,8 +158,8 @@ fun AgentWidgetGPUCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, 
                 bounds[0] = it.boundsInWindow()
                 liveCanvas.bounds = bounds[0]
             }
-            .excludedFromDrawerPan(node.id != null && scope.live)
-            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { scope.controller?.closeOver(bounds[0]) }) { liveCanvas.pointer = it }
+            .excludedFromDrawerPan(node.pointer && scope.live)
+            .agentWidgetPointer(node.id.takeIf { node.pointer }, density, { currentScope.send(it) }, { scope.controller?.closeOver(bounds[0]) }) { liveCanvas.pointer = it }
             .then(if (node.alt != null) Modifier.semantics { contentDescription = node.alt } else Modifier)
             .pointerInput(Unit) {
                 awaitPointerEventScope {

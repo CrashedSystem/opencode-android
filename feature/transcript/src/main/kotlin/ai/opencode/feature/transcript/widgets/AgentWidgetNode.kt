@@ -39,7 +39,8 @@ sealed interface AgentWidgetNode {
     data object Divider : AgentWidgetNode
     /**
      * A drawing surface, drawn one way: by the widget template's `draw` commands (2D), or with [wgsl] by that fragment
-     * shader on the GPU, fed [values] (16 floats, zero padded; null for 2D).
+     * shader on the GPU, fed [values] (16 floats, zero padded; null for 2D). Only with [pointer] (the prelude sets it
+     * for an `onPointer` handler) does it take pointer input; an [id] alone is for live `widget.draw`.
      */
     data class Canvas(
         val id: String?,
@@ -52,12 +53,14 @@ sealed interface AgentWidgetNode {
         val wgsl: String? = null,
         val values: FloatArray? = null,
         val poster: String? = null,
+        val pointer: Boolean = false,
     ) : AgentWidgetNode {
         val gpu: Boolean get() = wgsl != null
 
         override fun equals(other: Any?): Boolean = other is Canvas && id == other.id && height == other.height &&
             width == other.width && fps == other.fps && duration == other.duration && alt == other.alt &&
-            fill == other.fill && wgsl == other.wgsl && values.contentEquals(other.values) && poster == other.poster
+            fill == other.fill && wgsl == other.wgsl && values.contentEquals(other.values) && poster == other.poster &&
+            pointer == other.pointer
 
         override fun hashCode(): Int = ((wgsl.hashCode() * 31 + values.contentHashCode()) * 31 + height.hashCode()) * 31 + id.hashCode()
     }
@@ -105,7 +108,7 @@ sealed interface AgentWidgetNode {
             is Button, is Checkbox, is Slider, is Select, is Input -> true
             is Card -> node.id != null || node.children.any(::takesPointer)
             is Carousel -> node.id != null || node.children.any(::takesPointer)
-            is Canvas -> node.id != null
+            is Canvas -> node.pointer
             else -> node.children.any(::takesPointer)
         }
 
@@ -173,6 +176,7 @@ sealed interface AgentWidgetNode {
                         wgsl,
                         values,
                         o.string("poster"),
+                        o.bool("pointer"),
                     )
                 }
                 else -> null

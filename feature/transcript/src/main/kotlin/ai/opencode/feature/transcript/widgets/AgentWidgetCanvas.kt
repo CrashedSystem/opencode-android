@@ -172,9 +172,9 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
                 liveCanvas.bounds = bounds
             }
             .onVisibilityChanged(minFractionVisible = VISIBLE_FRACTION) { visible = it }
-            .excludedFromDrawerPan(node.id != null && scope.live)
+            .excludedFromDrawerPan(node.pointer && scope.live)
             .then(if (alt != null) Modifier.semantics { contentDescription = alt } else Modifier)
-            .agentWidgetPointer(node.id, density, { currentScope.send(it) }, { controller?.closeOver(state.bounds) }) { state.pointer = it },
+            .agentWidgetPointer(node.id.takeIf { node.pointer }, density, { currentScope.send(it) }, { controller?.closeOver(state.bounds) }) { state.pointer = it },
     ) {
         @Suppress("UNUSED_EXPRESSION") revision
         state.renderer.replay(this, state.buffers.shown, density, state.images)
@@ -182,9 +182,9 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
 }
 
 /**
- * A canvas's `pointer` events, when it has an [id]: `down`, `move` while down (at most every 16 ms) and
- * `up`, in logical px with its size. A vertical drag ends the press and scrolls the list. [track] gets the pointer
- * while down (null after).
+ * A canvas's pointer: [track] gets it while down (null after) for `frame.pointer`, and with an [id] (a canvas with
+ * `pointer: true`) its `pointer` events go out: `down`, `move` while down (at most every 16 ms) and `up`, in logical
+ * px with its size. A vertical drag ends the press and scrolls the list; only a canvas that sends keeps a sideways one.
  */
 internal fun Modifier.agentWidgetPointer(
     id: String?,
@@ -192,7 +192,7 @@ internal fun Modifier.agentWidgetPointer(
     send: (AgentWidgetEvent) -> Unit,
     close: () -> AgentWidgetRect? = { null },
     track: (FloatArray?) -> Unit = {},
-): Modifier = if (id == null) this else pointerInput(id) {
+): Modifier = pointerInput(id) {
     awaitPointerEventScope {
         while (true) {
             val down = awaitPointerEvent()
@@ -200,7 +200,7 @@ internal fun Modifier.agentWidgetPointer(
             val w = size.width / density
             val h = size.height / density
             track(floatArrayOf(first.position.x / density, first.position.y / density))
-            send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h, close()))
+            if (id != null) send(AgentWidgetEvent.pointer(id, "down", first.position.x / density, first.position.y / density, w, h, close()))
             var horizontal: Boolean? = null
             var lastMove = 0L
             val origin = first.position
@@ -211,7 +211,7 @@ internal fun Modifier.agentWidgetPointer(
                 val y = change.position.y / density
                 if (!change.pressed) {
                     track(null)
-                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
+                    if (id != null) send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
                     break
                 }
                 val dx = abs(change.position.x - origin.x)
@@ -219,12 +219,12 @@ internal fun Modifier.agentWidgetPointer(
                 if (horizontal == null && (dx > viewConfiguration.touchSlop || dy > viewConfiguration.touchSlop)) horizontal = dx >= dy
                 if (horizontal == false) {
                     track(null)
-                    send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
+                    if (id != null) send(AgentWidgetEvent.pointer(id, "up", x, y, w, h, close()))
                     break
                 }
-                if (horizontal == true) change.consume()
+                if (horizontal == true && id != null) change.consume()
                 track(floatArrayOf(x, y))
-                if (change.uptimeMillis - lastMove >= 16) {
+                if (id != null && change.uptimeMillis - lastMove >= 16) {
                     lastMove = change.uptimeMillis
                     send(AgentWidgetEvent.pointer(id, "move", x, y, w, h, close()))
                 }

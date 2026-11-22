@@ -94,6 +94,8 @@ class AgentWidgetTests {
         fun canvas(props: String) = AgentWidgetStep.output("""{"state":{},"view":{"type":"canvas","height":120$props}}""").view as AgentWidgetNode.Canvas
         val flat = canvas("")
         assertTrue(!flat.gpu)
+        assertTrue(!flat.pointer)
+        assertTrue(canvas(""","id":"0/:a","pointer":true""").pointer)
         assertEquals(0, flat.fps)
         assertNull(flat.values)
         val gpu = canvas(""","id":"0/:sky","wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","values":[0.5,2],"poster":"sky.png","duration":3""")
@@ -117,33 +119,36 @@ class AgentWidgetTests {
 
     /**
      * widgets.md, Stack: a HUD over a GPU canvas. `place` and `inset` are read off each child; a stack with a `fill`
-     * canvas child grows in full screen and offers it; only the button and the canvas with an id take pointer input.
+     * canvas child grows in full screen and offers it; only the button and the canvas with `pointer: true` take pointer
+     * input, not a canvas with just an id (a key, for live `widget.draw`).
      */
     @Test
     fun readsAStackWithPlaceAndInset() {
         val view = AgentWidgetStep.output(
             """
             {"state":{},"view":{"type":"stack","children":[
-              {"type":"canvas","id":"0/:sky","height":200,"wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","place":"fill"},
+              {"type":"canvas","id":"0/:sky","pointer":true,"height":200,"wgsl":"fn shade(frag: vec2f) -> vec4f { return vec4f(1.0); }","place":"fill"},
               {"type":"text","text":"Score 3","inset":12},
               [{"type":"button","id":"0/1","label":"Jump","place":"bottom-right","inset":{"right":12,"bottom":8}}],
-              {"type":"canvas","height":20,"place":"sideways","inset":-3}
+              {"type":"canvas","height":20,"place":"sideways","inset":-3},
+              {"type":"canvas","id":"0/:fx","height":20,"place":"top-right"}
             ]}}
             """.trimIndent(),
         ).view as AgentWidgetNode.Stack
-        assertEquals(4, view.children.size)
+        assertEquals(5, view.children.size)
         assertEquals(
             listOf(
                 AgentWidgetNode.Layer(AgentWidgetNode.Place.Fill),
                 AgentWidgetNode.Layer(AgentWidgetNode.Place.TopLeft, 12f, 12f, 12f, 12f),
                 AgentWidgetNode.Layer(AgentWidgetNode.Place.BottomRight, top = 0f, right = 12f, bottom = 8f, left = 0f),
                 AgentWidgetNode.Layer(AgentWidgetNode.Place.TopLeft),
+                AgentWidgetNode.Layer(AgentWidgetNode.Place.TopRight),
             ),
             view.layers,
         )
         assertTrue(AgentWidgetNode.fills(view))
         assertTrue(AgentWidgetNode.drawsPixels(view))
-        assertEquals(listOf(true, false, true, false), view.children.map(AgentWidgetNode::takesPointer))
+        assertEquals(listOf(true, false, true, false, false), view.children.map(AgentWidgetNode::takesPointer))
         // Every canvas child with `fill: false` keeps the stack at its height.
         val fixed = AgentWidgetStep.output("""{"state":{},"view":{"type":"stack","children":[{"type":"canvas","height":90,"fill":false},{"type":"text","text":"Hi"}]}}""").view
         assertTrue(!AgentWidgetNode.fills(fixed))
