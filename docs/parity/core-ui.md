@@ -45,7 +45,7 @@ the OpenCode desktop design system (`packages/ui`, theme `oc-2`), not iOS's SF /
   (`danger`, read out by TalkBack) or `OpenCodeTextField`'s error state. A pane that has nothing
   to show (failed to load, empty, no results): `OpenCodeContentUnavailable`, a 48 dp glyph, a
   bold `title3`, a `subheadline` description and a primary action. Needing a decision:
-  `OpenCodeAlertDialog`. Anything else: a notice (below). `OpenCodeColors.warning` (systemOrange)
+  `OpenCodeAlertDialog`. Anything else: a notice (below). `OpenCodeColors.warning` (systemOrange) `OpenCodeColors.success` (green: the diff green, systemGreen for System) and `contentAccent` (Android-only: a saturated accent for drawn content, agent widgets' `accent` token; the theme accent, blue `#5B9CFF`/`#3B5CF6` for the neutral OpenCode accent, `link` for System, `primary` for dynamic colour).
   colours what needs attention without having failed. Android-only; iOS draws each by hand.
 - Notices (`ui/OpenCodeNotice.kt`): `OpenCodeNotice` is how a failure outside a form or a dialog
   is shown: a floating chip with a glyph (`danger` for a failure), what failed, why, and an

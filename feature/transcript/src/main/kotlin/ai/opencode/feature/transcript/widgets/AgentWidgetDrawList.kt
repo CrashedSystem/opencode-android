@@ -1,5 +1,8 @@
 package ai.opencode.feature.transcript.widgets
 
+import ai.opencode.core.ui.OpenCodeColors
+import androidx.compose.ui.graphics.toArgb
+
 /**
  * A draw step's `{ commands }`, read straight from its JSON text into flat arrays (no JSON tree,
  * no object per command) with colours resolved against the theme, so a frame of 2,000 commands
@@ -64,7 +67,17 @@ class AgentWidgetDrawList {
     }
 
     /** Theme colours a command may name instead of a value, in [Token] order, as ARGB. */
-    class Palette(val tokens: IntArray)
+    class Palette(val tokens: IntArray) {
+        companion object {
+            /** The widgets spec's tokens in the app's theme: `accent` a saturated colour labels read on, never a neutral. */
+            fun of(colors: OpenCodeColors) = Palette(
+                intArrayOf(
+                    colors.text.toArgb(), colors.secondaryText.toArgb(), colors.contentAccent.toArgb(), colors.canvas.toArgb(),
+                    colors.userBubble.toArgb(), colors.border.toArgb(), colors.success.toArgb(), colors.warning.toArgb(), colors.danger.toArgb(),
+                ),
+            )
+        }
+    }
 
     enum class Token(val wire: String) { Text("text"), Muted("muted"), Accent("accent"), Bg("bg"), Surface("surface"), Border("border"), Success("success"), Warning("warning"), Error("error") }
 

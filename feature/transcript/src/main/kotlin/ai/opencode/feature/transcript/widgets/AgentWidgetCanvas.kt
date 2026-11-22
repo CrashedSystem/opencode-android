@@ -47,7 +47,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onVisibilityChanged
@@ -70,14 +69,7 @@ fun AgentWidgetCanvas(node: AgentWidgetNode.Canvas, scope: AgentWidgetScope, mod
     val controller = scope.controller
     val colors = OpenCodeTheme.colors
     val density = LocalDensity.current.density
-    val palette = remember(colors) {
-        AgentWidgetDrawList.Palette(
-            intArrayOf(
-                colors.text.toArgb(), colors.secondaryText.toArgb(), colors.accent.toArgb(), colors.canvas.toArgb(),
-                colors.userBubble.toArgb(), colors.border.toArgb(), colors.diffAddedText.toArgb(), colors.warning.toArgb(), colors.danger.toArgb(),
-            ),
-        )
-    }
+    val palette = remember(colors) { AgentWidgetDrawList.Palette.of(colors) }
     val dark = colors.canvas.luminance() < 0.5f
     val state = remember { CanvasState() }
     var revision by remember { mutableIntStateOf(0) }

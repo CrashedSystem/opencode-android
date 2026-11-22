@@ -121,6 +121,8 @@ object DynamicSystemTheme {
             destructive = scheme.error,
             danger = scheme.error,
             warning = SystemColors.orange(isDark).color,
+            success = SystemColors.green(isDark).color,
+            contentAccent = scheme.primary,
             bodyTextResolver = bodyResolver,
         )
     }

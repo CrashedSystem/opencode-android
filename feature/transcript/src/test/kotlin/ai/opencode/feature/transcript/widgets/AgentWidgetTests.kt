@@ -1,6 +1,8 @@
 package ai.opencode.feature.transcript.widgets
 
 import ai.opencode.core.testing.TestIsolationRule
+import ai.opencode.core.ui.OpenCodeColors
+import ai.opencode.core.ui.AppTheme
 import ai.opencode.feature.transcript.TranscriptEntry
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Closed
 import ai.opencode.feature.transcript.widgets.AgentWidgetMachine.Effect
@@ -225,6 +227,39 @@ class AgentWidgetTests {
     fun aReportedMessageDropsTheRuntimesPosition() {
         assertEquals("ReferenceError: Unknown identifier 'x'.", programMessage("ReferenceError: Unknown identifier 'x'. (line 464, col 66)"))
         assertEquals("Unexpected token", programMessage("Unexpected token"))
+    }
+
+    /**
+     * The spec's colour tokens in the app's themes: `accent` is a saturated colour white labels read on (the web host's
+     * blue), never the OpenCode theme's neutral grey accent; the status tokens keep their hues.
+     */
+    @Test
+    fun widgetTokensKeepTheirIntentInDarkAndLight() {
+        fun tokens(theme: AppTheme, dark: Boolean) = AgentWidgetDrawList.Palette.of(OpenCodeColors.resolve(theme, isDark = dark)).tokens
+        fun token(tokens: IntArray, token: AgentWidgetDrawList.Token) = tokens[token.ordinal]
+        fun rgb(argb: Int) = Triple((argb shr 16) and 0xFF, (argb shr 8) and 0xFF, argb and 0xFF)
+        fun luminance(argb: Int): Double {
+            fun channel(c: Int) = (c / 255.0).let { if (it <= 0.03928) it / 12.92 else Math.pow((it + 0.055) / 1.055, 2.4) }
+            val (r, g, b) = rgb(argb)
+            return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+        }
+        assertEquals(0xFF5B9CFF.toInt(), token(tokens(AppTheme.OpenCode, dark = true), AgentWidgetDrawList.Token.Accent))
+        assertEquals(0xFF3B5CF6.toInt(), token(tokens(AppTheme.OpenCode, dark = false), AgentWidgetDrawList.Token.Accent))
+        for (theme in listOf(AppTheme.OpenCode, AppTheme.System)) for (dark in listOf(true, false)) {
+            val t = tokens(theme, dark)
+            val (ar, ag, ab) = rgb(token(t, AgentWidgetDrawList.Token.Accent))
+            assertTrue("$theme dark=$dark accent is blue", ab > ar + 60 && ab > ag)
+            val (sr, sg, sb) = rgb(token(t, AgentWidgetDrawList.Token.Success))
+            assertTrue("$theme dark=$dark success is green", sg > sr && sg > sb)
+            val (er, eg, eb) = rgb(token(t, AgentWidgetDrawList.Token.Error))
+            assertTrue("$theme dark=$dark error is red", er > eg + 60 && er > eb + 60)
+            val (wr, wg, wb) = rgb(token(t, AgentWidgetDrawList.Token.Warning))
+            assertTrue("$theme dark=$dark warning is orange", wr > wg && wg > wb)
+            val text = luminance(token(t, AgentWidgetDrawList.Token.Text))
+            val bg = luminance(token(t, AgentWidgetDrawList.Token.Bg))
+            assertTrue("$theme dark=$dark text reads on bg", (maxOf(text, bg) + 0.05) / (minOf(text, bg) + 0.05) > 7)
+            assertTrue("$theme dark=$dark bg follows the mode", if (dark) bg < 0.1 else bg > 0.8)
+        }
     }
 
     @Test

@@ -90,6 +90,13 @@ class OpenCodeColors(
     val danger: Color,
     /** Needs attention without having failed: a rejected sign-in, a weak connection, a paste that didn't work. */
     val warning: Color,
+    /** Went well: green. */
+    val success: Color,
+    /**
+     * A saturated accent for drawn content (agent widgets' `accent`, charts) that white labels read on: the theme's
+     * accent, or blue where the theme's accent is a neutral (OpenCode, System).
+     */
+    val contentAccent: Color,
     private val bodyTextResolver: (Double) -> Color,
 ) {
     /** Prose at [tone] (`0..1`) between canvas and text, mixed in OKLab. */
@@ -169,6 +176,12 @@ class OpenCodeColors(
                 destructive = SystemColors.red(isDark).color,
                 danger = (if (system) SystemColors.red(isDark) else v.diffRemovedText).color,
                 warning = SystemColors.orange(isDark).color,
+                success = (if (system) SystemColors.green(isDark) else v.diffAddedText).color,
+                contentAccent = when {
+                    theme == AppTheme.OpenCode -> if (isDark) DesktopAccent.contentDark else DesktopAccent.bgAccent
+                    system -> v.link.color
+                    else -> v.accent.color
+                },
                 bodyTextResolver = bodyResolver,
             )
         }
@@ -179,6 +192,9 @@ class OpenCodeColors(
 internal object DesktopAccent {
     /** `--v2-background-bg-accent`: blue-600. */
     val bgAccent = Color(0xFF3B5CF6)
+
+    /** The web host's dark accent for drawn content: a blue white labels still read on. */
+    val contentDark = Color(0xFF5B9CFF)
 
     /** `--v2-border-border-focus`: blue-500. */
     val borderFocus = Color(0xFF7698FD)
