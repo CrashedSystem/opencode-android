@@ -150,7 +150,12 @@ fun AgentWidgetFrame(
                     val density = LocalDensity.current.density
                     Box(
                         Modifier.fillMaxWidth().height(96.dp).background(colors.userBubble, OpenCodeShape.card).then(
-                            if (starting) Modifier.onSizeChanged { controller!!.liveViewWidth = it.width / density } else Modifier,
+                            if (starting) {
+                                Modifier.onSizeChanged {
+                                    controller!!.liveViewWidth = it.width / density
+                                    controller.liveViewHeight = it.height / density
+                                }
+                            } else Modifier,
                         ),
                     )
                     // A live program may wait for a frame before it renders anything.

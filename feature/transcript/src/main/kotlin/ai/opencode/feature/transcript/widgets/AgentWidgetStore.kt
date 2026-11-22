@@ -492,15 +492,15 @@ class AgentWidgetController internal constructor(
     }
 
     /**
-     * Hands the program the frame it asked for: the first live canvas's size (else the widget's) and pointer. A frame
-     * waits until that size is positive.
+     * Hands the program the frame it asked for: the first live canvas's size (else the widget's) and pointer. With
+     * canvases, a frame waits until one has a positive size; without, until the widget has been laid out.
      */
     fun deliverLiveFrame(nanos: Long, scale: Float, dark: Boolean, fullscreen: Boolean) {
         if (!liveWantsFrame || !isShown) return
         val canvas = liveCanvases.values.firstOrNull { it.width > 0f && it.height > 0f }
+        if (canvas == null && (liveCanvases.isNotEmpty() || liveViewWidth <= 0f)) return
         val width = canvas?.width ?: liveViewWidth
         val height = canvas?.height ?: liveViewHeight
-        if (width <= 0f || height <= 0f) return
         liveWantsFrame = false
         if (liveStartNanos == 0L) liveStartNanos = nanos
         val close = closeOver(if (canvas != null) canvas.bounds else rootInWindow)
