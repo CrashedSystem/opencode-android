@@ -654,9 +654,12 @@ internal interface UniffiCallbackInterfaceLiveHandlerMethod0 : com.sun.jna.Callb
     fun callback(`uniffiHandle`: Long,`messagesJson`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceLiveHandlerMethod1 : com.sun.jna.Callback {
-    fun callback(`uniffiHandle`: Long,`message`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+    fun callback(`uniffiHandle`: Long,`messages`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceLiveHandlerMethod2 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`message`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceLiveHandlerMethod3 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`exit`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceFetchTransportMethod0 : com.sun.jna.Callback {
@@ -665,26 +668,29 @@ internal interface UniffiCallbackInterfaceFetchTransportMethod0 : com.sun.jna.Ca
 internal interface UniffiCallbackInterfaceFetchTransportMethod1 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`id`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
-@Structure.FieldOrder("uniffiFree", "uniffiClone", "onPosts", "onWarning", "onExit")
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onPosts", "onPostsBytes", "onWarning", "onExit")
 internal open class UniffiVTableCallbackInterfaceLiveHandler(
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
     @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
     @JvmField internal var `onPosts`: UniffiCallbackInterfaceLiveHandlerMethod0? = null,
-    @JvmField internal var `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod1? = null,
-    @JvmField internal var `onExit`: UniffiCallbackInterfaceLiveHandlerMethod2? = null,
+    @JvmField internal var `onPostsBytes`: UniffiCallbackInterfaceLiveHandlerMethod1? = null,
+    @JvmField internal var `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod2? = null,
+    @JvmField internal var `onExit`: UniffiCallbackInterfaceLiveHandlerMethod3? = null,
 ) : Structure() {
     class UniffiByValue(
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
         `uniffiClone`: UniffiCallbackInterfaceClone? = null,
         `onPosts`: UniffiCallbackInterfaceLiveHandlerMethod0? = null,
-        `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod1? = null,
-        `onExit`: UniffiCallbackInterfaceLiveHandlerMethod2? = null,
-    ): UniffiVTableCallbackInterfaceLiveHandler(`uniffiFree`,`uniffiClone`,`onPosts`,`onWarning`,`onExit`,), Structure.ByValue
+        `onPostsBytes`: UniffiCallbackInterfaceLiveHandlerMethod1? = null,
+        `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod2? = null,
+        `onExit`: UniffiCallbackInterfaceLiveHandlerMethod3? = null,
+    ): UniffiVTableCallbackInterfaceLiveHandler(`uniffiFree`,`uniffiClone`,`onPosts`,`onPostsBytes`,`onWarning`,`onExit`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceLiveHandler) {
         `uniffiFree` = other.`uniffiFree`
         `uniffiClone` = other.`uniffiClone`
         `onPosts` = other.`onPosts`
+        `onPostsBytes` = other.`onPostsBytes`
         `onWarning` = other.`onWarning`
         `onExit` = other.`onExit`
     }
@@ -741,6 +747,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_func_translate_wgsl(
     ): Int
+    external fun uniffi_psychoscript_mobile_checksum_method_valueencoder_emit_name(
+    ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_fetchcompletion_fail(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_fetchcompletion_succeed(
@@ -763,17 +771,25 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_program_run(
     ): Int
+    external fun uniffi_psychoscript_mobile_checksum_method_program_run_bytes(
+    ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_program_session(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_program_start_live(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_runsession_run(
     ): Int
+    external fun uniffi_psychoscript_mobile_checksum_method_runsession_run_bytes(
+    ): Int
+    external fun uniffi_psychoscript_mobile_checksum_constructor_valueencoder_widget(
+    ): Int
     external fun uniffi_psychoscript_mobile_checksum_constructor_liverun_restore(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_constructor_program_new(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_livehandler_on_posts(
+    ): Int
+    external fun uniffi_psychoscript_mobile_checksum_method_livehandler_on_posts_bytes(
     ): Int
     external fun uniffi_psychoscript_mobile_checksum_method_livehandler_on_warning(
     ): Int
@@ -801,6 +817,14 @@ internal object UniffiLib {
     }
 
     internal fun ensureInitialized() = Unit
+    external fun uniffi_psychoscript_mobile_fn_clone_valueencoder(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_psychoscript_mobile_fn_free_valueencoder(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_psychoscript_mobile_fn_constructor_valueencoder_widget(uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_psychoscript_mobile_fn_method_valueencoder_emit_name(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_psychoscript_mobile_fn_clone_fetchcompletion(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_psychoscript_mobile_fn_free_fetchcompletion(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
@@ -823,7 +847,7 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_psychoscript_mobile_fn_free_liverun(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_psychoscript_mobile_fn_constructor_liverun_restore(`snapshot`: RustBuffer.ByValue,`handler`: Long,`inputName`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,`transport`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_constructor_liverun_restore(`snapshot`: RustBuffer.ByValue,`handler`: Long,`inputName`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,`transport`: RustBuffer.ByValue,`encoder`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_psychoscript_mobile_fn_method_liverun_deliver(`ptr`: Long,`messageJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -845,15 +869,19 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_psychoscript_mobile_fn_method_program_run(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_psychoscript_mobile_fn_method_program_run_bytes(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`encoder`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_psychoscript_mobile_fn_method_program_session(`ptr`: Long,`fieldsJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_psychoscript_mobile_fn_method_program_start_live(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`handler`: Long,`options`: RustBuffer.ByValue,`transport`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_psychoscript_mobile_fn_method_program_start_live(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`handler`: Long,`options`: RustBuffer.ByValue,`transport`: RustBuffer.ByValue,`encoder`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_psychoscript_mobile_fn_clone_runsession(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_psychoscript_mobile_fn_free_runsession(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_psychoscript_mobile_fn_method_runsession_run(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_psychoscript_mobile_fn_method_runsession_run_bytes(`ptr`: Long,`inputJson`: RustBuffer.ByValue,`encoder`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_psychoscript_mobile_fn_init_callback_vtable_livehandler(`vtable`: UniffiVTableCallbackInterfaceLiveHandler,
     ): Unit
@@ -986,6 +1014,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_psychoscript_mobile_checksum_func_translate_wgsl() and 0xFFFF) != 52306) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_valueencoder_emit_name() and 0xFFFF) != 59884) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_psychoscript_mobile_checksum_method_fetchcompletion_fail() and 0xFFFF) != 13971) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1019,16 +1050,25 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_psychoscript_mobile_checksum_method_program_run() and 0xFFFF) != 29645) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_program_run_bytes() and 0xFFFF) != 7993) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_psychoscript_mobile_checksum_method_program_session() and 0xFFFF) != 57577) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_psychoscript_mobile_checksum_method_program_start_live() and 0xFFFF) != 17744) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_program_start_live() and 0xFFFF) != 1185) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_psychoscript_mobile_checksum_method_runsession_run() and 0xFFFF) != 48700) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_psychoscript_mobile_checksum_constructor_liverun_restore() and 0xFFFF) != 32969) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_runsession_run_bytes() and 0xFFFF) != 44317) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_psychoscript_mobile_checksum_constructor_valueencoder_widget() and 0xFFFF) != 39260) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_psychoscript_mobile_checksum_constructor_liverun_restore() and 0xFFFF) != 27560) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_psychoscript_mobile_checksum_constructor_program_new() and 0xFFFF) != 15552) {
@@ -1037,10 +1077,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_posts() and 0xFFFF) != 37447) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_warning() and 0xFFFF) != 39209) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_posts_bytes() and 0xFFFF) != 12825) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_exit() and 0xFFFF) != 33858) {
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_warning() and 0xFFFF) != 7141) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_psychoscript_mobile_checksum_method_livehandler_on_exit() and 0xFFFF) != 38396) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -2406,9 +2449,9 @@ open class LiveRun: Disposable, AutoCloseable, LiveRunInterface
     /**
      * Continues a run from a [`LiveRun::snapshot`], in this process or a later one of the same build: the program
      * first receives `{ type: "resumed", pausedMs }`. Its input, running time and timers come back with it; messages
-     * delivered but not yet received don't.
+     * delivered but not yet received don't. Pass the `encoder` the run started with.
      */
-    @Throws(PsychoScriptException::class) fun `restore`(`snapshot`: kotlin.ByteArray, `handler`: LiveHandler, `inputName`: kotlin.String = "__input", `options`: LiveOptions = LiveOptions(), `transport`: FetchTransport? = null): LiveRun {
+    @Throws(PsychoScriptException::class) fun `restore`(`snapshot`: kotlin.ByteArray, `handler`: LiveHandler, `inputName`: kotlin.String = "__input", `options`: LiveOptions = LiveOptions(), `transport`: FetchTransport? = null, `encoder`: ValueEncoder? = null): LiveRun {
             return FfiConverterTypeLiveRun.lift(
     uniffiRustCallWithError(PsychoScriptException) { _status ->
     UniffiLib.uniffi_psychoscript_mobile_fn_constructor_liverun_restore(
@@ -2418,7 +2461,8 @@ open class LiveRun: Disposable, AutoCloseable, LiveRunInterface
         FfiConverterTypeLiveHandler.lower(`handler`),
         FfiConverterString.lower(`inputName`),
         FfiConverterTypeLiveOptions.lower(`options`),
-        FfiConverterOptionalTypeFetchTransport.lower(`transport`),_status)
+        FfiConverterOptionalTypeFetchTransport.lower(`transport`),
+        FfiConverterOptionalTypeValueEncoder.lower(`encoder`),_status)
 }
     )
     }
@@ -2564,6 +2608,15 @@ public interface ProgramInterface {
     fun `run`(`inputJson`: kotlin.String, `options`: RunOptions = RunOptions()): kotlin.String
     
     /**
+     * Runs the program as [`Program::run`] does, with `encoder`'s emit global (`encoder.emit_name()`), and returns
+     * the bytes `encoder` wrote for the value the program passed to it (its last call's) instead of the completion
+     * value. Functions in that value are left out, as JSON leaves them out. Fails with `Runtime`
+     * (`InvalidDataValue`) when the encoder can't write the value or the program never called the global;
+     * `max_output_bytes` limits the bytes.
+     */
+    fun `runBytes`(`inputJson`: kotlin.String, `encoder`: ValueEncoder, `options`: RunOptions = RunOptions()): kotlin.ByteArray
+    
+    /**
      * A session of runs that share part of their input: `fields_json`, a JSON object parsed once, whose fields every
      * run's input gets ahead of its own (`session.run`). For inputs with a large part that doesn't change, such as a
      * widget's `data`.
@@ -2573,9 +2626,10 @@ public interface ProgramInterface {
     /**
      * Starts the program as a [`LiveRun`] on a thread of its own, with `input_json` behind its input function and
      * `__host` (`post`, `receive`, `sleep`, `now`, `fetch`) to talk to `handler`; `fetch` goes through `transport`
-     * to the hosts `options.https_hosts` allows. Fails with `InvalidInput`.
+     * to the hosts `options.https_hosts` allows. With `encoder`, posts reach `handler.on_posts_bytes` as its bytes
+     * (never `on_posts`), and one it can't write throws `InvalidDataValue` at the post. Fails with `InvalidInput`.
      */
-    fun `startLive`(`inputJson`: kotlin.String, `handler`: LiveHandler, `options`: LiveOptions = LiveOptions(), `transport`: FetchTransport? = null): LiveRun
+    fun `startLive`(`inputJson`: kotlin.String, `handler`: LiveHandler, `options`: LiveOptions = LiveOptions(), `transport`: FetchTransport? = null, `encoder`: ValueEncoder? = null): LiveRun
     
     companion object
 }
@@ -2722,6 +2776,30 @@ open class Program: Disposable, AutoCloseable, ProgramInterface
 
     
     /**
+     * Runs the program as [`Program::run`] does, with `encoder`'s emit global (`encoder.emit_name()`), and returns
+     * the bytes `encoder` wrote for the value the program passed to it (its last call's) instead of the completion
+     * value. Functions in that value are left out, as JSON leaves them out. Fails with `Runtime`
+     * (`InvalidDataValue`) when the encoder can't write the value or the program never called the global;
+     * `max_output_bytes` limits the bytes.
+     */
+    @Throws(PsychoScriptException::class)override fun `runBytes`(`inputJson`: kotlin.String, `encoder`: ValueEncoder, `options`: RunOptions): kotlin.ByteArray {
+            return FfiConverterByteArray.lift(
+    callWithHandle {
+    uniffiRustCallWithError(PsychoScriptException) { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_method_program_run_bytes(
+        it,
+        
+        FfiConverterString.lower(`inputJson`),
+        FfiConverterTypeValueEncoder.lower(`encoder`),
+        FfiConverterTypeRunOptions.lower(`options`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * A session of runs that share part of their input: `fields_json`, a JSON object parsed once, whose fields every
      * run's input gets ahead of its own (`session.run`). For inputs with a large part that doesn't change, such as a
      * widget's `data`.
@@ -2744,9 +2822,10 @@ open class Program: Disposable, AutoCloseable, ProgramInterface
     /**
      * Starts the program as a [`LiveRun`] on a thread of its own, with `input_json` behind its input function and
      * `__host` (`post`, `receive`, `sleep`, `now`, `fetch`) to talk to `handler`; `fetch` goes through `transport`
-     * to the hosts `options.https_hosts` allows. Fails with `InvalidInput`.
+     * to the hosts `options.https_hosts` allows. With `encoder`, posts reach `handler.on_posts_bytes` as its bytes
+     * (never `on_posts`), and one it can't write throws `InvalidDataValue` at the post. Fails with `InvalidInput`.
      */
-    @Throws(PsychoScriptException::class)override fun `startLive`(`inputJson`: kotlin.String, `handler`: LiveHandler, `options`: LiveOptions, `transport`: FetchTransport?): LiveRun {
+    @Throws(PsychoScriptException::class)override fun `startLive`(`inputJson`: kotlin.String, `handler`: LiveHandler, `options`: LiveOptions, `transport`: FetchTransport?, `encoder`: ValueEncoder?): LiveRun {
             return FfiConverterTypeLiveRun.lift(
     callWithHandle {
     uniffiRustCallWithError(PsychoScriptException) { _status ->
@@ -2756,7 +2835,8 @@ open class Program: Disposable, AutoCloseable, ProgramInterface
         FfiConverterString.lower(`inputJson`),
         FfiConverterTypeLiveHandler.lower(`handler`),
         FfiConverterTypeLiveOptions.lower(`options`),
-        FfiConverterOptionalTypeFetchTransport.lower(`transport`),_status)
+        FfiConverterOptionalTypeFetchTransport.lower(`transport`),
+        FfiConverterOptionalTypeValueEncoder.lower(`encoder`),_status)
 }
     }
     )
@@ -2909,6 +2989,11 @@ public interface RunSessionInterface {
      */
     fun `run`(`inputJson`: kotlin.String, `options`: RunOptions = RunOptions()): kotlin.String
     
+    /**
+     * [`Program::run_bytes`] with the session's fields ahead of `input_json`'s.
+     */
+    fun `runBytes`(`inputJson`: kotlin.String, `encoder`: ValueEncoder, `options`: RunOptions = RunOptions()): kotlin.ByteArray
+    
     companion object
 }
 
@@ -3038,6 +3123,26 @@ open class RunSession: Disposable, AutoCloseable, RunSessionInterface
     
 
     
+    /**
+     * [`Program::run_bytes`] with the session's fields ahead of `input_json`'s.
+     */
+    @Throws(PsychoScriptException::class)override fun `runBytes`(`inputJson`: kotlin.String, `encoder`: ValueEncoder, `options`: RunOptions): kotlin.ByteArray {
+            return FfiConverterByteArray.lift(
+    callWithHandle {
+    uniffiRustCallWithError(PsychoScriptException) { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_method_runsession_run_bytes(
+        it,
+        
+        FfiConverterString.lower(`inputJson`),
+        FfiConverterTypeValueEncoder.lower(`encoder`),
+        FfiConverterTypeRunOptions.lower(`options`),_status)
+}
+    }
+    )
+    }
+    
+
+    
 
     
 
@@ -3071,6 +3176,286 @@ public object FfiConverterTypeRunSession: FfiConverter<RunSession, Long> {
     override fun allocationSize(value: RunSession) = 8UL
 
     override fun write(value: RunSession, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * An encoder for [`crate::Program::run_bytes`] and live runs (see [`EncodeValues`]).
+ */
+public interface ValueEncoderInterface {
+    
+    /**
+     * The host global `run_bytes` defines for the program's output.
+     */
+    fun `emitName`(): kotlin.String
+    
+    companion object
+}
+
+/**
+ * An encoder for [`crate::Program::run_bytes`] and live runs (see [`EncodeValues`]).
+ */
+open class ValueEncoder: Disposable, AutoCloseable, ValueEncoderInterface
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    /**
+     * Whether the current object has been destroyed and its reference is gone in the Rust side.
+     */
+    val uniffiIsDestroyed: Boolean get() = wasDestroyed.get()
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_psychoscript_mobile_fn_free_valueencoder(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_psychoscript_mobile_fn_clone_valueencoder(handle, status)
+        }
+    }
+
+    
+    /**
+     * The host global `run_bytes` defines for the program's output.
+     */override fun `emitName`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_method_valueencoder_emit_name(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+
+
+    
+    companion object {
+        
+    /**
+     * OpenCode widgets' binary format (`widget-wire`, opencode `specs/v2/widgets-binary.md`): run the program as
+     * `<program>\n__widget_emit(__widget_step(__input()))`.
+     */ fun `widget`(): ValueEncoder {
+            return FfiConverterTypeValueEncoder.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_psychoscript_mobile_fn_constructor_valueencoder_widget(
+    
+        _status)
+}
+    )
+    }
+    
+
+        
+    }
+    
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeValueEncoder: FfiConverter<ValueEncoder, Long> {
+    override fun lower(value: ValueEncoder): Long {
+        return value.uniffiCloneHandle()
+    }
+
+    override fun lift(value: Long): ValueEncoder {
+        return ValueEncoder(UniffiWithHandle, value)
+    }
+
+    override fun read(buf: ByteBuffer): ValueEncoder {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: ValueEncoder) = 8UL
+
+    override fun write(value: ValueEncoder, buf: ByteBuffer) {
         buf.putLong(lower(value))
     }
 }
@@ -4168,12 +4553,15 @@ public object FfiConverterTypeShaderTarget: FfiConverterRustBuffer<ShaderTarget>
 
 /**
  * What a live run tells its host, on the run's own thread, so return quickly (hand the messages to your UI thread).
- * `on_posts` gets the posts of one wake-up of the program together, in order, as soon as it waits again; `on_exit`
- * is called once, after the last posts (on the caller's thread for `stop` on a run suspended to a snapshot).
+ * `on_posts` gets the posts of one wake-up of the program together, in order, as soon as it waits again (as
+ * JSON; with a [`ValueEncoder`], `on_posts_bytes` gets them instead, as its bytes); `on_exit` is called once, after
+ * the last posts (on the caller's thread for `stop` on a run suspended to a snapshot).
  */
 public interface LiveHandler {
     
     fun `onPosts`(`messagesJson`: List<kotlin.String>)
+    
+    fun `onPostsBytes`(`messages`: List<kotlin.ByteArray>)
     
     fun `onWarning`(`message`: kotlin.String)
     
@@ -4198,7 +4586,19 @@ internal object uniffiCallbackInterfaceLiveHandler {
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
         }
     }
-    internal object `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod1 {
+    internal object `onPostsBytes`: UniffiCallbackInterfaceLiveHandlerMethod1 {
+        override fun callback(`uniffiHandle`: Long,`messages`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeLiveHandler.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onPostsBytes`(
+                    FfiConverterSequenceByteArray.lift(`messages`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `onWarning`: UniffiCallbackInterfaceLiveHandlerMethod2 {
         override fun callback(`uniffiHandle`: Long,`message`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
             val uniffiObj = FfiConverterTypeLiveHandler.handleMap.get(uniffiHandle)
             val makeCall = { ->
@@ -4210,7 +4610,7 @@ internal object uniffiCallbackInterfaceLiveHandler {
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
         }
     }
-    internal object `onExit`: UniffiCallbackInterfaceLiveHandlerMethod2 {
+    internal object `onExit`: UniffiCallbackInterfaceLiveHandlerMethod3 {
         override fun callback(`uniffiHandle`: Long,`exit`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
             val uniffiObj = FfiConverterTypeLiveHandler.handleMap.get(uniffiHandle)
             val makeCall = { ->
@@ -4239,6 +4639,7 @@ internal object uniffiCallbackInterfaceLiveHandler {
         uniffiFree,
         uniffiClone,
         `onPosts`,
+        `onPostsBytes`,
         `onWarning`,
         `onExit`,
     )
@@ -4423,6 +4824,38 @@ public object FfiConverterOptionalTypeFetchTransport: FfiConverterRustBuffer<Fet
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeValueEncoder: FfiConverterRustBuffer<ValueEncoder?> {
+    override fun read(buf: ByteBuffer): ValueEncoder? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeValueEncoder.read(buf)
+    }
+
+    override fun allocationSize(value: ValueEncoder?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeValueEncoder.allocationSize(value)
+        }
+    }
+
+    override fun write(value: ValueEncoder?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeValueEncoder.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalSequenceString: FfiConverterRustBuffer<List<kotlin.String>?> {
     override fun read(buf: ByteBuffer): List<kotlin.String>? {
         if (buf.get().toInt() == 0) {
@@ -4473,6 +4906,34 @@ public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.Str
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.ByteArray>> {
+    override fun read(buf: ByteBuffer): List<kotlin.ByteArray> {
+        val len = buf.getInt()
+        return List<kotlin.ByteArray>(len) {
+            FfiConverterByteArray.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.ByteArray>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterByteArray.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.ByteArray>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterByteArray.write(it, buf)
         }
     }
 }
