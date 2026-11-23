@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("opencode.android.application")
 }
@@ -26,16 +28,13 @@ android {
     signingConfigs {
         // Every CI run starts with an empty ~/.android, so its generated debug key changed on each
         // build and every sideloaded update failed with INSTALL_FAILED_UPDATE_INCOMPATIBLE. This
-        // fork signs debug builds with a key that outlives the runner: OPENCODE_DEBUG_KEYSTORE is
-        // the base64 PKCS12 file, set from a GitHub secret (or a local file when building here).
+        // fork signs debug builds with a key that outlives the runner. CI decodes the secret into
+        // this file first (`scripts/ci-keystore.sh`), so no base64 and no JVM package lookup
+        // happens inside this block, where `java` means Gradle's JavaPluginExtension.
+        val forkKeystore = layout.buildDirectory.file("fork-debug.jks").get().asFile
         create("forkDebug") {
-            val encoded = providers.environmentVariable("OPENCODE_DEBUG_KEYSTORE").orNull
-                ?: providers.gradleProperty("opencodeDebugKeystore").orNull
-            if (!encoded.isNullOrBlank()) {
-                val file = layout.buildDirectory.file("fork-debug.jks").get().asFile
-                file.parentFile.mkdirs()
-                file.writeBytes(java.util.Base64.getMimeDecoder().decode(encoded))
-                storeFile = file
+            if (forkKeystore.isFile) {
+                storeFile = forkKeystore
                 storePassword = System.getenv("OPENCODE_DEBUG_STORE_PASSWORD") ?: "opencode"
                 keyAlias = System.getenv("OPENCODE_DEBUG_KEY_ALIAS") ?: "opencode-debug"
                 keyPassword = System.getenv("OPENCODE_DEBUG_KEY_PASSWORD") ?: "opencode"
