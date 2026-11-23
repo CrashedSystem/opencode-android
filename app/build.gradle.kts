@@ -1,5 +1,3 @@
-import java.util.Base64
-
 plugins {
     id("opencode.android.application")
 }

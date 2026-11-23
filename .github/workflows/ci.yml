@@ -56,10 +56,9 @@ jobs:
         env:
           OPENCODE_DEBUG_KEYSTORE: ${{ secrets.OPENCODE_DEBUG_KEYSTORE }}
         run: |
-          if [ -n "$OPENCODE_DEBUG_KEYSTORE" ]; then
-            echo "keystore present; debug APKs will update in place"
-          else
-            echo "::warning::OPENCODE_DEBUG_KEYSTORE is unset; this APK won't update an installed build"
+          bash scripts/ci-keystore.sh
+          if [ -f app/build/fork-debug.jks ]; then
+            echo "OPENCODE_DEBUG_KEYSTORE_FILE=$PWD/app/build/fork-debug.jks" >> "$GITHUB_ENV"
           fi
 
       - name: Check (translations, assemble, lint, unit tests)
