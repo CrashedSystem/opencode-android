@@ -173,4 +173,8 @@
     <string name="drawer_appearance_preview_assistant_text">Megtaláltam az elrendezési hibát a `SessionView.swift` fájlban. Az átirat és az üzenetszerkesztő osztozik a rendelkezésre álló magasságon, így a billentyűzettel jól tesztelhető az elrendezés.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

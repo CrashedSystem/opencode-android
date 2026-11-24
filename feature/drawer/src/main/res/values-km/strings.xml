@@ -163,4 +163,7 @@
     <string name="drawer_appearance_preview_assistant_text">ខ្ញុំរកឃើញបញ្ហាប្លង់ក្នុង `SessionView.swift`។ កំណត់ត្រាសន្ទនា និងប្រអប់សរសេរចែកគ្នាប្រើកម្ពស់ដែលមាន ដូច្នេះការបើកក្តារចុចជួយសាកល្បងប្លង់ពេលទំហំមានកំណត់។</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

@@ -173,4 +173,8 @@
     <string name="drawer_appearance_preview_assistant_text">Joylashuvdagi muammoni `SessionView.swift` faylida topdim. Suhbat matni va xabar yozish maydoni mavjud balandlikni bo‘lishadi, shuning uchun klaviatura bilan sinash foydali.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

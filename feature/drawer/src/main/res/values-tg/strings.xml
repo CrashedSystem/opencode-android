@@ -173,4 +173,8 @@
     <string name="drawer_appearance_preview_assistant_text">Мушкили тарҳбандиро дар `SessionView.swift` ёфтам. Матни суҳбат ва майдони паём баландии дастрасро тақсим мекунанд, бинобар ин клавиатура барои санҷиши тарҳ дар фазои маҳдуд муфид аст.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

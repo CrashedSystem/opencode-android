@@ -173,4 +173,8 @@
     <string name="drawer_appearance_preview_assistant_text">मुझे `SessionView.swift` में लेआउट की समस्या मिली। बातचीत का टेक्स्ट और संदेश लेखन क्षेत्र उपलब्ध ऊँचाई बाँटते हैं, इसलिए कीबोर्ड से लेआउट की सीमाएँ अच्छी तरह जाँची जा सकती हैं।</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

@@ -183,4 +183,9 @@
     <string name="drawer_appearance_preview_assistant_text">J’ai trouvé le problème de mise en page dans `SessionView.swift`. La transcription et la zone de saisie se partagent la hauteur disponible : le clavier permet donc de bien tester les limites.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="many">%1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

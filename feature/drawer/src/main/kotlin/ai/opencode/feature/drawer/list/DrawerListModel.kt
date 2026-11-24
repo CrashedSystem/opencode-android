@@ -43,6 +43,9 @@ sealed interface DrawerListItem {
         /** Whether the list scrolls to it ([headerFollows]). */
         val follows: Boolean = true,
     ) : DrawerListItem
+
+    /** "Show all N" under a project group that shows only its first few rows. */
+    data class ShowMore(val projectID: String, val remaining: Int) : DrawerListItem
     data class Session(val id: String) : DrawerListItem
     data object Empty : DrawerListItem
     /** Under the last row while more sessions can be read ([DrawerListFooter]). */
@@ -64,6 +67,7 @@ sealed interface DrawerListItem {
             Footer -> "footer"
             is Ghost -> "ghost-$index"
             ServerNote -> "server-note"
+            is ShowMore -> "show-more-$projectID"
         }
 }
 
@@ -206,6 +210,8 @@ data class DrawerListModel(
     companion object {
         val order = listOf(DrawerListSection.top, DrawerListSection.pinned, DrawerListSection.recents)
         const val ghostCount = 5
+        /** Rows a project group shows before "Show all"; the rest wait behind it. */
+        const val GROUP_ROWS_SHOWN = 5
 
         /**
          * Home's state as the drawer shows it: shortcuts, then Pinned and Recents with their
@@ -359,15 +365,24 @@ data class DrawerListModel(
                             collapsed = collapsed,
                         )
                         if (collapsed) continue
+                        val limit = if (group.id in state.expandedProjectIDs) Int.MAX_VALUE else GROUP_ROWS_SHOWN
+                        val shown = (group.unsent.size + group.sessions.size).coerceAtMost(limit)
+                        var left = shown
                         for (unsent in group.unsent) {
+                            if (left <= 0) break
                             rows[unsent.session.id] = unsent
                             recentItems += DrawerListItem.Session(unsent.session.id)
+                            left -= 1
                         }
                         for (session in group.sessions) {
+                            if (left <= 0) break
                             if (session.id in rows) continue
                             rows[session.id] = row(session, pinned = false)
                             recentItems += DrawerListItem.Session(session.id)
+                            left -= 1
                         }
+                        val hidden = group.count - shown
+                        if (hidden > 0) recentItems += DrawerListItem.ShowMore(group.id, hidden)
                     }
                 }
             } else if (pinned.isEmpty() && (state.search.isNotEmpty() || state.hasConnected) && footer == null) {

@@ -452,6 +452,10 @@ fun DrawerListView(
                     } else {
                         DrawerListHeaderCell(item.kind, pinDrag)
                     }
+                    is DrawerListItem.ShowMore -> DrawerListShowMoreCell(
+                        remaining = item.remaining,
+                        onShow = { store.send(HomeFeature.Action.ProjectGroupShowMoreTapped(item.projectID)) },
+                    )
                     DrawerListItem.Empty -> DrawerListEmptyRow(current.search)
                     DrawerListItem.Footer -> DrawerListFooterRow(
                         footer = current.footer ?: DrawerListFooter.loading,
@@ -586,6 +590,7 @@ private fun contentType(item: DrawerListItem): Int = when (item) {
     is DrawerListItem.Ghost -> 5
     DrawerListItem.ServerNote -> 6
     DrawerListItem.Footer -> 7
+    is DrawerListItem.ShowMore -> 8
 }
 
 /** What the list showed of its pins, to tell a Pin, Unpin or Move outside a drag. */

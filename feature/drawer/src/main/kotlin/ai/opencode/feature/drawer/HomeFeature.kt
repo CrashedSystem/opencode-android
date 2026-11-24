@@ -103,6 +103,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         val search: String = "",
         /** Project groups the reader folded in the drawer's Recents, by project ID. */
         val collapsedProjectIDs: Set<String> = emptySet(),
+        /** Project groups the reader asked to show in full, past [DrawerListModel.GROUP_ROWS_SHOWN]. */
+        val expandedProjectIDs: Set<String> = emptySet(),
         /** Older pages and the server's search results (`HomeFeatureSessionPages.kt`). */
         val sessionPages: SessionPages = SessionPages(),
         val transcriptCache: Map<String, List<OpenCodeTranscriptItem>> = emptyMap(),
@@ -660,6 +662,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         data class SearchChanged(val text: String) : Action
         /** Folds or unfolds one project's group in the drawer's Recents. */
         data class ProjectGroupToggled(val projectID: String) : Action
+        /** Shows a project group's rows past its first few. */
+        data class ProjectGroupShowMoreTapped(val projectID: String) : Action
         /** The view popped (or pushed) Settings. */
         data class SettingsShownChanged(val isShown: Boolean) : Action
         data object Task : Action

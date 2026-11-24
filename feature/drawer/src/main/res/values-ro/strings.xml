@@ -183,4 +183,9 @@
     <string name="drawer_appearance_preview_assistant_text">Am găsit problema de aranjare în `SessionView.swift`. Transcrierea și editorul de mesaje împart înălțimea disponibilă, așa că tastatura e utilă pentru a testa limitele.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="few">%1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

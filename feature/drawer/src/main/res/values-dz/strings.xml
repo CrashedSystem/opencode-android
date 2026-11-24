@@ -163,4 +163,7 @@
     <string name="drawer_appearance_preview_assistant_text">`SessionView.swift` ནང་བཀོད་རིས་ཀྱི་དཀའ་ངལ་འཚོལ་ཐོབ་ཅི། ཁ་སླབ་ཡིག་འབེབས་དང་འཕྲིན་དོན་འབྲི་ས་གཉིས་ཀྱིས་ ཡོད་པའི་མཐོ་ཚད་བགོ་སྟེ་ལག་ལེན་འཐབ་དོ། དེ་འབདཝ་ལས་ ལྡེ་སྒྲོམ་ཁ་ཕྱེ་སྟེ་ས་སྟོང་ཉུངམ་ད་ཚོད་ལྟ་འབད་བཏུབ།</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

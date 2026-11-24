@@ -183,4 +183,9 @@
     <string name="drawer_appearance_preview_assistant_text">Atradu izkārtojuma problēmu failā `SessionView.swift`. Sarunas pieraksts un ziņas ievade dala pieejamo augstumu, tāpēc tastatūra labi palīdz pārbaudīt izkārtojumu.</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="zero">%1$d more</item>
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

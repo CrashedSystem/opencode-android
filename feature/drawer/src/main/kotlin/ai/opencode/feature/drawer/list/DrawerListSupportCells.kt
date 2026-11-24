@@ -451,3 +451,23 @@ fun DrawerListProjectHeaderCell(
         )
     }
 }
+
+/** "Show 3 more" under a project group that shows only its first few rows. */
+@Composable
+fun DrawerListShowMoreCell(remaining: Int, onShow: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = OpenCodeTheme.colors
+    Text(
+        pluralStringResource(R.plurals.drawer_project_show_more, remaining, remaining),
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = DrawerMetrics.rowHeight)
+            .padding(start = DrawerMetrics.leadingEdge + 8.dp, end = DrawerMetrics.rowEdge)
+            .clickable(onClick = onShow)
+            .clearAndSetSemantics {
+                role = Role.Button
+                onClick { onShow(); true }
+            }
+            .testTag("drawer-project-show-more"),
+        style = OpenCodeTextStyles.footnote.copy(color = colors.secondaryText),
+    )
+}

@@ -163,4 +163,7 @@
     <string name="drawer_appearance_preview_assistant_text">`SessionView.swift`에서 레이아웃 문제를 찾았어요. 대화 기록과 입력창이 사용 가능한 높이를 나눠 쓰기 때문에 키보드를 띄워 보면 레이아웃을 점검하기 좋아요.</string>
     <string name="drawer_project_collapsed">접힘</string>
     <string name="drawer_project_expanded">펼침</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="other">%1$d개 더 보기</item>
+    </plurals>
 </resources>

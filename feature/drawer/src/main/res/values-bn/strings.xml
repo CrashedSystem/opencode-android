@@ -173,4 +173,8 @@
     <string name="drawer_appearance_preview_assistant_text">`SessionView.swift`-এ লেআউটের সমস্যাটি পেয়েছি। ট্রান্সক্রিপ্ট আর কম্পোজার উপলব্ধ উচ্চতা ভাগ করে নেয়, তাই কীবোর্ড দিয়ে লেআউটটি ভালোভাবে পরীক্ষা করা যায়।</string>
     <string name="drawer_project_collapsed">Collapsed</string>
     <string name="drawer_project_expanded">Expanded</string>
+    <plurals name="drawer_project_show_more">
+        <item quantity="one">Show %1$d more</item>
+        <item quantity="other">Show %1$d more</item>
+    </plurals>
 </resources>

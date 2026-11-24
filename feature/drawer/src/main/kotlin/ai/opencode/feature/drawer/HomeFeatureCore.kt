@@ -238,6 +238,8 @@ private fun HomeFeature.coreRoute(state: State, action: Action): Reduced<State, 
         }
         Reduced(state.copy(collapsedProjectIDs = next))
     }
+    is Action.ProjectGroupShowMoreTapped ->
+        Reduced(state.copy(expandedProjectIDs = state.expandedProjectIDs + action.projectID))
     is Action.SettingsShownChanged ->
         Reduced(if (action.isShown) state.showingSettings() else state.copy(settings = null))
 
