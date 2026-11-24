@@ -338,15 +338,10 @@ private fun SessionFeature.contentBatch(
     val retune = retunePendingWork(s)
     s = retune.state
     // Streaming text survives a refresh through `liveText`; replaying its deltas afterwards would
-    // append them a second time. Reasoning events project no transcript items and need not be
-    // buffered either.
+    // append them a second time. Reasoning is keyed the same way and is buffered for the same
+    // reason: its deltas would otherwise double.
     s.refresh?.let { refresh ->
-        var raced = refresh.racedEvents + events.filter {
-            it !is OpenCodeLiveContentEvent.TextDelta &&
-                it !is OpenCodeLiveContentEvent.ReasoningStarted &&
-                it !is OpenCodeLiveContentEvent.ReasoningDelta &&
-                it !is OpenCodeLiveContentEvent.ReasoningEnded
-        }
+        var raced = refresh.racedEvents + events.filter { it !is OpenCodeLiveContentEvent.TextDelta }
         if (raced.size > 512) raced = raced.drop(raced.size - 512)
         s = s.copy(refresh = refresh.copy(racedEvents = raced))
     }
@@ -862,6 +857,32 @@ private fun SessionFeature.applyLiveEvent(event: OpenCodeLiveContentEvent, proje
             projection.liveText[id] = projection.liveText[id] ?: ""
             null
         }
+        is OpenCodeLiveContentEvent.ReasoningStarted -> {
+            val id = "${event.messageID}-reasoning-${event.ordinal}"
+            projection.liveText[id] = projection.liveText[id] ?: ""
+            null
+        }
+        is OpenCodeLiveContentEvent.ReasoningDelta -> {
+            val id = "${event.messageID}-reasoning-${event.ordinal}"
+            // No accumulated text in this event, so a row that streamed before a gap keeps its own
+            // text rather than shrinking to the deltas that arrived after it.
+            projection.liveText[id]?.let { accumulated ->
+                val text = accumulated + event.delta
+                projection.liveText[id] = text
+                val change = upsertLiveReasoning(id, text, completed = false, items = projection.items)
+                if (change != LiveUpsert.Unchanged) projection.itemsChanged = true
+            }
+            null
+        }
+        is OpenCodeLiveContentEvent.ReasoningEnded -> {
+            val id = "${event.messageID}-reasoning-${event.ordinal}"
+            val text = projection.liveText[id]
+            if (text != null) {
+                val change = upsertLiveReasoning(id, text, completed = true, items = projection.items)
+                if (change != LiveUpsert.Unchanged) projection.itemsChanged = true
+            }
+            null
+        }
         is OpenCodeLiveContentEvent.TextDelta -> {
             val id = "${event.messageID}-text-${event.ordinal}"
             // A row with no accumulator streamed before a gap (a reconnect, or a stream that shed
@@ -928,7 +949,6 @@ private fun SessionFeature.applyLiveEvent(event: OpenCodeLiveContentEvent, proje
                 )
             }
         is OpenCodeLiveContentEvent.StepStarted, is OpenCodeLiveContentEvent.StepStreamed, is OpenCodeLiveContentEvent.StepEnded,
-        is OpenCodeLiveContentEvent.ReasoningStarted, is OpenCodeLiveContentEvent.ReasoningDelta, is OpenCodeLiveContentEvent.ReasoningEnded,
         -> null
     }
 
@@ -964,6 +984,29 @@ internal fun SessionFeature.upsertLiveTextChange(
     if (shown.isBlank()) return LiveUpsert.Unchanged
     val index = items.indexOfLast { it.id == id }
     val item = OpenCodeTranscriptItem.AssistantMarkdown(id = id, text = shown, inProgress = streaming)
+    if (index >= 0) {
+        if (items[index] == item) return LiveUpsert.Unchanged
+        items[index] = item
+        return LiveUpsert.Replaced
+    }
+    items.add(liveInsertionIndex(SessionFeature.messageID(item), items), item)
+    return LiveUpsert.Inserted
+}
+
+/**
+ * Reasoning streams like text, but it is not the reply: it is drawn in its own folded block and
+ * never ends a reply. [completed] turns the header from "Reasoning…" to "Reasoning" when the step
+ * ends, keeping the text the deltas built.
+ */
+internal fun SessionFeature.upsertLiveReasoning(
+    id: String,
+    text: String,
+    completed: Boolean,
+    items: MutableList<OpenCodeTranscriptItem>,
+): LiveUpsert {
+    if (text.isBlank()) return LiveUpsert.Unchanged
+    val index = items.indexOfLast { it.id == id }
+    val item = OpenCodeTranscriptItem.AssistantReasoning(id = id, text = text, completed = completed)
     if (index >= 0) {
         if (items[index] == item) return LiveUpsert.Unchanged
         items[index] = item

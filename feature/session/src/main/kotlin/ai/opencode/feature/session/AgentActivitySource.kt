@@ -426,6 +426,7 @@ data class WorkingRun(
         fun lastServerItem(items: List<OpenCodeTranscriptItem>): String? = items.lastOrNull { item ->
             when (item) {
                 is OpenCodeTranscriptItem.AssistantMarkdown, is OpenCodeTranscriptItem.Tool,
+                is OpenCodeTranscriptItem.AssistantReasoning,
                 is OpenCodeTranscriptItem.Compaction, is OpenCodeTranscriptItem.RunError -> true
                 is OpenCodeTranscriptItem.Info -> item.id.endsWith("-error")
                 else -> false

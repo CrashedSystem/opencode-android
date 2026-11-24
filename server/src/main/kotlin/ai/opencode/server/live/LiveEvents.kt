@@ -586,7 +586,10 @@ private fun serverEvent(type: String, data: EventPayload?): OpenCodeServerEvent?
             ordinalContent { id, ordinal -> OpenCodeLiveContentEvent.TextEnded(id, ordinal, text) }
         }
         "session.reasoning.started" -> ordinalContent(OpenCodeLiveContentEvent::ReasoningStarted)
-        "session.reasoning.delta" -> ordinalContent(OpenCodeLiveContentEvent::ReasoningDelta)
+        "session.reasoning.delta" -> {
+            val delta = data?.delta ?: return null
+            ordinalContent { id, ordinal -> OpenCodeLiveContentEvent.ReasoningDelta(id, ordinal, delta) }
+        }
         "session.reasoning.ended" -> ordinalContent(OpenCodeLiveContentEvent::ReasoningEnded)
         "session.tool.input.started" -> {
             val name = data?.name ?: return null

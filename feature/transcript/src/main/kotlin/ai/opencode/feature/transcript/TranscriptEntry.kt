@@ -267,6 +267,11 @@ sealed interface TranscriptEntry {
                         if (item.text.isNotBlank()) reply += item.text
                         replyID = item.id
                     }
+                    is OpenCodeTranscriptItem.AssistantReasoning -> {
+                        // Reasoning belongs to the step, not the reply's text: it ends nothing.
+                        flush()
+                        entries += Single(item)
+                    }
                     is OpenCodeTranscriptItem.Compaction, is OpenCodeTranscriptItem.Info, is OpenCodeTranscriptItem.Undone -> {
                         flush()
                         entries += Single(item)
