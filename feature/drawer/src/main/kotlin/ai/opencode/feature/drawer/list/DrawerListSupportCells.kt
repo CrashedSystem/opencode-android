@@ -42,6 +42,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -401,5 +402,52 @@ fun DrawerListFooterRow(footer: DrawerListFooter, retry: () -> Unit, modifier: M
                 Text(stringResource(CoreR.string.common_try_again), style = OpenCodeTextStyles.footnote, fontWeight = FontWeight.SemiBold)
             }
         }
+    }
+}
+
+/**
+ * One project's sessions in Recents, as a header that folds. It is a header rather than a section
+ * break: it says which folder these sessions belong to, and it carries the count so a folded group
+ * still says how much it holds.
+ */
+@Composable
+fun DrawerListProjectHeaderCell(
+    title: String,
+    count: Int,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = OpenCodeTheme.colors
+    val stateLabel = stringResource(if (collapsed) R.string.transcript_collapsed else R.string.transcript_expanded)
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(top = DrawerTunables.sectionAbove, bottom = DrawerTunables.sectionBelow)
+            .heightIn(min = DrawerMetrics.rowHeight)
+            .padding(start = DrawerMetrics.leadingEdge, end = DrawerMetrics.rowEdge)
+            .clickable(onClick = onToggle)
+            .clearAndSetSemantics {
+                contentDescription = listOf(title, count.toString()).joinToString(", ")
+                stateDescription = stateLabel
+                role = Role.Button
+                heading()
+                onClick { onToggle(); true }
+            }
+            .testTag("drawer-project-header"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        DrawerSectionTitle(title, Modifier.weight(1f))
+        Text(
+            text = count.toString(),
+            style = OpenCodeTextStyles.caption2.copy(color = colors.tertiaryText, fontFeatureSettings = "tnum"),
+        )
+        OpenCodeIcon(
+            if (collapsed) SFSymbol.ChevronRight else SFSymbol.ChevronDown,
+            contentDescription = null,
+            size = 11.dp,
+            tint = colors.tertiaryText,
+        )
     }
 }

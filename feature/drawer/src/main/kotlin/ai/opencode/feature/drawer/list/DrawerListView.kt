@@ -442,7 +442,16 @@ fun DrawerListView(
                         returnFocus = returnFocus.takeIf { item == DrawerListItem.CatchUp },
                     )
                     DrawerListItem.Archived -> ArchivedEntryRow(current.archivedCount, regularList = true, onClick = { currentActions.openArchived() })
-                    is DrawerListItem.Header -> DrawerListHeaderCell(item.kind, pinDrag)
+                    is DrawerListItem.Header -> if (item.projectID != null) {
+                        DrawerListProjectHeaderCell(
+                            title = item.title.orEmpty(),
+                            count = item.count,
+                            collapsed = item.collapsed,
+                            onToggle = { store.send(HomeFeature.Action.ProjectGroupToggled(item.projectID)) },
+                        )
+                    } else {
+                        DrawerListHeaderCell(item.kind, pinDrag)
+                    }
                     DrawerListItem.Empty -> DrawerListEmptyRow(current.search)
                     DrawerListItem.Footer -> DrawerListFooterRow(
                         footer = current.footer ?: DrawerListFooter.loading,

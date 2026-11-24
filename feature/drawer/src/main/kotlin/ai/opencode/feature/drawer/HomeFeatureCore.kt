@@ -230,6 +230,14 @@ private fun HomeFeature.coreRoute(state: State, action: Action): Reduced<State, 
     }
 
     is Action.SearchChanged -> Reduced(state.copy(search = action.text))
+    is Action.ProjectGroupToggled -> {
+        val next = if (action.projectID in state.collapsedProjectIDs) {
+            state.collapsedProjectIDs - action.projectID
+        } else {
+            state.collapsedProjectIDs + action.projectID
+        }
+        Reduced(state.copy(collapsedProjectIDs = next))
+    }
     is Action.SettingsShownChanged ->
         Reduced(if (action.isShown) state.showingSettings() else state.copy(settings = null))
 

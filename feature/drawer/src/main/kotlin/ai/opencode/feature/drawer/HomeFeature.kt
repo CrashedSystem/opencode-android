@@ -101,6 +101,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
          */
         val previewRevision: Int = 0,
         val search: String = "",
+        /** Project groups the reader folded in the drawer's Recents, by project ID. */
+        val collapsedProjectIDs: Set<String> = emptySet(),
         /** Older pages and the server's search results (`HomeFeatureSessionPages.kt`). */
         val sessionPages: SessionPages = SessionPages(),
         val transcriptCache: Map<String, List<OpenCodeTranscriptItem>> = emptyMap(),
@@ -656,6 +658,8 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         /** Show Welcome over Home ([State.welcome]); its pairing requests go to the app. */
         data class Welcome(val action: PresentationAction<WelcomeFeature.Action>) : Action
         data class SearchChanged(val text: String) : Action
+        /** Folds or unfolds one project's group in the drawer's Recents. */
+        data class ProjectGroupToggled(val projectID: String) : Action
         /** The view popped (or pushed) Settings. */
         data class SettingsShownChanged(val isShown: Boolean) : Action
         data object Task : Action

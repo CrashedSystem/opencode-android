@@ -9,6 +9,7 @@ import ai.opencode.feature.drawer.ServerSwapTarget
 import ai.opencode.feature.drawer.ServerSwitchNote
 import ai.opencode.feature.drawer.drawerListFooter
 import ai.opencode.feature.drawer.drawerSessions
+import ai.opencode.feature.drawer.icons.OpenCodeProjectLookup
 import ai.opencode.feature.drawer.hiddenSessionIDs
 import ai.opencode.feature.drawer.placeholderSession
 import ai.opencode.feature.drawer.statusSnapshot
@@ -26,14 +27,23 @@ import java.time.Instant
  * `DrawerTunables` are constants here, so rows read them directly.
  */
 
-enum class DrawerListSection { top, pinned, recents }
+enum class DrawerListSection { top, pinned, recents, projects }
 
 sealed interface DrawerListItem {
     data object CatchUp : DrawerListItem
     data object WhatsNew : DrawerListItem
     /** Under Catch Up while the server has archived sessions. */
     data object Archived : DrawerListItem
-    data class Header(val kind: DrawerSectionHeaderKind) : DrawerListItem
+    data class Header(
+        val kind: DrawerSectionHeaderKind,
+        /** Set for a project's group header in Recents; null for Pinned and the flat Recents. */
+        val projectID: String? = null,
+        val title: String? = null,
+        val count: Int = 0,
+        val collapsed: Boolean = false,
+        /** Whether the list scrolls to it ([headerFollows]). */
+        val follows: Boolean = true,
+    ) : DrawerListItem
     data class Session(val id: String) : DrawerListItem
     data object Empty : DrawerListItem
     /** Under the last row while more sessions can be read ([DrawerListFooter]). */
@@ -49,7 +59,7 @@ sealed interface DrawerListItem {
             CatchUp -> "catch-up"
             WhatsNew -> "whats-new"
             Archived -> "archived"
-            is Header -> "header-${kind.name}"
+            is Header -> if (projectID == null) "header-${kind.name}" else "header-project-$projectID"
             is Session -> "session-$id"
             Empty -> "empty"
             Footer -> "footer"
@@ -125,7 +135,53 @@ data class DrawerListInputs(
     val serverSwap: ServerSwapTarget? = null,
     /** The rows chosen in selection mode ([DrawerSelection]). */
     val checkedIDs: Set<String> = emptySet(),
+    /** Project groups the reader folded in Recents, by project ID. */
+    val collapsedProjectIDs: Set<String> = emptySet(),
 )
+
+/** One project's sessions in Recents, newest first, in the server's order. */
+internal data class DrawerProjectGroup(
+    /** The project's ID; "" for the home/root project that owns sessions outside a project. */
+    val id: String,
+    val name: String,
+    val sessions: List<OpenCodeSession>,
+    /** A new session whose first message only this phone has. */
+    val unsent: List<DrawerListRow> = emptyList(),
+) {
+    val count: Int get() = sessions.size + unsent.size
+}
+
+/**
+ * [recents] split by project, keeping the server's recency order inside each group and ordering
+ * the groups by their newest session. A session in no known project (the home folder or the
+ * server's root) gets a group named after its folder, so it is never silently mixed in.
+ */
+internal fun projectGroups(
+    recents: List<OpenCodeSession>,
+    unsent: List<DrawerListRow>,
+    lookup: OpenCodeProjectLookup,
+): List<DrawerProjectGroup> {
+    val byID = LinkedHashMap<String, MutableList<OpenCodeSession>>()
+    for (session in recents) {
+        byID.getOrPut(lookup.resolved(session).id) { mutableListOf() } += session
+    }
+    // Unsent drafts belong to their draft's project; they lead their group's rows.
+    val unsentByID = unsent.groupBy { lookup.resolved(it.session).id }
+    val ids = LinkedHashSet<String>().apply {
+        addAll(byID.keys)
+        addAll(unsentByID.keys)
+    }
+    return ids.map { id ->
+        val first = byID[id]?.firstOrNull() ?: unsentByID[id]!!.first().session
+        val project = lookup.resolved(first)
+        DrawerProjectGroup(
+            id = id,
+            name = project.name.ifEmpty { localized(R.string.drawer_section_recents) },
+            sessions = byID[id].orEmpty(),
+            unsent = unsentByID[id].orEmpty(),
+        )
+    }
+}
 
 data class DrawerListModel(
     val sections: Map<DrawerListSection, List<DrawerListItem>> = emptyMap(),
@@ -243,6 +299,7 @@ data class DrawerListModel(
             }
             // Unsent sessions lead Recents: they wait on you, and the server can't order them.
             val open = if (state.catchUp == null) state.sessionDetail else null
+            val projectLookup = OpenCodeProjectLookup(state.projects)
             val unsentRows = mutableListOf<DrawerListRow>()
             for (draft in state.unsentDrafts) {
                 val session = draft.placeholderSession
@@ -264,22 +321,51 @@ data class DrawerListModel(
                     unsent = if (draft.isFailed) DrawerListRow.Unsent.Failed else DrawerListRow.Unsent.Sending,
                 )
             }
+            val footer = state.drawerListFooter
             val recentItems = mutableListOf<DrawerListItem>()
+            // Recents by project: the flat list keeps the server's order, and a project's sessions
+            // sit together under a header that folds. A search stays flat — folding would hide the
+            // hit being looked for — and so does a single project, where a header per group is
+            // noise rather than structure.
+            val groups = if (state.search.isEmpty()) projectGroups(recents, unsentRows, projectLookup) else emptyList()
+            val grouped = groups.size > 1
             if (recents.isNotEmpty() || unsentRows.isNotEmpty()) {
-                recentItems += header(DrawerSectionHeaderKind.Recents, follows = pinned.isNotEmpty() || showsShortcuts)
-                for (unsent in unsentRows) {
-                    rows[unsent.session.id] = unsent
-                    recentItems += DrawerListItem.Session(unsent.session.id)
+                if (!grouped) {
+                    recentItems += header(DrawerSectionHeaderKind.Recents, follows = pinned.isNotEmpty() || showsShortcuts)
+                    for (unsent in unsentRows) {
+                        rows[unsent.session.id] = unsent
+                        recentItems += DrawerListItem.Session(unsent.session.id)
+                    }
+                    for (session in recents) {
+                        if (session.id in rows) continue
+                        rows[session.id] = row(session, pinned = false)
+                        recentItems += DrawerListItem.Session(session.id)
+                    }
+                } else {
+                    for (group in groups) {
+                        val collapsed = group.id in inputs.collapsedProjectIDs
+                        recentItems += DrawerListItem.Header(
+                            DrawerSectionHeaderKind.Recents,
+                            projectID = group.id,
+                            title = group.name,
+                            count = group.count,
+                            collapsed = collapsed,
+                        )
+                        if (collapsed) continue
+                        for (unsent in group.unsent) {
+                            rows[unsent.session.id] = unsent
+                            recentItems += DrawerListItem.Session(unsent.session.id)
+                        }
+                        for (session in group.sessions) {
+                            if (session.id in rows) continue
+                            rows[session.id] = row(session, pinned = false)
+                            recentItems += DrawerListItem.Session(session.id)
+                        }
+                    }
                 }
-                for (session in recents) {
-                    if (session.id in rows) continue
-                    rows[session.id] = row(session, pinned = false)
-                    recentItems += DrawerListItem.Session(session.id)
-                }
-            } else if (pinned.isEmpty() && (state.search.isNotEmpty() || state.hasConnected) && state.drawerListFooter == null) {
+            } else if (pinned.isEmpty() && (state.search.isNotEmpty() || state.hasConnected) && footer == null) {
                 recentItems += DrawerListItem.Empty
             }
-            val footer = state.drawerListFooter
             if (footer != null) recentItems += DrawerListItem.Footer
             return DrawerListModel(
                 sections = mapOf(
