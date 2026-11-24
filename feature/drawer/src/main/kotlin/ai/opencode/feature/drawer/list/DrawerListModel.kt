@@ -84,11 +84,6 @@ data class DrawerListRow(
     val isLifted: Boolean,
     val time: String,
     val project: OpenCodeProject?,
-    /**
-     * The project's tile, when it says something: a real project, not the computer's home folder.
-     * A session that landed in `~` has no project to name, so a lettered tile there is noise.
-     */
-    val projectTile: OpenCodeProject? get() = project?.takeUnless { it.isHomeFolder }
     val server: OpenCodeServer,
     val reducedMotion: Boolean,
     val increasedContrast: Boolean,
@@ -98,6 +93,12 @@ data class DrawerListRow(
     val unsent: Unsent? = null,
 ) {
     enum class Unsent { Sending, Failed }
+
+    /**
+     * The project's tile, when it says something: a real project, not the computer's home folder.
+     * A session that landed in `~` has no project to name, so a lettered tile there is noise.
+     */
+    val projectTile: OpenCodeProject? get() = project?.takeUnless { it.isHomeFolder }
 
     /** TalkBack's state for the row. */
     val accessibilityValue: String
