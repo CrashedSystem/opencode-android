@@ -733,6 +733,7 @@ internal class MessageRows(val messageID: String) {
         is OpenCodeTranscriptItem.UserFiles -> item.id == files
         is OpenCodeTranscriptItem.Tool -> item.call.messageID == messageID || item.id == messageID || item.id.startsWith(prefix)
         is OpenCodeTranscriptItem.AssistantMarkdown, is OpenCodeTranscriptItem.Info, is OpenCodeTranscriptItem.Notice,
+        is OpenCodeTranscriptItem.AssistantReasoning,
         is OpenCodeTranscriptItem.SendFailure, is OpenCodeTranscriptItem.RunError, is OpenCodeTranscriptItem.RunRetry,
         is OpenCodeTranscriptItem.Undone,
         -> item.id == messageID || item.id.startsWith(prefix)
