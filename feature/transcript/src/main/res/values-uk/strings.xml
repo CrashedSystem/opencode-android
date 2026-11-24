@@ -187,4 +187,10 @@
     <string name="transcript_reasoning">Reasoning</string>
     <string name="transcript_reasoning_thinking">Reasoning…</string>
     <string name="transcript_reasoning_show_click_label">Show the reasoning</string>
+    <plurals name="transcript_reasoning_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="few">%1$d lines</item>
+        <item quantity="many">%1$d lines</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
 </resources>

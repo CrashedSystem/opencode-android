@@ -2,6 +2,7 @@ package ai.opencode.feature.transcript.rows
 
 import ai.opencode.core.ui.OpenCodeIcon
 import ai.opencode.core.ui.OpenCodeTextStyles
+import ai.opencode.core.ui.SFSymbol
 import ai.opencode.core.ui.OpenCodeTheme
 import ai.opencode.core.ui.appFormattingLocale
 import ai.opencode.feature.media.TranscriptMetrics
@@ -27,6 +28,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,9 +40,11 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -48,8 +53,8 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 
@@ -146,44 +151,93 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
 }
 
 /**
- * One step's reasoning, folded behind a "Reasoning" rule. Collapsed by default: it is long, and it
- * is not the answer. While the step still streams ([completed] false) the header says so, so a
- * reader knows the block they open is still filling in.
+ * One step's reasoning. It is behind a header rather than in the flow of the answer, because it is
+ * long and it is not the answer — but it has to be *findable*: the header carries an icon and a
+ * line count (not just a hairline rule, which reads as a section break), and the first line of the
+ * text shows underneath while collapsed, so it is obvious there is something to open.
+ *
+ * While the step still streams ([completed] false) the block opens by itself and keeps the reader's
+ * own choice once they touch it: a run's reasoning is the clearest sign that the model is thinking
+ * about *this* request, and a reader who just asked something should see it without hunting. When
+ * the step ends it folds back unless the reader opened it.
  */
 @Composable
 private fun ReasoningView(id: String, text: String, completed: Boolean) {
     val context = LocalTranscriptRowContext.current
     val colors = OpenCodeTheme.colors
     val disclosure = context.disclosure
-    val isExpanded = disclosure.isOpen(TranscriptDisclosureState.Kind.Reasoning, id)
-    val toggle = { disclosure.toggle(TranscriptDisclosureState.Kind.Reasoning, id, id) }
+    val chosen = disclosure.isOpen(TranscriptDisclosureState.Kind.Reasoning, id)
+    // Streaming opens it once; the reader overriding that sticks for the rest of the step.
+    val touched = remember(id) { mutableStateOf(false) }
+    val isExpanded = if (!completed && !touched.value) true else chosen
+    val toggle = {
+        touched.value = true
+        disclosure.toggle(TranscriptDisclosureState.Kind.Reasoning, id, id)
+    }
     val title = stringResource(if (completed) R.string.transcript_reasoning else R.string.transcript_reasoning_thinking)
     val expandedLabel = stringResource(R.string.transcript_expanded)
     val collapsedLabel = stringResource(R.string.transcript_collapsed)
     val showLabel = stringResource(R.string.transcript_reasoning_show_click_label)
+    val lines = remember(text) { text.count { it == '\n' } + 1 }
+    val countLabel = pluralStringResource(R.plurals.transcript_reasoning_lines, lines, lines)
+    val preview = remember(text) {
+        text.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
+    }
     Column {
-        TranscriptRule(
-            Modifier.rowHitTarget(
-                top = TranscriptMetrics.sectionHalf,
-                bottom = TranscriptMetrics.sectionHalf,
-                target = Modifier
-                    .rowClickable(onClick = toggle)
-                    .clearAndSetSemantics {
-                        contentDescription = title
-                        stateDescription = if (isExpanded) expandedLabel else collapsedLabel
-                        role = Role.Button
-                        onClick(showLabel) { toggle(); true }
-                    },
-            ),
-            labelColor = colors.secondaryText,
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .rowHitTarget(
+                    top = TranscriptMetrics.sectionHalf,
+                    bottom = TranscriptMetrics.sectionHalf,
+                    target = Modifier
+                        .rowClickable(onClick = toggle)
+                        .clearAndSetSemantics {
+                            contentDescription = listOfNotNull(title, countLabel, preview).joinToString(". ")
+                            stateDescription = if (isExpanded) expandedLabel else collapsedLabel
+                            role = Role.Button
+                            onClick(showLabel) { toggle(); true }
+                        },
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(title)
+            OpenCodeIcon(
+                SFSymbol.EllipsisCircle,
+                contentDescription = null,
+                size = 13.dp,
+            )
+            Text(title, style = OpenCodeTextStyles.caption1.copy(color = colors.secondaryText))
+            Text("·", style = OpenCodeTextStyles.caption1.copy(color = colors.tertiaryText))
+            Text(
+                countLabel,
+                style = OpenCodeTextStyles.caption1.copy(
+                    color = colors.tertiaryText,
+                    fontFeatureSettings = "tnum",
+                ),
+            )
+            Spacer(Modifier.weight(1f))
+            OpenCodeIcon(
+                if (isExpanded) SFSymbol.ChevronUp else SFSymbol.ChevronDown,
+                contentDescription = null,
+                size = 11.dp,
+            )
+        }
+        if (!isExpanded && !preview.isNullOrBlank()) {
+            // The folded block still shows what it holds: one quiet line, cut off.
+            Text(
+                preview!!,
+                Modifier.fillMaxWidth().padding(start = 19.dp, top = 2.dp),
+                style = OpenCodeTextStyles.caption2.copy(color = colors.tertiaryText),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         DisclosedContent(isExpanded) {
             CompositionLocalProvider(LocalContentColor provides colors.secondaryText) {
                 Text(
                     text,
-                    Modifier.fillMaxWidth().padding(start = 16.dp, top = TranscriptMetrics.standard),
+                    Modifier.fillMaxWidth().padding(start = 19.dp, top = TranscriptMetrics.standard),
                     style = OpenCodeTextStyles.footnote,
                 )
             }

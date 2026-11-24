@@ -169,4 +169,7 @@
     <string name="transcript_reasoning">추론</string>
     <string name="transcript_reasoning_thinking">추론 중…</string>
     <string name="transcript_reasoning_show_click_label">추론 표시</string>
+        <plurals name="transcript_reasoning_lines">
+        <item quantity="other">%1$d줄</item>
+    </plurals>
 </resources>
