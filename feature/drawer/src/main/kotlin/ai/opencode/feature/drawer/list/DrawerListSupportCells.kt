@@ -419,7 +419,7 @@ fun DrawerListProjectHeaderCell(
     modifier: Modifier = Modifier,
 ) {
     val colors = OpenCodeTheme.colors
-    val stateLabel = stringResource(if (collapsed) R.string.transcript_collapsed else R.string.transcript_expanded)
+    val stateLabel = stringResource(if (collapsed) R.string.drawer_project_collapsed else R.string.drawer_project_expanded)
     Row(
         modifier
             .fillMaxWidth()

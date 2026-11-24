@@ -191,4 +191,6 @@
     <!-- Appearance settings transcript preview -->
     <string name="drawer_appearance_preview_user_text">Помоги улучшить экран сессии. Покажи, что найдёшь, и объясни изменения.</string>
     <string name="drawer_appearance_preview_assistant_text">Я нашёл проблему с компоновкой в `SessionView.swift`. Переписка и поле ввода делят доступную высоту, поэтому открытие клавиатуры — хорошая проверка.</string>
+    <string name="drawer_project_collapsed">Collapsed</string>
+    <string name="drawer_project_expanded">Expanded</string>
 </resources>
