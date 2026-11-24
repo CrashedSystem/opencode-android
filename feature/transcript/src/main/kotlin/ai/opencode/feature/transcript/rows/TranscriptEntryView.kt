@@ -146,12 +146,6 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
 }
 
 /**
- * iOS `compactionView`: a labelled rule like the TUI's: running, completed (with the request's
- * own token usage), provider compaction, cancelled, or failed with its error. A completed local
- * summary expands in place.
- */
-@Composable
-/**
  * One step's reasoning, folded behind a "Reasoning" rule. Collapsed by default: it is long, and it
  * is not the answer. While the step still streams ([completed] false) the header says so, so a
  * reader knows the block they open is still filling in.
@@ -197,6 +191,12 @@ private fun ReasoningView(id: String, text: String, completed: Boolean) {
     }
 }
 
+/**
+ * iOS `compactionView`: a labelled rule like the TUI's: running, completed (with the request's
+ * own token usage), provider compaction, cancelled, or failed with its error. A completed local
+ * summary expands in place.
+ */
+@Composable
 private fun CompactionView(entry: TranscriptEntry, id: String, info: OpenCodeCompaction) {
     val context = LocalTranscriptRowContext.current
     val colors = OpenCodeTheme.colors
