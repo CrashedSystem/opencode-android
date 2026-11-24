@@ -25,12 +25,11 @@ data class OpenCodeProject(
 
     /**
      * The computer's root or a person's home folder (`/Users/kit`, `/home/kit`, `/root`,
-     * `C:\Users\kit`, or Termux's `/data/data/…/files/home`): where sessions land when no project
-     * was chosen, not a project someone works in.
+     * `C:\Users\kit`): where sessions land when no project was chosen, not a project someone
+     * works in.
      */
     val isHomeFolder: Boolean
         get() {
-            if (directory.trimEnd('/') == AgentFileReference.home(directory)?.trimEnd('/')) return true
             var parts = directory.replace('\\', '/').split('/').filter { it.isNotEmpty() }.map { it.lowercase() }
             parts.firstOrNull()?.let { drive -> if (drive.length == 2 && drive.endsWith(":")) parts = parts.drop(1) }
             return when (parts.size) {

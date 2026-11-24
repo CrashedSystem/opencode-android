@@ -14,17 +14,10 @@ class FirstComputerPairingTests {
 
     @Test
     fun homeFoldersAreNotProjects() {
-        for (directory in listOf(
-            "/", "/Users/kit", "/home/kit", "/root", "/var/root", "C:\\Users\\kit", "/Users/kit/",
-            // Termux on the phone the server often runs on.
-            "/data/data/com.termux/files/home",
-        )) {
+        for (directory in listOf("/", "/Users/kit", "/home/kit", "/root", "/var/root", "C:\\Users\\kit", "/Users/kit/")) {
             assertTrue(directory, project(directory).isHomeFolder)
         }
-        for (directory in listOf(
-            "/Users/kit/code", "/srv/web", "/home/kit/app", "/Volumes/SSD", "/tmp",
-            "/data/data/com.termux/files/home/projects/opencode",
-        )) {
+        for (directory in listOf("/Users/kit/code", "/srv/web", "/home/kit/app", "/Volumes/SSD", "/tmp")) {
             assertFalse(directory, project(directory).isHomeFolder)
         }
     }
