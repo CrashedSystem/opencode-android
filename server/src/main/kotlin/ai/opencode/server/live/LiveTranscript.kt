@@ -226,6 +226,7 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
 
     "assistant" -> {
         var textOrdinal = 0
+        var reasoningOrdinal = 0
         val parts = (message.content ?: emptyList()).mapNotNull<ContentPartPayload, OpenCodeTranscriptItem> { part ->
             when (part.type) {
                 "text" -> {
@@ -233,6 +234,12 @@ internal fun transcriptItems(message: MessagePayload): List<OpenCodeTranscriptIt
                     textOrdinal += 1
                     val text = part.text?.trimmedWhitespace()?.nonEmpty ?: return@mapNotNull null
                     OpenCodeTranscriptItem.AssistantMarkdown(partID, text)
+                }
+                "reasoning" -> {
+                    val partID = "${message.id}-reasoning-$reasoningOrdinal"
+                    reasoningOrdinal += 1
+                    val text = part.text?.trimmedWhitespace()?.nonEmpty ?: return@mapNotNull null
+                    OpenCodeTranscriptItem.AssistantReasoning(partID, text, completed = part.time?.completed != null)
                 }
                 "tool" -> {
                     val partID = "${message.id}-tool-${part.id ?: "unknown"}"

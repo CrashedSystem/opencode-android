@@ -115,8 +115,9 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
             }
         }
 
-        is OpenCodeTranscriptItem.Tool -> ToolView(entry, item.id, item.call, props.subagents)
+        is OpenCodeTranscriptItem.AssistantReasoning -> ReasoningView(item.id, item.text, item.completed)
 
+        is OpenCodeTranscriptItem.Tool -> ToolView(entry, item.id, item.call, props.subagents)
         is OpenCodeTranscriptItem.Compaction ->
             CompactionView(entry, item.id, item.info ?: OpenCodeCompaction(OpenCodeCompaction.Status.Completed))
 
@@ -150,6 +151,52 @@ private fun ItemView(entry: TranscriptEntry, item: OpenCodeTranscriptItem, rowID
  * summary expands in place.
  */
 @Composable
+/**
+ * One step's reasoning, folded behind a "Reasoning" rule. Collapsed by default: it is long, and it
+ * is not the answer. While the step still streams ([completed] false) the header says so, so a
+ * reader knows the block they open is still filling in.
+ */
+@Composable
+private fun ReasoningView(id: String, text: String, completed: Boolean) {
+    val context = LocalTranscriptRowContext.current
+    val colors = OpenCodeTheme.colors
+    val disclosure = context.disclosure
+    val isExpanded = disclosure.isOpen(TranscriptDisclosureState.Kind.Reasoning, id)
+    val toggle = { disclosure.toggle(TranscriptDisclosureState.Kind.Reasoning, id, id) }
+    val title = stringResource(if (completed) R.string.transcript_reasoning else R.string.transcript_reasoning_thinking)
+    val expandedLabel = stringResource(R.string.transcript_expanded)
+    val collapsedLabel = stringResource(R.string.transcript_collapsed)
+    val showLabel = stringResource(R.string.transcript_reasoning_show_click_label)
+    Column {
+        TranscriptRule(
+            Modifier.rowHitTarget(
+                top = TranscriptMetrics.sectionHalf,
+                bottom = TranscriptMetrics.sectionHalf,
+                target = Modifier
+                    .rowClickable(onClick = toggle)
+                    .clearAndSetSemantics {
+                        contentDescription = title
+                        stateDescription = if (isExpanded) expandedLabel else collapsedLabel
+                        role = Role.Button
+                        onClick(showLabel) { toggle(); true }
+                    },
+            ),
+            labelColor = colors.secondaryText,
+        ) {
+            Text(title)
+        }
+        DisclosedContent(isExpanded) {
+            CompositionLocalProvider(LocalContentColor provides colors.secondaryText) {
+                Text(
+                    text,
+                    Modifier.fillMaxWidth().padding(start = 16.dp, top = TranscriptMetrics.standard),
+                    style = OpenCodeTextStyles.footnote,
+                )
+            }
+        }
+    }
+}
+
 private fun CompactionView(entry: TranscriptEntry, id: String, info: OpenCodeCompaction) {
     val context = LocalTranscriptRowContext.current
     val colors = OpenCodeTheme.colors

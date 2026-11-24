@@ -172,4 +172,7 @@
         <item quantity="one">අදහස් %1$sක්</item>
         <item quantity="other">අදහස් %1$sක්</item>
     </plurals>
+    <string name="transcript_reasoning">Reasoning</string>
+    <string name="transcript_reasoning_thinking">Reasoning…</string>
+    <string name="transcript_reasoning_show_click_label">Show the reasoning</string>
 </resources>

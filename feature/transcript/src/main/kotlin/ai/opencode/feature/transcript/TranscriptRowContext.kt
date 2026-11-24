@@ -36,6 +36,8 @@ class TranscriptDisclosureState {
     val userMessages = mutableStateSetOf<String>()
     /** Reply-end link lists opened past their first few, by the reply-end row's identity. */
     val linkLists = mutableStateSetOf<String>()
+    /** A step's reasoning opened past its "Reasoning" header, by item ID. */
+    val reasoning = mutableStateSetOf<String>()
 
     /**
      * Set by the list: runs a toggle in a row as one motion. Without it the change lands at once.
@@ -43,7 +45,7 @@ class TranscriptDisclosureState {
      */
     var animateToggle: ((entryID: String, opening: Boolean, crossFades: Boolean, toggle: () -> Unit) -> Unit)? = null
 
-    enum class Kind { ToolGroups, Tools, Compactions, UserMessages, LinkLists }
+    enum class Kind { ToolGroups, Tools, Compactions, UserMessages, LinkLists, Reasoning }
 
     fun set(kind: Kind): MutableSet<String> = when (kind) {
         Kind.ToolGroups -> toolGroups
@@ -51,6 +53,7 @@ class TranscriptDisclosureState {
         Kind.Compactions -> compactions
         Kind.UserMessages -> userMessages
         Kind.LinkLists -> linkLists
+        Kind.Reasoning -> reasoning
     }
 
     fun isOpen(kind: Kind, id: String): Boolean = id in set(kind)

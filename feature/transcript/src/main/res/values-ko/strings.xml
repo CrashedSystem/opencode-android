@@ -166,4 +166,7 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">댓글 %1$s개</item>
     </plurals>
+    <string name="transcript_reasoning">추론</string>
+    <string name="transcript_reasoning_thinking">추론 중…</string>
+    <string name="transcript_reasoning_show_click_label">추론 표시</string>
 </resources>

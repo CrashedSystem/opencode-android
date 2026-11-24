@@ -178,4 +178,7 @@
         <item quantity="few">%1$s коментара</item>
         <item quantity="other">%1$s коментара</item>
     </plurals>
+    <string name="transcript_reasoning">Reasoning</string>
+    <string name="transcript_reasoning_thinking">Reasoning…</string>
+    <string name="transcript_reasoning_show_click_label">Show the reasoning</string>
 </resources>

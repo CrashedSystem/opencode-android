@@ -166,4 +166,7 @@
     <plurals name="transcript_link_preview_comments">
         <item quantity="other">%1$s komen</item>
     </plurals>
+    <string name="transcript_reasoning">Reasoning</string>
+    <string name="transcript_reasoning_thinking">Reasoning…</string>
+    <string name="transcript_reasoning_show_click_label">Show the reasoning</string>
 </resources>

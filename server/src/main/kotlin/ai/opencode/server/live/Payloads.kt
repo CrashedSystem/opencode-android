@@ -556,7 +556,13 @@ internal data class ContentPartPayload(
                     state = c.opt("state", ToolStatePayload::decode),
                     time = c.opt("time") { WireJson.decodeFromJsonElement(PartTime.serializer(), it) },
                 )
-                // Skip `"reasoning"` text and encrypted state payloads.
+                // Reasoning text is carried like a text part; the transcript shows it in its own
+                // collapsible block. Encrypted reasoning state stays unread.
+                "reasoning" -> ContentPartPayload(
+                    type,
+                    text = c.opt("text") { it.str() },
+                    time = c.opt("time") { WireJson.decodeFromJsonElement(PartTime.serializer(), it) },
+                )
                 else -> ContentPartPayload(type)
             }
         }

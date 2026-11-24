@@ -179,6 +179,18 @@ sealed interface OpenCodeTranscriptItem {
     @Serializable @SerialName("assistantMarkdown")
     data class AssistantMarkdown(override val id: String, val text: String, val inProgress: Boolean = false) : OpenCodeTranscriptItem
 
+    /**
+     * The model's own reasoning for one step, as the provider streamed it. Shown in a block that
+     * starts collapsed: it is long, and it is not the answer. [completed] is false while the step
+     * still streams, so the open block keeps growing rather than re-mounting.
+     */
+    @Serializable @SerialName("assistantReasoning")
+    data class AssistantReasoning(
+        override val id: String,
+        val text: String,
+        val completed: Boolean = false,
+    ) : OpenCodeTranscriptItem
+
     @Serializable @SerialName("tool")
     data class Tool(override val id: String, val call: OpenCodeToolCall) : OpenCodeTranscriptItem
 

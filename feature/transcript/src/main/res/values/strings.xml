@@ -66,6 +66,10 @@
     <string name="transcript_tool_group_failed_count">%1$d failed</string>
     <string name="transcript_expanded">Expanded</string>
     <string name="transcript_collapsed">Collapsed</string>
+    <!-- The model's own reasoning for one step, above the answer it produced -->
+    <string name="transcript_reasoning">Reasoning</string>
+    <string name="transcript_reasoning_thinking">Reasoning…</string>
+    <string name="transcript_reasoning_show_click_label">Show the reasoning</string>
     <string name="transcript_tool_image">Tool image</string>
     <string name="transcript_tool_hide_click_label">Hide tool input and output</string>
     <string name="transcript_tool_show_click_label">Show tool input and output</string>
