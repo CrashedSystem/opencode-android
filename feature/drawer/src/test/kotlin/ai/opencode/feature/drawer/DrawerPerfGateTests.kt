@@ -154,3 +154,101 @@ class DrawerPerfGateTests {
         assertEquals(30, CatchUpDriftRenderer.FRAMES_PER_SECOND)
     }
 }
+
+/**
+ * Recents splits by project when a session list holds more than one, and stays flat when it holds
+ * one or when a search is running (folding would hide the hit).
+ */
+class DrawerProjectGroupTests {
+    @get:Rule val isolation = TestIsolationRule()
+
+    private val server = OpenCodeServer(url = "http://localhost:9", username = "", password = "")
+
+    private val alpha = OpenCodeProject(id = "p-alpha", name = "alpha", directory = "/work/alpha")
+    private val beta = OpenCodeProject(id = "p-beta", name = "beta", directory = "/work/beta")
+
+    private fun session(id: String, project: String, directory: String, updated: Long) = OpenCodeSession(
+        id = id, serverTitle = id, projectID = project, directory = directory,
+        updatedAt = Instant.ofEpochSecond(updated), idleMilliseconds = 2_000, viewedMilliseconds = 1_000,
+    )
+
+    private fun build(sessions: List<OpenCodeSession>, projects: List<OpenCodeProject>, search: String = "") =
+        DrawerListModel.build(
+            state = HomeFeature.State(
+                server,
+                OpenCodeHomeSnapshot(projects = projects, sessions = sessions, activeSessionIDs = emptySet()),
+            ).copy(search = search),
+            inputs = DrawerListInputs(selectedSessionID = null, reducedMotion = false, increasedContrast = false),
+            liftedID = null,
+            now = Instant.ofEpochSecond(100),
+            timestamp = { _, _ -> "" },
+            project = { s, ps -> OpenCodeProject.resolved(s, ps) },
+        )
+
+    @Test
+    fun twoProjectsMakeTwoFoldedGroupsInRecencyOrder() {
+        val model = build(
+            listOf(
+                session("s1", "p-alpha", "/work/alpha", 10),
+                session("s2", "p-beta", "/work/beta", 30),
+                session("s3", "p-alpha", "/work/alpha", 20),
+            ),
+            listOf(alpha, beta),
+        )
+        val headers = model.sections[DrawerListSection.recents].orEmpty()
+            .filterIsInstance<DrawerListItem.Header>()
+            .filter { it.projectID != null }
+        assertEquals(listOf("p-beta", "p-alpha"), headers.map { it.projectID })
+        assertEquals(listOf("beta", "alpha"), headers.map { it.title })
+        assertEquals(listOf(1, 2), headers.map { it.count })
+    }
+
+    @Test
+    fun oneProjectStaysFlat() {
+        val model = build(
+            listOf(session("s1", "p-alpha", "/work/alpha", 10), session("s2", "p-alpha", "/work/alpha", 20)),
+            listOf(alpha),
+        )
+        val recents = model.sections[DrawerListSection.recents].orEmpty()
+        assertTrue(recents.none { it is DrawerListItem.Header && it.projectID != null })
+        assertTrue(recents.any { it is DrawerListItem.Header })
+    }
+
+    @Test
+    fun searchStaysFlat() {
+        val model = build(
+            listOf(session("s1", "p-alpha", "/work/alpha", 10), session("s2", "p-beta", "/work/beta", 20)),
+            listOf(alpha, beta),
+            search = "s",
+        )
+        assertTrue(model.sections[DrawerListSection.recents].orEmpty().none { it is DrawerListItem.Header && it.projectID != null })
+    }
+
+    @Test
+    fun aFoldedGroupHidesItsSessions() {
+        val state = HomeFeature.State(
+            server,
+            OpenCodeHomeSnapshot(
+                projects = listOf(alpha, beta),
+                sessions = listOf(
+                    session("s1", "p-alpha", "/work/alpha", 10),
+                    session("s2", "p-beta", "/work/beta", 20),
+                ),
+                activeSessionIDs = emptySet(),
+            ),
+        ).copy(collapsedProjectIDs = setOf("p-alpha"))
+        val model = DrawerListModel.build(
+            state = state,
+            inputs = DrawerListInputs(selectedSessionID = null, reducedMotion = false, increasedContrast = false),
+            liftedID = null,
+            now = Instant.ofEpochSecond(100),
+            timestamp = { _, _ -> "" },
+            project = { s, ps -> OpenCodeProject.resolved(s, ps) },
+        )
+        val ids = model.sections[DrawerListSection.recents].orEmpty()
+            .filterIsInstance<DrawerListItem.Session>()
+            .map { it.id }
+        assertFalse("a folded group's session is not listed", "s1" in ids)
+        assertTrue("an open group's session is", "s2" in ids)
+    }
+}

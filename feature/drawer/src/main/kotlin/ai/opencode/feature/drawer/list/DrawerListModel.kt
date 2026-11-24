@@ -9,7 +9,6 @@ import ai.opencode.feature.drawer.ServerSwapTarget
 import ai.opencode.feature.drawer.ServerSwitchNote
 import ai.opencode.feature.drawer.drawerListFooter
 import ai.opencode.feature.drawer.drawerSessions
-import ai.opencode.feature.drawer.icons.OpenCodeProjectLookup
 import ai.opencode.feature.drawer.hiddenSessionIDs
 import ai.opencode.feature.drawer.placeholderSession
 import ai.opencode.feature.drawer.statusSnapshot
@@ -155,28 +154,34 @@ internal data class DrawerProjectGroup(
  * [recents] split by project, keeping the server's recency order inside each group and ordering
  * the groups by their newest session. A session in no known project (the home folder or the
  * server's root) gets a group named after its folder, so it is never silently mixed in.
+ *
+ * [projectOf] is the caller's resolver — the same one the rows use for their tiles — so a group
+ * header and the rows under it can never disagree about which project a session is in.
  */
 internal fun projectGroups(
     recents: List<OpenCodeSession>,
     unsent: List<DrawerListRow>,
-    lookup: OpenCodeProjectLookup,
+    projectOf: (OpenCodeSession, List<OpenCodeProject>) -> OpenCodeProject?,
+    projects: List<OpenCodeProject>,
 ): List<DrawerProjectGroup> {
     val byID = LinkedHashMap<String, MutableList<OpenCodeSession>>()
     for (session in recents) {
-        byID.getOrPut(lookup.resolved(session).id) { mutableListOf() } += session
+        val id = projectOf(session, projects)?.id ?: ""
+        byID.getOrPut(id) { mutableListOf() } += session
     }
     // Unsent drafts belong to their draft's project; they lead their group's rows.
-    val unsentByID = unsent.groupBy { lookup.resolved(it.session).id }
+    val unsentByID = unsent.groupBy { projectOf(it.session, projects)?.id ?: "" }
     val ids = LinkedHashSet<String>().apply {
         addAll(byID.keys)
         addAll(unsentByID.keys)
     }
     return ids.map { id ->
         val first = byID[id]?.firstOrNull() ?: unsentByID[id]!!.first().session
-        val project = lookup.resolved(first)
+        val project = projectOf(first, projects)
         DrawerProjectGroup(
             id = id,
-            name = project.name.ifEmpty { localized(R.string.drawer_section_recents) },
+            name = project?.name?.ifEmpty { localized(R.string.drawer_section_recents) }
+                ?: localized(R.string.drawer_section_recents),
             sessions = byID[id].orEmpty(),
             unsent = unsentByID[id].orEmpty(),
         )
@@ -299,7 +304,6 @@ data class DrawerListModel(
             }
             // Unsent sessions lead Recents: they wait on you, and the server can't order them.
             val open = if (state.catchUp == null) state.sessionDetail else null
-            val projectLookup = OpenCodeProjectLookup(state.projects)
             val unsentRows = mutableListOf<DrawerListRow>()
             for (draft in state.unsentDrafts) {
                 val session = draft.placeholderSession
@@ -326,8 +330,13 @@ data class DrawerListModel(
             // Recents by project: the flat list keeps the server's order, and a project's sessions
             // sit together under a header that folds. A search stays flat — folding would hide the
             // hit being looked for — and so does a single project, where a header per group is
-            // noise rather than structure.
-            val groups = if (state.search.isEmpty()) projectGroups(recents, unsentRows, projectLookup) else emptyList()
+            // noise rather than structure. [project] is the caller's resolver, so the grouping and
+            // the rows' tiles agree on which project a session belongs to.
+            val groups = if (state.search.isEmpty()) {
+                projectGroups(recents, unsentRows, project, state.projects)
+            } else {
+                emptyList()
+            }
             val grouped = groups.size > 1
             if (recents.isNotEmpty() || unsentRows.isNotEmpty()) {
                 if (!grouped) {
