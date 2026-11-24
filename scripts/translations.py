@@ -389,7 +389,11 @@ def main():
         list_files()
         return 0
     if sys.argv[1] == "all":
-        qualifiers = [language[0] for language in LANGUAGES]
+        # Only the languages the app packages: this fork ships en and ko, and the other
+        # `values-xx` folders come in with upstream merges. Checking a language the build
+        # ignores would fail on a locale nobody can select.
+        shipped = app_languages()
+        qualifiers = [language[0] for language in LANGUAGES if language[0] in shipped]
     else:
         qualifiers = sys.argv[1:]
     failed = []
