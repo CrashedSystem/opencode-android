@@ -2,13 +2,10 @@ plugins {
     id("opencode.android.application")
 }
 
-// The languages the app is translated into (docs/translating.md).
-val appLanguages = listOf(
-    "en", "am", "az", "bg", "bn", "bs", "ca", "cs", "da", "de", "dz", "el", "es", "et", "fi", "fo",
-    "fr", "hi", "hr", "hu", "hy", "in", "is", "it", "ja", "ka", "km", "ko", "lo", "lt", "lv", "mk",
-    "mn", "ms", "my", "nb", "ne", "nl", "pl", "pt-rBR", "ro", "ru", "si", "sk", "sl", "sq", "sr",
-    "sv", "tg", "th", "tk", "tr", "uk", "uz", "vi", "zh-rCN", "zh-rTW",
-)
+// The languages the app ships. This fork keeps English and Korean only: the other 54 locales
+// cost 15 MB of resources for languages it is never used in, so `appLanguages` is what the APK
+// packages (`localeFilters` below) and what the per-app language list offers.
+val appLanguages = listOf("en", "ko")
 
 android {
     namespace = "ai.opencode.app"

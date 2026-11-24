@@ -1,0 +1,81 @@
+# Keeps this fork level with anomalyco/opencode-android.
+#
+# Runs on a schedule and on demand. It fetches upstream's `dev`, merges it into a branch, and
+# opens (or updates) a pull request. Nothing is pushed to `dev` directly: a human or the agent
+# merges the PR after CI on it passes, because a clean textual merge can still be a wrong build.
+#
+# `scripts/translations.py all` runs in the PR's CI like any other change.
+name: Sync upstream
+
+on:
+  schedule:
+    # Once a day. Upstream moves in bursts; hourly would open empty PRs.
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: dev
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Merge upstream dev into sync/upstream
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          upstream_sha=$(git ls-remote https://github.com/anomalyco/opencode-android.git refs/heads/dev | cut -f1)
+          if [ -z "$upstream_sha" ]; then
+            echo "Could not read upstream dev" >&2
+            exit 1
+          fi
+          if git merge-base --is-ancestor "$upstream_sha" HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Upstream dev ($upstream_sha) is already in dev"
+            exit 0
+          fi
+
+          git config user.name "opencode sync"
+          git config user.email "sync@users.noreply.github.com"
+          git checkout -B sync/upstream
+          if git merge --no-edit "$upstream_sha"; then
+            echo "conflicts=false" >> "$GITHUB_OUTPUT"
+          else
+            # Leave the conflicted merge in the tree so the PR shows exactly where it hurts.
+            git add -A
+            echo "conflicts=true" >> "$GITHUB_OUTPUT"
+          fi
+          git push --force-with-lease origin sync/upstream
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the pull request
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          count=$(git rev-list --count dev..sync/upstream)
+          body="Merges \`anomalyco/opencode-android\` \`dev\` into this fork: $count commit(s).
+
+          The fork's own changes (fixed debug signing key, own notification relay, Firebase resources, Korean copy, Android home in AgentFileReference) are not touched by upstream, so this is normally a clean merge. Check the APK installs over the current build with \`pm install -r\` before merging.
+
+          Conflict: **${{ steps.merge.outputs.conflicts }}**"
+          if gh pr view sync/upstream --json number > /dev/null 2>&1; then
+            gh pr edit sync/upstream --title "chore: sync upstream dev" --body "$body"
+          else
+            gh pr create --base dev --head sync/upstream --title "chore: sync upstream dev" --body "$body"
+          fi
