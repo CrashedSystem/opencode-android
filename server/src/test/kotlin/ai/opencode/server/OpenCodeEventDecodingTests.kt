@@ -214,10 +214,10 @@ class OpenCodeEventDecodingTests {
     }
 
     @Test
-    fun reasoningFramesDecodeWithoutTheirText() {
+    fun reasoningFramesDecodeWithTheirText() {
         val thinking = "hmm ".repeat(10_000)
         val cases = listOf(
-            Triple("session.reasoning.delta", "delta", ReasoningDelta("m", 2)),
+            Triple("session.reasoning.delta", "delta", ReasoningDelta("m", 2, thinking)),
             Triple("session.reasoning.ended", "text", ReasoningEnded("m", 2)),
         )
         for ((type, key, event) in cases) {
@@ -234,8 +234,8 @@ class OpenCodeEventDecodingTests {
                 TextDelta("m", 0, "Hel"),
                 TextDelta("m", 0, "lo"),
                 TextDelta("m", 1, "Other part"),
-                ReasoningDelta("m", 0),
-                ReasoningDelta("m", 0),
+                ReasoningDelta("m", 0, "thin"),
+                ReasoningDelta("m", 0, "king"),
                 ToolInputDelta("m", "t", "{\"a\""),
             ),
         )
@@ -253,7 +253,7 @@ class OpenCodeEventDecodingTests {
             listOf(
                 TextDelta("m", 0, "Hello"),
                 TextDelta("m", 1, "Other part"),
-                ReasoningDelta("m", 0),
+                ReasoningDelta("m", 0, "thinking"),
                 ToolInputDelta("m", "t", "{\"a\":1}"),
                 ToolInputDelta("m", "u", "{}"),
                 TextDelta("m", 0, "!"),

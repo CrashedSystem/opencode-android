@@ -890,7 +890,12 @@ class OpenCodeClientDecodingTests {
             """.trimIndent(),
         )
 
-        assertEquals(4, items.size)
+        assertEquals(5, items.size)
+        // Reasoning used to be dropped; it is now carried as its own item before the tools.
+        assertEquals(
+            OpenCodeTranscriptItem.AssistantReasoning("msg_assistant-reasoning-0", "Thinking", completed = false),
+            items.firstOrNull { it is OpenCodeTranscriptItem.AssistantReasoning },
+        )
         val calls = toolCalls(items)
         val shell = calls.firstOrNull { it.callID == "sh_1" }
         val failedShell = calls.firstOrNull { it.callID == "sh_2" }
