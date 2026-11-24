@@ -369,15 +369,16 @@ fun DrawerListSessionCell(
                 ) {
                     // The check takes the project tile's place while the drawer selects.
                     val side = DrawerListProjectTile.side(DrawerTunables.projectIconSize, density.fontScale)
+                    val tile = row.projectTile
                     SelectionLead(
                         checked = row.checked,
-                        restWidth = if (row.projectTile != null) side + DrawerTunables.projectIconGap else 0.dp,
+                        restWidth = if (tile != null) side + DrawerTunables.projectIconGap else 0.dp,
                         selectWidth = side + DrawerTunables.projectIconGap,
                         checkSize = 20.dp,
                     ) {
-                        if (row.projectTile != null) {
+                        if (tile != null) {
                             DrawerListProjectTile(
-                                project = row.projectTile,
+                                project = tile,
                                 server = row.server,
                                 muted = row.muted,
                                 side = side,
