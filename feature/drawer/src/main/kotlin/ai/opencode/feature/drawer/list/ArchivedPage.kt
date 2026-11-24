@@ -73,7 +73,7 @@ internal fun ArchivedEntryRow(count: Int, regularList: Boolean, onClick: () -> U
         horizontalArrangement = Arrangement.spacedBy(if (regularList) 8.dp else 12.dp),
     ) {
         Box(if (regularList) Modifier.width(22.dp) else Modifier, contentAlignment = Alignment.CenterStart) {
-            OpenCodeIcon(SFSymbol.Archivebox, contentDescription = null, tint = colors.secondaryText)
+            OpenCodeIcon(SFSymbol.ArchiveboxFill, contentDescription = null, tint = colors.secondaryText)
         }
         Text(stringResource(R.string.drawer_archived), style = font, color = colors.text, modifier = Modifier.weight(1f))
         Text("$count", style = font.copy(fontFeatureSettings = "tnum"), color = colors.secondaryText)

@@ -15,6 +15,7 @@ enum class SFSymbol(val sfName: String, @DrawableRes val drawable: Int) {
     AppDashed("app.dashed", R.drawable.ms_select),
     AppleTerminal("apple.terminal", R.drawable.ms_terminal),
     Archivebox("archivebox", R.drawable.ms_archive),
+    ArchiveboxFill("archivebox.fill", R.drawable.ms_inventory_2),
     ArrowClockwise("arrow.clockwise", R.drawable.ms_refresh),
     ArrowCounterclockwise("arrow.counterclockwise", R.drawable.ms_replay),
     ArrowDown("arrow.down", R.drawable.ms_arrow_downward),

@@ -231,12 +231,20 @@ private fun HomeFeature.coreRoute(state: State, action: Action): Reduced<State, 
 
     is Action.SearchChanged -> Reduced(state.copy(search = action.text))
     is Action.ProjectGroupToggled -> {
-        val next = if (action.projectID in state.collapsedProjectIDs) {
-            state.collapsedProjectIDs - action.projectID
-        } else {
+        val folding = action.projectID !in state.collapsedProjectIDs
+        val next = if (folding) {
             state.collapsedProjectIDs + action.projectID
+        } else {
+            state.collapsedProjectIDs - action.projectID
         }
-        Reduced(state.copy(collapsedProjectIDs = next))
+        // Unfolding starts the group over at its first few rows, not where it was left: the fold is
+        // the reader putting the group away, so opening it again shows its top.
+        Reduced(
+            state.copy(
+                collapsedProjectIDs = next,
+                expandedProjectIDs = state.expandedProjectIDs - action.projectID,
+            ),
+        )
     }
     is Action.ProjectGroupShowMoreTapped ->
         Reduced(state.copy(expandedProjectIDs = state.expandedProjectIDs + action.projectID))

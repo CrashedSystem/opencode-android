@@ -155,6 +155,7 @@ and `ellipsis` (every overflow menu) is the vertical `more_vert`, as on other An
 | `app.dashed` | `select` | `ms_select` | `SFSymbol.AppDashed` | ExperimentalFeatures |
 | `apple.terminal` | `terminal` | `ms_terminal` | `SFSymbol.AppleTerminal` | WhatsNewList |
 | `archivebox` | `archive` | `ms_archive` | `SFSymbol.Archivebox` | InboxSidebarList |
+| `archivebox.fill` | `inventory_2` | `ms_inventory_2` | `SFSymbol.ArchiveboxFill` | ArchivedPage — `archive` is a box with a down arrow (put away), not an archive |
 | `arrow.clockwise` | `refresh` | `ms_refresh` | `SFSymbol.ArrowClockwise` | FileAttachmentViews, RunError, ServerSwitcher, TranscriptEntryView, TranscriptUserMessage, WhatsNewList |
 | `arrow.counterclockwise` | `replay` | `ms_replay` | `SFSymbol.ArrowCounterclockwise` | OnboardingPlaygroundControls, TuningPanelView |
 | `arrow.down` | `arrow_downward` | `ms_arrow_downward` | `SFSymbol.ArrowDown` | ComposerViews, ShellOutputView, WhatsNewList |

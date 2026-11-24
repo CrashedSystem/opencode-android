@@ -371,13 +371,13 @@ fun DrawerListSessionCell(
                     val side = DrawerListProjectTile.side(DrawerTunables.projectIconSize, density.fontScale)
                     SelectionLead(
                         checked = row.checked,
-                        restWidth = if (row.project != null) side + DrawerTunables.projectIconGap else 0.dp,
+                        restWidth = if (row.projectTile != null) side + DrawerTunables.projectIconGap else 0.dp,
                         selectWidth = side + DrawerTunables.projectIconGap,
                         checkSize = 20.dp,
                     ) {
-                        if (row.project != null) {
+                        if (row.projectTile != null) {
                             DrawerListProjectTile(
-                                project = row.project,
+                                project = row.projectTile,
                                 server = row.server,
                                 muted = row.muted,
                                 side = side,
