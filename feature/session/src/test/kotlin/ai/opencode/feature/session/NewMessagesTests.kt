@@ -561,7 +561,7 @@ class NewMessagesTests {
         val store = h.store(state) {
             this[Clock] = TestClock()
         }
-        store.send(Action.ContentBatch(sessionID = "ses_away", events = listOf(OpenCodeLiveContentEvent.ReasoningDelta(messageID = "msg_a", ordinal = 0)))) {
+        store.send(Action.ContentBatch(sessionID = "ses_away", events = listOf(OpenCodeLiveContentEvent.ReasoningDelta(messageID = "msg_a", ordinal = 0, delta = "hmm")))) {
             it.copy(
                 isExternallyActive = true, streamIsHealthy = true, streamSupportsProjection = true,
                 workingRun = WorkingRun(counter = 1, startID = 1, key = "ses_away", sawStart = true, startTurn = "u1", baseline = "msg_a-tool-q1"),
