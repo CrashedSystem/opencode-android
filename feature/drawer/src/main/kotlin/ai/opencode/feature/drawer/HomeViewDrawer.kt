@@ -244,7 +244,6 @@ fun HomeDrawer(
     }
     // Archived's count is fetched each time the drawer shows, so another client's archiving shows too.
     val serverID by store.observe { it.server.persistenceID }
-    val collapsedProjectIDs by store.observe { it.collapsedProjectIDs }
     LaunchedEffect(serverID, isDrawerVisible) {
         if (isDrawerVisible) store.send(HomeFeature.Action.InboxSidebar(InboxSidebarFeature.Action.ArchivedListRequested))
     }
@@ -264,7 +263,6 @@ fun HomeDrawer(
         alwaysShowsHeaders = DrawerTunables.sectionBreak == DrawerSectionBreak.Header,
         serverSwap = serverSwapTarget,
         checkedIDs = selection.ids,
-        collapsedProjectIDs = collapsedProjectIDs,
     )
     val actions = remember(store, viewState) {
         DrawerListActions(

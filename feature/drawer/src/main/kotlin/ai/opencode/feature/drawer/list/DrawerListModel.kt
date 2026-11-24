@@ -134,8 +134,6 @@ data class DrawerListInputs(
     val serverSwap: ServerSwapTarget? = null,
     /** The rows chosen in selection mode ([DrawerSelection]). */
     val checkedIDs: Set<String> = emptySet(),
-    /** Project groups the reader folded in Recents, by project ID. */
-    val collapsedProjectIDs: Set<String> = emptySet(),
 )
 
 /** One project's sessions in Recents, newest first, in the server's order. */
@@ -352,7 +350,7 @@ data class DrawerListModel(
                     }
                 } else {
                     for (group in groups) {
-                        val collapsed = group.id in inputs.collapsedProjectIDs
+                        val collapsed = group.id in state.collapsedProjectIDs
                         recentItems += DrawerListItem.Header(
                             DrawerSectionHeaderKind.Recents,
                             projectID = group.id,
