@@ -704,6 +704,9 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class BackgroundScriptStopTapped(val jobID: String) : Action
         /** Interrupts the subagent if it runs and cancels every running job in its tree. */
         data class BackgroundSubagentStopTapped(val sessionID: String) : Action
+        /** Stops a background shell from its row. */
+        data class BackgroundShellStopTapped(val shellID: String) : Action
+        data class BackgroundShellStopFinished(val shellID: String, val failed: Boolean) : Action
         /** A row's Stop settled; [id] is the script's job or the subagent's session. */
         data class BackgroundStopFinished(val id: String, val isSubagent: Boolean, val failed: Boolean) : Action
         data class ShellOutput(val action: PresentationAction<ShellOutputFeature.Action>) : Action
@@ -720,10 +723,11 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
         data class ComposerAttachments(val action: ComposerAttachmentsFeature.Action) : Action
         /**
          * A drawn image for the session whose viewer it came from ([from]), added by the rules a
-         * pasted image follows. A session action, since [State.TaskIdentity] is this module's,
-         * above the composer's.
+         * pasted image follows. It takes the place of the pending photo it was drawn on
+         * ([replacing], an attachment ID). A session action, since [State.TaskIdentity] is this
+         * module's, above the composer's.
          */
-        data class DrawingAdded(val attachment: OpenCodeOutgoingAttachment, val from: State.TaskIdentity) : Action
+        data class DrawingAdded(val attachment: OpenCodeOutgoingAttachment, val from: State.TaskIdentity, val replacing: String? = null) : Action
         /** An upward swipe on the unfocused composer asks for the keyboard. */
         data object ComposerSwipedUp : Action
         /** Send a failed message again, with its ID and delivery. */
