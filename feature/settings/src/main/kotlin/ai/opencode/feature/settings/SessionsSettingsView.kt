@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 @Composable
 fun SessionsSettingsView(store: SettingsStore) {
     val returnKeySends by remember { shared(SharedKeys.returnKeySends).flow }.collectAsState()
+    val showReasoning by remember { shared(SharedKeys.showReasoning).flow }.collectAsState()
     val agentSelection by remember { shared(SharedKeys.agentSelection).flow }.collectAsState()
     val defaultAgent by remember { shared(SharedKeys.defaultAgentID).flow }.collectAsState()
     val agents by remember { shared(ServerSharedKeys.knownPrimaryAgents).flow }.collectAsState()
@@ -37,6 +38,11 @@ fun SessionsSettingsView(store: SettingsStore) {
                 stringResource(CoreR.string.core_experiment_agent_selection_title),
                 checked = agentSelection,
                 onCheckedChange = { send(HomeSettingsFeature.Action.AgentSelectionChanged(it)) },
+            )
+            SettingsToggleRow(
+                stringResource(R.string.settings_sessions_show_reasoning),
+                checked = showReasoning,
+                onCheckedChange = { send(HomeSettingsFeature.Action.ShowReasoningChanged(it)) },
             )
         }
         if (agentSelection) {

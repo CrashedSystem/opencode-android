@@ -194,12 +194,14 @@ sealed interface TranscriptEntry {
          * Groups raw transcript items into the entries rendered by the list. Each finished reply
          * ends with a [ReplyEnd]; the last one only once the session stops running. Model
          * switches take their names from [models] (session-start switches are left out).
+         * [showsReasoning] false drops reasoning before grouping, so no row is left behind.
          */
         fun build(
             items: List<OpenCodeTranscriptItem>,
             isRunning: Boolean = false,
             models: List<OpenCodeModel> = emptyList(),
             sessionStartModels: Set<String>? = null,
+            showsReasoning: Boolean = true,
         ): List<TranscriptEntry> {
             val startModels = sessionStartModels ?: sessionStartModelIDs(items)
             val entries = mutableListOf<TranscriptEntry>()
@@ -268,6 +270,7 @@ sealed interface TranscriptEntry {
                         replyID = item.id
                     }
                     is OpenCodeTranscriptItem.AssistantReasoning -> {
+                        if (!showsReasoning) continue
                         // Reasoning belongs to the step, not the reply's text: it ends nothing.
                         flush()
                         entries += Single(item)

@@ -89,6 +89,7 @@ class HomeSettingsFeature : Reducer<HomeSettingsFeature.State, HomeSettingsFeatu
         /** Settings › Language: null follows the system. */
         data class AppLanguageChanged(val locale: Locale?) : Action
         data class ReturnKeySendsChanged(val on: Boolean) : Action
+        data class ShowReasoningChanged(val on: Boolean) : Action
         data class AgentSelectionChanged(val on: Boolean) : Action
         /** Agent Selection: the agent new sessions start with ("" is the server's). */
         data class DefaultAgentChanged(val id: String) : Action
@@ -222,6 +223,7 @@ class HomeSettingsFeature : Reducer<HomeSettingsFeature.State, HomeSettingsFeatu
                 return Reduced(state, Effect.run { client.set(action.locale) })
             }
             is Action.ReturnKeySendsChanged -> setShared(SharedKeys.returnKeySends, action.on)
+            is Action.ShowReasoningChanged -> setShared(SharedKeys.showReasoning, action.on)
             is Action.AgentSelectionChanged -> setShared(SharedKeys.agentSelection, action.on)
             is Action.DefaultAgentChanged -> setShared(SharedKeys.defaultAgentID, action.id)
         }

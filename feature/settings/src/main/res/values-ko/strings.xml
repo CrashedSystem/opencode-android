@@ -220,4 +220,5 @@
     <string name="settings_pairing_point_camera">카메라로 QR 코드를 비추세요</string>
     <string name="settings_pairing_paste_link">페어링 링크 붙여넣기</string>
     <string name="settings_pairing_computer_hint">컴퓨터에서 OpenCode의 설정 → 페어링을 열거나 터미널에서 %1$s 명령을 실행하세요.</string>
+    <string name="settings_sessions_show_reasoning">추론 표시</string>
 </resources>

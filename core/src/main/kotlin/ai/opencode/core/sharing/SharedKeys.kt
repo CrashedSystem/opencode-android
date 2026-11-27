@@ -32,6 +32,9 @@ object SharedKeys {
      */
     val returnKeySends = SharedKey.appStorage("return-key-sends", false)
 
+    /** Whether a reply's reasoning blocks are shown in the transcript. On by default. */
+    val showReasoning = SharedKey.appStorage("show-reasoning", true)
+
     /** The file viewer's Wrap Lines choice, kept across files and launches. Off by default. */
     val fileViewerWrapsLines = SharedKey.appStorage("file-viewer-wraps-lines", false)
 

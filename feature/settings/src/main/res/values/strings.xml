@@ -233,4 +233,5 @@
     <string name="settings_pairing_point_camera">Point your camera at the QR code</string>
     <string name="settings_pairing_paste_link">Paste Pairing Link</string>
     <string name="settings_pairing_computer_hint">On your computer, open OpenCode’s Settings → Pairing, or run %1$s in a terminal.</string>
+    <string name="settings_sessions_show_reasoning">Show Reasoning</string>
 </resources>

@@ -11,6 +11,8 @@ import ai.opencode.core.motion.MotionRollDirection
 import ai.opencode.core.motion.MotionTransition
 import ai.opencode.core.motion.rememberReduceMotion
 import ai.opencode.core.motion.transitionBlurEffect
+import ai.opencode.core.sharing.SharedKeys
+import ai.opencode.core.sharing.shared
 import ai.opencode.core.store.StoreOf
 import ai.opencode.core.store.observe
 import ai.opencode.core.ui.OpenCodeIcon
@@ -173,6 +175,7 @@ fun SessionTranscriptView(
     val reducedMotion = rememberReduceMotion()
     val hour24 = remember(context) { DateFormat.is24HourFormat(context) }
     val cache = remember { SessionTranscriptView.ProjectionCache() }
+    val showsReasoning by remember { shared(SharedKeys.showReasoning).flow }.collectAsState()
 
     // iOS projects in `body`: here once per state change, off the cache, so a keystroke that
     // changes nothing the list draws reuses every list and the configuration compares equal.
@@ -182,10 +185,11 @@ fun SessionTranscriptView(
         scrollEdgeBridge = scrollEdgeBridge,
         hour24 = hour24,
         holdsWorking = holdsWorking,
+        showsReasoning = showsReasoning,
     )
-    val projection by remember(store, hour24, holdsWorking) {
+    val projection by remember(store, hour24, holdsWorking, showsReasoning) {
         store.states.map(::project).distinctUntilChanged()
-    }.collectAsState(remember(store, hour24, holdsWorking) { project(store.state) })
+    }.collectAsState(remember(store, hour24, holdsWorking, showsReasoning) { project(store.state) })
     val latestProjection by rememberUpdatedState(projection)
     val showsMoveToBackground by store.observe { it.showsMoveToBackground }
 
@@ -312,6 +316,7 @@ object SessionTranscriptView {
             val showsWorking: Boolean,
             val failedFinale: Boolean,
             val models: List<OpenCodeModel>,
+            val showsReasoning: Boolean,
         )
 
         private data class StampInputs(
@@ -385,6 +390,7 @@ object SessionTranscriptView {
             models: List<OpenCodeModel>,
             sentNow: Boolean?,
             mark: NewMessagesMark?,
+            showsReasoning: Boolean = true,
             now: Instant = Instant.now(),
             zone: ZoneId = ZoneId.systemDefault(),
             locale: Locale = appFormattingLocale(),
@@ -439,7 +445,7 @@ object SessionTranscriptView {
                     return entries to newMessages
                 }
             }
-            val structural = StructuralInputs(visibleItems, allItems, showsWorking, failedFinale, models)
+            val structural = StructuralInputs(visibleItems, allItems, showsWorking, failedFinale, models, showsReasoning)
             if (structural != structuralInputs) {
                 structuralInputs = structural
                 // While the Working line plays Failed, it is the failure: the run's error line
@@ -450,6 +456,7 @@ object SessionTranscriptView {
                     isRunning = showsWorking,
                     models = models,
                     sessionStartModels = TranscriptEntry.sessionStartModelIDs(allItems),
+                    showsReasoning = showsReasoning,
                 )
                 structuralGeneration += 1
             }
@@ -495,6 +502,7 @@ object SessionTranscriptView {
         now: Double = AgentActivityClock.now(),
         hour24: Boolean? = null,
         holdsWorking: Boolean = false,
+        showsReasoning: Boolean = true,
     ): Projection {
         val visibleItems = cache.resolveVisibleItems(
             items = state.items,
@@ -517,6 +525,7 @@ object SessionTranscriptView {
             models = state.models,
             sentNow = sentNow,
             mark = state.newMessages,
+            showsReasoning = showsReasoning,
             hour24 = hour24,
         )
         val queuedRows = if (state.queuedInputs.isEmpty()) emptyList() else state.queuedInputRows
