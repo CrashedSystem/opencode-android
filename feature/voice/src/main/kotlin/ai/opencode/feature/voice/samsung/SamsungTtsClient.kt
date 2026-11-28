@@ -118,6 +118,13 @@ class SamsungTtsClient(private val context: Context) {
      */
     private fun aicorePolicy(caller: String): String {
         val uri = android.net.Uri.parse("content://com.samsung.android.visual.cloudcore.policy")
+        // The policy answers 801 until AICore's terms are agreed; this is the call Samsung's own
+        // clients make before asking about a feature.
+        val terms = runCatching {
+            val bundle = android.os.Bundle().apply { putBoolean("TERMS_AGREE", true) }
+            context.contentResolver.call(uri, "check_and_verify_terms_agreement", null, bundle)
+        }.getOrNull()
+        val termsCode = terms?.getInt("RESULT_CODE", -1) ?: -1
         val results = listOf("FT_TEXT2SPEECH", "FT_PERSONAL_TEXT2SPEECH").map { feature ->
             val bundle = android.os.Bundle().apply { putString("FEATURE", feature) }
             val answer = runCatching {
@@ -127,7 +134,7 @@ class SamsungTtsClient(private val context: Context) {
             val error = answer?.getString("ERROR")
             "$feature=$code${if (error != null) "($error)" else ""}"
         }
-        return results.joinToString(", ")
+        return "terms=$termsCode, " + results.joinToString(", ")
     }
 
     /**
