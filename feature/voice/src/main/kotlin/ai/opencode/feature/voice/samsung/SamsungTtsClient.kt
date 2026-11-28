@@ -99,27 +99,28 @@ class SamsungTtsClient(private val context: Context) {
     }
 
     /**
-     * Reads [text] with [voice], or the service's own choice when null. Returns the code the
+     * Reads [text] with [voice], or the first voice the service offers. Returns the code the
      * service answered with; 0 accepted it.
      */
     suspend fun speak(text: String, voice: SamsungVoice?, rate: Float): Int = withContext(Dispatchers.IO) {
         val proxy = connect() ?: return@withContext SAMSUNG_UNAVAILABLE
         val caller = authorityClaim()
         val uid = Process.myUid()
-        val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
-        val chosen = voice ?: voices.firstOrNull { it.isPersonal } ?: voices.firstOrNull() ?: return@withContext SAMSUNG_NO_VOICE
-        // The synthesizer is per caller, not per voice, so it is created before the chosen voice is
-        // set; a personal one goes through the custom-voice entry point.
-        val created = if (chosen.isPersonal) {
-            proxy.createCustomVoiceSynthesizer(caller, uid, NoopInit)
+        // The engine is per caller, and `getVoices` reads it: with nothing created it answers an
+        // empty list. A personal voice goes through the custom-voice entry point, which is also
+        // the only one that loads the personal engine.
+        val wantsPersonal = voice?.isPersonal ?: true
+        val created = if (wantsPersonal) {
+            runCatching { proxy.createCustomVoiceSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
         } else {
-            proxy.createSynthesizer(caller, uid, NoopInit)
+            runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
         }
-        if (created < 0) {
-            AppLog.voice.error { "samsung_tts_synth_failed $created" }
-            return@withContext created
-        }
-        val set = proxy.setVoice(caller, uid, chosen)
+        AppLog.voice.info { "samsung_tts_synth_created $created" }
+        val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
+        AppLog.voice.info { "samsung_tts_voices_after_create ${voices.size}" }
+        val chosen = voice ?: voices.firstOrNull { it.isPersonal } ?: voices.firstOrNull()
+            ?: return@withContext SAMSUNG_NO_VOICE
+        val set = runCatching { proxy.setVoice(caller, uid, chosen) }.getOrDefault(-1)
         if (set != SamsungTts.SUCCESS) {
             AppLog.voice.error { "samsung_tts_set_voice_failed $set" }
             return@withContext set
