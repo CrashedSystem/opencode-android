@@ -2,6 +2,7 @@ package ai.opencode.app
 
 import ai.opencode.core.dependencies.AppContext
 import ai.opencode.core.dependencies.DependencyKey
+import ai.opencode.core.dependencies.dependency
 import ai.opencode.feature.session.SessionFeature
 import ai.opencode.feature.system.notifications.LocalSessionNotifications
 
