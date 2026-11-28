@@ -186,12 +186,20 @@ internal fun SessionFeature.Companion.messageID(item: OpenCodeTranscriptItem): S
             item.call.messageID ?: item.id.indexOf("-tool-").takeIf { it >= 0 }?.let { item.id.substring(0, it) } ?: item.id
         is OpenCodeTranscriptItem.AssistantMarkdown ->
             item.id.lastIndexOf("-text-").takeIf { it >= 0 }?.let { item.id.substring(0, it) } ?: item.id
+        is OpenCodeTranscriptItem.AssistantReasoning ->
+            item.id.lastIndexOf("-reasoning-").takeIf { it >= 0 }?.let { item.id.substring(0, it) } ?: item.id
         // An assistant message's error carries its ID with `-error`; an idle message's is its own.
         is OpenCodeTranscriptItem.RunError -> if (item.error.beforeReply) item.id else item.id.dropLast("-error".length)
         is OpenCodeTranscriptItem.RunRetry -> item.id.dropLast("-retry".length)
         else -> item.id
     }
 }
+
+/**
+ * Whether a live part's ID belongs to reasoning (`<message>-reasoning-<ordinal>`) rather than text.
+ * Both kinds share `liveText`, so the map alone cannot say which row to rebuild.
+ */
+internal fun SessionFeature.Companion.isReasoningPartID(id: String): Boolean = id.contains("-reasoning-")
 
 /**
  * Which of [ids] are rows in [items], looking from the end (live parts are recent) and stopping
@@ -881,6 +889,9 @@ private fun SessionFeature.applyLiveEvent(event: OpenCodeLiveContentEvent, proje
                 val change = upsertLiveReasoning(id, text, completed = true, items = projection.items)
                 if (change != LiveUpsert.Unchanged) projection.itemsChanged = true
             }
+            // The row now carries the whole text. Leaving the entry here let every later refresh
+            // rebuild the row from the map, and a refresh does not know it is reasoning.
+            projection.liveText.remove(id)
             null
         }
         is OpenCodeLiveContentEvent.TextDelta -> {

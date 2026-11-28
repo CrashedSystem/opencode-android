@@ -181,7 +181,14 @@ private fun ReasoningView(id: String, text: String, completed: Boolean) {
     val lines = remember(text) { text.count { it == '\n' } + 1 }
     val countLabel = pluralStringResource(R.plurals.transcript_reasoning_lines, lines, lines)
     val preview = remember(text) {
-        text.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
+        text.lineSequence()
+            .firstOrNull { it.isNotBlank() }
+            ?.trim()
+            // A one-line preview, not Markdown: strip the markers that would otherwise show raw.
+            ?.replace(Regex("^#{1,6}\\s*"), "")
+            ?.replace(Regex("^(\\*\\*|__|\\*|_|`)(.*?)\\1"), "$2")
+            ?.removePrefix("```")
+            ?.take(160)
     }
     Column {
         Row(
@@ -233,12 +240,18 @@ private fun ReasoningView(id: String, text: String, completed: Boolean) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        // Parsed outside the disclosure so opening the block draws rather than parses.
+        val blocks = rememberMarkdownBlocks("$id-reasoning", text, isStreaming = !completed)
         DisclosedContent(isExpanded) {
-            CompositionLocalProvider(LocalContentColor provides colors.secondaryText) {
-                Text(
-                    text,
+            // Reasoning is Markdown in practice: bold labels, numbered steps, fenced commands. Drawn
+            // as plain text it showed every marker, which made it read as the reply.
+            CompositionLocalProvider(LocalContentColor provides colors.secondaryText, LocalMarkdownSecondary provides true) {
+                MarkdownBlocksView(
+                    blocks,
                     Modifier.fillMaxWidth().padding(start = 19.dp, top = TranscriptMetrics.standard),
-                    style = OpenCodeTextStyles.footnote,
+                    rowID = id,
+                    isGrowing = !completed,
+                    selectionItemID = id,
                 )
             }
         }

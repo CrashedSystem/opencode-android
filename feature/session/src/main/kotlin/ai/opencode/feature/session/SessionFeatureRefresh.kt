@@ -374,7 +374,17 @@ internal fun SessionFeature.applyAuthoritative(
     if (s.liveText.isNotEmpty()) {
         val rows = ArrayList(s.items)
         var changed = false
-        for ((id, text) in s.liveText) if (upsertLiveText(id, text, streaming = true, items = rows)) changed = true
+        for ((id, text) in s.liveText) {
+            // Reasoning and text share `liveText`; restoring every entry as Markdown turned a
+            // finished step's reasoning into a plain reply row.
+            val upsert = if (SessionFeature.isReasoningPartID(id)) {
+                val finished = (rows.firstOrNull { it.id == id } as? OpenCodeTranscriptItem.AssistantReasoning)?.completed == true
+                upsertLiveReasoning(id, text, completed = finished, items = rows)
+            } else {
+                upsertLiveTextChange(id, text, streaming = true, items = rows)
+            }
+            if (upsert != LiveUpsert.Unchanged) changed = true
+        }
         if (changed) s = s.copy(items = rows)
     }
     return s
@@ -553,7 +563,15 @@ internal fun SessionFeature.applyAuthoritativeMessage(
     if (s.liveText.keys.any { it.startsWith(prefix) }) {
         val rows = ArrayList(s.items)
         var changed = false
-        for ((id, text) in s.liveText) if (id.startsWith(prefix) && upsertLiveText(id, text, streaming = true, items = rows)) changed = true
+        for ((id, text) in s.liveText) {
+            if (!id.startsWith(prefix)) continue
+            val upsert = if (SessionFeature.isReasoningPartID(id)) {
+                upsertLiveReasoning(id, text, completed = false, items = rows)
+            } else {
+                upsertLiveTextChange(id, text, streaming = true, items = rows)
+            }
+            if (upsert != LiveUpsert.Unchanged) changed = true
+        }
         if (changed) s = s.copy(items = rows)
     }
     return s.retainRenderedWindowStart(previousFirstID).pinBrowsingWindowIfNeeded()
