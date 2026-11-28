@@ -220,6 +220,67 @@ class SamsungTtsClient(private val context: Context) {
         Unit
     }
 
+    /**
+     * Reads [text] once with every Korean voice the service offers, naming each first, so the
+     * voices can be compared by ear. Returns the first failure code, or 0.
+     */
+    suspend fun speakEachKoreanVoice(text: String): Int = withContext(Dispatchers.IO) {
+        val proxy = connect() ?: return@withContext SAMSUNG_UNAVAILABLE
+        val caller = authorityClaim()
+        val uid = Process.myUid()
+        runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }
+        var voices = emptyList<SamsungVoice>()
+        repeat(20) {
+            voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
+            if (voices.isNotEmpty()) return@repeat
+            Thread.sleep(100)
+        }
+        val korean = voices.filter { it.locale?.language == "ko" }
+        if (korean.isEmpty()) return@withContext SAMSUNG_NO_VOICE
+        var firstFailure = 0
+        for (voice in korean) {
+            val set = runCatching { proxy.setVoice(caller, uid, voice) }.getOrDefault(-1)
+            if (set != SamsungTts.SUCCESS) {
+                if (firstFailure == 0) firstFailure = set
+                continue
+            }
+            val done = CompletableDeferred<Int>()
+            val callback = object : SamsungSynthesisCallback.Stub() {
+                override fun onStart(utterance: String, sampleRate: Int, encoding: Int, channels: Int) = Unit
+                override fun onProgress(utterance: String, audio: ByteArray, start: Int, length: Int) = Unit
+                override fun onRangeStart(utterance: String, start: Int, end: Int, frame: Int) = Unit
+                override fun onDone(utterance: String) {
+                    if (!done.isCompleted) done.complete(SamsungTts.SUCCESS)
+                }
+
+                override fun onError(utterance: String, code: Int) {
+                    if (!done.isCompleted) done.complete(code)
+                }
+            }
+            val label = "${voice.locale?.toLanguageTag()}-${voice.tag.substringAfterLast('-')}"
+            val accepted = runCatching {
+                proxy.speak(
+                    caller = caller,
+                    uid = uid,
+                    voice = voice,
+                    text = "$label. $text",
+                    queueMode = SamsungTts.QUEUE_FLUSH,
+                    params = android.os.Bundle().apply { putFloat(SamsungTts.PARAM_SPEECH_RATE, 1.0f) },
+                    utterance = "oc-${System.nanoTime()}",
+                    callback = callback,
+                )
+            }.getOrDefault(-1)
+            if (accepted != SamsungTts.SUCCESS) {
+                if (firstFailure == 0) firstFailure = accepted
+                continue
+            }
+            withTimeoutOrNull(SPEAK_TIMEOUT.inWholeMilliseconds) { done.await() }
+            // Leave a gap so two voices don't run together.
+            Thread.sleep(600)
+        }
+        firstFailure
+    }
+
     /** The service keys a synthesizer by this name and the caller's uid. */
     private fun callerName(): String = context.packageName
 
