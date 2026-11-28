@@ -579,6 +579,21 @@ class AppFeature : Reducer<AppFeature.State, AppFeature.Action> {
             if (state.home?.sessionDetail?.voice == null) return@onChange Reduced(state)
             Reduced(state, Effect.send(voiceAction(VoiceFeature.Action.AppVisibilityChanged(state.isInForeground))))
         }
+        // Background shells the phone was watching finished while the app is away. A shell is not a
+        // session, so the relay's push never carries one.
+        .onChange({ it.home?.runningShellIDs ?: emptySet() }) { old, new, state ->
+            val finished = old - new
+            if (finished.isEmpty() || state.isInForeground) return@onChange Reduced(state)
+            val detail = state.home?.sessionDetail ?: return@onChange Reduced(state)
+            Reduced(state, Effect.run { dependency(LocalSessionAlertsClient).shellsFinished(detail, finished) })
+        }
+        // And subagents, which run as sessions of their own under a `parentID` the plugin skips.
+        .onChange({ it.home?.runningSubagentIDs ?: emptySet() }) { old, new, state ->
+            val finished = old - new
+            if (finished.isEmpty() || state.isInForeground) return@onChange Reduced(state)
+            val detail = state.home?.sessionDetail ?: return@onChange Reduced(state)
+            Reduced(state, Effect.run { dependency(LocalSessionAlertsClient).subagentsFinished(detail, finished) })
+        }
 
     override fun reduce(state: State, action: Action): Reduced<State, Action> {
         val reduced = liveBody.reduce(state, action)

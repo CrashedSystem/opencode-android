@@ -89,6 +89,10 @@ class HomeFeature : Reducer<HomeFeature.State, HomeFeature.Action> {
         val serverReachability: Map<String, ServerReachability> = emptyMap(),
         val projects: List<OpenCodeProject> = emptyList(),
         val sessions: List<OpenCodeSession> = emptyList(),
+        /** Running background shell IDs, for the alert posted when the app is away. */
+        val runningShellIDs: Set<String> = emptySet(),
+        /** Running subagent session IDs, for the alert posted when the app is away. */
+        val runningSubagentIDs: Set<String> = emptySet(),
         val activeSessionIDs: Set<String> = emptySet(),
         /**
          * Known `childID → parentID` links. A parent never changes, so links are merged in from

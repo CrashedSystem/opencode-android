@@ -132,4 +132,13 @@
 
     <!-- Widget configuration -->
     <string name="system_widget_choose_session_title">세션 선택</string>
+    <plurals name="system_local_subagent_finished">
+        <item quantity="other">서브에이전트 %1$d개 완료</item>
+    </plurals>
+    <plurals name="system_local_shell_finished">
+        <item quantity="other">백그라운드 셸 %1$d개 완료</item>
+    </plurals>
+    <plurals name="system_local_shell_finished_exit">
+        <item quantity="other">백그라운드 셸 %1$d개 완료 (마지막 종료 코드 %2$d)</item>
+    </plurals>
 </resources>

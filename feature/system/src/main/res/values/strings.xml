@@ -136,4 +136,16 @@
 
     <!-- Widget configuration -->
     <string name="system_widget_choose_session_title">Choose Session</string>
+    <plurals name="system_local_subagent_finished">
+        <item quantity="one">A subagent finished</item>
+        <item quantity="other">%1$d subagents finished</item>
+    </plurals>
+    <plurals name="system_local_shell_finished">
+        <item quantity="one">A background shell finished</item>
+        <item quantity="other">%1$d background shells finished</item>
+    </plurals>
+    <plurals name="system_local_shell_finished_exit">
+        <item quantity="one">A background shell finished (exit %2$d)</item>
+        <item quantity="other">%1$d background shells finished; the last exited %2$d</item>
+    </plurals>
 </resources>

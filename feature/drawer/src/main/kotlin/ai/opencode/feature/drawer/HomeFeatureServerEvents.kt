@@ -169,11 +169,13 @@ internal fun HomeFeature.reduceServerEvent(state: State, event: OpenCodeServerEv
 
         is OpenCodeServerEvent.ShellStarted -> {
             val sessionID = event.shell.sessionID ?: return Reduced(state)
-            return Reduced(state, forwardToSession(state, sessionID, SessionFeature.Action.ShellStarted(event.shell)))
+            val s = state.copy(runningShellIDs = state.runningShellIDs + event.shell.id)
+            return Reduced(s, forwardToSession(s, sessionID, SessionFeature.Action.ShellStarted(event.shell)))
         }
 
         is OpenCodeServerEvent.ShellEnded -> {
             val s = state.copy(
+                runningShellIDs = state.runningShellIDs - event.shellID,
                 sessionSnapshots = state.sessionSnapshots.mapValues { (_, snapshot) ->
                     if (snapshot.shells.any { it.id == event.shellID }) snapshot.copy(shells = snapshot.shells.filterNot { it.id == event.shellID })
                     else snapshot
@@ -194,6 +196,7 @@ internal fun HomeFeature.reduceServerEvent(state: State, event: OpenCodeServerEv
             var s = state
             val parents = s.knownParents
             val unattributed = !s.isAttributed(sessionID, parents)
+            if (sessionID in parents) s = s.copy(runningSubagentIDs = s.runningSubagentIDs + sessionID)
             if (unattributed) s = s.invalidatingSnapshotFamilyReads { snapshot -> snapshot.family.none { it.id == sessionID } }
             s = s.updatingDetail { detail ->
                 val voice = detail.voice ?: return@updatingDetail detail
@@ -229,6 +232,9 @@ internal fun HomeFeature.reduceServerEvent(state: State, event: OpenCodeServerEv
             if (sessionID in s.activeSessionIDs) {
                 s = s.copy(activeSessionIDs = s.activeSessionIDs - sessionID).persistingSnapshot(dependency(HomeSnapshotDate).now())
             }
+            // A subagent's own run: it is a session under a parent, so it is tracked apart from the
+            // run a screen shows, for the alert posted when the app is away.
+            if (sessionID in s.knownParents) s = s.copy(runningSubagentIDs = s.runningSubagentIDs - sessionID)
             s = s.copy(runChangesDuringRefresh = s.runChangesDuringRefresh + (sessionID to false))
             val parents = s.knownParents
             val unattributed = !s.isAttributed(sessionID, parents)
