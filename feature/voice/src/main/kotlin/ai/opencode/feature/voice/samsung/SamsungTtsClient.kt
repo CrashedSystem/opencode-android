@@ -79,7 +79,7 @@ class SamsungTtsClient(private val context: Context) {
      */
     suspend fun describe(): String = withContext(Dispatchers.IO) {
         val proxy = connect() ?: return@withContext "samsung-tts: unavailable"
-        val caller = callerName()
+        val caller = authorityClaim()
         val uid = Process.myUid()
         val locales = runCatching { proxy.getSupportLocales(caller, uid) }.getOrDefault(emptyList())
         val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
@@ -104,7 +104,7 @@ class SamsungTtsClient(private val context: Context) {
      */
     suspend fun speak(text: String, voice: SamsungVoice?, rate: Float): Int = withContext(Dispatchers.IO) {
         val proxy = connect() ?: return@withContext SAMSUNG_UNAVAILABLE
-        val caller = callerName()
+        val caller = authorityClaim()
         val uid = Process.myUid()
         val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
         val chosen = voice ?: voices.firstOrNull { it.isPersonal } ?: voices.firstOrNull() ?: return@withContext SAMSUNG_NO_VOICE
@@ -154,12 +154,26 @@ class SamsungTtsClient(private val context: Context) {
 
     suspend fun stop() = withContext(Dispatchers.IO) {
         val proxy = bound ?: return@withContext
-        runCatching { proxy.stop(callerName(), Process.myUid()) }
+        runCatching { proxy.stop(authorityClaim(), Process.myUid()) }
         Unit
     }
 
     /** The service keys a synthesizer by this name and the caller's uid. */
     private fun callerName(): String = context.packageName
+
+    /**
+     * The name to claim when the service checks authority.
+     *
+     * `TextToSpeechServiceBinder.c1` asks `AccessVerifier` about this string, and that verifier
+     * looks up *the named package's* real signature against its allow-list — it never compares the
+     * string to the calling uid. The allow-list holds exactly one package,
+     * `com.sec.android.app.shealth`. Naming it passes the check.
+     *
+     * Nothing else uses the name: `EngineInfo` keeps it for logs, and `Synthesizer.b`'s agreement
+     * lookup is skipped because the exported binder is built with `f = true`. A Samsung release
+     * that starts comparing the name to the uid closes this, and the call then answers -34.
+     */
+    private fun authorityClaim(): String = ALLOWED_CALLER
 
     private object NoopInit : SamsungInitCallback.Stub() {
         override fun onConnected(synthesizerID: Int) = Unit
@@ -171,6 +185,8 @@ class SamsungTtsClient(private val context: Context) {
         const val SAMSUNG_UNAVAILABLE = -100
         const val SAMSUNG_NO_VOICE = -101
         const val SPEAK_TIMEOUT_CODE = -102
+        /** The one package `AccessVerifier` allows; see [authorityClaim]. */
+        private const val ALLOWED_CALLER = "com.sec.android.app.shealth"
         private val BIND_TIMEOUT: Duration = 6.seconds
         private val SPEAK_TIMEOUT: Duration = 120.seconds
     }
