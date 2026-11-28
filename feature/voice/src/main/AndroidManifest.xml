@@ -17,6 +17,7 @@
     <queries>
         <package android:name="com.samsung.android.intellivoiceservice" />
         <package android:name="com.samsung.android.visual.cloudcore" />
+        <package android:name="com.sec.android.app.shealth" />
     </queries>
     <application>
         <service android:name="ai.opencode.feature.voice.VoiceCallService"
