@@ -82,10 +82,12 @@ class SamsungTtsClient(private val context: Context) {
         val caller = authorityClaim()
         val uid = Process.myUid()
         val locales = runCatching { proxy.getSupportLocales(caller, uid) }.getOrDefault(emptyList())
+        // The engine has to exist before it can list anything.
+        val created = runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
         val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
         val personal = voices.filter { it.isPersonal }
         val lines = buildList {
-            add("samsung-tts: ${voices.size} voices, locales=${locales.joinToString(",") { it.take(12) }}")
+            add("samsung-tts: synthesizer=$created, ${voices.size} voices, locales=${locales.joinToString(",") { it.take(12) }}")
             for (voice in voices) {
                 add(
                     "  ${voice.name} | tag=${voice.tag.take(16)} | ${voice.locale?.toLanguageTag()}" +
@@ -107,14 +109,14 @@ class SamsungTtsClient(private val context: Context) {
         val caller = authorityClaim()
         val uid = Process.myUid()
         // The engine is per caller, and `getVoices` reads it: with nothing created it answers an
-        // empty list. A personal voice goes through the custom-voice entry point, which is also
-        // the only one that loads the personal engine.
-        val wantsPersonal = voice?.isPersonal ?: true
-        val created = if (wantsPersonal) {
-            runCatching { proxy.createCustomVoiceSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
-        } else {
-            runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
-        }
+        // empty list.
+        //
+        // `createSynthesizer` rather than `createCustomVoiceSynthesizer`: the latter checks only
+        // FT_PERSONAL_TEXT2SPEECH, which this phone's policy server answers "Invalid feature" (802)
+        // for; the former passes on FT_TEXT2SPEECH, and the personal voice then goes through
+        // `Synthesizer.b`, whose agreement lookup is skipped because the exported binder is built
+        // with `f = true`.
+        val created = runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
         AppLog.voice.info { "samsung_tts_synth_created $created" }
         val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
         AppLog.voice.info { "samsung_tts_voices_after_create ${voices.size}" }
