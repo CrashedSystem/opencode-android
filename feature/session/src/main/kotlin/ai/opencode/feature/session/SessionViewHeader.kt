@@ -560,6 +560,14 @@ private fun SessionMenu(
         HorizontalDivider()
         MenuItem(stringResource(R.string.session_compact), SFSymbol.RectangleCompressVertical) { menu(SessionSheetFeature.Action.CompactTapped) }
         MenuItem(stringResource(R.string.session_fork), SFSymbol.ArrowTriangleBranch) { menu(SessionSheetFeature.Action.ForkTapped) }
+        val showReasoning by remember { shared(SharedKeys.showReasoning).flow }.collectAsState()
+        MenuToggleItem(
+            label = stringResource(R.string.session_menu_show_reasoning),
+            symbol = SFSymbol.EllipsisCircle,
+            checked = showReasoning,
+            modifier = Modifier.testTag("session-menu-show-reasoning"),
+            onClick = { shared(SharedKeys.showReasoning).set(!showReasoning) },
+        )
         val exportExpandedState = stringResource(R.string.session_menu_export_expanded_description)
         val exportCollapsedState = stringResource(R.string.session_menu_export_collapsed_description)
         DropdownMenuItem(

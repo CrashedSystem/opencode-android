@@ -16,9 +16,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -103,6 +108,32 @@ internal fun MenuItem(label: String, symbol: SFSymbol, modifier: Modifier = Modi
         leadingIcon = { OpenCodeIcon(symbol, contentDescription = null, size = OpenCodeIconSize.small) },
         onClick = onClick,
         modifier = modifier,
+        contentPadding = MenuDefaults.DropdownMenuItemContentPadding,
+    )
+}
+
+/** A menu row that is a switch: checked means on, and the row says so to TalkBack. */
+@Composable
+internal fun MenuToggleItem(
+    label: String,
+    symbol: SFSymbol,
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val stateLabel = stringResource(if (checked) R.string.session_menu_toggle_on else R.string.session_menu_toggle_off)
+    DropdownMenuItem(
+        text = { Text(label) },
+        leadingIcon = { OpenCodeIcon(symbol, contentDescription = null, size = OpenCodeIconSize.small) },
+        trailingIcon = {
+            if (checked) {
+                OpenCodeIcon(SFSymbol.Checkmark, contentDescription = null, size = OpenCodeIconSize.small)
+            }
+        },
+        onClick = onClick,
+        modifier = modifier
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onClick() })
+            .semantics { stateDescription = stateLabel },
         contentPadding = MenuDefaults.DropdownMenuItemContentPadding,
     )
 }
