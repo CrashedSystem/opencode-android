@@ -139,7 +139,7 @@ class SamsungTtsClient(private val context: Context) {
         val signature = runCatching {
             val pm = context.packageManager
             pm.getPackageInfo(caller, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
-                .signingInfo.getApkContentsSigners()[0]
+                .signingInfo!!.getApkContentsSigners()[0]
         }.getOrNull() ?: return "no signature"
         val digest = java.security.MessageDigest.getInstance("SHA-256").apply { update(signature.toByteArray()) }
         return digest.digest().joinToString("") { "%02x".format(it) }
