@@ -84,12 +84,21 @@ class SamsungTtsClient(private val context: Context) {
         val locales = runCatching { proxy.getSupportLocales(caller, uid) }.getOrDefault(emptyList())
         // The engine has to exist before it can list anything.
         val created = runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
-        val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
+        // The engine finishes connecting asynchronously; an immediate read sees no voices.
+        var voices = emptyList<SamsungVoice>()
+        repeat(20) {
+            voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
+            if (voices.isNotEmpty()) return@repeat
+            Thread.sleep(100)
+        }
         val personal = voices.filter { it.isPersonal }
         val policy = aicorePolicy(caller)
+        val fingerprint = callerFingerprint(caller)
         val lines = buildList {
             add("samsung-tts: synthesizer=$created, ${voices.size} voices, locales=${locales.joinToString(",") { it.take(12) }}")
             add("  aicore policy: $policy")
+            add("  caller fingerprint: $fingerprint")
+            add("  allow-list holds:  $ALLOWED_FINGERPRINT")
             for (voice in voices) {
                 add(
                     "  ${voice.name} | tag=${voice.tag.take(16)} | ${voice.locale?.toLanguageTag()}" +
@@ -119,6 +128,21 @@ class SamsungTtsClient(private val context: Context) {
             "$feature=$code${if (error != null) "($error)" else ""}"
         }
         return results.joinToString(", ")
+    }
+
+    /**
+     * The hash `AccessVerifier` would compute for the claimed caller, beside the constant its
+     * allow-list holds. When they differ the code falls through to `verifyFeature`, which has no
+     * policy for the feature on this phone and answers 801.
+     */
+    private fun callerFingerprint(caller: String): String {
+        val signature = runCatching {
+            val pm = context.packageManager
+            pm.getPackageInfo(caller, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
+                .signingInfo.getApkContentsSigners()[0]
+        }.getOrNull() ?: return "no signature"
+        val digest = java.security.MessageDigest.getInstance("SHA-256").apply { update(signature.toByteArray()) }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -211,6 +235,8 @@ class SamsungTtsClient(private val context: Context) {
         const val SPEAK_TIMEOUT_CODE = -102
         /** The one package `AccessVerifier` allows; see [authorityClaim]. */
         private const val ALLOWED_CALLER = "com.sec.android.app.shealth"
+        /** The hash `AccessVerifier`'s allow-list holds for [ALLOWED_CALLER]. */
+        private const val ALLOWED_FINGERPRINT = "b9a42dd5fc4e054889ae4127a6274cec64e75c41733d42f5991e7019f9ea5caf"
         private val BIND_TIMEOUT: Duration = 6.seconds
         private val SPEAK_TIMEOUT: Duration = 120.seconds
     }
