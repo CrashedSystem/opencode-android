@@ -143,7 +143,9 @@ interface SamsungInitCallback : IInterface {
 class SamsungTtsProxy(private val remote: IBinder) {
     fun getSupportLocales(caller: String, uid: Int): List<String> =
         transact(1) { writeString(caller); writeInt(uid) }?.let { reply ->
-            reply.readStringList().orEmpty()
+            val out = ArrayList<String>()
+            reply.readStringList(out)
+            out
         }.orEmpty()
 
     fun getVoices(caller: String, uid: Int): List<SamsungVoice> = voices(3, caller, uid, null)
@@ -182,7 +184,7 @@ class SamsungTtsProxy(private val remote: IBinder) {
         writeString(caller)
         writeInt(uid)
         writeTypedObject(voice, 0)
-        writeCharSequence(text)
+        android.text.TextUtils.writeToParcel(text, this, 0)
         writeInt(queueMode)
         writeTypedObject(params, 0)
         writeString(utterance)

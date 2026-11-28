@@ -32,8 +32,11 @@ class SamsungTtsClient(private val context: Context) {
 
     /** Connects if needed; null when this phone has no such service. */
     private suspend fun connect(): SamsungTtsProxy? {
-        bound?.let { if (it.alive()) return it }
-        unbind()
+        bound?.let { proxy ->
+            if (runCatching { proxy.getSupportLocales(callerName(), Process.myUid()) }.isSuccess) return proxy
+            // The service died: drop the binding so the next call makes a fresh one.
+            unbind()
+        }
         val deferred = CompletableDeferred<IBinder?>()
         val conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -163,9 +166,6 @@ class SamsungTtsClient(private val context: Context) {
         override fun onDisconnected() = Unit
         override fun onVoiceUpdated(voices: List<SamsungVoice>) = Unit
     }
-
-    /** Whether the binder survived; a dead one is replaced on the next call. */
-    private fun SamsungTtsProxy.alive(): Boolean = runCatching { getSupportLocales(callerName(), Process.myUid()) }.isSuccess
 
     companion object {
         const val SAMSUNG_UNAVAILABLE = -100
