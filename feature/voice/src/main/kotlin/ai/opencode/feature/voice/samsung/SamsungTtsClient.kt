@@ -86,8 +86,10 @@ class SamsungTtsClient(private val context: Context) {
         val created = runCatching { proxy.createSynthesizer(caller, uid, NoopInit) }.getOrDefault(-1)
         val voices = runCatching { proxy.getVoices(caller, uid) }.getOrDefault(emptyList())
         val personal = voices.filter { it.isPersonal }
+        val policy = aicorePolicy(caller)
         val lines = buildList {
             add("samsung-tts: synthesizer=$created, ${voices.size} voices, locales=${locales.joinToString(",") { it.take(12) }}")
+            add("  aicore policy: $policy")
             for (voice in voices) {
                 add(
                     "  ${voice.name} | tag=${voice.tag.take(16)} | ${voice.locale?.toLanguageTag()}" +
@@ -98,6 +100,25 @@ class SamsungTtsClient(private val context: Context) {
             if (personal.isEmpty()) add("  no personal voice reported")
         }
         lines.joinToString("\n")
+    }
+
+    /**
+     * What AICore's policy says about the two features the voice service checks. `1` is allowed;
+     * anything else is what `-34` stands for, and knowing which one fails says whether the phone's
+     * policy simply lacks the feature or refuses this caller.
+     */
+    private fun aicorePolicy(caller: String): String {
+        val uri = android.net.Uri.parse("content://com.samsung.android.visual.cloudcore.policy")
+        val results = listOf("FT_TEXT2SPEECH", "FT_PERSONAL_TEXT2SPEECH").map { feature ->
+            val bundle = android.os.Bundle().apply { putString("FEATURE", feature) }
+            val answer = runCatching {
+                context.contentResolver.call(uri, "check_and_verify_feature", caller, bundle)
+            }.getOrNull()
+            val code = answer?.getInt("RESULT_CODE", -1) ?: -1
+            val error = answer?.getString("ERROR")
+            "$feature=$code${if (error != null) "($error)" else ""}"
+        }
+        return results.joinToString(", ")
     }
 
     /**

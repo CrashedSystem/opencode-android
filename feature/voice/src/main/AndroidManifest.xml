@@ -11,9 +11,12 @@
     <!-- Samsung's exported AI text-to-speech, where a "나만의 음성" recording lives. The service
          declares this as `normal`, so the manifest line is the whole grant. -->
     <uses-permission android:name="com.samsung.android.intellivoiceservice.ai.tts.permission.BIND_TEXT_TO_SPEECH_FOR_EXTERNAL" />
+    <!-- The AICore policy the voice service asks about a feature. `normal`, and exported. -->
+    <uses-permission android:name="com.samsung.android.visual.cloudcore.permission.SUPPORTED_FEATURE_PROVIDER" />
     <!-- Needed to see the service at all on Android 11+. -->
     <queries>
         <package android:name="com.samsung.android.intellivoiceservice" />
+        <package android:name="com.samsung.android.visual.cloudcore" />
     </queries>
     <application>
         <service android:name="ai.opencode.feature.voice.VoiceCallService"
