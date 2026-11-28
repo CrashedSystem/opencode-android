@@ -118,24 +118,31 @@ class SamsungTtsClient(private val context: Context) {
      */
     private fun aicorePolicy(caller: String): String {
         val uri = android.net.Uri.parse("content://com.samsung.android.visual.cloudcore.policy")
-        // The policy answers 801 until AICore's terms are agreed; this is the call Samsung's own
-        // clients make before asking about a feature.
         val terms = runCatching {
-            // The manager asks about this feature once, before agreeing, to let the service set up.
             context.contentResolver.call(
                 uri,
                 "check_and_verify_feature",
                 null,
                 android.os.Bundle().apply { putString("FEATURE", "BEFORE_TERMS_AGREEMENT") },
             )
-            val bundle = android.os.Bundle().apply { putBoolean("TERMS_AGREE", true) }
-            context.contentResolver.call(uri, "terms_agreement", null, bundle)
+            context.contentResolver.call(
+                uri,
+                "terms_agreement",
+                null,
+                android.os.Bundle().apply { putBoolean("TERMS_AGREE", true) },
+            )
         }.getOrNull()
         val termsCode = terms?.getInt("RESULT_CODE", -1) ?: -1
+        // `check_and_verify_feature` reads FEATURE from the bundle but PACKAGE_NAME from the arg,
+        // which `PolicyVerifyManager` passes as null — so it can only ever answer "no policy".
+        // `verify_feature` takes both from the bundle and reaches the policy map.
         val results = listOf("FT_TEXT2SPEECH", "FT_PERSONAL_TEXT2SPEECH").map { feature ->
-            val bundle = android.os.Bundle().apply { putString("FEATURE", feature) }
+            val bundle = android.os.Bundle().apply {
+                putString("FEATURE", feature)
+                putString("PACKAGE_NAME", caller)
+            }
             val answer = runCatching {
-                context.contentResolver.call(uri, "check_and_verify_feature", caller, bundle)
+                context.contentResolver.call(uri, "verify_feature", null, bundle)
             }.getOrNull()
             val code = answer?.getInt("RESULT_CODE", -1) ?: -1
             val error = answer?.getString("ERROR")
