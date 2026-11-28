@@ -569,6 +569,8 @@ class SessionFeature : Reducer<SessionFeature.State, SessionFeature.Action> {
             val result: Result<OpenCodeTranscriptPage>,
         ) : Action
         data object SendTapped : Action
+        /** Logs what Samsung's exported TTS offers, including any personal voice. */
+        data object SamsungVoicesTapped : Action
         /** Sends the Send Later share the composer took ([State.sharedSend]). */
         data object SharedSendRequested : Action
         data object QueueTapped : Action

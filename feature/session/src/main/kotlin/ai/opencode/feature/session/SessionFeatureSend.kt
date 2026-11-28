@@ -15,7 +15,10 @@ import ai.opencode.feature.composer.DeliveryOutcome
 import ai.opencode.feature.composer.PendingPrompt
 import ai.opencode.feature.composer.DraftState
 import ai.opencode.core.haptics.Haptic
+import ai.opencode.core.dependencies.AppContext
+import ai.opencode.core.dependencies.dependency
 import ai.opencode.core.log.AppLog
+import ai.opencode.feature.voice.samsung.SamsungTtsClient
 import ai.opencode.core.store.Effect
 import ai.opencode.core.store.Reduced
 import ai.opencode.core.store.cancellable
@@ -72,6 +75,20 @@ internal fun SessionFeature.reduceSending(state: State, action: Action): Reduced
             // Dictated into the draft, then sent: the audio held for another press isn't needed.
             val sent = sendComposer(delivery, state)
             return Reduced(sent.state, Effect.merge(releaseDictationHold(DictationHoldRelease.Sent), sent.effect))
+        }
+
+        Action.SamsungVoicesTapped -> {
+            val client = SamsungTtsClient(dependency(AppContext).applicationContext)
+            return Reduced(
+                state,
+                Effect.run {
+                    AppLog.voice.info { client.describe() }
+                    // Speak with whatever personal voice the phone has, so the answer is heard and
+                    // not only read: a refusal here is the authorization check.
+                    val code = client.speak("삼성 음성 테스트입니다", voice = null, rate = 1.0f)
+                    AppLog.voice.info { "samsung_tts_speak_result $code" }
+                },
+            )
         }
 
         is Action.FailedSendRetryTapped -> {

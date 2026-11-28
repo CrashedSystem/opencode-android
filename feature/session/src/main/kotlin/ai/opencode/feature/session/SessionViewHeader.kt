@@ -573,6 +573,9 @@ private fun SessionMenu(
             MenuItem("Report a Problem", SFSymbol.ExclamationmarkBubble, Modifier.testTag("session-menu-report-problem")) {
                 send(Action.ReportProblemTapped)
             }
+            MenuItem("Samsung Voices", SFSymbol.SpeakerWave2, Modifier.testTag("session-menu-samsung-voices")) {
+                send(Action.SamsungVoicesTapped)
+            }
         }
         if (listContext.isPinned != null) {
             HorizontalDivider()

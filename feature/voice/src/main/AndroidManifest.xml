@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Samsung's exported AI text-to-speech, where a "나만의 음성" recording lives. The service
+         declares this as `normal`, so the manifest line is the whole grant. -->
+    <uses-permission android:name="com.samsung.android.intellivoiceservice.ai.tts.permission.BIND_TEXT_TO_SPEECH_FOR_EXTERNAL" />
+    <!-- Needed to see the service at all on Android 11+. -->
+    <queries>
+        <package android:name="com.samsung.android.intellivoiceservice" />
+    </queries>
     <application>
         <service android:name="ai.opencode.feature.voice.VoiceCallService"
             android:exported="false" android:foregroundServiceType="microphone" />
