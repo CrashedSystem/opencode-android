@@ -82,7 +82,8 @@ internal fun SessionFeature.reduceSending(state: State, action: Action): Reduced
             return Reduced(
                 state,
                 Effect.run {
-                    AppLog.voice.info { client.describe() }
+                    val report = client.describe()
+                    AppLog.voice.info { report }
                     // Speak with whatever personal voice the phone has, so the answer is heard and
                     // not only read: a refusal here is the authorization check.
                     val code = client.speak("삼성 음성 테스트입니다", voice = null, rate = 1.0f)
