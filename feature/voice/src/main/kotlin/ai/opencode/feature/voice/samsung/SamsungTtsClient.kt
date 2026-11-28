@@ -121,8 +121,15 @@ class SamsungTtsClient(private val context: Context) {
         // The policy answers 801 until AICore's terms are agreed; this is the call Samsung's own
         // clients make before asking about a feature.
         val terms = runCatching {
+            // The manager asks about this feature once, before agreeing, to let the service set up.
+            context.contentResolver.call(
+                uri,
+                "check_and_verify_feature",
+                null,
+                android.os.Bundle().apply { putString("FEATURE", "BEFORE_TERMS_AGREEMENT") },
+            )
             val bundle = android.os.Bundle().apply { putBoolean("TERMS_AGREE", true) }
-            context.contentResolver.call(uri, "check_and_verify_terms_agreement", null, bundle)
+            context.contentResolver.call(uri, "terms_agreement", null, bundle)
         }.getOrNull()
         val termsCode = terms?.getInt("RESULT_CODE", -1) ?: -1
         val results = listOf("FT_TEXT2SPEECH", "FT_PERSONAL_TEXT2SPEECH").map { feature ->
